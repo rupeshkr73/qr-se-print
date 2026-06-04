@@ -430,7 +430,7 @@ async function initiatePayment() {
     });
     const data = await res.json();
     if (data.success && data.paymentUrl) {
-      window.location.href = data.paymentUrl;
+      window.location.href = data.redirectUrl;
     } else {
       toast('❌ Payment error: ' + (data.error || 'Try again'));
     }
