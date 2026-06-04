@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Se Print</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Space Grotesk',sans-serif; background:#f5f0e8; min-height:100vh; }
+.wrap { max-width:480px; margin:0 auto; padding:20px 16px 60px; }
+
+.shop-card {
+  background:#0a0a0f; color:#fff; border-radius:20px;
+  padding:20px; margin-bottom:20px; display:flex; gap:14px; align-items:center;
+}
+.shop-icon { width:52px; height:52px; background:#ff4d1c; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0; }
+.shop-name { font-family:'Syne',sans-serif; font-size:18px; font-weight:700; }
+.shop-addr { color:rgba(255,255,255,0.5); font-size:12px; margin-top:3px; }
+.price-row { display:flex; gap:8px; margin-top:10px; }
+.price-badge { padding:4px 10px; border-radius:20px; font-size:12px; font-weight:700; }
+.bw { background:rgba(255,255,255,0.1); }
+.clr { background:#ff4d1c; }
+
+/* Steps */
+.steps { display:flex; margin-bottom:20px; position:relative; }
+.steps::before { content:''; position:absolute; top:13px; left:14px; right:14px; height:2px; background:#e2ddd6; }
+.step { flex:1; text-align:center; position:relative; z-index:1; }
+.dot { width:26px; height:26px; border-radius:50%; background:#e2ddd6; color:#6b6870; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; margin:0 auto 5px; transition:all 0.3s; }
+.step.active .dot { background:#ff4d1c; color:#fff; }
+.step.done .dot { background:#00c853; color:#fff; }
+.step-lbl { font-size:10px; color:#6b6870; font-weight:600; }
+.step.active .step-lbl { color:#ff4d1c; }
+
+/* Upload */
+.upload-zone { border:2.5px dashed #e2ddd6; border-radius:20px; padding:44px 20px; text-align:center; cursor:pointer; background:#fff; position:relative; transition:all 0.2s; }
+.upload-zone:hover { border-color:#1c6fff; background:#f0f4ff; }
+.upload-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
+.upload-icon { font-size:44px; margin-bottom:12px; }
+.upload-zone h3 { font-size:16px; font-weight:700; margin-bottom:6px; }
+.upload-zone p { font-size:13px; color:#6b6870; }
+.ftypes { display:flex; justify-content:center; gap:6px; margin-top:12px; }
+.ft { padding:3px 9px; background:#f5f0e8; border-radius:6px; font-size:11px; font-weight:700; color:#6b6870; }
+
+/* Card */
+.card { background:#fff; border-radius:20px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.07); margin-bottom:14px; }
+.card-head { padding:14px 18px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f0ebe3; }
+.card-head h3 { font-size:15px; font-weight:700; }
+.card-body { padding:16px 18px; }
+
+/* Preview */
+.preview-wrap { background:#f8f7f5; border-radius:12px; padding:16px; text-align:center; min-height:200px; display:flex; align-items:center; justify-content:center; }
+#preview-canvas, #preview-img { max-width:100%; max-height:280px; border-radius:8px; box-shadow:0 6px 24px rgba(0,0,0,0.1); }
+
+/* Quality */
+.quality { border-radius:14px; padding:16px; display:flex; gap:12px; align-items:flex-start; margin-bottom:12px; }
+.quality.good { background:#e8f9ef; border:1.5px solid #a3e6bc; }
+.quality.warn { background:#fff8e8; border:1.5px solid #ffd97a; }
+.quality.bad { background:#fff0ed; border:1.5px solid #ffb3a0; }
+.q-icon { font-size:26px; flex-shrink:0; }
+.q-title { font-size:14px; font-weight:700; margin-bottom:3px; }
+.q-desc { font-size:12px; color:#6b6870; line-height:1.5; }
+
+/* Buttons */
+.btn-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.btn { padding:13px; border-radius:12px; border:none; cursor:pointer; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center; gap:7px; transition:all 0.2s; }
+.btn-blue { background:linear-gradient(135deg,#1c6fff,#0047cc); color:#fff; }
+.btn-green { background:linear-gradient(135deg,#00c853,#009624); color:#fff; }
+.btn-primary { background:#ff4d1c; color:#fff; width:100%; }
+.btn-primary:hover { background:#e03d0e; }
+.btn:hover { transform:translateY(-1px); }
+
+/* Options */
+.option-row { display:flex; align-items:center; justify-content:space-between; padding:13px 0; border-bottom:1px solid #f0ebe3; }
+.option-row:last-child { border:none; }
+.opt-lbl { font-size:14px; font-weight:600; }
+.opt-sub { font-size:11px; color:#6b6870; }
+.tog { display:flex; gap:5px; }
+.tog-btn { padding:6px 12px; border-radius:8px; border:1.5px solid #e2ddd6; background:#fff; font-size:12px; font-weight:700; cursor:pointer; font-family:'Space Grotesk',sans-serif; transition:all 0.15s; }
+.tog-btn.on { background:#0a0a0f; color:#fff; border-color:#0a0a0f; }
+
+/* Payment */
+.pay-card { background:#0a0a0f; border-radius:20px; padding:22px; color:#fff; margin-bottom:14px; }
+.pay-card h3 { font-family:'Syne',sans-serif; font-size:18px; margin-bottom:14px; }
+.pay-line { display:flex; justify-content:space-between; font-size:13px; color:rgba(255,255,255,0.55); margin-bottom:7px; }
+.pay-line.total { color:#fff; font-weight:700; font-size:17px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.1); margin-top:6px; }
+.pay-btn { width:100%; padding:15px; border-radius:14px; background:#ff4d1c; color:#fff; border:none; font-family:'Syne',sans-serif; font-size:18px; font-weight:800; cursor:pointer; margin-top:14px; }
+.pms { display:flex; gap:8px; justify-content:center; margin-top:12px; }
+.pm { padding:5px 12px; background:rgba(255,255,255,0.08); border-radius:8px; font-size:11px; color:rgba(255,255,255,0.55); font-weight:600; }
+
+/* Success */
+.success { display:none; text-align:center; background:#fff; border-radius:24px; padding:40px 20px; }
+.success-icon { width:72px; height:72px; border-radius:50%; background:linear-gradient(135deg,#00c853,#69f0ae); display:flex; align-items:center; justify-content:center; font-size:36px; margin:0 auto 20px; animation:pop 0.5s cubic-bezier(0.175,0.885,0.32,1.275); }
+@keyframes pop { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
+.success h2 { font-family:'Syne',sans-serif; font-size:24px; margin-bottom:6px; }
+.success p { color:#6b6870; font-size:14px; }
+.order-id { display:inline-block; margin-top:12px; padding:7px 18px; background:#f5f0e8; border-radius:10px; font-size:12px; font-weight:700; color:#6b6870; letter-spacing:1px; }
+.print-status { margin-top:20px; padding:14px; background:#e8f9ef; border-radius:14px; display:flex; align-items:center; gap:10px; text-align:left; }
+.ps-icon { font-size:22px; }
+.ps-title { font-size:13px; font-weight:700; color:#00c853; }
+.ps-sub { font-size:11px; color:#6b6870; }
+
+/* Crop overlay */
+.overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:200; align-items:center; justify-content:center; padding:16px; }
+.overlay.show { display:flex; }
+.crop-modal { background:#fff; border-radius:20px; padding:24px; max-width:440px; width:100%; max-height:90vh; overflow-y:auto; }
+.crop-modal h3 { font-family:'Syne',sans-serif; font-size:18px; margin-bottom:4px; }
+.crop-modal p { font-size:12px; color:#6b6870; margin-bottom:16px; }
+#crop-canvas { max-width:100%; border-radius:8px; }
+.crop-actions { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.crop-btn { flex:1; padding:10px; border-radius:10px; border:1.5px solid #e2ddd6; background:#fff; font-size:12px; font-weight:700; cursor:pointer; font-family:'Space Grotesk',sans-serif; }
+.crop-btn.on { background:#0a0a0f; color:#fff; border-color:#0a0a0f; }
+.crop-btns-row { display:flex; gap:10px; }
+
+/* Toast */
+.toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(80px); background:#0a0a0f; color:#fff; padding:12px 22px; border-radius:12px; font-size:13px; font-weight:600; z-index:300; transition:transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275); white-space:nowrap; }
+.toast.show { transform:translateX(-50%) translateY(0); }
+
+/* Hidden */
+.hidden { display:none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Shop Info -->
+  <div class="shop-card">
+    <div class="shop-icon">🖨️</div>
+    <div>
+      <div class="shop-name" id="shopName">Loading...</div>
+      <div class="shop-addr" id="shopAddr">📍 ...</div>
+      <div class="price-row">
+        <span class="price-badge bw" id="priceBW">B&W: ₹5/page</span>
+        <span class="price-badge clr" id="priceColor">Color: ₹10/page</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Steps -->
+  <div class="steps">
+    <div class="step active" id="s1"><div class="dot">1</div><div class="step-lbl">Upload</div></div>
+    <div class="step" id="s2"><div class="dot">2</div><div class="step-lbl">Check</div></div>
+    <div class="step" id="s3"><div class="dot">3</div><div class="step-lbl">Options</div></div>
+    <div class="step" id="s4"><div class="dot">4</div><div class="step-lbl">Pay</div></div>
+  </div>
+
+  <!-- Upload -->
+  <div id="secUpload">
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFile(this)">
+      <div class="upload-icon">📄</div>
+      <h3>Document Upload Karo</h3>
+      <p>Click karo ya drag & drop karo</p>
+      <div class="ftypes">
+        <span class="ft">PDF</span><span class="ft">JPG</span><span class="ft">PNG</span><span class="ft">DOCX</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Preview -->
+  <div id="secPreview" class="hidden">
+    <div class="card">
+      <div class="card-head">
+        <h3>📋 Preview</h3>
+        <span id="fileName" style="font-size:12px;color:#6b6870;"></span>
+      </div>
+      <div class="card-body">
+        <div class="preview-wrap">
+          <canvas id="preview-canvas" style="display:none;"></canvas>
+          <img id="preview-img" style="display:none;">
+          <div id="previewLoading">⏳ Load ho raha hai...</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="quality good" id="qualityCard">
+      <div class="q-icon" id="qIcon">✅</div>
+      <div>
+        <div class="q-title" id="qTitle">Document theek hai!</div>
+        <div class="q-desc" id="qDesc">A4 size ke liye ready hai.</div>
+      </div>
+    </div>
+
+    <div class="btn-row" id="actionBtns">
+      <button class="btn btn-blue" onclick="openCrop()">✂️ Crop/Fix</button>
+      <button class="btn btn-green" onclick="goOptions()">✅ Theek Hai</button>
+    </div>
+  </div>
+
+  <!-- Options -->
+  <div id="secOptions" class="hidden">
+    <div class="card">
+      <div class="card-head"><h3>⚙️ Print Options</h3></div>
+      <div class="card-body">
+        <div class="option-row">
+          <div><div class="opt-lbl">Type</div><div class="opt-sub">Color ya B&W</div></div>
+          <div class="tog">
+            <button class="tog-btn on" id="btnBW" onclick="setColor('bw')">B&W</button>
+            <button class="tog-btn" id="btnColor" onclick="setColor('color')">Color</button>
+          </div>
+        </div>
+        <div class="option-row">
+          <div><div class="opt-lbl">Copies</div><div class="opt-sub">Kitni copies</div></div>
+          <div class="tog">
+            <button class="tog-btn" onclick="setCopies(-1)">−</button>
+            <button class="tog-btn on" id="copiesDisplay" style="min-width:36px;">1</button>
+            <button class="tog-btn" onclick="setCopies(1)">+</button>
+          </div>
+        </div>
+        <div class="option-row">
+          <div><div class="opt-lbl">Size</div><div class="opt-sub">Page size</div></div>
+          <div class="tog"><button class="tog-btn on">A4</button></div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:14px;" onclick="goPayment()">Payment Pe Jao →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment -->
+  <div id="secPayment" class="hidden">
+    <div class="pay-card">
+      <h3>💳 Payment</h3>
+      <div class="pay-line"><span id="payType">B&W × 1 page</span><span id="payBase">₹5</span></div>
+      <div class="pay-line"><span id="payCopies">1 copy</span><span id="payCopiesAmt">× ₹5</span></div>
+      <div class="pay-line total"><span>Total</span><span id="payTotal">₹5</span></div>
+      <button class="pay-btn" onclick="initiatePayment()">Pay <span id="payBtn">₹5</span></button>
+      <div class="pms">
+        <span class="pm">📱 PhonePe</span>
+        <span class="pm">💳 UPI</span>
+        <span class="pm">🏦 GPay</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Success -->
+  <div class="success" id="secSuccess">
+    <div class="success-icon">✓</div>
+    <h2>Payment Ho Gaya!</h2>
+    <p>Print request printer ko bhej di gayi hai</p>
+    <div class="order-id" id="orderId">ORDER #...</div>
+    <div class="print-status">
+      <div class="ps-icon" id="psIcon">⚙️</div>
+      <div>
+        <div class="ps-title" id="psTitle">Printing...</div>
+        <div class="ps-sub" id="psSub">1-2 minute mein print nikal aayega</div>
+      </div>
+    </div>
+    <button class="btn btn-primary" style="margin-top:16px;" onclick="location.reload()">Naya Print</button>
+  </div>
+
+</div>
+
+<!-- Crop overlay -->
+<div class="overlay" id="cropOverlay">
+  <div class="crop-modal">
+    <h3>✂️ Crop & Fix</h3>
+    <p>Document ko A4 size mein adjust karo</p>
+    <div style="background:#f0f0f0;border-radius:12px;padding:12px;text-align:center;margin-bottom:14px;">
+      <canvas id="crop-canvas"></canvas>
+    </div>
+    <div class="crop-actions">
+      <button class="crop-btn" id="cbAuto" onclick="applyCrop('auto')">🤖 Auto A4</button>
+      <button class="crop-btn" id="cbRotate" onclick="applyCrop('rotate')">🔄 Rotate</button>
+      <button class="crop-btn" id="cbBright" onclick="applyCrop('bright')">☀️ Brighten</button>
+    </div>
+    <div class="crop-btns-row">
+      <button class="btn btn-primary" style="flex:1;" onclick="confirmCrop()">✅ Apply</button>
+      <button class="btn" style="border:2px solid #e2ddd6;flex:0.5;" onclick="closeCrop()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// State
+const shopId = location.pathname.split('/').pop();
+let state = { colorMode:'bw', copies:1, jobId:null, priceBW:5, priceColor:10, rotation:0 };
+
+// Load shop info
+async function loadShop() {
+  try {
+    const res = await fetch(`/api/shop/${shopId}`);
+    const shop = await res.json();
+    document.getElementById('shopName').textContent = shop.name;
+    document.getElementById('shopAddr').textContent = '📍 ' + (shop.address || '');
+    document.getElementById('priceBW').textContent = `B&W: ₹${shop.price_bw}/page`;
+    document.getElementById('priceColor').textContent = `Color: ₹${shop.price_color}/page`;
+    state.priceBW = shop.price_bw;
+    state.priceColor = shop.price_color;
+  } catch(e) { toast('Shop load nahi hua'); }
+}
+
+// File handle
+async function handleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const ext = file.name.split('.').pop().toLowerCase();
+  document.getElementById('fileName').textContent = file.name;
+  show('secPreview');
+  hide('secUpload');
+  setStep(2);
+
+  if (ext === 'pdf') await loadPDF(file);
+  else if (['jpg','jpeg','png'].includes(ext)) loadImg(file);
+  else loadGeneric(file.name);
+
+  // Upload to server
+  toast('📤 File upload ho rahi hai...');
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('shopId', shopId);
+  fd.append('copies', state.copies);
+  fd.append('colorMode', state.colorMode);
+  try {
+    const res = await fetch('/api/upload', { method:'POST', body:fd });
+    const data = await res.json();
+    if (data.success) { state.jobId = data.jobId; toast('✅ File upload ho gayi!'); }
+    else toast('❌ Upload failed: ' + data.error);
+  } catch(e) { toast('❌ Upload error'); }
+}
+
+async function loadPDF(file) {
+  document.getElementById('previewLoading').style.display = 'block';
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const pdf = await pdfjsLib.getDocument({ data: e.target.result }).promise;
+      const page = await pdf.getPage(1);
+      const vp = page.getViewport({ scale: 1.3 });
+      const canvas = document.getElementById('preview-canvas');
+      canvas.width = vp.width; canvas.height = vp.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+      canvas.style.display = 'block';
+      document.getElementById('previewLoading').style.display = 'none';
+      checkQuality(canvas.width / canvas.height);
+    } catch(err) { loadGeneric('document.pdf'); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function loadImg(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = document.getElementById('preview-img');
+    img.src = e.target.result;
+    img.style.display = 'block';
+    document.getElementById('previewLoading').style.display = 'none';
+    img.onload = () => checkQuality(img.naturalWidth / img.naturalHeight);
+  };
+  reader.readAsDataURL(file);
+}
+
+function loadGeneric(name) {
+  const canvas = document.getElementById('preview-canvas');
+  canvas.width = 240; canvas.height = 320; canvas.style.display = 'block';
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#f8f7f5'; ctx.fillRect(0,0,240,320);
+  ctx.fillStyle = '#e2ddd6'; ctx.fillRect(10,10,220,300);
+  ctx.fillStyle = '#0a0a0f'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('📄 ' + name, 120, 155);
+  ctx.fillStyle = '#6b6870'; ctx.font = '12px sans-serif';
+  ctx.fillText('Print Ready', 120, 180);
+  document.getElementById('previewLoading').style.display = 'none';
+  checkQuality(240/320);
+}
+
+function checkQuality(ratio) {
+  const diff = Math.abs(ratio - 210/297);
+  const card = document.getElementById('qualityCard');
+  const icon = document.getElementById('qIcon');
+  const title = document.getElementById('qTitle');
+  const desc = document.getElementById('qDesc');
+  card.className = 'quality';
+  if (diff < 0.08) {
+    card.classList.add('good'); icon.textContent = '✅';
+    title.textContent = 'Document perfect hai!';
+    desc.textContent = 'A4 size mein bilkul sahi fit hoga.';
+  } else if (diff < 0.25) {
+    card.classList.add('warn'); icon.textContent = '⚠️';
+    title.textContent = 'Thoda adjust karna hoga';
+    desc.textContent = 'Auto-crop karo ya direct print karo.';
+  } else {
+    card.classList.add('bad'); icon.textContent = '❌';
+    title.textContent = 'Crop/Fix karna zaroori hai';
+    desc.textContent = 'Document ka size A4 se kaafi alag hai. Auto-fix recommend hai.';
+  }
+}
+
+function goOptions() { hide('secPreview'); show('secOptions'); setStep(3); updatePrice(); }
+
+function goPayment() { hide('secOptions'); show('secPayment'); setStep(4); updatePrice(); }
+
+function setColor(mode) {
+  state.colorMode = mode;
+  document.getElementById('btnBW').className = 'tog-btn' + (mode==='bw'?' on':'');
+  document.getElementById('btnColor').className = 'tog-btn' + (mode==='color'?' on':'');
+  updatePrice();
+}
+
+function setCopies(d) {
+  state.copies = Math.max(1, Math.min(20, state.copies + d));
+  document.getElementById('copiesDisplay').textContent = state.copies;
+  updatePrice();
+}
+
+function updatePrice() {
+  const price = state.colorMode === 'bw' ? state.priceBW : state.priceColor;
+  const total = price * state.copies;
+  const type = state.colorMode === 'bw' ? 'B&W' : 'Color';
+  document.getElementById('payType').textContent = `${type} × 1 page`;
+  document.getElementById('payBase').textContent = `₹${price}`;
+  document.getElementById('payCopies').textContent = `${state.copies} cop${state.copies>1?'ies':'y'}`;
+  document.getElementById('payCopiesAmt').textContent = `× ₹${price}`;
+  document.getElementById('payTotal').textContent = `₹${total}`;
+  document.getElementById('payBtn').textContent = `₹${total}`;
+}
+
+async function initiatePayment() {
+  if (!state.jobId) { toast('❌ Pehle file upload karo'); return; }
+  toast('💳 Payment shuru ho rahi hai...');
+  try {
+    const res = await fetch('/api/payment/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ jobId: state.jobId })
+    });
+    const data = await res.json();
+    if (data.success && data.paymentUrl) {
+      window.location.href = data.paymentUrl;
+    } else {
+      toast('❌ Payment error: ' + (data.error || 'Try again'));
+    }
+  } catch(e) { toast('❌ Network error'); }
+}
+
+// Crop
+let cropRotation = 0;
+function openCrop() {
+  document.getElementById('cropOverlay').classList.add('show');
+  const cc = document.getElementById('crop-canvas');
+  const src = document.getElementById('preview-canvas').style.display !== 'none'
+    ? document.getElementById('preview-canvas')
+    : document.getElementById('preview-img');
+  cc.width = 320;
+  cc.height = Math.round(320 * (src.height || src.naturalHeight) / (src.width || src.naturalWidth));
+  cc.getContext('2d').drawImage(src, 0, 0, cc.width, cc.height);
+  drawGuide();
+}
+function drawGuide() {
+  const cc = document.getElementById('crop-canvas');
+  const ctx = cc.getContext('2d');
+  ctx.strokeStyle = 'rgba(255,77,28,0.7)'; ctx.lineWidth = 2; ctx.setLineDash([5,3]);
+  ctx.strokeRect(10, 10, cc.width-20, cc.height-20);
+}
+function applyCrop(mode) {
+  const cc = document.getElementById('crop-canvas');
+  const ctx = cc.getContext('2d');
+  const src = document.getElementById('preview-canvas').style.display !== 'none'
+    ? document.getElementById('preview-canvas') : document.getElementById('preview-img');
+  if (mode === 'auto') {
+    const a4H = Math.round(cc.width * 297/210);
+    ctx.clearRect(0,0,cc.width,cc.height);
+    ctx.drawImage(src, 0, 0, cc.width, a4H);
+    cc.height = a4H;
+    toast('🤖 Auto A4 ho gaya!');
+  } else if (mode === 'rotate') {
+    cropRotation = (cropRotation + 90) % 360;
+    ctx.save(); ctx.clearRect(0,0,cc.width,cc.height);
+    ctx.translate(cc.width/2, cc.height/2);
+    ctx.rotate(cropRotation * Math.PI/180);
+    ctx.drawImage(src, -cc.width/2, -cc.height/2, cc.width, cc.height);
+    ctx.restore();
+    toast(`🔄 ${cropRotation}° rotate!`);
+  } else if (mode === 'bright') {
+    const imageData = ctx.getImageData(0,0,cc.width,cc.height);
+    const d = imageData.data;
+    for (let i=0; i<d.length; i+=4) { d[i]=Math.min(255,d[i]*1.2); d[i+1]=Math.min(255,d[i+1]*1.2); d[i+2]=Math.min(255,d[i+2]*1.2); }
+    ctx.putImageData(imageData, 0, 0);
+    toast('☀️ Brighten ho gaya!');
+  }
+  drawGuide();
+}
+function confirmCrop() {
+  const cc = document.getElementById('crop-canvas');
+  const pc = document.getElementById('preview-canvas');
+  pc.width = cc.width; pc.height = cc.height;
+  pc.getContext('2d').drawImage(cc, 0, 0);
+  pc.style.display = 'block';
+  document.getElementById('preview-img').style.display = 'none';
+  closeCrop();
+  document.getElementById('qualityCard').className = 'quality good';
+  document.getElementById('qIcon').textContent = '✅';
+  document.getElementById('qTitle').textContent = 'Fix ho gaya!';
+  document.getElementById('qDesc').textContent = 'Ab print ke liye ready hai.';
+  toast('✅ Crop apply ho gaya!');
+}
+function closeCrop() { document.getElementById('cropOverlay').classList.remove('show'); }
+
+// Steps
+function setStep(n) {
+  for (let i=1; i<=4; i++) {
+    const s = document.getElementById('s'+i);
+    s.className = 'step' + (i<n?' done':i===n?' active':'');
+    s.querySelector('.dot').textContent = i<n ? '✓' : i;
+  }
+}
+
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden'); }
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Check if coming back from payment
+const urlParams = new URLSearchParams(location.search);
+const jobIdParam = urlParams.get('jobId');
+if (jobIdParam) {
+  hide('secUpload');
+  document.getElementById('secSuccess').style.display = 'block';
+  document.getElementById('orderId').textContent = 'ORDER #' + jobIdParam;
+  // Poll status
+  let pollCount = 0;
+  const poll = setInterval(async () => {
+    try {
+      const res = await fetch(`/api/jobs/status/${jobIdParam}`);
+      const data = await res.json();
+      pollCount++;
+      if (data.status === 'printed') {
+        document.getElementById('psIcon').textContent = '✅';
+        document.getElementById('psTitle').textContent = 'Print Complete!';
+        document.getElementById('psSub').textContent = 'Aapka print nikal aa gaya!';
+        clearInterval(poll);
+      } else if (pollCount > 24) clearInterval(poll);
+    } catch(e) {}
+  }, 5000);
+}
+
+loadShop();
+updatePrice();
+
+// Drag & drop
+const uz = document.getElementById('uploadZone');
+uz.addEventListener('dragover', e => { e.preventDefault(); uz.style.borderColor = '#1c6fff'; });
+uz.addEventListener('dragleave', () => { uz.style.borderColor = '#e2ddd6'; });
+uz.addEventListener('drop', e => {
+  e.preventDefault(); uz.style.borderColor = '#e2ddd6';
+  if (e.dataTransfer.files[0]) {
+    const inp = document.getElementById('fileInput');
+    const dt = new DataTransfer(); dt.items.add(e.dataTransfer.files[0]);
+    inp.files = dt.files; handleFile(inp);
+  }
+});
+</script>
+</body>
+</html>

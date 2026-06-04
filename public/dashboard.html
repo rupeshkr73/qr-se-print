@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Se Print - Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Space Grotesk',sans-serif; background:#f5f0e8; min-height:100vh; }
+nav { background:#0a0a0f; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; }
+.logo { font-family:'Syne',sans-serif; font-size:20px; font-weight:800; color:#fff; }
+.logo span { color:#ff4d1c; }
+.nav-link { color:rgba(255,255,255,0.5); font-size:13px; font-weight:600; text-decoration:none; }
+
+.hero { background:#0a0a0f; color:#fff; padding:40px 24px 56px; }
+.hero h1 { font-family:'Syne',sans-serif; font-size:30px; font-weight:800; margin-bottom:6px; }
+.hero p { color:rgba(255,255,255,0.5); font-size:14px; }
+
+.body { max-width:860px; margin:-24px auto 40px; padding:0 16px; }
+
+.stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px; }
+.stat { background:#fff; border-radius:16px; padding:18px; box-shadow:0 2px 12px rgba(0,0,0,0.06); }
+.stat-lbl { font-size:11px; color:#6b6870; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; }
+.stat-val { font-family:'Syne',sans-serif; font-size:26px; font-weight:800; }
+.green { color:#00c853; }
+.orange { color:#ff4d1c; }
+
+.card { background:#fff; border-radius:20px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:16px; }
+.card h2 { font-family:'Syne',sans-serif; font-size:17px; font-weight:700; margin-bottom:18px; display:flex; align-items:center; gap:10px; }
+.badge { width:26px; height:26px; border-radius:50%; background:#ff4d1c; color:#fff; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
+.form-group { display:flex; flex-direction:column; gap:5px; }
+label { font-size:11px; font-weight:600; color:#6b6870; text-transform:uppercase; letter-spacing:0.5px; }
+input, select { padding:11px 13px; border:1.5px solid #e2ddd6; border-radius:10px; font-family:'Space Grotesk',sans-serif; font-size:14px; outline:none; transition:border-color 0.2s; }
+input:focus, select:focus { border-color:#1c6fff; }
+.price-wrap { position:relative; }
+.price-wrap span { position:absolute; left:13px; top:50%; transform:translateY(-50%); font-weight:700; color:#6b6870; }
+.price-wrap input { padding-left:26px; }
+
+.btn-primary { background:#ff4d1c; color:#fff; border:none; border-radius:12px; padding:14px 24px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px; cursor:pointer; width:100%; transition:all 0.2s; }
+.btn-primary:hover { background:#e03d0e; transform:translateY(-1px); }
+.btn-secondary { background:#0a0a0f; color:#fff; border:none; border-radius:10px; padding:10px 20px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13px; cursor:pointer; }
+
+/* QR */
+.qr-result { display:none; background:linear-gradient(135deg,#0a0a0f,#1a1a2e); border-radius:20px; padding:28px; color:#fff; text-align:center; margin-top:16px; }
+.qr-result h3 { font-family:'Syne',sans-serif; font-size:20px; margin-bottom:6px; }
+.qr-result p { color:rgba(255,255,255,0.5); font-size:13px; margin-bottom:20px; }
+#qrImage { background:#fff; padding:12px; border-radius:14px; display:inline-block; margin-bottom:16px; }
+#qrImage img { display:block; width:180px; height:180px; }
+.qr-url { background:rgba(255,255,255,0.08); border-radius:10px; padding:10px 14px; font-size:12px; color:rgba(255,255,255,0.7); margin-bottom:16px; word-break:break-all; }
+.qr-actions { display:flex; gap:10px; justify-content:center; }
+
+/* Shop ID box */
+.shop-id-box { background:#e8f9ef; border:1.5px solid #a3e6bc; border-radius:14px; padding:16px; margin-top:14px; }
+.shop-id-box h4 { font-size:13px; font-weight:700; color:#00c853; margin-bottom:6px; }
+.shop-id-val { font-family:monospace; font-size:16px; font-weight:700; color:#0a0a0f; letter-spacing:1px; }
+.shop-id-box p { font-size:11px; color:#6b6870; margin-top:6px; }
+
+/* Jobs table */
+.jobs-table { width:100%; border-collapse:collapse; }
+.jobs-table th { text-align:left; font-size:11px; font-weight:600; color:#6b6870; text-transform:uppercase; padding:0 0 10px; }
+.jobs-table td { padding:10px 0; border-bottom:1px solid #f0ebe3; font-size:13px; }
+.status { padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
+.status.printed { background:#e8f9ef; color:#00c853; }
+.status.queued { background:#fff8e8; color:#ff8f00; }
+.status.pending { background:#f0ebe3; color:#6b6870; }
+.status.failed { background:#fff0ed; color:#ff4d1c; }
+
+@media(max-width:600px) {
+  .form-grid { grid-template-columns:1fr; }
+  .stats { grid-template-columns:1fr 1fr; }
+}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">QR Se <span>Print</span></div>
+  <a class="nav-link" href="/">Home</a>
+</nav>
+
+<div class="hero">
+  <h1>Shop Dashboard</h1>
+  <p>Apni dukan setup karo aur QR Code banao</p>
+</div>
+
+<div class="body">
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat"><div class="stat-lbl">Aaj Prints</div><div class="stat-val orange" id="todayPrints">0</div></div>
+    <div class="stat"><div class="stat-lbl">Aaj Kamai</div><div class="stat-val green" id="todayEarn">₹0</div></div>
+    <div class="stat"><div class="stat-lbl">Total Orders</div><div class="stat-val" id="totalOrders">0</div></div>
+  </div>
+
+  <!-- Setup -->
+  <div class="card">
+    <h2><div class="badge">1</div> Shop Setup</h2>
+    <div class="form-grid">
+      <div class="form-group"><label>Shop Ka Naam *</label><input id="shopName" placeholder="Sharma Print Shop"></div>
+      <div class="form-group"><label>Printer Model</label>
+        <select id="printerModel">
+          <option>Epson L8050</option><option>Epson L3210</option>
+          <option>HP DeskJet 2776</option><option>Canon PIXMA G2010</option>
+          <option>Brother DCP-T226</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="form-group"><label>Address</label><input id="shopAddr" placeholder="Shop address"></div>
+      <div class="form-group"><label>Phone</label><input id="shopPhone" placeholder="+91 XXXXX XXXXX"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><div class="badge">2</div> Pricing</h2>
+    <div class="form-grid">
+      <div class="form-group"><label>B&W (per page)</label>
+        <div class="price-wrap"><span>₹</span><input type="number" id="priceBW" value="5" min="1" max="100"></div>
+      </div>
+      <div class="form-group"><label>Color (per page)</label>
+        <div class="price-wrap"><span>₹</span><input type="number" id="priceColor" value="10" min="1" max="200"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2><div class="badge">3</div> PhonePe Payment Setup</h2>
+    <div class="form-grid">
+      <div class="form-group"><label>Merchant ID</label><input id="merchantId" placeholder="PGTESTPAYUAT" type="password"></div>
+      <div class="form-group"><label>Salt Key</label><input id="saltKey" placeholder="Salt key from PhonePe" type="password"></div>
+    </div>
+    <p style="font-size:12px;color:#6b6870;">PhonePe Business dashboard se milega. Abhi khali chhod sakte ho — baad mein add karo.</p>
+  </div>
+
+  <div class="card">
+    <h2><div class="badge">4</div> QR Code Generate Karo</h2>
+    <button class="btn-primary" onclick="registerShop()">⚡ Register & QR Generate Karo</button>
+
+    <div class="qr-result" id="qrResult">
+      <h3>🎉 QR Code Ready!</h3>
+      <p>Is QR Code ko print karke shop ke bahar lagao</p>
+      <div id="qrImage"></div>
+      <div class="qr-url" id="qrUrl"></div>
+      <div class="qr-actions">
+        <button class="btn-secondary" onclick="downloadQR()">⬇️ Download</button>
+        <button class="btn-secondary" onclick="copyUrl()">🔗 URL Copy</button>
+      </div>
+      <div class="shop-id-box">
+        <h4>✅ Aapka Shop ID (Save Karo!)</h4>
+        <div class="shop-id-val" id="shopIdDisplay">---</div>
+        <p>Yeh ID print agent mein daalni hai. Copy karke safe jagah save karo.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recent Jobs -->
+  <div class="card" id="jobsCard" style="display:none;">
+    <h2>📋 Recent Print Jobs</h2>
+    <table class="jobs-table">
+      <thead><tr><th>File</th><th>Amount</th><th>Time</th><th>Status</th></tr></thead>
+      <tbody id="jobsList"></tbody>
+    </table>
+  </div>
+
+</div>
+
+<script>
+let currentShopId = localStorage.getItem('qrprint_shopId');
+let qrDataUrl = null;
+
+// Auto-load if shop exists
+if (currentShopId) loadDashboard(currentShopId);
+
+async function registerShop() {
+  const name = document.getElementById('shopName').value.trim();
+  if (!name) { alert('Shop ka naam zaroori hai!'); return; }
+
+  const btn = document.querySelector('.btn-primary');
+  btn.textContent = '⏳ Register ho raha hai...';
+  btn.disabled = true;
+
+  try {
+    const res = await fetch('/api/shop/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        address: document.getElementById('shopAddr').value,
+        phone: document.getElementById('shopPhone').value,
+        printer_model: document.getElementById('printerModel').value,
+        price_bw: parseInt(document.getElementById('priceBW').value),
+        price_color: parseInt(document.getElementById('priceColor').value),
+        phonepe_merchant_id: document.getElementById('merchantId').value,
+        phonepe_salt_key: document.getElementById('saltKey').value
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      currentShopId = data.shopId;
+      localStorage.setItem('qrprint_shopId', currentShopId);
+      showQR(data.qrCode, data.qrUrl, data.shopId);
+      loadDashboard(currentShopId);
+    } else {
+      alert('Error: ' + data.error);
+    }
+  } catch(e) {
+    alert('Network error: ' + e.message);
+  }
+  btn.textContent = '⚡ Register & QR Generate Karo';
+  btn.disabled = false;
+}
+
+function showQR(qrCode, qrUrl, shopId) {
+  document.getElementById('qrResult').style.display = 'block';
+  const img = document.createElement('img');
+  img.src = qrCode;
+  document.getElementById('qrImage').innerHTML = '';
+  document.getElementById('qrImage').appendChild(img);
+  qrDataUrl = qrCode;
+  document.getElementById('qrUrl').textContent = qrUrl;
+  document.getElementById('shopIdDisplay').textContent = shopId;
+}
+
+function downloadQR() {
+  if (!qrDataUrl) return;
+  const a = document.createElement('a');
+  a.download = 'qr-se-print-code.png';
+  a.href = qrDataUrl; a.click();
+}
+
+function copyUrl() {
+  const url = document.getElementById('qrUrl').textContent;
+  navigator.clipboard.writeText(url).then(() => alert('✅ URL copy ho gaya!'));
+}
+
+async function loadDashboard(shopId) {
+  try {
+    const res = await fetch(`/api/shop/${shopId}/stats`);
+    const stats = await res.json();
+    document.getElementById('todayPrints').textContent = stats.today_prints || 0;
+    document.getElementById('todayEarn').textContent = '₹' + (stats.today_earnings || 0);
+    document.getElementById('totalOrders').textContent = stats.total_orders || 0;
+  } catch(e) {}
+}
+
+// Auto refresh stats every 30s
+if (currentShopId) setInterval(() => loadDashboard(currentShopId), 30000);
+</script>
+</body>
+</html>

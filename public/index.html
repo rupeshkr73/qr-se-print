@@ -1,1 +1,139 @@
-hello
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Se Print - Smart Print System</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Space Grotesk',sans-serif; background:#f5f0e8; }
+nav { background:#0a0a0f; padding:16px 32px; display:flex; align-items:center; justify-content:space-between; }
+.logo { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:#fff; }
+.logo span { color:#ff4d1c; }
+.nav-btn { background:#ff4d1c; color:#fff; border:none; border-radius:10px; padding:10px 20px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:14px; cursor:pointer; text-decoration:none; }
+
+.hero { background:#0a0a0f; color:#fff; padding:80px 24px; text-align:center; position:relative; overflow:hidden; }
+.hero::before { content:''; position:absolute; top:-100px; left:50%; transform:translateX(-50%); width:600px; height:600px; background:radial-gradient(circle, rgba(255,77,28,0.15) 0%, transparent 70%); }
+.hero h1 { font-family:'Syne',sans-serif; font-size:48px; font-weight:800; margin-bottom:16px; line-height:1.1; position:relative; }
+.hero h1 span { color:#ff4d1c; }
+.hero p { color:rgba(255,255,255,0.6); font-size:18px; margin-bottom:32px; position:relative; }
+.hero-btns { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; position:relative; }
+.btn-hero { padding:16px 32px; border-radius:14px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px; cursor:pointer; border:none; text-decoration:none; }
+.btn-red { background:#ff4d1c; color:#fff; }
+.btn-outline { background:transparent; color:#fff; border:2px solid rgba(255,255,255,0.2); }
+
+.how { padding:64px 24px; max-width:860px; margin:0 auto; }
+.how h2 { font-family:'Syne',sans-serif; font-size:32px; font-weight:800; text-align:center; margin-bottom:40px; }
+.steps-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }
+.step-card { text-align:center; }
+.step-num { width:48px; height:48px; border-radius:50%; background:#ff4d1c; color:#fff; font-family:'Syne',sans-serif; font-size:20px; font-weight:800; display:flex; align-items:center; justify-content:center; margin:0 auto 14px; }
+.step-card h3 { font-size:15px; font-weight:700; margin-bottom:6px; }
+.step-card p { font-size:13px; color:#6b6870; line-height:1.5; }
+
+.features { background:#0a0a0f; padding:64px 24px; }
+.features-inner { max-width:860px; margin:0 auto; }
+.features h2 { font-family:'Syne',sans-serif; font-size:32px; font-weight:800; color:#fff; text-align:center; margin-bottom:40px; }
+.feat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+.feat-card { background:rgba(255,255,255,0.05); border-radius:16px; padding:24px; border:1px solid rgba(255,255,255,0.08); }
+.feat-icon { font-size:32px; margin-bottom:12px; }
+.feat-card h3 { font-size:16px; font-weight:700; color:#fff; margin-bottom:8px; }
+.feat-card p { font-size:13px; color:rgba(255,255,255,0.5); line-height:1.5; }
+
+.cta { padding:64px 24px; text-align:center; }
+.cta h2 { font-family:'Syne',sans-serif; font-size:32px; font-weight:800; margin-bottom:12px; }
+.cta p { color:#6b6870; font-size:16px; margin-bottom:28px; }
+
+@media(max-width:600px) {
+  .hero h1 { font-size:32px; }
+  .steps-grid { grid-template-columns:1fr 1fr; }
+  .feat-grid { grid-template-columns:1fr; }
+}
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo">QR Se <span>Print</span></div>
+  <a href="/dashboard" class="nav-btn">Shop Owner Login</a>
+</nav>
+
+<div class="hero">
+  <h1>QR Scan Karo<br><span>Print Lo!</span></h1>
+  <p>Bina wire, bina computer — sirf QR scan karo<br>aur seconds mein print nikal aao</p>
+  <div class="hero-btns">
+    <a href="/dashboard" class="btn-hero btn-red">🏪 Shop Setup Karo</a>
+    <a href="#how" class="btn-hero btn-outline">Kaise Kaam Karta Hai?</a>
+  </div>
+</div>
+
+<div class="how" id="how">
+  <h2>Sirf 4 Steps Mein Print!</h2>
+  <div class="steps-grid">
+    <div class="step-card">
+      <div class="step-num">1</div>
+      <h3>QR Scan Karo</h3>
+      <p>Shop ke bahar laga QR code apne phone se scan karo</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">2</div>
+      <h3>File Upload Karo</h3>
+      <p>PDF, Photo, Word — koi bhi file select karo</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">3</div>
+      <h3>Payment Karo</h3>
+      <p>PhonePe, GPay, UPI se turant payment</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">4</div>
+      <h3>Print Lo!</h3>
+      <p>Automatically printer se print nikal aata hai</p>
+    </div>
+  </div>
+</div>
+
+<div class="features">
+  <div class="features-inner">
+    <h2>Kyun Choose Karein?</h2>
+    <div class="feat-grid">
+      <div class="feat-card">
+        <div class="feat-icon">📡</div>
+        <h3>100% Wireless</h3>
+        <p>Customer ka phone printer se directly connect nahi hota — sab cloud ke through hota hai</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">✂️</div>
+        <h3>Auto Crop & Fix</h3>
+        <p>Tedha document? Auto-crop karke A4 size mein fit kar deta hai</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">💰</div>
+        <h3>Auto Payment</h3>
+        <p>Pehle payment, tab print — koi credit nahi, koi risk nahi</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">📊</div>
+        <h3>Live Dashboard</h3>
+        <p>Aaj ki kamai, total prints, sab ek jagah dekho</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">🖨️</div>
+        <h3>Koi bhi Printer</h3>
+        <p>Epson, HP, Canon, Brother — sab kaam karta hai</p>
+      </div>
+      <div class="feat-card">
+        <div class="feat-icon">⚡</div>
+        <h3>Instant Print</h3>
+        <p>Payment ke 5-10 second mein printer se print shuru ho jaata hai</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="cta">
+  <h2>Abhi Shuru Karo — Free Mein!</h2>
+  <p>Apni shop setup karo aur QR Code banao — 5 minute mein ready</p>
+  <a href="/dashboard" class="btn-hero btn-red">🚀 Shop Setup Karo</a>
+</div>
+</body>
+</html>
