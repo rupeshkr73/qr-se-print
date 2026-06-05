@@ -25,16 +25,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
 
 // File upload
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = './uploads';
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    cb(null, uuidv4() + path.extname(file.originalname));
-  }
-});
+const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: { fileSize: 50 * 1024 * 1024 },
