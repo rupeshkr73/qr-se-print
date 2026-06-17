@@ -24,7 +24,7 @@ echo ✅ Python OK!
 
 :: Packages install
 echo [2/4] Packages install ho rahe hain...
-python -m pip install requests pywin32 --quiet
+python -m pip install requests pywin32 Pillow --quiet
 echo ✅ Packages ready!
 
 :: SumatraPDF
