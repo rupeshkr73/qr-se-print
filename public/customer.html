@@ -6,120 +6,143 @@
 <title>QR Se Print</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:'Space Grotesk',sans-serif; background:#f5f0e8; min-height:100vh; }
-.wrap { max-width:480px; margin:0 auto; padding:20px 16px 60px; }
-.shop-card { background:#0a0a0f; color:#fff; border-radius:20px; padding:20px; margin-bottom:20px; display:flex; gap:14px; align-items:center; }
-.shop-icon { width:52px; height:52px; background:#ff4d1c; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:24px; flex-shrink:0; }
-.shop-name { font-family:'Syne',sans-serif; font-size:18px; font-weight:700; }
-.shop-addr { color:rgba(255,255,255,0.5); font-size:12px; margin-top:3px; }
-.price-row { display:flex; gap:8px; margin-top:10px; }
-.price-badge { padding:4px 10px; border-radius:20px; font-size:12px; font-weight:700; }
-.bw { background:rgba(255,255,255,0.1); }
-.clr { background:#ff4d1c; }
-.steps { display:flex; margin-bottom:20px; position:relative; }
-.steps::before { content:''; position:absolute; top:13px; left:14px; right:14px; height:2px; background:#e2ddd6; }
-.step { flex:1; text-align:center; position:relative; z-index:1; }
-.dot { width:26px; height:26px; border-radius:50%; background:#e2ddd6; color:#6b6870; font-size:11px; font-weight:700; display:flex; align-items:center; justify-content:center; margin:0 auto 5px; transition:all 0.3s; }
-.step.active .dot { background:#ff4d1c; color:#fff; }
-.step.done .dot { background:#00c853; color:#fff; }
-.step-lbl { font-size:10px; color:#6b6870; font-weight:600; }
-.step.active .step-lbl { color:#ff4d1c; }
-.upload-zone { border:2.5px dashed #e2ddd6; border-radius:20px; padding:44px 20px; text-align:center; cursor:pointer; background:#fff; position:relative; transition:all 0.2s; }
-.upload-zone:hover { border-color:#1c6fff; background:#f0f4ff; }
-.upload-zone input { position:absolute; inset:0; opacity:0; cursor:pointer; width:100%; height:100%; }
-.upload-icon { font-size:44px; margin-bottom:12px; }
-.upload-zone h3 { font-size:16px; font-weight:700; margin-bottom:6px; }
-.upload-zone p { font-size:13px; color:#6b6870; }
-.ftypes { display:flex; justify-content:center; gap:6px; margin-top:12px; }
-.ft { padding:3px 9px; background:#f5f0e8; border-radius:6px; font-size:11px; font-weight:700; color:#6b6870; }
-.card { background:#fff; border-radius:20px; overflow:hidden; box-shadow:0 4px 20px rgba(0,0,0,0.07); margin-bottom:14px; }
-.card-head { padding:14px 18px; display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f0ebe3; }
-.card-head h3 { font-size:15px; font-weight:700; }
-.card-body { padding:16px 18px; }
-.preview-wrap { background:#f8f7f5; border-radius:12px; padding:16px; text-align:center; min-height:200px; display:flex; align-items:center; justify-content:center; }
-#preview-canvas, #preview-img { max-width:100%; max-height:280px; border-radius:8px; box-shadow:0 6px 24px rgba(0,0,0,0.1); }
-.quality { border-radius:14px; padding:16px; display:flex; gap:12px; align-items:flex-start; margin-bottom:12px; }
-.quality.good { background:#e8f9ef; border:1.5px solid #a3e6bc; }
-.quality.warn { background:#fff8e8; border:1.5px solid #ffd97a; }
-.quality.bad { background:#fff0ed; border:1.5px solid #ffb3a0; }
-.q-icon { font-size:26px; flex-shrink:0; }
-.q-title { font-size:14px; font-weight:700; margin-bottom:3px; }
-.q-desc { font-size:12px; color:#6b6870; line-height:1.5; }
-.btn-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
-.btn { padding:13px; border-radius:12px; border:none; cursor:pointer; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:14px; display:flex; align-items:center; justify-content:center; gap:7px; transition:all 0.2s; }
-.btn-blue { background:linear-gradient(135deg,#1c6fff,#0047cc); color:#fff; }
-.btn-green { background:linear-gradient(135deg,#00c853,#009624); color:#fff; }
-.btn-primary { background:#ff4d1c; color:#fff; width:100%; border:none; border-radius:12px; padding:14px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px; cursor:pointer; }
-.btn:hover { transform:translateY(-1px); }
-.option-row { display:flex; align-items:center; justify-content:space-between; padding:13px 0; border-bottom:1px solid #f0ebe3; }
-.option-row:last-child { border:none; }
-.opt-lbl { font-size:14px; font-weight:600; }
-.opt-sub { font-size:11px; color:#6b6870; }
-.tog { display:flex; gap:5px; }
-.tog-btn { padding:6px 12px; border-radius:8px; border:1.5px solid #e2ddd6; background:#fff; font-size:12px; font-weight:700; cursor:pointer; font-family:'Space Grotesk',sans-serif; transition:all 0.15s; }
-.tog-btn.on { background:#0a0a0f; color:#fff; border-color:#0a0a0f; }
-.pay-card { background:#0a0a0f; border-radius:20px; padding:22px; color:#fff; margin-bottom:14px; }
-.pay-card h3 { font-family:'Syne',sans-serif; font-size:18px; margin-bottom:14px; }
-.pay-line { display:flex; justify-content:space-between; font-size:13px; color:rgba(255,255,255,0.55); margin-bottom:7px; }
-.pay-line.total { color:#fff; font-weight:700; font-size:17px; padding-top:10px; border-top:1px solid rgba(255,255,255,0.1); margin-top:6px; }
-.pay-btn { width:100%; padding:15px; border-radius:14px; background:#ff4d1c; color:#fff; border:none; font-family:'Syne',sans-serif; font-size:18px; font-weight:800; cursor:pointer; margin-top:14px; transition:all 0.2s; }
-.pay-btn:hover { background:#e03d0e; }
-.pay-btn:disabled { background:#999; cursor:not-allowed; }
-.pms { display:flex; gap:8px; justify-content:center; margin-top:12px; }
-.pm { padding:5px 12px; background:rgba(255,255,255,0.08); border-radius:8px; font-size:11px; color:rgba(255,255,255,0.55); font-weight:600; }
-
-/* SUCCESS SCREEN */
-.success-screen { display:none; background:#fff; border-radius:24px; padding:40px 24px; text-align:center; box-shadow:0 8px 40px rgba(0,0,0,0.08); }
-.success-icon { width:80px; height:80px; border-radius:50%; background:linear-gradient(135deg,#00c853,#69f0ae); display:flex; align-items:center; justify-content:center; font-size:40px; margin:0 auto 20px; animation:pop 0.5s cubic-bezier(0.175,0.885,0.32,1.275); }
-@keyframes pop { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
-.success-screen h2 { font-family:'Syne',sans-serif; font-size:26px; font-weight:800; margin-bottom:8px; }
-.success-screen p { color:#6b6870; font-size:15px; line-height:1.6; }
-.order-id { display:inline-block; margin-top:12px; padding:8px 20px; background:#f5f0e8; border-radius:10px; font-size:13px; font-weight:700; color:#6b6870; letter-spacing:1px; }
-.collect-box { margin-top:20px; padding:20px; background:linear-gradient(135deg,#e8f9ef,#d4f5e2); border-radius:16px; border:2px solid #00c853; }
-.collect-box h3 { font-family:'Syne',sans-serif; font-size:20px; font-weight:800; color:#00c853; margin-bottom:8px; }
-.collect-box p { font-size:14px; color:#2d7a4f; font-weight:600; }
-.print-status { margin-top:16px; padding:14px; background:#fff8e8; border-radius:14px; display:flex; align-items:center; gap:10px; text-align:left; }
-.ps-icon { font-size:22px; }
-.ps-title { font-size:13px; font-weight:700; color:#ff8f00; }
-.ps-sub { font-size:11px; color:#6b6870; }
-
-/* Crop overlay */
-.overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:200; align-items:center; justify-content:center; padding:16px; }
-.overlay.show { display:flex; }
-.crop-modal { background:#fff; border-radius:20px; padding:24px; max-width:440px; width:100%; max-height:90vh; overflow-y:auto; }
-.crop-modal h3 { font-family:'Syne',sans-serif; font-size:18px; margin-bottom:4px; }
-.crop-modal p { font-size:12px; color:#6b6870; margin-bottom:16px; }
-#crop-canvas { max-width:100%; border-radius:8px; }
-.crop-actions { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
-.crop-btn { flex:1; padding:10px; border-radius:10px; border:1.5px solid #e2ddd6; background:#fff; font-size:12px; font-weight:700; cursor:pointer; font-family:'Space Grotesk',sans-serif; }
-.crop-btn.on { background:#0a0a0f; color:#fff; border-color:#0a0a0f; }
-.crop-btns-row { display:flex; gap:10px; }
-
-.toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(80px); background:#0a0a0f; color:#fff; padding:12px 22px; border-radius:12px; font-size:13px; font-weight:600; z-index:300; transition:transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275); white-space:nowrap; }
-.toast.show { transform:translateX(-50%) translateY(0); }
-.hidden { display:none; }
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
+.wrap{max-width:480px;margin:0 auto;padding:20px 16px 60px}
+.shop-card{background:#0a0a0f;color:#fff;border-radius:20px;padding:20px;margin-bottom:20px;display:flex;gap:14px;align-items:center}
+.shop-icon{width:52px;height:52px;background:#ff4d1c;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.shop-name{font-family:'Syne',sans-serif;font-size:18px;font-weight:700}
+.shop-addr{color:rgba(255,255,255,0.5);font-size:12px;margin-top:3px}
+.price-row{display:flex;gap:8px;margin-top:10px}
+.pbadge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700}
+.pbw{background:rgba(255,255,255,0.1)}
+.pclr{background:#ff4d1c}
+/* Steps */
+.steps{display:flex;margin-bottom:20px;position:relative}
+.steps::before{content:'';position:absolute;top:13px;left:14px;right:14px;height:2px;background:#e2ddd6}
+.step{flex:1;text-align:center;position:relative;z-index:1}
+.dot{width:26px;height:26px;border-radius:50%;background:#e2ddd6;color:#6b6870;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 5px;transition:all 0.3s}
+.step.active .dot{background:#ff4d1c;color:#fff}
+.step.done .dot{background:#00c853;color:#fff}
+.step-lbl{font-size:10px;color:#6b6870;font-weight:600}
+.step.active .step-lbl{color:#ff4d1c}
+/* Upload */
+.upload-zone{border:2.5px dashed #e2ddd6;border-radius:20px;padding:44px 20px;text-align:center;cursor:pointer;background:#fff;position:relative;transition:all 0.2s}
+.upload-zone:hover{border-color:#1c6fff;background:#f0f4ff}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-icon{font-size:44px;margin-bottom:12px}
+.upload-zone h3{font-size:16px;font-weight:700;margin-bottom:6px}
+.upload-zone p{font-size:13px;color:#6b6870}
+.ftypes{display:flex;justify-content:center;gap:6px;margin-top:12px}
+.ft{padding:3px 9px;background:#f5f0e8;border-radius:6px;font-size:11px;font-weight:700;color:#6b6870}
+/* Card */
+.card{background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.07);margin-bottom:14px}
+.card-head{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #f0ebe3}
+.card-head h3{font-size:15px;font-weight:700}
+.card-body{padding:16px 18px}
+/* Preview */
+.preview-wrap{background:#f8f7f5;border-radius:12px;padding:12px;text-align:center;min-height:180px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px}
+#preview-canvas,#preview-img{max-width:100%;max-height:240px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.1)}
+.page-nav{display:flex;align-items:center;gap:12px;margin-top:8px}
+.page-nav-btn{width:32px;height:32px;border-radius:50%;border:1.5px solid #e2ddd6;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;font-weight:700;transition:all 0.2s}
+.page-nav-btn:hover{background:#0a0a0f;color:#fff;border-color:#0a0a0f}
+.page-nav-btn:disabled{opacity:0.3;cursor:not-allowed}
+.page-info{font-size:13px;font-weight:600;color:#6b6870}
+.page-badge{display:inline-flex;align-items:center;gap:6px;background:#0a0a0f;color:#fff;border-radius:10px;padding:5px 12px;font-size:12px;font-weight:700;margin-top:6px}
+/* Quality */
+.quality{border-radius:14px;padding:14px;display:flex;gap:12px;align-items:flex-start;margin-bottom:12px}
+.quality.good{background:#e8f9ef;border:1.5px solid #a3e6bc}
+.quality.warn{background:#fff8e8;border:1.5px solid #ffd97a}
+.quality.bad{background:#fff0ed;border:1.5px solid #ffb3a0}
+.q-icon{font-size:24px;flex-shrink:0}
+.q-title{font-size:14px;font-weight:700;margin-bottom:3px}
+.q-desc{font-size:12px;color:#6b6870;line-height:1.5}
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.btn{padding:13px;border-radius:12px;border:none;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;gap:7px;transition:all 0.2s}
+.btn-blue{background:linear-gradient(135deg,#1c6fff,#0047cc);color:#fff}
+.btn-green{background:linear-gradient(135deg,#00c853,#009624);color:#fff}
+.btn:hover{transform:translateY(-1px)}
+/* Options */
+.opt-card{background:#fff;border-radius:20px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:14px}
+.opt-card h3{font-size:16px;font-weight:700;margin-bottom:14px}
+.opt-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f0ebe3}
+.opt-row:last-of-type{border:none}
+.opt-lbl{font-size:14px;font-weight:600}
+.opt-sub{font-size:11px;color:#6b6870;margin-top:2px}
+.tog{display:flex;gap:5px}
+.tog-btn{padding:6px 14px;border-radius:8px;border:1.5px solid #e2ddd6;background:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:'Space Grotesk',sans-serif;transition:all 0.15s}
+.tog-btn.on{background:#0a0a0f;color:#fff;border-color:#0a0a0f}
+/* Price summary */
+.price-card{background:#0a0a0f;border-radius:20px;padding:20px;color:#fff;margin-bottom:14px}
+.price-card h3{font-family:'Syne',sans-serif;font-size:17px;margin-bottom:14px}
+.price-line{display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,0.55);margin-bottom:8px}
+.price-line.total{color:#fff;font-weight:700;font-size:20px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.12);margin-top:8px}
+/* Payment buttons - Problem 4 */
+.pay-btns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.pay-online-btn{background:linear-gradient(135deg,#00c853,#009624);color:#fff;border:none;border-radius:14px;padding:16px 10px;font-family:'Syne',sans-serif;font-size:15px;font-weight:800;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:4px}
+.pay-online-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,200,83,0.35)}
+.pay-online-btn:disabled{background:#666;cursor:not-allowed;transform:none}
+.pay-counter-btn{background:linear-gradient(135deg,#ff4d1c,#cc3300);color:#fff;border:none;border-radius:14px;padding:16px 10px;font-family:'Syne',sans-serif;font-size:15px;font-weight:800;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:4px}
+.pay-counter-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(255,77,28,0.35)}
+.pay-btn-sub{font-size:10px;font-weight:400;opacity:0.8}
+.pay-note{text-align:center;font-size:11px;color:rgba(255,255,255,0.4);margin-top:10px}
+/* Success */
+.success-screen{display:none;background:#fff;border-radius:24px;padding:36px 20px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.08)}
+.sicon{width:76px;height:76px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:38px;margin:0 auto 18px;animation:pop 0.5s cubic-bezier(0.175,0.885,0.32,1.275)}
+@keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+.sicon.online{background:linear-gradient(135deg,#00c853,#69f0ae)}
+.sicon.counter{background:linear-gradient(135deg,#ff4d1c,#ff8c00)}
+.success-screen h2{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;margin-bottom:6px}
+.order-id{display:inline-block;margin:10px 0 16px;padding:7px 18px;background:#f5f0e8;border-radius:10px;font-size:12px;font-weight:700;color:#6b6870;letter-spacing:1px}
+.collect-box{padding:20px;border-radius:16px;margin-bottom:14px}
+.collect-box.online{background:#e8f9ef;border:2px solid #00c853}
+.collect-box.counter{background:#fff8e8;border:2px solid #ff8c00}
+.collect-box h3{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;margin-bottom:8px}
+.collect-box.online h3{color:#00c853}
+.collect-box.counter h3{color:#ff4d1c}
+.collect-box p{font-size:13px;line-height:1.6;color:#555}
+.amount-box{background:#0a0a0f;border-radius:14px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;color:#fff}
+.amount-box span{font-size:13px;color:rgba(255,255,255,0.5)}
+.amount-box strong{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#ff4d1c}
+.btn-primary{background:#ff4d1c;color:#fff;width:100%;border:none;border-radius:12px;padding:14px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;cursor:pointer;margin-top:14px;transition:all 0.2s}
+.btn-primary:hover{background:#e03d0e}
+/* Crop */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;align-items:center;justify-content:center;padding:16px}
+.overlay.show{display:flex}
+.crop-modal{background:#fff;border-radius:20px;padding:22px;max-width:440px;width:100%;max-height:90vh;overflow-y:auto}
+.crop-modal h3{font-family:'Syne',sans-serif;font-size:17px;margin-bottom:4px}
+.crop-modal p{font-size:12px;color:#6b6870;margin-bottom:14px}
+#crop-canvas{max-width:100%;border-radius:8px}
+.crop-acts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.crop-btn{flex:1;padding:9px;border-radius:10px;border:1.5px solid #e2ddd6;background:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:'Space Grotesk',sans-serif}
+.crop-row{display:flex;gap:10px}
+/* Toast */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#0a0a0f;color:#fff;padding:12px 22px;border-radius:12px;font-size:13px;font-weight:600;z-index:300;transition:transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275);white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.hidden{display:none}
 </style>
 </head>
 <body>
 <div class="wrap">
-
+  <!-- Shop Card -->
   <div class="shop-card">
     <div class="shop-icon">🖨️</div>
     <div>
       <div class="shop-name" id="shopName">Loading...</div>
       <div class="shop-addr" id="shopAddr">📍 ...</div>
       <div class="price-row">
-        <span class="price-badge bw" id="priceBW">B&W: ₹5/page</span>
-        <span class="price-badge clr" id="priceColor">Color: ₹10/page</span>
+        <span class="pbadge pbw" id="priceBWBadge">B&W: ₹5/page</span>
+        <span class="pbadge pclr" id="priceColorBadge">Color: ₹10/page</span>
       </div>
     </div>
   </div>
 
+  <!-- Steps -->
   <div class="steps">
     <div class="step active" id="s1"><div class="dot">1</div><div class="step-lbl">Upload</div></div>
-    <div class="step" id="s2"><div class="dot">2</div><div class="step-lbl">Check</div></div>
+    <div class="step" id="s2"><div class="dot">2</div><div class="step-lbl">Preview</div></div>
     <div class="step" id="s3"><div class="dot">3</div><div class="step-lbl">Options</div></div>
     <div class="step" id="s4"><div class="dot">4</div><div class="step-lbl">Pay</div></div>
   </div>
@@ -130,25 +153,34 @@ body { font-family:'Space Grotesk',sans-serif; background:#f5f0e8; min-height:10
       <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFile(this)">
       <div class="upload-icon">📄</div>
       <h3>Document Upload Karo</h3>
-      <p>Click karo ya drag & drop karo</p>
+      <p>PDF, JPG, PNG, Word — sab supported</p>
       <div class="ftypes">
         <span class="ft">PDF</span><span class="ft">JPG</span><span class="ft">PNG</span><span class="ft">DOCX</span>
       </div>
     </div>
   </div>
 
-  <!-- Preview -->
+  <!-- Preview — Problem 3: Multi-page preview -->
   <div id="secPreview" class="hidden">
     <div class="card">
       <div class="card-head">
-        <h3>📋 Preview</h3>
-        <span id="fileName" style="font-size:12px;color:#6b6870;"></span>
+        <h3>📋 Document Preview</h3>
+        <span id="fileName" style="font-size:11px;color:#6b6870;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
       </div>
       <div class="card-body">
-        <div class="preview-wrap">
+        <div class="preview-wrap" id="previewWrap">
+          <div id="previewLoading">⏳ Loading preview...</div>
           <canvas id="preview-canvas" style="display:none;"></canvas>
           <img id="preview-img" style="display:none;">
-          <div id="previewLoading">⏳ Load ho raha hai...</div>
+        </div>
+        <!-- Multi-page navigation -->
+        <div id="pageNavWrap" style="text-align:center;margin-top:8px;display:none;">
+          <div class="page-nav">
+            <button class="page-nav-btn" id="prevPageBtn" onclick="changePage(-1)" disabled>‹</button>
+            <span class="page-info">Page <span id="currentPageNum">1</span> of <span id="totalPageNum">1</span></span>
+            <button class="page-nav-btn" id="nextPageBtn" onclick="changePage(1)">›</button>
+          </div>
+          <div class="page-badge">📄 <span id="pageCountBadge">1</span> pages detected</div>
         </div>
       </div>
     </div>
@@ -156,98 +188,116 @@ body { font-family:'Space Grotesk',sans-serif; background:#f5f0e8; min-height:10
       <div class="q-icon" id="qIcon">✅</div>
       <div>
         <div class="q-title" id="qTitle">Document theek hai!</div>
-        <div class="q-desc" id="qDesc">A4 size ke liye ready hai.</div>
+        <div class="q-desc" id="qDesc">Print ke liye ready hai.</div>
       </div>
     </div>
-    <div class="btn-row" id="actionBtns">
+    <div class="btn-row">
       <button class="btn btn-blue" onclick="openCrop()">✂️ Crop/Fix</button>
-      <button class="btn btn-green" onclick="goOptions()">✅ Theek Hai</button>
+      <button class="btn btn-green" onclick="goOptions()">✅ Aage Bado</button>
     </div>
   </div>
 
-  <!-- Options -->
+  <!-- Options — Problem 5: B&W/Color -->
   <div id="secOptions" class="hidden">
-    <div class="card">
-      <div class="card-head"><h3>⚙️ Print Options</h3></div>
-      <div class="card-body">
-        <div class="option-row">
-          <div><div class="opt-lbl">Type</div><div class="opt-sub">Color ya B&W</div></div>
-          <div class="tog">
-            <button class="tog-btn on" id="btnBW" onclick="setColor('bw')">B&W</button>
-            <button class="tog-btn" id="btnColor" onclick="setColor('color')">Color</button>
-          </div>
+    <div class="opt-card">
+      <h3>⚙️ Print Options</h3>
+      <div class="opt-row">
+        <div>
+          <div class="opt-lbl">Print Type</div>
+          <div class="opt-sub">Default: Black & White</div>
         </div>
-        <div class="option-row">
-          <div><div class="opt-lbl">Copies</div><div class="opt-sub">Kitni copies</div></div>
-          <div class="tog">
-            <button class="tog-btn" onclick="setCopies(-1)">−</button>
-            <button class="tog-btn on" id="copiesDisplay" style="min-width:36px;">1</button>
-            <button class="tog-btn" onclick="setCopies(1)">+</button>
-          </div>
+        <div class="tog">
+          <button class="tog-btn on" id="btnBW" onclick="setColor('bw')">⬛ B&W</button>
+          <button class="tog-btn" id="btnColor" onclick="setColor('color')">🌈 Color</button>
         </div>
-        <div class="option-row">
-          <div><div class="opt-lbl">Size</div><div class="opt-sub">Page size</div></div>
-          <div class="tog"><button class="tog-btn on">A4</button></div>
-        </div>
-        <button class="btn-primary" style="margin-top:14px;" onclick="goPayment()">Payment Pe Jao →</button>
       </div>
+      <div class="opt-row">
+        <div>
+          <div class="opt-lbl">Copies</div>
+          <div class="opt-sub">Kitni copies chahiye</div>
+        </div>
+        <div class="tog">
+          <button class="tog-btn" onclick="setCopies(-1)">−</button>
+          <button class="tog-btn on" id="copiesDisplay" style="min-width:36px;">1</button>
+          <button class="tog-btn" onclick="setCopies(1)">+</button>
+        </div>
+      </div>
+      <div class="opt-row">
+        <div>
+          <div class="opt-lbl">Pages</div>
+          <div class="opt-sub">Document mein</div>
+        </div>
+        <div style="font-size:14px;font-weight:700;color:#ff4d1c;" id="pageCountOpt">1 page</div>
+      </div>
+      <button class="btn-primary" onclick="goPayment()">Payment Pe Jao →</button>
     </div>
   </div>
 
-  <!-- Payment -->
+  <!-- Payment — Problem 4: 2 buttons -->
   <div id="secPayment" class="hidden">
-    <div class="pay-card">
-      <h3>💳 Payment</h3>
-      <div class="pay-line"><span id="payType">B&W × 1 page</span><span id="payBase">₹5</span></div>
-      <div class="pay-line"><span id="payCopies">1 copy</span><span id="payCopiesAmt">× ₹5</span></div>
-      <div class="pay-line total"><span>Total</span><span id="payTotal">₹5</span></div>
-      <button class="pay-btn" id="payButton" onclick="initiatePayment()">Pay <span id="payBtn">₹5</span></button>
-      <div class="pms">
-        <span class="pm">📱 PhonePe</span>
-        <span class="pm">💳 UPI</span>
-        <span class="pm">🏦 GPay</span>
+    <div class="price-card">
+      <h3>💰 Bill Summary</h3>
+      <div class="price-line">
+        <span id="sumType">B&W Print</span>
+        <span id="sumPerPage">₹5/page</span>
       </div>
+      <div class="price-line">
+        <span id="sumPages">1 page × 1 copy</span>
+        <span id="sumPagesAmt">₹5</span>
+      </div>
+      <div class="price-line total">
+        <span>Total</span>
+        <span id="sumTotal">₹5</span>
+      </div>
+
+      <!-- Problem 4: 2 payment buttons -->
+      <div class="pay-btns">
+        <button class="pay-online-btn" id="onlineBtn" onclick="payOnline()">
+          💳 Pay Online
+          <span class="pay-btn-sub">UPI / Card / Net Banking</span>
+        </button>
+        <button class="pay-counter-btn" onclick="payCounter()">
+          💵 Pay at Counter
+          <span class="pay-btn-sub">Cash dena hoga</span>
+        </button>
+      </div>
+      <div class="pay-note" id="razorpayNote">Online payment loading...</div>
     </div>
   </div>
 
-  <!-- SUCCESS SCREEN -->
+  <!-- Success -->
   <div class="success-screen" id="secSuccess">
-    <div class="success-icon">✓</div>
-    <h2>Payment Ho Gaya!</h2>
-    <p>Aapka document print ho raha hai</p>
+    <div class="sicon" id="successIcon">✓</div>
+    <h2 id="successTitle">Print Shuru!</h2>
     <div class="order-id" id="orderId">ORDER #...</div>
-    <div class="collect-box">
-      <h3>🖨️ Apna Print Lo!</h3>
-      <p>Printer se aapka print nikal raha hai<br>Please collect karein!</p>
+    <div class="collect-box" id="collectBox">
+      <h3 id="collectTitle">🖨️ Print Ho Raha Hai!</h3>
+      <p id="collectMsg">Aapka document print ho raha hai.</p>
     </div>
-    <div class="print-status" id="printStatus">
-      <div class="ps-icon">⏳</div>
-      <div>
-        <div class="ps-title" id="psTitle">Print ho raha hai...</div>
-        <div class="ps-sub">1-2 minute mein print nikal aayega</div>
-      </div>
+    <div class="amount-box">
+      <span id="amountLabel">Amount</span>
+      <strong id="finalAmount">₹5</strong>
     </div>
-    <button class="btn-primary" style="margin-top:16px;" onclick="location.reload()">Naya Print Karo</button>
+    <button class="btn-primary" onclick="location.reload()">Naya Print Karo</button>
   </div>
-
 </div>
 
-<!-- Crop overlay -->
+<!-- Crop Overlay -->
 <div class="overlay" id="cropOverlay">
   <div class="crop-modal">
     <h3>✂️ Crop & Fix</h3>
     <p>Document ko A4 size mein adjust karo</p>
-    <div style="background:#f0f0f0;border-radius:12px;padding:12px;text-align:center;margin-bottom:14px;">
+    <div style="background:#f0f0f0;border-radius:12px;padding:10px;text-align:center;margin-bottom:12px;">
       <canvas id="crop-canvas"></canvas>
     </div>
-    <div class="crop-actions">
+    <div class="crop-acts">
       <button class="crop-btn" onclick="applyCrop('auto')">🤖 Auto A4</button>
       <button class="crop-btn" onclick="applyCrop('rotate')">🔄 Rotate</button>
       <button class="crop-btn" onclick="applyCrop('bright')">☀️ Brighten</button>
     </div>
-    <div class="crop-btns-row">
-      <button class="btn-primary" style="flex:1;border-radius:12px;padding:13px;" onclick="confirmCrop()">✅ Apply</button>
-      <button class="btn" style="border:2px solid #e2ddd6;flex:0.5;border-radius:12px;padding:13px;background:#fff;cursor:pointer;" onclick="closeCrop()">Cancel</button>
+    <div class="crop-row">
+      <button class="btn-primary" style="border-radius:12px;" onclick="confirmCrop()">✅ Apply</button>
+      <button style="flex:0.5;border:2px solid #e2ddd6;border-radius:12px;padding:13px;background:#fff;cursor:pointer;font-family:Space Grotesk,sans-serif;font-weight:700;" onclick="closeCrop()">Cancel</button>
     </div>
   </div>
 </div>
@@ -258,22 +308,44 @@ body { font-family:'Space Grotesk',sans-serif; background:#f5f0e8; min-height:10
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 const shopId = location.pathname.split('/').pop();
-let state = { colorMode:'bw', copies:1, jobId:null, priceBW:5, priceColor:10 };
+let state = {
+  colorMode: 'bw',
+  copies: 1,
+  jobId: null,
+  priceBW: 5,
+  priceColor: 10,
+  totalPages: 1,
+  razorpayEnabled: false,
+  razorpayKeyId: null,
+  pdfDoc: null,
+  currentPage: 1
+};
 
-async function loadShop() {
+// Load shop + check razorpay
+async function init() {
   try {
-    const res = await fetch(`/api/shop/${shopId}`);
-    const shop = await res.json();
+    const [shopRes, rzpRes] = await Promise.all([
+      fetch(`/api/shop/${shopId}`),
+      fetch('/api/razorpay/config')
+    ]);
+    const shop = await shopRes.json();
+    const rzp = await rzpRes.json();
+
     document.getElementById('shopName').textContent = shop.name;
-    document.getElementById('shopAddr').textContent = '📍 ' + (shop.address||'');
-    document.getElementById('priceBW').textContent = `B&W: ₹${shop.price_bw}/page`;
-    document.getElementById('priceColor').textContent = `Color: ₹${shop.price_color}/page`;
+    document.getElementById('shopAddr').textContent = '📍 ' + (shop.address || '');
+    document.getElementById('priceBWBadge').textContent = `B&W: ₹${shop.price_bw}/page`;
+    document.getElementById('priceColorBadge').textContent = `Color: ₹${shop.price_color}/page`;
     state.priceBW = shop.price_bw;
     state.priceColor = shop.price_color;
+
+    state.razorpayEnabled = rzp.enabled;
+    state.razorpayKeyId = rzp.keyId;
+
     updatePrice();
   } catch(e) { toast('Shop load nahi hua'); }
 }
 
+// Problem 3: Multi-page PDF handling
 async function handleFile(input) {
   const file = input.files[0];
   if (!file) return;
@@ -281,93 +353,139 @@ async function handleFile(input) {
   document.getElementById('fileName').textContent = file.name;
   show('secPreview'); hide('secUpload');
   setStep(2);
+
   if (ext === 'pdf') await loadPDF(file);
   else if (['jpg','jpeg','png'].includes(ext)) loadImg(file);
   else loadGeneric(file.name);
 
-  // Upload file
+  // Upload
   toast('📤 File upload ho rahi hai...');
   const fd = new FormData();
   fd.append('file', file);
   fd.append('shopId', shopId);
   fd.append('copies', state.copies);
   fd.append('colorMode', state.colorMode);
+  fd.append('totalPages', state.totalPages);
   try {
     const res = await fetch('/api/upload', { method:'POST', body:fd });
     const data = await res.json();
     if (data.success) {
       state.jobId = data.jobId;
-      state.priceBW = data.amount / data.copies; // update price from server
       toast('✅ File ready!');
     } else {
       toast('❌ Upload failed: ' + data.error);
     }
-  } catch(e) { toast('❌ Upload error: ' + e.message); }
+  } catch(e) { toast('❌ Upload error'); }
 }
 
 async function loadPDF(file) {
   document.getElementById('previewLoading').style.display = 'block';
+  document.getElementById('preview-canvas').style.display = 'none';
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {
       const pdf = await pdfjsLib.getDocument({ data: e.target.result }).promise;
-      const page = await pdf.getPage(1);
-      const vp = page.getViewport({ scale:1.3 });
-      const canvas = document.getElementById('preview-canvas');
-      canvas.width = vp.width; canvas.height = vp.height;
-      await page.render({ canvasContext:canvas.getContext('2d'), viewport:vp }).promise;
-      canvas.style.display = 'block';
+      state.pdfDoc = pdf;
+      state.totalPages = pdf.numPages;
+      state.currentPage = 1;
+
+      // Page count update
+      document.getElementById('totalPageNum').textContent = state.totalPages;
+      document.getElementById('pageCountBadge').textContent = state.totalPages;
+      document.getElementById('pageCountOpt').textContent = state.totalPages + ' page' + (state.totalPages > 1 ? 's' : '');
+
+      // Navigation show karo agar 1 se zyada pages hain
+      if (state.totalPages > 1) {
+        document.getElementById('pageNavWrap').style.display = 'block';
+        document.getElementById('nextPageBtn').disabled = false;
+      } else {
+        document.getElementById('pageNavWrap').style.display = 'none';
+      }
+
+      await renderPDFPage(1);
       document.getElementById('previewLoading').style.display = 'none';
-      checkQuality(canvas.width/canvas.height);
+      document.getElementById('preview-canvas').style.display = 'block';
+      checkQuality();
+      updatePrice();
     } catch(err) { loadGeneric('document.pdf'); }
   };
   reader.readAsArrayBuffer(file);
 }
 
+async function renderPDFPage(pageNum) {
+  if (!state.pdfDoc) return;
+  const page = await state.pdfDoc.getPage(pageNum);
+  const vp = page.getViewport({ scale: 1.3 });
+  const canvas = document.getElementById('preview-canvas');
+  canvas.width = vp.width;
+  canvas.height = vp.height;
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+  document.getElementById('currentPageNum').textContent = pageNum;
+  document.getElementById('prevPageBtn').disabled = pageNum <= 1;
+  document.getElementById('nextPageBtn').disabled = pageNum >= state.totalPages;
+}
+
+async function changePage(delta) {
+  const newPage = state.currentPage + delta;
+  if (newPage < 1 || newPage > state.totalPages) return;
+  state.currentPage = newPage;
+  await renderPDFPage(newPage);
+}
+
 function loadImg(file) {
+  state.totalPages = 1;
+  document.getElementById('pageCountOpt').textContent = '1 page';
   const reader = new FileReader();
   reader.onload = (e) => {
     const img = document.getElementById('preview-img');
-    img.src = e.target.result; img.style.display = 'block';
+    img.src = e.target.result;
+    img.style.display = 'block';
     document.getElementById('previewLoading').style.display = 'none';
-    img.onload = () => checkQuality(img.naturalWidth/img.naturalHeight);
+    img.onload = () => checkQuality();
   };
   reader.readAsDataURL(file);
 }
 
 function loadGeneric(name) {
+  state.totalPages = 1;
+  document.getElementById('pageCountOpt').textContent = '1 page';
   const canvas = document.getElementById('preview-canvas');
-  canvas.width=240; canvas.height=320; canvas.style.display='block';
+  canvas.width = 240; canvas.height = 320; canvas.style.display = 'block';
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle='#f8f7f5'; ctx.fillRect(0,0,240,320);
-  ctx.fillStyle='#e2ddd6'; ctx.fillRect(10,10,220,300);
-  ctx.fillStyle='#0a0a0f'; ctx.font='bold 14px sans-serif'; ctx.textAlign='center';
-  ctx.fillText('📄 '+name, 120, 155);
-  ctx.fillStyle='#6b6870'; ctx.font='12px sans-serif';
-  ctx.fillText('Print Ready', 120, 180);
-  document.getElementById('previewLoading').style.display='none';
-  checkQuality(240/320);
+  ctx.fillStyle = '#f8f7f5'; ctx.fillRect(0,0,240,320);
+  ctx.fillStyle = '#0a0a0f'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
+  ctx.fillText('📄 ' + name, 120, 155);
+  ctx.fillStyle = '#6b6870'; ctx.font = '11px sans-serif';
+  ctx.fillText('Print Ready', 120, 175);
+  document.getElementById('previewLoading').style.display = 'none';
+  checkQuality();
 }
 
-function checkQuality(ratio) {
+function checkQuality() {
+  const canvas = document.getElementById('preview-canvas');
+  const img = document.getElementById('preview-img');
+  let ratio = 210/297;
+  if (canvas.style.display !== 'none' && canvas.width > 0) ratio = canvas.width / canvas.height;
+  else if (img.style.display !== 'none') ratio = img.naturalWidth / img.naturalHeight;
+
   const diff = Math.abs(ratio - 210/297);
   const card = document.getElementById('qualityCard');
   card.className = 'quality';
   if (diff < 0.08) {
     card.classList.add('good');
-    document.getElementById('qIcon').textContent='✅';
-    document.getElementById('qTitle').textContent='Document perfect hai!';
-    document.getElementById('qDesc').textContent='A4 size mein bilkul sahi fit hoga.';
-  } else if (diff < 0.25) {
+    document.getElementById('qIcon').textContent = '✅';
+    document.getElementById('qTitle').textContent = 'Document perfect hai!';
+    document.getElementById('qDesc').textContent = 'A4 size mein sahi fit hoga.';
+  } else if (diff < 0.3) {
     card.classList.add('warn');
-    document.getElementById('qIcon').textContent='⚠️';
-    document.getElementById('qTitle').textContent='Thoda adjust karna hoga';
-    document.getElementById('qDesc').textContent='Auto-crop karo ya direct print karo.';
+    document.getElementById('qIcon').textContent = '⚠️';
+    document.getElementById('qTitle').textContent = 'Thoda adjust hoga';
+    document.getElementById('qDesc').textContent = 'Auto-crop karo ya direct print karo.';
   } else {
     card.classList.add('bad');
-    document.getElementById('qIcon').textContent='❌';
-    document.getElementById('qTitle').textContent='Crop/Fix karna zaroori hai';
-    document.getElementById('qDesc').textContent='Document A4 se kaafi alag hai. Auto-fix karo.';
+    document.getElementById('qIcon').textContent = '❌';
+    document.getElementById('qTitle').textContent = 'Crop karna zaroori hai';
+    document.getElementById('qDesc').textContent = 'Auto-fix karo better print ke liye.';
   }
 }
 
@@ -375,23 +493,21 @@ function goOptions() { hide('secPreview'); show('secOptions'); setStep(3); updat
 
 function goPayment() {
   if (!state.jobId) { toast('❌ Pehle file upload karo!'); return; }
-  // Payment pe jaane se pehle colorMode update karo server pe
-  updateJobColorMode();
   hide('secOptions'); show('secPayment'); setStep(4); updatePrice();
+  // Razorpay status update
+  const note = document.getElementById('razorpayNote');
+  const onlineBtn = document.getElementById('onlineBtn');
+  if (state.razorpayEnabled) {
+    note.textContent = '✅ Online payment available';
+    onlineBtn.disabled = false;
+  } else {
+    note.textContent = '⚠️ Online payment abhi available nahi — Counter pe pay karo';
+    onlineBtn.disabled = true;
+    onlineBtn.style.background = '#666';
+  }
 }
 
-// Job ka color mode update karo
-async function updateJobColorMode() {
-  if (!state.jobId) return;
-  try {
-    await fetch('/api/jobs/update-color', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ jobId: state.jobId, colorMode: state.colorMode, copies: state.copies })
-    });
-  } catch(e) {}
-}
-
+// Problem 5: B&W / Color
 function setColor(mode) {
   state.colorMode = mode;
   document.getElementById('btnBW').className = 'tog-btn' + (mode==='bw'?' on':'');
@@ -406,115 +522,185 @@ function setCopies(d) {
 }
 
 function updatePrice() {
-  const price = state.colorMode==='bw' ? state.priceBW : state.priceColor;
-  const total = price * state.copies;
+  const pricePerPage = state.colorMode==='bw' ? state.priceBW : state.priceColor;
+  const total = pricePerPage * state.totalPages * state.copies;
   const type = state.colorMode==='bw' ? 'B&W' : 'Color';
-  document.getElementById('payType').textContent = `${type} × 1 page`;
-  document.getElementById('payBase').textContent = `₹${price}`;
-  document.getElementById('payCopies').textContent = `${state.copies} cop${state.copies>1?'ies':'y'}`;
-  document.getElementById('payCopiesAmt').textContent = `× ₹${price}`;
-  document.getElementById('payTotal').textContent = `₹${total}`;
-  document.getElementById('payBtn').textContent = `₹${total}`;
+  document.getElementById('sumType').textContent = type + ' Print';
+  document.getElementById('sumPerPage').textContent = '₹' + pricePerPage + '/page';
+  document.getElementById('sumPages').textContent = state.totalPages + ' page × ' + state.copies + ' cop' + (state.copies>1?'ies':'y');
+  document.getElementById('sumPagesAmt').textContent = '₹' + total;
+  document.getElementById('sumTotal').textContent = '₹' + total;
 }
 
-async function initiatePayment() {
-  if (!state.jobId) { toast('❌ Pehle file upload karo!'); return; }
-  const btn = document.getElementById('payButton');
-  btn.disabled = true;
-  btn.textContent = '⏳ Processing...';
+function getTotal() {
+  const pricePerPage = state.colorMode==='bw' ? state.priceBW : state.priceColor;
+  return pricePerPage * state.totalPages * state.copies;
+}
+
+// Problem 2 & 4: Online payment (Razorpay)
+async function payOnline() {
+  if (!state.jobId) { toast('❌ File upload karo pehle!'); return; }
+  toast('💳 Payment create ho raha hai...');
   try {
-    const res = await fetch('/api/payment/create', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ jobId: state.jobId, colorMode: state.colorMode, copies: state.copies })
+    const res = await fetch('/api/payment/razorpay/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jobId: state.jobId,
+        colorMode: state.colorMode,
+        copies: state.copies,
+        totalPages: state.totalPages
+      })
     });
     const data = await res.json();
-    if (data.success) {
-      // SUCCESS — screen change karo
-      hide('secPayment');
-      const successScreen = document.getElementById('secSuccess');
-      successScreen.style.display = 'block';
-      document.getElementById('orderId').textContent = 'ORDER #' + state.jobId;
-      setStep(4);
-      // Print status poll karo
-      pollPrintStatus(state.jobId);
-    } else {
-      toast('❌ Error: ' + (data.error||'Try again'));
-      btn.disabled = false;
-      btn.innerHTML = 'Pay <span id="payBtn">₹' + (state.colorMode==='bw'?state.priceBW:state.priceColor) * state.copies + '</span>';
-    }
+    if (!data.success) { toast('❌ ' + (data.error || 'Payment create failed')); return; }
+
+    const options = {
+      key: data.keyId,
+      amount: data.amount,
+      currency: 'INR',
+      name: 'QR Se Print',
+      description: `Print Job - ${state.totalPages} pages`,
+      order_id: data.orderId,
+      handler: async function(response) {
+        // Verify payment
+        const verifyRes = await fetch('/api/payment/razorpay/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            jobId: state.jobId
+          })
+        });
+        const verifyData = await verifyRes.json();
+        if (verifyData.success) {
+          showSuccess('online', getTotal());
+        } else {
+          toast('❌ Payment verify nahi hua!');
+        }
+      },
+      prefill: {},
+      theme: { color: '#ff4d1c' }
+    };
+    const rzp = new Razorpay(options);
+    rzp.on('payment.failed', () => toast('❌ Payment failed! Try again.'));
+    rzp.open();
   } catch(e) {
-    toast('❌ Network error — try again');
-    btn.disabled = false;
-    btn.innerHTML = 'Pay ₹' + (state.colorMode==='bw'?state.priceBW:state.priceColor) * state.copies;
+    toast('❌ Network error: ' + e.message);
   }
 }
 
-async function pollPrintStatus(jobId) {
-  let count = 0;
-  const interval = setInterval(async () => {
-    try {
-      const res = await fetch(`/api/jobs/status/${jobId}`);
-      const data = await res.json();
-      count++;
-      if (data.status === 'printed') {
-        document.getElementById('printStatus').style.background = '#e8f9ef';
-        document.getElementById('psTitle').textContent = '✅ Print Complete!';
-        document.getElementById('psTitle').style.color = '#00c853';
-        clearInterval(interval);
-      }
-      if (count > 36) clearInterval(interval); // 3 min baad stop
-    } catch(e) {}
-  }, 5000);
+// Problem 4: Counter payment
+async function payCounter() {
+  if (!state.jobId) { toast('❌ File upload karo pehle!'); return; }
+  try {
+    const res = await fetch('/api/payment/counter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jobId: state.jobId,
+        colorMode: state.colorMode,
+        copies: state.copies,
+        totalPages: state.totalPages
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showSuccess('counter', data.amount);
+    } else {
+      toast('❌ Error: ' + (data.error || 'Try again'));
+    }
+  } catch(e) {
+    toast('❌ Network error');
+  }
 }
 
-// Crop
+function showSuccess(method, amount) {
+  hide('secPayment');
+  const successScreen = document.getElementById('secSuccess');
+  successScreen.style.display = 'block';
+  setStep(4);
+
+  document.getElementById('orderId').textContent = 'ORDER #' + state.jobId;
+  document.getElementById('finalAmount').textContent = '₹' + amount;
+
+  const icon = document.getElementById('successIcon');
+  const collectBox = document.getElementById('collectBox');
+
+  if (method === 'online') {
+    icon.className = 'sicon online';
+    icon.textContent = '✓';
+    document.getElementById('successTitle').textContent = 'Payment Ho Gaya!';
+    collectBox.className = 'collect-box online';
+    document.getElementById('collectTitle').textContent = '🖨️ Print Ho Raha Hai!';
+    document.getElementById('collectMsg').textContent = 'Payment verify ho gayi. Printer se aapka document print ho raha hai. Thodi der mein print nikal aayega!';
+    document.getElementById('amountLabel').textContent = 'Paid Online';
+  } else {
+    icon.className = 'sicon counter';
+    icon.textContent = '🖨️';
+    document.getElementById('successTitle').textContent = 'Print Shuru!';
+    collectBox.className = 'collect-box counter';
+    document.getElementById('collectTitle').textContent = '💵 Counter Pe Jao!';
+    document.getElementById('collectMsg').textContent = 'Aapka document print ho raha hai. Counter pe jaake yeh amount pay karein aur apna print collect karein!';
+    document.getElementById('amountLabel').textContent = 'Counter Pe Dena Hai';
+  }
+}
+
+// Crop functions
 function openCrop() {
   document.getElementById('cropOverlay').classList.add('show');
   const cc = document.getElementById('crop-canvas');
-  const src = document.getElementById('preview-canvas').style.display!=='none' ? document.getElementById('preview-canvas') : document.getElementById('preview-img');
-  cc.width=320; cc.height=Math.round(320*(src.height||src.naturalHeight)/(src.width||src.naturalWidth));
-  cc.getContext('2d').drawImage(src,0,0,cc.width,cc.height);
+  const src = document.getElementById('preview-canvas').style.display !== 'none'
+    ? document.getElementById('preview-canvas')
+    : document.getElementById('preview-img');
+  if (!src.width && !src.naturalWidth) return;
+  cc.width = 300;
+  cc.height = Math.round(300 * (src.height || src.naturalHeight) / (src.width || src.naturalWidth));
+  cc.getContext('2d').drawImage(src, 0, 0, cc.width, cc.height);
 }
 function applyCrop(mode) {
   const cc = document.getElementById('crop-canvas');
   const ctx = cc.getContext('2d');
-  const src = document.getElementById('preview-canvas').style.display!=='none' ? document.getElementById('preview-canvas') : document.getElementById('preview-img');
-  if (mode==='auto') {
-    const a4H = Math.round(cc.width*297/210);
+  const src = document.getElementById('preview-canvas').style.display !== 'none'
+    ? document.getElementById('preview-canvas') : document.getElementById('preview-img');
+  if (mode === 'auto') {
+    const h = Math.round(cc.width * 297/210);
     ctx.clearRect(0,0,cc.width,cc.height);
-    ctx.drawImage(src,0,0,cc.width,a4H);
-    cc.height=a4H; toast('🤖 Auto A4!');
-  } else if (mode==='rotate') {
+    ctx.drawImage(src, 0, 0, cc.width, h);
+    cc.height = h; toast('🤖 Auto A4!');
+  } else if (mode === 'rotate') {
     ctx.save(); ctx.clearRect(0,0,cc.width,cc.height);
     ctx.translate(cc.width/2,cc.height/2); ctx.rotate(90*Math.PI/180);
     ctx.drawImage(src,-cc.width/2,-cc.height/2,cc.width,cc.height);
     ctx.restore(); toast('🔄 Rotate!');
-  } else if (mode==='bright') {
-    const imageData = ctx.getImageData(0,0,cc.width,cc.height);
-    const d = imageData.data;
+  } else if (mode === 'bright') {
+    const id = ctx.getImageData(0,0,cc.width,cc.height);
+    const d = id.data;
     for (let i=0;i<d.length;i+=4) { d[i]=Math.min(255,d[i]*1.2); d[i+1]=Math.min(255,d[i+1]*1.2); d[i+2]=Math.min(255,d[i+2]*1.2); }
-    ctx.putImageData(imageData,0,0); toast('☀️ Brighter!');
+    ctx.putImageData(id, 0, 0); toast('☀️ Brighter!');
   }
 }
 function confirmCrop() {
   const cc = document.getElementById('crop-canvas');
   const pc = document.getElementById('preview-canvas');
-  pc.width=cc.width; pc.height=cc.height;
-  pc.getContext('2d').drawImage(cc,0,0);
-  pc.style.display='block'; document.getElementById('preview-img').style.display='none';
+  pc.width = cc.width; pc.height = cc.height;
+  pc.getContext('2d').drawImage(cc, 0, 0);
+  pc.style.display = 'block';
+  document.getElementById('preview-img').style.display = 'none';
   closeCrop();
-  document.getElementById('qualityCard').className='quality good';
-  document.getElementById('qIcon').textContent='✅';
-  document.getElementById('qTitle').textContent='Fix ho gaya!';
-  toast('✅ Crop apply ho gaya!');
+  document.getElementById('qualityCard').className = 'quality good';
+  document.getElementById('qIcon').textContent = '✅';
+  document.getElementById('qTitle').textContent = 'Fix ho gaya!';
+  toast('✅ Applied!');
 }
 function closeCrop() { document.getElementById('cropOverlay').classList.remove('show'); }
 
 function setStep(n) {
   for (let i=1;i<=4;i++) {
     const s = document.getElementById('s'+i);
-    s.className='step'+(i<n?' done':i===n?' active':'');
+    s.className = 'step' + (i<n?' done':i===n?' active':'');
     s.querySelector('.dot').textContent = i<n?'✓':i;
   }
 }
@@ -522,25 +708,26 @@ function show(id) { document.getElementById(id).classList.remove('hidden'); }
 function hide(id) { document.getElementById(id).classList.add('hidden'); }
 function toast(msg) {
   const t = document.getElementById('toast');
-  t.textContent=msg; t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2500);
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
 }
 
 // Drag & drop
 const uz = document.getElementById('uploadZone');
-uz.addEventListener('dragover',e=>{e.preventDefault();uz.style.borderColor='#1c6fff';});
-uz.addEventListener('dragleave',()=>{uz.style.borderColor='#e2ddd6';});
-uz.addEventListener('drop',e=>{
-  e.preventDefault(); uz.style.borderColor='#e2ddd6';
+uz.addEventListener('dragover', e => { e.preventDefault(); uz.style.borderColor = '#1c6fff'; });
+uz.addEventListener('dragleave', () => { uz.style.borderColor = '#e2ddd6'; });
+uz.addEventListener('drop', e => {
+  e.preventDefault(); uz.style.borderColor = '#e2ddd6';
   if (e.dataTransfer.files[0]) {
-    const inp=document.getElementById('fileInput');
-    const dt=new DataTransfer(); dt.items.add(e.dataTransfer.files[0]);
-    inp.files=dt.files; handleFile(inp);
+    const inp = document.getElementById('fileInput');
+    const dt = new DataTransfer();
+    dt.items.add(e.dataTransfer.files[0]);
+    inp.files = dt.files;
+    handleFile(inp);
   }
 });
 
-loadShop();
-updatePrice();
+init();
 </script>
 </body>
 </html>
