@@ -19,7 +19,6 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 .pbadge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700}
 .pbw{background:rgba(255,255,255,0.1)}
 .pclr{background:#ff4d1c}
-/* Steps */
 .steps{display:flex;margin-bottom:20px;position:relative}
 .steps::before{content:'';position:absolute;top:13px;left:14px;right:14px;height:2px;background:#e2ddd6}
 .step{flex:1;text-align:center;position:relative;z-index:1}
@@ -28,7 +27,6 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 .step.done .dot{background:#00c853;color:#fff}
 .step-lbl{font-size:10px;color:#6b6870;font-weight:600}
 .step.active .step-lbl{color:#ff4d1c}
-/* Upload */
 .upload-zone{border:2.5px dashed #e2ddd6;border-radius:20px;padding:44px 20px;text-align:center;cursor:pointer;background:#fff;position:relative;transition:all 0.2s}
 .upload-zone:hover{border-color:#1c6fff;background:#f0f4ff}
 .upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
@@ -37,12 +35,10 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 .upload-zone p{font-size:13px;color:#6b6870}
 .ftypes{display:flex;justify-content:center;gap:6px;margin-top:12px}
 .ft{padding:3px 9px;background:#f5f0e8;border-radius:6px;font-size:11px;font-weight:700;color:#6b6870}
-/* Card */
 .card{background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.07);margin-bottom:14px}
 .card-head{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #f0ebe3}
 .card-head h3{font-size:15px;font-weight:700}
 .card-body{padding:16px 18px}
-/* Preview */
 .preview-wrap{background:#f8f7f5;border-radius:12px;padding:12px;text-align:center;min-height:180px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px}
 #preview-canvas,#preview-img{max-width:100%;max-height:240px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.1)}
 .page-nav{display:flex;align-items:center;gap:12px;margin-top:8px}
@@ -51,7 +47,6 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 .page-nav-btn:disabled{opacity:0.3;cursor:not-allowed}
 .page-info{font-size:13px;font-weight:600;color:#6b6870}
 .page-badge{display:inline-flex;align-items:center;gap:6px;background:#0a0a0f;color:#fff;border-radius:10px;padding:5px 12px;font-size:12px;font-weight:700;margin-top:6px}
-/* Quality */
 .quality{border-radius:14px;padding:14px;display:flex;gap:12px;align-items:flex-start;margin-bottom:12px}
 .quality.good{background:#e8f9ef;border:1.5px solid #a3e6bc}
 .quality.warn{background:#fff8e8;border:1.5px solid #ffd97a}
@@ -64,7 +59,6 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 .btn-blue{background:linear-gradient(135deg,#1c6fff,#0047cc);color:#fff}
 .btn-green{background:linear-gradient(135deg,#00c853,#009624);color:#fff}
 .btn:hover{transform:translateY(-1px)}
-/* Options */
 .opt-card{background:#fff;border-radius:20px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:14px}
 .opt-card h3{font-size:16px;font-weight:700;margin-bottom:14px}
 .opt-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f0ebe3}
@@ -74,12 +68,10 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 .tog{display:flex;gap:5px}
 .tog-btn{padding:6px 14px;border-radius:8px;border:1.5px solid #e2ddd6;background:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:'Space Grotesk',sans-serif;transition:all 0.15s}
 .tog-btn.on{background:#0a0a0f;color:#fff;border-color:#0a0a0f}
-/* Price summary */
 .price-card{background:#0a0a0f;border-radius:20px;padding:20px;color:#fff;margin-bottom:14px}
 .price-card h3{font-family:'Syne',sans-serif;font-size:17px;margin-bottom:14px}
 .price-line{display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,0.55);margin-bottom:8px}
 .price-line.total{color:#fff;font-weight:700;font-size:20px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.12);margin-top:8px}
-/* Payment buttons - Problem 4 */
 .pay-btns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
 .pay-online-btn{background:linear-gradient(135deg,#00c853,#009624);color:#fff;border:none;border-radius:14px;padding:16px 10px;font-family:'Syne',sans-serif;font-size:15px;font-weight:800;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:4px}
 .pay-online-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,200,83,0.35)}
@@ -88,7 +80,6 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 .pay-counter-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(255,77,28,0.35)}
 .pay-btn-sub{font-size:10px;font-weight:400;opacity:0.8}
 .pay-note{text-align:center;font-size:11px;color:rgba(255,255,255,0.4);margin-top:10px}
-/* Success */
 .success-screen{display:none;background:#fff;border-radius:24px;padding:36px 20px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.08)}
 .sicon{width:76px;height:76px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:38px;margin:0 auto 18px;animation:pop 0.5s cubic-bezier(0.175,0.885,0.32,1.275)}
 @keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
@@ -108,25 +99,28 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 .amount-box strong{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#ff4d1c}
 .btn-primary{background:#ff4d1c;color:#fff;width:100%;border:none;border-radius:12px;padding:14px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;cursor:pointer;margin-top:14px;transition:all 0.2s}
 .btn-primary:hover{background:#e03d0e}
-/* Crop */
 .overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;align-items:center;justify-content:center;padding:16px}
 .overlay.show{display:flex}
 .crop-modal{background:#fff;border-radius:20px;padding:22px;max-width:440px;width:100%;max-height:90vh;overflow-y:auto}
 .crop-modal h3{font-family:'Syne',sans-serif;font-size:17px;margin-bottom:4px}
 .crop-modal p{font-size:12px;color:#6b6870;margin-bottom:14px}
-#crop-canvas{max-width:100%;border-radius:8px}
+.crop-canvas-wrap{background:#f0f0f0;border-radius:12px;padding:10px;text-align:center;margin-bottom:12px;min-height:120px;display:flex;align-items:center;justify-content:center}
+#crop-canvas{max-width:100%;border-radius:8px;display:block}
 .crop-acts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .crop-btn{flex:1;padding:9px;border-radius:10px;border:1.5px solid #e2ddd6;background:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:'Space Grotesk',sans-serif}
+.crop-btn.on{background:#0a0a0f;color:#fff;border-color:#0a0a0f}
 .crop-row{display:flex;gap:10px}
-/* Toast */
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#0a0a0f;color:#fff;padding:12px 22px;border-radius:12px;font-size:13px;font-weight:600;z-index:300;transition:transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275);white-space:nowrap}
 .toast.show{transform:translateX(-50%) translateY(0)}
 .hidden{display:none}
+.footer{text-align:center;margin-top:28px;padding-top:18px}
+.footer p{font-size:11px;color:#9b968d;line-height:1.6;margin-bottom:8px}
+.footer-insta{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#ff4d1c;text-decoration:none;transition:opacity 0.2s}
+.footer-insta:hover{opacity:0.7}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <!-- Shop Card -->
   <div class="shop-card">
     <div class="shop-icon">🖨️</div>
     <div>
@@ -139,7 +133,6 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
     </div>
   </div>
 
-  <!-- Steps -->
   <div class="steps">
     <div class="step active" id="s1"><div class="dot">1</div><div class="step-lbl">Upload</div></div>
     <div class="step" id="s2"><div class="dot">2</div><div class="step-lbl">Preview</div></div>
@@ -147,7 +140,6 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
     <div class="step" id="s4"><div class="dot">4</div><div class="step-lbl">Pay</div></div>
   </div>
 
-  <!-- Upload -->
   <div id="secUpload">
     <div class="upload-zone" id="uploadZone">
       <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFile(this)">
@@ -160,7 +152,6 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
     </div>
   </div>
 
-  <!-- Preview — Problem 3: Multi-page preview -->
   <div id="secPreview" class="hidden">
     <div class="card">
       <div class="card-head">
@@ -173,7 +164,6 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
           <canvas id="preview-canvas" style="display:none;"></canvas>
           <img id="preview-img" style="display:none;">
         </div>
-        <!-- Multi-page navigation -->
         <div id="pageNavWrap" style="text-align:center;margin-top:8px;display:none;">
           <div class="page-nav">
             <button class="page-nav-btn" id="prevPageBtn" onclick="changePage(-1)" disabled>‹</button>
@@ -197,7 +187,6 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
     </div>
   </div>
 
-  <!-- Options — Problem 5: B&W/Color -->
   <div id="secOptions" class="hidden">
     <div class="opt-card">
       <h3>⚙️ Print Options</h3>
@@ -233,7 +222,6 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
     </div>
   </div>
 
-  <!-- Payment — Problem 4: 2 buttons -->
   <div id="secPayment" class="hidden">
     <div class="price-card">
       <h3>💰 Bill Summary</h3>
@@ -249,8 +237,6 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
         <span>Total</span>
         <span id="sumTotal">₹5</span>
       </div>
-
-      <!-- Problem 4: 2 payment buttons -->
       <div class="pay-btns">
         <button class="pay-online-btn" id="onlineBtn" onclick="payOnline()">
           💳 Pay Online
@@ -265,7 +251,6 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
     </div>
   </div>
 
-  <!-- Success -->
   <div class="success-screen" id="secSuccess">
     <div class="sicon" id="successIcon">✓</div>
     <h2 id="successTitle">Print Shuru!</h2>
@@ -280,20 +265,31 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
     </div>
     <button class="btn-primary" onclick="location.reload()">Naya Print Karo</button>
   </div>
+
+  <div class="footer">
+    <p>© 2026 All Rights Reserved | This System is Developed by Rupesh Kumar Mahato</p>
+    <a href="https://instagram.com/rupeshkr73" target="_blank" rel="noopener" class="footer-insta">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="2" width="20" height="20" rx="5" stroke="currentColor" stroke-width="2"/>
+        <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/>
+        <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor"/>
+      </svg>
+      Instagram: @rupeshkr73
+    </a>
+  </div>
 </div>
 
-<!-- Crop Overlay -->
 <div class="overlay" id="cropOverlay">
   <div class="crop-modal">
     <h3>✂️ Crop & Fix</h3>
     <p>Document ko A4 size mein adjust karo</p>
-    <div style="background:#f0f0f0;border-radius:12px;padding:10px;text-align:center;margin-bottom:12px;">
+    <div class="crop-canvas-wrap">
       <canvas id="crop-canvas"></canvas>
     </div>
     <div class="crop-acts">
-      <button class="crop-btn" onclick="applyCrop('auto')">🤖 Auto A4</button>
-      <button class="crop-btn" onclick="applyCrop('rotate')">🔄 Rotate</button>
-      <button class="crop-btn" onclick="applyCrop('bright')">☀️ Brighten</button>
+      <button class="crop-btn" id="cropAutoBtn" onclick="applyCrop('auto')">🤖 Auto A4</button>
+      <button class="crop-btn" id="cropRotateBtn" onclick="applyCrop('rotate')">🔄 Rotate</button>
+      <button class="crop-btn" id="cropBrightBtn" onclick="applyCrop('bright')">☀️ Brighten</button>
     </div>
     <div class="crop-row">
       <button class="btn-primary" style="border-radius:12px;" onclick="confirmCrop()">✅ Apply</button>
@@ -321,7 +317,6 @@ let state = {
   currentPage: 1
 };
 
-// Load shop + check razorpay
 async function init() {
   try {
     const [shopRes, rzpRes] = await Promise.all([
@@ -345,7 +340,6 @@ async function init() {
   } catch(e) { toast('Shop load nahi hua'); }
 }
 
-// Problem 3: Multi-page PDF handling
 async function handleFile(input) {
   const file = input.files[0];
   if (!file) return;
@@ -358,7 +352,6 @@ async function handleFile(input) {
   else if (['jpg','jpeg','png'].includes(ext)) loadImg(file);
   else loadGeneric(file.name);
 
-  // Upload
   toast('📤 File upload ho rahi hai...');
   const fd = new FormData();
   fd.append('file', file);
@@ -389,12 +382,10 @@ async function loadPDF(file) {
       state.totalPages = pdf.numPages;
       state.currentPage = 1;
 
-      // Page count update
       document.getElementById('totalPageNum').textContent = state.totalPages;
       document.getElementById('pageCountBadge').textContent = state.totalPages;
       document.getElementById('pageCountOpt').textContent = state.totalPages + ' page' + (state.totalPages > 1 ? 's' : '');
 
-      // Navigation show karo agar 1 se zyada pages hain
       if (state.totalPages > 1) {
         document.getElementById('pageNavWrap').style.display = 'block';
         document.getElementById('nextPageBtn').disabled = false;
@@ -438,10 +429,12 @@ function loadImg(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
     const img = document.getElementById('preview-img');
+    img.onload = () => {
+      document.getElementById('previewLoading').style.display = 'none';
+      img.style.display = 'block';
+      checkQuality();
+    };
     img.src = e.target.result;
-    img.style.display = 'block';
-    document.getElementById('previewLoading').style.display = 'none';
-    img.onload = () => checkQuality();
   };
   reader.readAsDataURL(file);
 }
@@ -461,12 +454,18 @@ function loadGeneric(name) {
   checkQuality();
 }
 
-function checkQuality() {
+function getActivePreviewElement() {
   const canvas = document.getElementById('preview-canvas');
   const img = document.getElementById('preview-img');
+  if (canvas.style.display !== 'none' && canvas.width > 0) return { el: canvas, w: canvas.width, h: canvas.height };
+  if (img.style.display !== 'none' && img.naturalWidth > 0) return { el: img, w: img.naturalWidth, h: img.naturalHeight };
+  return null;
+}
+
+function checkQuality() {
+  const active = getActivePreviewElement();
   let ratio = 210/297;
-  if (canvas.style.display !== 'none' && canvas.width > 0) ratio = canvas.width / canvas.height;
-  else if (img.style.display !== 'none') ratio = img.naturalWidth / img.naturalHeight;
+  if (active) ratio = active.w / active.h;
 
   const diff = Math.abs(ratio - 210/297);
   const card = document.getElementById('qualityCard');
@@ -480,12 +479,12 @@ function checkQuality() {
     card.classList.add('warn');
     document.getElementById('qIcon').textContent = '⚠️';
     document.getElementById('qTitle').textContent = 'Thoda adjust hoga';
-    document.getElementById('qDesc').textContent = 'Auto-crop karo ya direct print karo.';
+    document.getElementById('qDesc').textContent = 'Auto-crop karo ya direct print karo — print A4 mein automatically fit hoga.';
   } else {
     card.classList.add('bad');
     document.getElementById('qIcon').textContent = '❌';
-    document.getElementById('qTitle').textContent = 'Crop karna zaroori hai';
-    document.getElementById('qDesc').textContent = 'Auto-fix karo better print ke liye.';
+    document.getElementById('qTitle').textContent = 'Chhota size document hai';
+    document.getElementById('qDesc').textContent = 'Koi tension nahi — print A4 page mein automatically bada/fit hoke aayega.';
   }
 }
 
@@ -494,7 +493,6 @@ function goOptions() { hide('secPreview'); show('secOptions'); setStep(3); updat
 function goPayment() {
   if (!state.jobId) { toast('❌ Pehle file upload karo!'); return; }
   hide('secOptions'); show('secPayment'); setStep(4); updatePrice();
-  // Razorpay status update
   const note = document.getElementById('razorpayNote');
   const onlineBtn = document.getElementById('onlineBtn');
   if (state.razorpayEnabled) {
@@ -507,7 +505,6 @@ function goPayment() {
   }
 }
 
-// Problem 5: B&W / Color
 function setColor(mode) {
   state.colorMode = mode;
   document.getElementById('btnBW').className = 'tog-btn' + (mode==='bw'?' on':'');
@@ -537,7 +534,6 @@ function getTotal() {
   return pricePerPage * state.totalPages * state.copies;
 }
 
-// Problem 2 & 4: Online payment (Razorpay)
 async function payOnline() {
   if (!state.jobId) { toast('❌ File upload karo pehle!'); return; }
   toast('💳 Payment create ho raha hai...');
@@ -563,7 +559,6 @@ async function payOnline() {
       description: `Print Job - ${state.totalPages} pages`,
       order_id: data.orderId,
       handler: async function(response) {
-        // Verify payment
         const verifyRes = await fetch('/api/payment/razorpay/verify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -592,7 +587,6 @@ async function payOnline() {
   }
 }
 
-// Problem 4: Counter payment
 async function payCounter() {
   if (!state.jobId) { toast('❌ File upload karo pehle!'); return; }
   try {
@@ -648,44 +642,107 @@ function showSuccess(method, amount) {
   }
 }
 
-// Crop functions
+/* ===== CROP — Fixed: ab Auto A4 click karne pe preview gayab nahi hota ===== */
+let cropState = { sourceCanvas: null, rotation: 0 };
+
 function openCrop() {
+  const active = getActivePreviewElement();
+  if (!active) { toast('❌ Preview abhi load nahi hua'); return; }
+
   document.getElementById('cropOverlay').classList.add('show');
-  const cc = document.getElementById('crop-canvas');
-  const src = document.getElementById('preview-canvas').style.display !== 'none'
-    ? document.getElementById('preview-canvas')
-    : document.getElementById('preview-img');
-  if (!src.width && !src.naturalWidth) return;
-  cc.width = 300;
-  cc.height = Math.round(300 * (src.height || src.naturalHeight) / (src.width || src.naturalWidth));
-  cc.getContext('2d').drawImage(src, 0, 0, cc.width, cc.height);
+  cropState.rotation = 0;
+
+  const srcCanvas = document.createElement('canvas');
+  srcCanvas.width = active.w;
+  srcCanvas.height = active.h;
+  srcCanvas.getContext('2d').drawImage(active.el, 0, 0, active.w, active.h);
+  cropState.sourceCanvas = srcCanvas;
+
+  drawCropPreview();
 }
-function applyCrop(mode) {
+
+function drawCropPreview() {
+  if (!cropState.sourceCanvas) return;
   const cc = document.getElementById('crop-canvas');
   const ctx = cc.getContext('2d');
-  const src = document.getElementById('preview-canvas').style.display !== 'none'
-    ? document.getElementById('preview-canvas') : document.getElementById('preview-img');
+  const src = cropState.sourceCanvas;
+
+  const maxW = 300;
+  const scale = maxW / src.width;
+  cc.width = maxW;
+  cc.height = Math.round(src.height * scale);
+
+  ctx.clearRect(0, 0, cc.width, cc.height);
+  ctx.drawImage(src, 0, 0, cc.width, cc.height);
+}
+
+function applyCrop(mode) {
+  if (!cropState.sourceCanvas) { toast('❌ Pehle preview load karo'); return; }
+
   if (mode === 'auto') {
-    const h = Math.round(cc.width * 297/210);
-    ctx.clearRect(0,0,cc.width,cc.height);
-    ctx.drawImage(src, 0, 0, cc.width, h);
-    cc.height = h; toast('🤖 Auto A4!');
+    const src = cropState.sourceCanvas;
+    const a4Canvas = document.createElement('canvas');
+    const a4Ratio = 210/297;
+    a4Canvas.width = src.width;
+    a4Canvas.height = Math.round(src.width / a4Ratio);
+
+    const ctx = a4Canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, a4Canvas.width, a4Canvas.height);
+
+    const srcRatio = src.width / src.height;
+    const targetRatio = a4Canvas.width / a4Canvas.height;
+    let dw, dh, dx, dy;
+    if (srcRatio > targetRatio) {
+      dw = a4Canvas.width;
+      dh = a4Canvas.width / srcRatio;
+    } else {
+      dh = a4Canvas.height;
+      dw = a4Canvas.height * srcRatio;
+    }
+    dx = (a4Canvas.width - dw) / 2;
+    dy = (a4Canvas.height - dh) / 2;
+    ctx.drawImage(src, dx, dy, dw, dh);
+
+    cropState.sourceCanvas = a4Canvas;
+    cropState.rotation = 0;
+    drawCropPreview();
+    toast('🤖 Auto A4 applied! Preview safe hai.');
   } else if (mode === 'rotate') {
-    ctx.save(); ctx.clearRect(0,0,cc.width,cc.height);
-    ctx.translate(cc.width/2,cc.height/2); ctx.rotate(90*Math.PI/180);
-    ctx.drawImage(src,-cc.width/2,-cc.height/2,cc.width,cc.height);
-    ctx.restore(); toast('🔄 Rotate!');
+    const src = cropState.sourceCanvas;
+    const rotated = document.createElement('canvas');
+    rotated.width = src.height;
+    rotated.height = src.width;
+    const ctx = rotated.getContext('2d');
+    ctx.translate(rotated.width/2, rotated.height/2);
+    ctx.rotate(90 * Math.PI / 180);
+    ctx.drawImage(src, -src.width/2, -src.height/2);
+    cropState.sourceCanvas = rotated;
+    drawCropPreview();
+    toast('🔄 Rotate!');
   } else if (mode === 'bright') {
-    const id = ctx.getImageData(0,0,cc.width,cc.height);
-    const d = id.data;
-    for (let i=0;i<d.length;i+=4) { d[i]=Math.min(255,d[i]*1.2); d[i+1]=Math.min(255,d[i+1]*1.2); d[i+2]=Math.min(255,d[i+2]*1.2); }
-    ctx.putImageData(id, 0, 0); toast('☀️ Brighter!');
+    const cc = document.getElementById('crop-canvas');
+    const ctx = cc.getContext('2d');
+    try {
+      const id = ctx.getImageData(0, 0, cc.width, cc.height);
+      const d = id.data;
+      for (let i=0;i<d.length;i+=4) { d[i]=Math.min(255,d[i]*1.2); d[i+1]=Math.min(255,d[i+1]*1.2); d[i+2]=Math.min(255,d[i+2]*1.2); }
+      ctx.putImageData(id, 0, 0);
+      const newSrc = document.createElement('canvas');
+      newSrc.width = cc.width; newSrc.height = cc.height;
+      newSrc.getContext('2d').putImageData(id, 0, 0);
+      cropState.sourceCanvas = newSrc;
+      toast('☀️ Brighter!');
+    } catch(e) { toast('⚠️ Brighten failed'); }
   }
 }
+
 function confirmCrop() {
-  const cc = document.getElementById('crop-canvas');
+  if (!cropState.sourceCanvas) { closeCrop(); return; }
   const pc = document.getElementById('preview-canvas');
-  pc.width = cc.width; pc.height = cc.height;
+  const cc = document.getElementById('crop-canvas');
+  pc.width = cc.width;
+  pc.height = cc.height;
   pc.getContext('2d').drawImage(cc, 0, 0);
   pc.style.display = 'block';
   document.getElementById('preview-img').style.display = 'none';
@@ -693,9 +750,13 @@ function confirmCrop() {
   document.getElementById('qualityCard').className = 'quality good';
   document.getElementById('qIcon').textContent = '✅';
   document.getElementById('qTitle').textContent = 'Fix ho gaya!';
+  document.getElementById('qDesc').textContent = 'A4 ke liye ready hai.';
   toast('✅ Applied!');
 }
-function closeCrop() { document.getElementById('cropOverlay').classList.remove('show'); }
+
+function closeCrop() {
+  document.getElementById('cropOverlay').classList.remove('show');
+}
 
 function setStep(n) {
   for (let i=1;i<=4;i++) {
@@ -712,7 +773,6 @@ function toast(msg) {
   setTimeout(() => t.classList.remove('show'), 2500);
 }
 
-// Drag & drop
 const uz = document.getElementById('uploadZone');
 uz.addEventListener('dragover', e => { e.preventDefault(); uz.style.borderColor = '#1c6fff'; });
 uz.addEventListener('dragleave', () => { uz.style.borderColor = '#e2ddd6'; });
