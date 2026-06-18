@@ -1,11 +1,6 @@
 """
-QR Se Print - Local Agent v5.0
-All 5 problems fixed:
-1. JPG/PNG → PDF convert karke print
-2. Razorpay payment support
-3. Multi-page PDF support
-4. Counter + Online payment
-5. B&W / Color print setting
+QR Se Print - Local Agent v5.1
+Fix: Chhote size documents bhi A4 page mein properly fit/scale hote hain print karte waqt
 """
 
 import requests
@@ -18,11 +13,11 @@ from datetime import datetime
 from pathlib import Path
 
 # ============================================================
-SHOP_ID         = "SHOP_6865E251"   # Apna Shop ID daalo
+SHOP_ID         = "AAPKA_SHOP_ID"   # Apna Shop ID daalo
 SERVER_URL      = "https://qr-se-print.onrender.com"
 CHECK_INTERVAL  = 5
 LOG_FILE        = "print_agent_log.txt"
-VERSION         = "5.0.0"
+VERSION         = "5.1.0"
 # ============================================================
 
 def log(msg, level="INFO"):
@@ -39,7 +34,7 @@ def show_banner():
     print(f"""
 ╔══════════════════════════════════════════════╗
 ║         QR Se Print - Local Agent v{VERSION}   ║
-║  ✅ Image→PDF  ✅ B&W/Color  ✅ Multi-page   ║
+║  ✅ Image→PDF  ✅ B&W/Color  ✅ Auto Fit-A4  ║
 ╚══════════════════════════════════════════════╝
     """)
 
@@ -68,12 +63,9 @@ def download_file(url, ext):
         log(f"⬇️  Downloading...")
         resp = requests.get(url, timeout=60)
         resp.raise_for_status()
-
-        # File size check
         if len(resp.content) < 100:
             log(f"❌ Downloaded file bahut choti hai: {len(resp.content)} bytes", "ERROR")
             return None
-
         suffix = f".{ext}" if ext else ".pdf"
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
         tmp.write(resp.content)
@@ -84,30 +76,18 @@ def download_file(url, ext):
         log(f"❌ Download failed: {e}", "ERROR")
         return None
 
-# ─── Problem 1: Image to PDF convert ─────────────────────
+# ─── Problem 1: Image to PDF convert — A4 page banake usme image fit karo ─────
 def convert_image_to_pdf(image_path):
-    """JPG/PNG ko PDF mein convert karo — Problem 1 Fix"""
+    """
+    JPG/PNG ko A4-size PDF page mein convert karo.
+    Chhota photo ho to A4 page ke center mein zoom karke fit karte hain
+    taaki print A4 jaisa bada aaye, chhota corner mein na rahe.
+    """
     try:
         from PIL import Image
-        log(f"🔄 Image → PDF convert ho raha hai...")
+        log(f"🔄 Image → A4 PDF convert ho raha hai...")
 
         img = Image.open(image_path)
-
-        # A4 size mein fit karo
-        a4_width, a4_height = 595, 842  # points mein (72 dpi)
-
-        # Aspect ratio maintain karo
-        img_ratio = img.width / img.height
-        a4_ratio = a4_width / a4_height
-
-        if img_ratio > a4_ratio:
-            new_width = a4_width
-            new_height = int(a4_width / img_ratio)
-        else:
-            new_height = a4_height
-            new_width = int(a4_height * img_ratio)
-
-        img = img.resize((new_width, new_height), Image.LANCZOS)
 
         # RGB mein convert karo (PNG mein RGBA ho sakta hai)
         if img.mode in ('RGBA', 'LA', 'P'):
@@ -119,13 +99,43 @@ def convert_image_to_pdf(image_path):
         elif img.mode != 'RGB':
             img = img.convert('RGB')
 
-        # PDF save karo
-        pdf_path = image_path.replace('.jpg', '.pdf').replace('.jpeg', '.pdf').replace('.png', '.pdf')
-        if pdf_path == image_path:
-            pdf_path = image_path + '.pdf'
+        # A4 ka size 300 DPI pe (print quality ke liye)
+        dpi = 300
+        a4_width_px = int(8.27 * dpi)   # 210mm
+        a4_height_px = int(11.69 * dpi)  # 297mm
 
-        img.save(pdf_path, 'PDF', resolution=200)
-        log(f"✅ PDF ready: {pdf_path}")
+        # Create a full white A4 canvas
+        a4_canvas = Image.new('RGB', (a4_width_px, a4_height_px), (255, 255, 255))
+
+        # Image ko A4 canvas ke andar MAXIMUM size mein fit karo (zoom karke)
+        # taaki chhota image bhi bada print ho, chhota corner mein na rahe
+        img_ratio = img.width / img.height
+        a4_ratio = a4_width_px / a4_height_px
+
+        # 95% margin rakhte hain thoda safe area ke liye
+        target_w = int(a4_width_px * 0.95)
+        target_h = int(a4_height_px * 0.95)
+
+        if img_ratio > (target_w / target_h):
+            new_width = target_w
+            new_height = int(target_w / img_ratio)
+        else:
+            new_height = target_h
+            new_width = int(target_h * img_ratio)
+
+        # High quality upscale/downscale
+        resample_method = Image.LANCZOS
+        img_resized = img.resize((new_width, new_height), resample_method)
+
+        # Center mein paste karo
+        paste_x = (a4_width_px - new_width) // 2
+        paste_y = (a4_height_px - new_height) // 2
+        a4_canvas.paste(img_resized, (paste_x, paste_y))
+
+        # PDF save karo with correct DPI metadata
+        pdf_path = image_path + '_converted.pdf'
+        a4_canvas.save(pdf_path, 'PDF', resolution=dpi)
+        log(f"✅ A4 PDF ready: {pdf_path} ({new_width}x{new_height} fitted on {a4_width_px}x{a4_height_px})")
         return pdf_path
 
     except ImportError:
@@ -135,22 +145,27 @@ def convert_image_to_pdf(image_path):
         log(f"❌ Image convert error: {e}", "ERROR")
         return None
 
-# ─── Problem 5: B&W / Color Print ────────────────────────
+# ─── Problem 5: B&W / Color Print + Fit-to-A4 ────────────────────────
 def print_pdf_sumatra(filepath, copies=1, color_mode="bw"):
-    """SumatraPDF se print — B&W/Color setting ke saath"""
+    """
+    SumatraPDF se print — B&W/Color setting ke saath
+    'fit' flag use karte hain taaki chhota PDF/page bhi A4 paper
+    ke hisaab se properly scale ho jaye, corner mein chhota na rahe.
+    """
     sumatra_paths = [
         r"C:\Program Files\SumatraPDF\SumatraPDF.exe",
         r"C:\Program Files (x86)\SumatraPDF\SumatraPDF.exe",
         os.path.expanduser(r"~\AppData\Local\SumatraPDF\SumatraPDF.exe"),
     ]
 
-    # Problem 5: B&W ke liye monochrome setting
+    # "fit" — page ko printer paper size ke hisaab se scale karta hai
+    # (chhota document A4 paper mein bada hoke print hoga, corner mein nahi rahega)
     if color_mode == "bw":
-        print_settings = f"copies={copies},monochrome"
-        log(f"🖨️  B&W (Monochrome) print karenge")
+        print_settings = f"copies={copies},monochrome,fit"
+        log(f"🖨️  B&W (Monochrome) + Fit-to-Page print karenge")
     else:
-        print_settings = f"copies={copies}"
-        log(f"🖨️  Color print karenge")
+        print_settings = f"copies={copies},fit"
+        log(f"🖨️  Color + Fit-to-Page print karenge")
 
     for sumatra in sumatra_paths:
         if os.path.exists(sumatra):
@@ -164,17 +179,18 @@ def print_pdf_sumatra(filepath, copies=1, color_mode="bw"):
             log(f"CMD: {' '.join(cmd)}")
             result = subprocess.run(cmd, timeout=120, capture_output=True)
             if result.returncode == 0:
-                log(f"✅ SumatraPDF print success! ({color_mode.upper()})")
+                log(f"✅ SumatraPDF print success! ({color_mode.upper()}, fit-to-page)")
                 return True
             else:
-                log(f"⚠️  SumatraPDF error: {result.stderr.decode()}", "WARN")
+                err = result.stderr.decode(errors='ignore') if result.stderr else ''
+                log(f"⚠️  SumatraPDF error: {err}", "WARN")
 
     # Fallback
     log("⚠️  SumatraPDF nahi mila, Windows shell se try kar raha hai...", "WARN")
     try:
         os.startfile(filepath, "print")
         time.sleep(5)
-        log("✅ Windows shell se print hua (B&W setting apply nahi hogi)")
+        log("✅ Windows shell se print hua (fit/B&W setting apply nahi hogi)")
         return True
     except Exception as e:
         log(f"❌ Print failed: {e}", "ERROR")
@@ -211,9 +227,9 @@ def print_file(filepath, copies=1, color_mode="bw"):
     converted_pdf = None
 
     try:
-        # Problem 1: Image files ko pehle PDF mein convert karo
+        # Problem 1: Image files ko pehle A4-fit PDF mein convert karo
         if ext in ['.jpg', '.jpeg', '.png', '.bmp', '.gif']:
-            log(f"🔄 Image file detect hua — PDF mein convert kar raha hai...")
+            log(f"🔄 Image file detect hua — A4 PDF mein convert kar raha hai...")
             converted_pdf = convert_image_to_pdf(filepath)
             if not converted_pdf:
                 log("❌ Image to PDF conversion failed!", "ERROR")
@@ -224,15 +240,13 @@ def print_file(filepath, copies=1, color_mode="bw"):
         elif ext in ['.doc', '.docx']:
             return print_word(filepath, copies, color_mode)
         else:
-            # Unknown — PDF ki tarah treat karo
             print_path = filepath
 
-        # PDF print karo (image bhi ab PDF hai)
+        # PDF print karo with fit-to-page (image bhi ab already A4-fitted PDF hai)
         success = print_pdf_sumatra(print_path, copies, color_mode)
         return success
 
     finally:
-        # Converted PDF delete karo
         if converted_pdf and os.path.exists(converted_pdf):
             try:
                 time.sleep(2)
@@ -286,13 +300,11 @@ def process_job(job):
         mark_failed(job_id, "No URL")
         return
 
-    # Download
     filepath = download_file(url, ext)
     if not filepath:
         mark_failed(job_id, "Download failed")
         return
 
-    # Verify file
     file_size = os.path.getsize(filepath)
     if file_size < 100:
         log(f"❌ File empty: {file_size} bytes", "ERROR")
@@ -300,10 +312,8 @@ def process_job(job):
         mark_failed(job_id, "Empty file")
         return
 
-    # Print
     success = print_file(filepath, copies, color)
 
-    # Cleanup local file
     try:
         time.sleep(3)
         if os.path.exists(filepath):
@@ -320,10 +330,7 @@ def process_job(job):
         log(f"❌ Job {job_id} failed!", "ERROR")
 
 def check_dependencies():
-    """Dependencies check karo"""
     log("🔍 Dependencies check...")
-
-    # Pillow check
     try:
         from PIL import Image
         log("✅ Pillow (image→PDF) ready")
@@ -335,8 +342,6 @@ def check_dependencies():
             log("✅ Pillow install ho gaya!")
         except:
             log("❌ Pillow install nahi hua — JPG/PNG print nahi hoga!", "ERROR")
-
-    # win32print check
     try:
         import win32print
         log("✅ win32print ready")
