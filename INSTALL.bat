@@ -24,7 +24,7 @@ echo ✅ Python OK!
 
 :: Packages install
 echo [2/4] Packages install ho rahe hain...
-python -m pip install requests pywin32 Pillow --quiet
+python -m pip install requests pywin32 Pillow PyPDF2 --quiet
 echo ✅ Packages ready!
 
 :: SumatraPDF
@@ -44,12 +44,7 @@ echo Dashboard se apna Shop ID copy karke yahan paste karo:
 set /p SHOP_ID="Shop ID: "
 if "%SHOP_ID%"=="" set SHOP_ID=AAPKA_SHOP_ID
 
-python -c "
-content = open('print_agent.py','r',encoding='utf-8').read()
-content = content.replace('AAPKA_SHOP_ID','%SHOP_ID%')
-open('print_agent.py','w',encoding='utf-8').write(content)
-print('Shop ID updated!')
-"
+python -c "content = open('print_agent.py','r',encoding='utf-8').read(); content = content.replace('AAPKA_SHOP_ID','%SHOP_ID%'); open('print_agent.py','w',encoding='utf-8').write(content); print('Shop ID updated!')"
 
 :: Run files banana
 echo @echo off > RUN_AGENT.bat
