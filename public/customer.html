@@ -109,6 +109,9 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 .crop-acts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
 .crop-btn{flex:1;padding:9px;border-radius:10px;border:1.5px solid #e2ddd6;background:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:'Space Grotesk',sans-serif}
 .crop-btn.on{background:#0a0a0f;color:#fff;border-color:#0a0a0f}
+.crop-handle{position:absolute;width:18px;height:18px;background:#ff4d1c;border:2px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3);cursor:grab;touch-action:none}
+.crop-handle:active{cursor:grabbing}
+.crop-rect-outline{position:absolute;border:2px dashed #ff4d1c;pointer-events:none;background:rgba(255,77,28,0.08)}
 .crop-row{display:flex;gap:10px}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#0a0a0f;color:#fff;padding:12px 22px;border-radius:12px;font-size:13px;font-weight:600;z-index:300;transition:transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275);white-space:nowrap}
 .toast.show{transform:translateX(-50%) translateY(0)}
@@ -218,6 +221,24 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
         </div>
         <div style="font-size:14px;font-weight:700;color:#ff4d1c;" id="pageCountOpt">1 page</div>
       </div>
+      <div class="opt-row" id="pageRangeRow" style="display:none;flex-direction:column;align-items:flex-start;gap:10px;">
+        <div style="width:100%;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div class="opt-lbl">Print Kaunse Pages?</div>
+            <div class="opt-sub">Sabhi pages ya specific pages</div>
+          </div>
+          <div class="tog">
+            <button class="tog-btn on" id="rangeAllBtn" onclick="setPageRangeMode('all')">All Pages</button>
+            <button class="tog-btn" id="rangeCustomBtn" onclick="setPageRangeMode('custom')">Specific</button>
+          </div>
+        </div>
+        <div id="pageRangeInputWrap" style="display:none;width:100%;">
+          <input type="text" id="pageRangeInput" placeholder="jaise: 5 ya 1,3,5 ya 2-7" oninput="updatePageRangeFromInput()"
+            style="width:100%;padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-size:14px;outline:none;">
+          <div id="pageRangeError" style="font-size:11px;color:#ff4d1c;margin-top:6px;display:none;"></div>
+          <div id="pageRangePreview" style="font-size:11px;color:#6b6870;margin-top:6px;"></div>
+        </div>
+      </div>
       <button class="btn-primary" onclick="goPayment()">Payment Pe Jao →</button>
     </div>
   </div>
@@ -283,11 +304,13 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
   <div class="crop-modal">
     <h3>✂️ Crop & Fix</h3>
     <p>Document ko A4 size mein adjust karo</p>
-    <div class="crop-canvas-wrap">
+    <div class="crop-canvas-wrap" id="cropCanvasWrap" style="position:relative;">
       <canvas id="crop-canvas"></canvas>
+      <div id="cropHandles" style="display:none;position:absolute;inset:0;"></div>
     </div>
     <div class="crop-acts">
       <button class="crop-btn" id="cropAutoBtn" onclick="applyCrop('auto')">🤖 Auto A4</button>
+      <button class="crop-btn" id="cropManualBtn" onclick="applyCrop('manual')">✋ Manual Crop</button>
       <button class="crop-btn" id="cropRotateBtn" onclick="applyCrop('rotate')">🔄 Rotate</button>
       <button class="crop-btn" id="cropBrightBtn" onclick="applyCrop('bright')">☀️ Brighten</button>
     </div>
@@ -314,7 +337,10 @@ let state = {
   razorpayEnabled: false,
   razorpayKeyId: null,
   pdfDoc: null,
-  currentPage: 1
+  currentPage: 1,
+  pageRangeMode: 'all',
+  selectedPages: [],
+  printPageCount: 1
 };
 
 async function init() {
@@ -381,6 +407,9 @@ async function loadPDF(file) {
       state.pdfDoc = pdf;
       state.totalPages = pdf.numPages;
       state.currentPage = 1;
+      state.printPageCount = pdf.numPages;
+      state.pageRangeMode = 'all';
+      state.selectedPages = Array.from({length: pdf.numPages}, (_, i) => i + 1);
 
       document.getElementById('totalPageNum').textContent = state.totalPages;
       document.getElementById('pageCountBadge').textContent = state.totalPages;
@@ -389,8 +418,11 @@ async function loadPDF(file) {
       if (state.totalPages > 1) {
         document.getElementById('pageNavWrap').style.display = 'block';
         document.getElementById('nextPageBtn').disabled = false;
+        document.getElementById('pageRangeRow').style.display = 'flex';
+        setPageRangeMode('all');
       } else {
         document.getElementById('pageNavWrap').style.display = 'none';
+        document.getElementById('pageRangeRow').style.display = 'none';
       }
 
       await renderPDFPage(1);
@@ -490,6 +522,74 @@ function checkQuality() {
 
 function goOptions() { hide('secPreview'); show('secOptions'); setStep(3); updatePrice(); }
 
+function setPageRangeMode(mode) {
+  state.pageRangeMode = mode;
+  document.getElementById('rangeAllBtn').className = 'tog-btn' + (mode==='all'?' on':'');
+  document.getElementById('rangeCustomBtn').className = 'tog-btn' + (mode==='custom'?' on':'');
+  const inputWrap = document.getElementById('pageRangeInputWrap');
+  if (mode === 'all') {
+    inputWrap.style.display = 'none';
+    state.selectedPages = Array.from({length: state.totalPages}, (_, i) => i + 1);
+    state.printPageCount = state.totalPages;
+    document.getElementById('pageRangePreview').textContent = '';
+    document.getElementById('pageRangeError').style.display = 'none';
+  } else {
+    inputWrap.style.display = 'block';
+    document.getElementById('pageRangeInput').focus();
+    updatePageRangeFromInput();
+  }
+  updatePrice();
+}
+
+function parsePageRange(input, maxPages) {
+  // "5" ya "1,3,5" ya "2-7" ya combination "1,3-5,8" support karo
+  const pages = new Set();
+  const parts = input.split(',').map(p => p.trim()).filter(p => p.length);
+  for (const part of parts) {
+    if (part.includes('-')) {
+      const [a, b] = part.split('-').map(n => parseInt(n.trim()));
+      if (isNaN(a) || isNaN(b) || a < 1 || b > maxPages || a > b) {
+        return { error: `"${part}" galat range hai (1-${maxPages} ke beech mein likho)` };
+      }
+      for (let i = a; i <= b; i++) pages.add(i);
+    } else {
+      const n = parseInt(part);
+      if (isNaN(n) || n < 1 || n > maxPages) {
+        return { error: `Page "${part}" sahi nahi hai (1-${maxPages} ke beech mein likho)` };
+      }
+      pages.add(n);
+    }
+  }
+  if (pages.size === 0) return { error: 'Kam se kam ek page number likho' };
+  return { pages: Array.from(pages).sort((a,b) => a-b) };
+}
+
+function updatePageRangeFromInput() {
+  const input = document.getElementById('pageRangeInput').value.trim();
+  const errorEl = document.getElementById('pageRangeError');
+  const previewEl = document.getElementById('pageRangePreview');
+
+  if (!input) {
+    errorEl.style.display = 'none';
+    previewEl.textContent = '';
+    return;
+  }
+
+  const result = parsePageRange(input, state.totalPages);
+  if (result.error) {
+    errorEl.textContent = '❌ ' + result.error;
+    errorEl.style.display = 'block';
+    previewEl.textContent = '';
+    return;
+  }
+
+  errorEl.style.display = 'none';
+  state.selectedPages = result.pages;
+  state.printPageCount = result.pages.length;
+  previewEl.textContent = `✅ Print hoga: Page ${result.pages.join(', ')} (total ${result.pages.length} page${result.pages.length>1?'s':''})`;
+  updatePrice();
+}
+
 function goPayment() {
   if (!state.jobId) { toast('❌ Pehle file upload karo!'); return; }
   hide('secOptions'); show('secPayment'); setStep(4); updatePrice();
@@ -520,18 +620,20 @@ function setCopies(d) {
 
 function updatePrice() {
   const pricePerPage = state.colorMode==='bw' ? state.priceBW : state.priceColor;
-  const total = pricePerPage * state.totalPages * state.copies;
+  const printPages = state.printPageCount || state.totalPages;
+  const total = pricePerPage * printPages * state.copies;
   const type = state.colorMode==='bw' ? 'B&W' : 'Color';
   document.getElementById('sumType').textContent = type + ' Print';
   document.getElementById('sumPerPage').textContent = '₹' + pricePerPage + '/page';
-  document.getElementById('sumPages').textContent = state.totalPages + ' page × ' + state.copies + ' cop' + (state.copies>1?'ies':'y');
+  document.getElementById('sumPages').textContent = printPages + ' page × ' + state.copies + ' cop' + (state.copies>1?'ies':'y');
   document.getElementById('sumPagesAmt').textContent = '₹' + total;
   document.getElementById('sumTotal').textContent = '₹' + total;
 }
 
 function getTotal() {
   const pricePerPage = state.colorMode==='bw' ? state.priceBW : state.priceColor;
-  return pricePerPage * state.totalPages * state.copies;
+  const printPages = state.printPageCount || state.totalPages;
+  return pricePerPage * printPages * state.copies;
 }
 
 async function payOnline() {
@@ -545,7 +647,8 @@ async function payOnline() {
         jobId: state.jobId,
         colorMode: state.colorMode,
         copies: state.copies,
-        totalPages: state.totalPages
+        totalPages: state.printPageCount || state.totalPages,
+        selectedPages: state.selectedPages
       })
     });
     const data = await res.json();
@@ -597,7 +700,8 @@ async function payCounter() {
         jobId: state.jobId,
         colorMode: state.colorMode,
         copies: state.copies,
-        totalPages: state.totalPages
+        totalPages: state.printPageCount || state.totalPages,
+        selectedPages: state.selectedPages
       })
     });
     const data = await res.json();
@@ -643,7 +747,7 @@ function showSuccess(method, amount) {
 }
 
 /* ===== CROP — Fixed: ab Auto A4 click karne pe preview gayab nahi hota ===== */
-let cropState = { sourceCanvas: null, rotation: 0 };
+let cropState = { sourceCanvas: null, rotation: 0, manualMode: false, rect: null, dragging: null };
 
 function openCrop() {
   const active = getActivePreviewElement();
@@ -651,6 +755,10 @@ function openCrop() {
 
   document.getElementById('cropOverlay').classList.add('show');
   cropState.rotation = 0;
+  cropState.manualMode = false;
+  cropState.rect = null;
+  document.getElementById('cropManualBtn').classList.remove('on');
+  document.getElementById('cropHandles').style.display = 'none';
 
   const srcCanvas = document.createElement('canvas');
   srcCanvas.width = active.w;
@@ -674,10 +782,29 @@ function drawCropPreview() {
 
   ctx.clearRect(0, 0, cc.width, cc.height);
   ctx.drawImage(src, 0, 0, cc.width, cc.height);
+
+  if (cropState.manualMode) renderCropHandles();
 }
 
 function applyCrop(mode) {
   if (!cropState.sourceCanvas) { toast('❌ Pehle preview load karo'); return; }
+
+  if (mode === 'manual') {
+    cropState.manualMode = !cropState.manualMode;
+    document.getElementById('cropManualBtn').classList.toggle('on', cropState.manualMode);
+    if (cropState.manualMode) {
+      const cc = document.getElementById('crop-canvas');
+      // Default rect — 10% margin chaaron taraf se
+      cropState.rect = { x: cc.width*0.1, y: cc.height*0.1, w: cc.width*0.8, h: cc.height*0.8 };
+      document.getElementById('cropHandles').style.display = 'block';
+      renderCropHandles();
+      toast('✋ Corners drag karke crop area set karo');
+    } else {
+      document.getElementById('cropHandles').style.display = 'none';
+      drawCropPreview();
+    }
+    return;
+  }
 
   if (mode === 'auto') {
     const src = cropState.sourceCanvas;
@@ -706,6 +833,9 @@ function applyCrop(mode) {
 
     cropState.sourceCanvas = a4Canvas;
     cropState.rotation = 0;
+    cropState.manualMode = false;
+    document.getElementById('cropManualBtn').classList.remove('on');
+    document.getElementById('cropHandles').style.display = 'none';
     drawCropPreview();
     toast('🤖 Auto A4 applied! Preview safe hai.');
   } else if (mode === 'rotate') {
@@ -718,6 +848,9 @@ function applyCrop(mode) {
     ctx.rotate(90 * Math.PI / 180);
     ctx.drawImage(src, -src.width/2, -src.height/2);
     cropState.sourceCanvas = rotated;
+    cropState.manualMode = false;
+    document.getElementById('cropManualBtn').classList.remove('on');
+    document.getElementById('cropHandles').style.display = 'none';
     drawCropPreview();
     toast('🔄 Rotate!');
   } else if (mode === 'bright') {
@@ -733,19 +866,122 @@ function applyCrop(mode) {
       newSrc.getContext('2d').putImageData(id, 0, 0);
       cropState.sourceCanvas = newSrc;
       toast('☀️ Brighter!');
+      if (cropState.manualMode) renderCropHandles();
     } catch(e) { toast('⚠️ Brighten failed'); }
   }
 }
 
+// Manual crop ke corner handles draw aur drag karne ka logic
+function renderCropHandles() {
+  const handlesDiv = document.getElementById('cropHandles');
+  const cc = document.getElementById('crop-canvas');
+  if (!cropState.rect) return;
+  handlesDiv.innerHTML = '';
+  handlesDiv.style.width = cc.width + 'px';
+  handlesDiv.style.height = cc.height + 'px';
+  handlesDiv.style.left = cc.offsetLeft + 'px';
+  handlesDiv.style.top = cc.offsetTop + 'px';
+
+  const r = cropState.rect;
+
+  // Dashed outline
+  const outline = document.createElement('div');
+  outline.className = 'crop-rect-outline';
+  outline.style.left = r.x + 'px';
+  outline.style.top = r.y + 'px';
+  outline.style.width = r.w + 'px';
+  outline.style.height = r.h + 'px';
+  handlesDiv.appendChild(outline);
+
+  // 4 corner handles
+  const corners = [
+    { id: 'tl', x: r.x, y: r.y },
+    { id: 'tr', x: r.x + r.w, y: r.y },
+    { id: 'bl', x: r.x, y: r.y + r.h },
+    { id: 'br', x: r.x + r.w, y: r.y + r.h }
+  ];
+  corners.forEach(c => {
+    const h = document.createElement('div');
+    h.className = 'crop-handle';
+    h.style.left = (c.x - 9) + 'px';
+    h.style.top = (c.y - 9) + 'px';
+    h.dataset.corner = c.id;
+    h.addEventListener('pointerdown', startDragHandle);
+    handlesDiv.appendChild(h);
+  });
+}
+
+function startDragHandle(e) {
+  e.preventDefault();
+  cropState.dragging = e.target.dataset.corner;
+  document.addEventListener('pointermove', dragHandleMove);
+  document.addEventListener('pointerup', stopDragHandle);
+}
+
+function dragHandleMove(e) {
+  if (!cropState.dragging || !cropState.rect) return;
+  const cc = document.getElementById('crop-canvas');
+  const rectBounds = cc.getBoundingClientRect();
+  let x = e.clientX - rectBounds.left;
+  let y = e.clientY - rectBounds.top;
+  x = Math.max(0, Math.min(cc.width, x));
+  y = Math.max(0, Math.min(cc.height, y));
+
+  const r = cropState.rect;
+  const corner = cropState.dragging;
+
+  if (corner === 'tl') { r.w += r.x - x; r.h += r.y - y; r.x = x; r.y = y; }
+  else if (corner === 'tr') { r.w = x - r.x; r.h += r.y - y; r.y = y; }
+  else if (corner === 'bl') { r.w += r.x - x; r.x = x; r.h = y - r.y; }
+  else if (corner === 'br') { r.w = x - r.x; r.h = y - r.y; }
+
+  // Minimum size enforce karo
+  if (r.w < 30) r.w = 30;
+  if (r.h < 30) r.h = 30;
+
+  renderCropHandles();
+}
+
+function stopDragHandle() {
+  cropState.dragging = null;
+  document.removeEventListener('pointermove', dragHandleMove);
+  document.removeEventListener('pointerup', stopDragHandle);
+}
+
 function confirmCrop() {
   if (!cropState.sourceCanvas) { closeCrop(); return; }
-  const pc = document.getElementById('preview-canvas');
   const cc = document.getElementById('crop-canvas');
-  pc.width = cc.width;
-  pc.height = cc.height;
-  pc.getContext('2d').drawImage(cc, 0, 0);
-  pc.style.display = 'block';
-  document.getElementById('preview-img').style.display = 'none';
+
+  // Manual crop mode active ho aur rect set ho to usi area ko crop karo
+  if (cropState.manualMode && cropState.rect) {
+    const r = cropState.rect;
+    const scaleX = cropState.sourceCanvas.width / cc.width;
+    const scaleY = cropState.sourceCanvas.height / cc.height;
+
+    const cropped = document.createElement('canvas');
+    cropped.width = Math.round(r.w * scaleX);
+    cropped.height = Math.round(r.h * scaleY);
+    cropped.getContext('2d').drawImage(
+      cropState.sourceCanvas,
+      r.x * scaleX, r.y * scaleY, r.w * scaleX, r.h * scaleY,
+      0, 0, cropped.width, cropped.height
+    );
+
+    const pc = document.getElementById('preview-canvas');
+    pc.width = cropped.width;
+    pc.height = cropped.height;
+    pc.getContext('2d').drawImage(cropped, 0, 0);
+    pc.style.display = 'block';
+    document.getElementById('preview-img').style.display = 'none';
+  } else {
+    const pc = document.getElementById('preview-canvas');
+    pc.width = cc.width;
+    pc.height = cc.height;
+    pc.getContext('2d').drawImage(cc, 0, 0);
+    pc.style.display = 'block';
+    document.getElementById('preview-img').style.display = 'none';
+  }
+
   closeCrop();
   document.getElementById('qualityCard').className = 'quality good';
   document.getElementById('qIcon').textContent = '✅';
@@ -756,6 +992,9 @@ function confirmCrop() {
 
 function closeCrop() {
   document.getElementById('cropOverlay').classList.remove('show');
+  cropState.manualMode = false;
+  document.getElementById('cropManualBtn').classList.remove('on');
+  document.getElementById('cropHandles').style.display = 'none';
 }
 
 function setStep(n) {
