@@ -13,12 +13,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || 'https://qr-se-print.onrender.com';
 
-// Cloudinary — env variables se lo
 const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || 'drnswjs1q';
 const CLD_API_KEY = process.env.CLOUDINARY_API_KEY || '224393314967214';
 const CLD_API_SECRET = process.env.CLOUDINARY_API_SECRET || 'dnTnlUZI4e-yJJOBN0K_oLZW6Y0';
 
-// Razorpay — sirf env variables se lo (Problem 2)
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
 
@@ -42,7 +40,6 @@ const upload = multer({
   }
 });
 
-// ─── Cloudinary Upload ────────────────────────
 async function uploadToCloudinary(fileBuffer, fileType) {
   return new Promise((resolve, reject) => {
     const timestamp = Math.round(Date.now() / 1000);
@@ -81,7 +78,6 @@ async function uploadToCloudinary(fileBuffer, fileType) {
   });
 }
 
-// ─── Cloudinary Delete ────────────────────────
 async function deleteFromCloudinary(publicId) {
   return new Promise((resolve) => {
     const timestamp = Math.round(Date.now() / 1000);
@@ -108,7 +104,6 @@ async function deleteFromCloudinary(publicId) {
   });
 }
 
-// ─── DB Init ──────────────────────────────────
 async function initDB() {
   try {
     await pool.query(`
@@ -130,6 +125,7 @@ async function initDB() {
         file_public_id VARCHAR(500),
         file_type VARCHAR(20),
         total_pages INTEGER DEFAULT 1,
+        selected_pages TEXT DEFAULT '',
         copies INTEGER DEFAULT 1,
         color_mode VARCHAR(10) DEFAULT 'bw',
         amount INTEGER,
@@ -223,13 +219,19 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════
-// PAYMENT — Problem 2: Razorpay + Counter
+// PAYMENT — Razorpay + Counter, dono mein selectedPages support
 // ═══════════════════════════════════════════════
 
-// Razorpay order create
+function parseSelectedPages(selectedPages, fallbackCount) {
+  if (Array.isArray(selectedPages) && selectedPages.length) {
+    return selectedPages.map(p => parseInt(p)).filter(p => !isNaN(p));
+  }
+  return Array.from({length: fallbackCount}, (_, i) => i + 1);
+}
+
 app.post('/api/payment/razorpay/create', async (req, res) => {
   try {
-    const { jobId, colorMode, copies, totalPages } = req.body;
+    const { jobId, colorMode, copies, totalPages, selectedPages } = req.body;
     if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
       return res.status(400).json({ error: 'Razorpay not configured' });
     }
@@ -243,11 +245,11 @@ app.post('/api/payment/razorpay/create', async (req, res) => {
     const finalColorMode = colorMode || job.color_mode;
     const finalCopies = parseInt(copies) || job.copies;
     const finalPages = parseInt(totalPages) || job.total_pages;
+    const finalSelectedPages = parseSelectedPages(selectedPages, job.total_pages);
     const pricePerPage = finalColorMode === 'color' ? job.price_color : job.price_bw;
     const amount = pricePerPage * finalPages * finalCopies;
     const amountInPaise = amount * 100;
 
-    // Razorpay order banao
     const orderData = JSON.stringify({
       amount: amountInPaise,
       currency: 'INR',
@@ -280,10 +282,9 @@ app.post('/api/payment/razorpay/create', async (req, res) => {
 
     if (!razorpayOrder.id) return res.status(400).json({ error: 'Razorpay order failed', details: razorpayOrder });
 
-    // DB update karo
     await pool.query(
-      'UPDATE print_jobs SET razorpay_order_id=$1, color_mode=$2, copies=$3, total_pages=$4, amount=$5, payment_method=$6 WHERE id=$7',
-      [razorpayOrder.id, finalColorMode, finalCopies, finalPages, amount, 'online', jobId]
+      'UPDATE print_jobs SET razorpay_order_id=$1, color_mode=$2, copies=$3, total_pages=$4, selected_pages=$5, amount=$6, payment_method=$7 WHERE id=$8',
+      [razorpayOrder.id, finalColorMode, finalCopies, finalPages, finalSelectedPages.join(','), amount, 'online', jobId]
     );
 
     res.json({
@@ -299,12 +300,10 @@ app.post('/api/payment/razorpay/create', async (req, res) => {
   }
 });
 
-// Razorpay payment verify
 app.post('/api/payment/razorpay/verify', async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, jobId } = req.body;
 
-    // Signature verify karo
     const expectedSignature = crypto
       .createHmac('sha256', RAZORPAY_KEY_SECRET)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
@@ -314,7 +313,6 @@ app.post('/api/payment/razorpay/verify', async (req, res) => {
       return res.status(400).json({ error: 'Payment verification failed' });
     }
 
-    // Payment success — print queue mein daalo
     await pool.query(
       'UPDATE print_jobs SET payment_status=$1, status=$2, payment_id=$3 WHERE id=$4',
       ['paid', 'queued', razorpay_payment_id, jobId]
@@ -328,10 +326,9 @@ app.post('/api/payment/razorpay/verify', async (req, res) => {
   }
 });
 
-// Counter payment
 app.post('/api/payment/counter', async (req, res) => {
   try {
-    const { jobId, colorMode, copies, totalPages } = req.body;
+    const { jobId, colorMode, copies, totalPages, selectedPages } = req.body;
     if (!jobId) return res.status(400).json({ error:'Job ID required' });
 
     const jobCheck = await pool.query(
@@ -343,16 +340,17 @@ app.post('/api/payment/counter', async (req, res) => {
     const finalColorMode = colorMode || job.color_mode;
     const finalCopies = parseInt(copies) || job.copies;
     const finalPages = parseInt(totalPages) || job.total_pages;
+    const finalSelectedPages = parseSelectedPages(selectedPages, job.total_pages);
     const pricePerPage = finalColorMode === 'color' ? job.price_color : job.price_bw;
     const amount = pricePerPage * finalPages * finalCopies;
     const txnId = 'COUNTER_' + uuidv4().substring(0,10).toUpperCase();
 
     await pool.query(
-      'UPDATE print_jobs SET payment_status=$1, status=$2, payment_id=$3, color_mode=$4, copies=$5, total_pages=$6, amount=$7, payment_method=$8 WHERE id=$9',
-      ['paid', 'queued', txnId, finalColorMode, finalCopies, finalPages, amount, 'counter', jobId]
+      'UPDATE print_jobs SET payment_status=$1, status=$2, payment_id=$3, color_mode=$4, copies=$5, total_pages=$6, selected_pages=$7, amount=$8, payment_method=$9 WHERE id=$10',
+      ['paid', 'queued', txnId, finalColorMode, finalCopies, finalPages, finalSelectedPages.join(','), amount, 'counter', jobId]
     );
 
-    console.log(`💵 Counter payment: ${jobId} | ₹${amount}`);
+    console.log(`💵 Counter payment: ${jobId} | ₹${amount} | Pages: ${finalSelectedPages.join(',')}`);
     res.json({ success:true, txnId, amount });
   } catch(err) {
     console.error('Counter payment error:', err.message);
@@ -361,12 +359,12 @@ app.post('/api/payment/counter', async (req, res) => {
 });
 
 // ═══════════════════════════════════════════════
-// PRINT JOB APIs
+// PRINT JOB APIs — agent ko selected_pages bhi milta hai
 // ═══════════════════════════════════════════════
 app.get('/api/jobs/pending/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,file_name,file_url,file_public_id,file_type,copies,color_mode,total_pages,amount FROM print_jobs WHERE shop_id=$1 AND status=$2 AND payment_status=$3 ORDER BY created_at ASC LIMIT 5',
+      'SELECT id,file_name,file_url,file_public_id,file_type,copies,color_mode,total_pages,selected_pages,amount FROM print_jobs WHERE shop_id=$1 AND status=$2 AND payment_status=$3 ORDER BY created_at ASC LIMIT 5',
       [req.params.shopId, 'queued', 'paid']
     );
     res.json({ jobs: r.rows });
@@ -402,12 +400,10 @@ app.get('/api/jobs/status/:jobId', async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
-// Razorpay config check
 app.get('/api/razorpay/config', (req, res) => {
   res.json({ enabled: !!(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET), keyId: RAZORPAY_KEY_ID || null });
 });
 
-// Pages
 app.get('/', (req,res) => res.sendFile(path.join(__dirname,'public','index.html')));
 app.get('/print/:shopId', (req,res) => res.sendFile(path.join(__dirname,'public','customer.html')));
 app.get('/dashboard', (req,res) => res.sendFile(path.join(__dirname,'public','dashboard.html')));
