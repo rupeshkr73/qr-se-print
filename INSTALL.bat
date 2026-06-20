@@ -24,7 +24,7 @@ echo ✅ Python OK!
 
 :: Packages install
 echo [2/4] Packages install ho rahe hain...
-python -m pip install requests pywin32 Pillow PyPDF2 --quiet
+python -m pip install requests pywin32 Pillow PyPDF2 pycryptodome --quiet
 echo ✅ Packages ready!
 
 :: SumatraPDF
