@@ -358,8 +358,11 @@ async function init() {
     document.getElementById('priceColorBadge').textContent = `Color: ₹${shop.price_color}/page`;
     state.priceBW = shop.price_bw;
     state.priceColor = shop.price_color;
+    state.shopPaymentMode = shop.payment_mode || 'both';
 
-    state.razorpayEnabled = rzp.enabled;
+    // Shop ka payment_mode "counter_only" hai to online payment hamesha disable rahega,
+    // bhale hi Razorpay globally configured ho
+    state.razorpayEnabled = rzp.enabled && state.shopPaymentMode !== 'counter_only';
     state.razorpayKeyId = rzp.keyId;
 
     updatePrice();
@@ -595,10 +598,15 @@ function goPayment() {
   hide('secOptions'); show('secPayment'); setStep(4); updatePrice();
   const note = document.getElementById('razorpayNote');
   const onlineBtn = document.getElementById('onlineBtn');
-  if (state.razorpayEnabled) {
+  if (state.shopPaymentMode === 'counter_only') {
+    onlineBtn.style.display = 'none';
+    note.textContent = '💵 Yeh shop sirf Counter Payment accept karta hai';
+  } else if (state.razorpayEnabled) {
+    onlineBtn.style.display = 'flex';
     note.textContent = '✅ Online payment available';
     onlineBtn.disabled = false;
   } else {
+    onlineBtn.style.display = 'flex';
     note.textContent = '⚠️ Online payment abhi available nahi — Counter pe pay karo';
     onlineBtn.disabled = true;
     onlineBtn.style.background = '#666';

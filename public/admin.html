@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Se Print - Admin Panel</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
+nav{background:#0a0a0f;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#fff}
+.logo span{color:#ff4d1c}
+.nav-link{color:rgba(255,255,255,0.6);font-size:13px;font-weight:700;text-decoration:none;background:rgba(255,255,255,0.08);padding:8px 16px;border-radius:10px;cursor:pointer;border:none;transition:all 0.2s}
+.nav-link:hover{background:rgba(255,255,255,0.15);color:#fff}
+
+/* Login screen */
+.login-wrap{max-width:420px;margin:60px auto;padding:0 16px}
+.login-card{background:#fff;border-radius:24px;padding:32px 26px;box-shadow:0 8px 40px rgba(0,0,0,0.08)}
+.login-card h1{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;margin-bottom:6px;text-align:center}
+.login-card p{font-size:13px;color:#6b6870;text-align:center;margin-bottom:24px}
+.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+label{font-size:11px;font-weight:600;color:#6b6870;text-transform:uppercase;letter-spacing:0.5px}
+input{padding:13px 15px;border:1.5px solid #e2ddd6;border-radius:12px;font-family:'Space Grotesk',sans-serif;font-size:15px;outline:none;transition:border-color 0.2s;width:100%}
+input:focus{border-color:#1c6fff}
+.btn-primary{background:#ff4d1c;color:#fff;border:none;border-radius:12px;padding:15px 24px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;cursor:pointer;width:100%;transition:all 0.2s;margin-top:6px}
+.btn-primary:hover{background:#e03d0e}
+.btn-primary:disabled{background:#999;cursor:not-allowed}
+.err-msg{font-size:12px;color:#ff4d1c;margin-top:10px;text-align:center;display:none}
+.help-text{text-align:center;margin-top:18px;font-size:12px;color:#6b6870}
+.help-text a{color:#1c6fff;font-weight:700;text-decoration:none;cursor:pointer}
+
+/* Admin panel (after login) */
+.hidden{display:none}
+.hero{background:#0a0a0f;color:#fff;padding:32px 24px 46px}
+.hero h1{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;margin-bottom:4px}
+.hero p{color:rgba(255,255,255,0.5);font-size:13px}
+.body{max-width:620px;margin:-22px auto 40px;padding:0 16px}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px}
+.stat{background:#fff;border-radius:14px;padding:14px;box-shadow:0 2px 12px rgba(0,0,0,0.06);text-align:center}
+.stat-lbl{font-size:10px;color:#6b6870;font-weight:600;text-transform:uppercase;margin-bottom:4px}
+.stat-val{font-family:'Syne',sans-serif;font-size:20px;font-weight:800}
+.green{color:#00c853}
+.orange{color:#ff4d1c}
+
+.card{background:#fff;border-radius:20px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:14px}
+.card h2{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;margin-bottom:14px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.form-group.full{grid-column:1/-1}
+select{padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-size:14px;outline:none;width:100%}
+.price-wrap{position:relative}
+.price-wrap span{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-weight:700;color:#6b6870}
+.price-wrap input{padding-left:26px}
+
+.payment-opts{display:flex;flex-direction:column;gap:8px}
+.payment-opt{display:flex;align-items:flex-start;gap:10px;padding:12px;border:2px solid #e2ddd6;border-radius:12px;cursor:pointer;transition:all 0.2s}
+.payment-opt.selected{border-color:#ff4d1c;background:#fff5f0}
+.payment-opt input{width:auto;margin-top:3px}
+.payment-opt-text strong{font-size:13px;font-weight:700;display:block}
+.payment-opt-text span{font-size:11px;color:#6b6870}
+
+.custom-printer-wrap{margin-top:10px;display:none}
+
+.btn-save{background:#00c853;color:#fff;border:none;border-radius:12px;padding:13px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;cursor:pointer;width:100%;margin-top:8px}
+.btn-save:hover{background:#00a844}
+.success-msg{font-size:12px;color:#00c853;margin-top:8px;text-align:center;display:none}
+
+.jobs-table{width:100%;border-collapse:collapse}
+.jobs-table th{text-align:left;font-size:10px;font-weight:600;color:#6b6870;text-transform:uppercase;padding:0 6px 8px}
+.jobs-table td{padding:9px 6px;border-bottom:1px solid #f0ebe3;font-size:12px}
+.status-pill{padding:3px 9px;border-radius:20px;font-size:10px;font-weight:700}
+.status-pill.printed{background:#e8f9ef;color:#00c853}
+.status-pill.queued{background:#fff8e8;color:#ff8f00}
+.status-pill.failed{background:#fff0ed;color:#ff4d1c}
+.status-pill.pending{background:#f0ebe3;color:#6b6870}
+
+.qr-section{text-align:center}
+#adminQrImg{max-width:160px;border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,0.1)}
+
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr 1fr}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">QR Se <span>Print</span></div>
+  <button class="nav-link hidden" id="logoutBtn" onclick="logout()">🚪 Logout</button>
+</nav>
+
+<!-- LOGIN SCREEN -->
+<div class="login-wrap" id="loginScreen">
+  <div class="login-card">
+    <h1>🔐 Shop Owner Login</h1>
+    <p>Apna Shop ID aur Password daalo</p>
+    <div class="form-group">
+      <label>Shop ID</label>
+      <input id="loginShopId" placeholder="SHOP_XXXXXXXX" style="text-transform:uppercase;">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="••••••">
+    </div>
+    <button class="btn-primary" id="loginBtn" onclick="doLogin()">Login Karo</button>
+    <div class="err-msg" id="loginErr"></div>
+    <div class="help-text">
+      Purana shop hai jiska password nahi set hai? <a onclick="showSetPassword()">Yahan click karo</a>
+    </div>
+
+    <div id="setPasswordSection" class="hidden" style="margin-top:20px;border-top:1px solid #f0ebe3;padding-top:20px;">
+      <div class="form-group">
+        <label>Shop ID</label>
+        <input id="spShopId" placeholder="SHOP_XXXXXXXX" style="text-transform:uppercase;">
+      </div>
+      <div class="form-group">
+        <label>Naya Password Banao</label>
+        <input type="password" id="spPassword" placeholder="Kam se kam 4 character">
+      </div>
+      <button class="btn-primary" onclick="setNewPassword()">Password Set Karo</button>
+      <div class="err-msg" id="spErr"></div>
+      <div class="success-msg" id="spSuccess"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN PANEL (post login) -->
+<div class="hidden" id="adminPanel">
+  <div class="hero">
+    <h1 id="adminShopName">Shop Dashboard</h1>
+    <p>Apni shop manage karo</p>
+  </div>
+  <div class="body">
+
+    <div class="stats">
+      <div class="stat"><div class="stat-lbl">Aaj Prints</div><div class="stat-val orange" id="todayPrints">0</div></div>
+      <div class="stat"><div class="stat-lbl">Aaj Kamai</div><div class="stat-val green" id="todayEarn">₹0</div></div>
+      <div class="stat"><div class="stat-lbl">Total Orders</div><div class="stat-val" id="totalOrders">0</div></div>
+    </div>
+
+    <div class="card qr-section">
+      <h2>📱 QR Code</h2>
+      <img id="adminQrImg" src="">
+      <p style="font-size:11px;color:#6b6870;margin-top:10px;word-break:break-all;" id="adminQrUrl"></p>
+    </div>
+
+    <div class="card">
+      <h2>⚙️ Shop Settings</h2>
+      <div class="form-grid">
+        <div class="form-group full"><label>Shop Naam</label><input id="setName"></div>
+        <div class="form-group full">
+          <label>Printer Model</label>
+          <select id="setPrinter" onchange="checkOtherPrinterAdmin()"></select>
+          <div class="custom-printer-wrap" id="customPrinterWrapAdmin">
+            <input id="customPrinterInputAdmin" placeholder="Apna printer model type karo">
+          </div>
+        </div>
+        <div class="form-group"><label>Address</label><input id="setAddr"></div>
+        <div class="form-group"><label>Phone</label><input id="setPhone"></div>
+        <div class="form-group"><label>B&W Price</label>
+          <div class="price-wrap"><span>₹</span><input type="number" id="setPriceBW" min="1"></div>
+        </div>
+        <div class="form-group"><label>Color Price</label>
+          <div class="price-wrap"><span>₹</span><input type="number" id="setPriceColor" min="1"></div>
+        </div>
+      </div>
+
+      <label style="margin-bottom:8px;display:block;">Payment Mode</label>
+      <div class="payment-opts">
+        <label class="payment-opt" id="setOptBoth">
+          <input type="radio" name="setPaymentMode" value="both" onchange="selectSetPaymentOpt('setOptBoth')">
+          <div class="payment-opt-text"><strong>💳 Online + Counter</strong><span>Dono option customer ko milega</span></div>
+        </label>
+        <label class="payment-opt" id="setOptCounter">
+          <input type="radio" name="setPaymentMode" value="counter_only" onchange="selectSetPaymentOpt('setOptCounter')">
+          <div class="payment-opt-text"><strong>💵 Sirf Counter</strong><span>Sirf cash counter pe</span></div>
+        </label>
+      </div>
+
+      <button class="btn-save" onclick="saveSettings()">💾 Settings Save Karo</button>
+      <div class="success-msg" id="settingsSuccess">✅ Settings save ho gayi!</div>
+      <div class="err-msg" id="settingsErr"></div>
+    </div>
+
+    <div class="card">
+      <h2>🔑 Password Change Karo</h2>
+      <div class="form-group full" style="margin-bottom:10px;"><label>Current Password</label><input type="password" id="currentPass"></div>
+      <div class="form-group full" style="margin-bottom:10px;"><label>Naya Password</label><input type="password" id="newPass"></div>
+      <button class="btn-save" style="background:#1c6fff;" onclick="changePassword()">🔒 Password Update Karo</button>
+      <div class="success-msg" id="passSuccess">✅ Password change ho gaya!</div>
+      <div class="err-msg" id="passErr"></div>
+    </div>
+
+    <div class="card">
+      <h2>📋 Recent Print Jobs</h2>
+      <table class="jobs-table">
+        <thead><tr><th>File</th><th>Pages</th><th>Amount</th><th>Status</th></tr></thead>
+        <tbody id="jobsList"></tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let authToken = localStorage.getItem('qrprint_token');
+let currentShop = null;
+
+if (authToken) {
+  loadAdminPanel();
+}
+
+function showSetPassword() {
+  document.getElementById('setPasswordSection').classList.remove('hidden');
+}
+
+async function doLogin() {
+  const shopId = document.getElementById('loginShopId').value.trim().toUpperCase();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginErr');
+  errEl.style.display = 'none';
+
+  if (!shopId || !password) { showLoginError('Shop ID aur Password dono daalo'); return; }
+
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = '⏳ Login ho raha hai...';
+
+  try {
+    const res = await fetch('/api/shop/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shopId, password })
+    });
+    const data = await res.json();
+    if (data.success) {
+      authToken = data.token;
+      localStorage.setItem('qrprint_token', authToken);
+      currentShop = data.shop;
+      loadAdminPanel();
+    } else {
+      showLoginError(data.error || 'Login fail hua');
+    }
+  } catch(e) {
+    showLoginError('Network error');
+  }
+  btn.disabled = false; btn.textContent = 'Login Karo';
+}
+
+function showLoginError(msg) {
+  const errEl = document.getElementById('loginErr');
+  errEl.textContent = '❌ ' + msg;
+  errEl.style.display = 'block';
+}
+
+async function setNewPassword() {
+  const shopId = document.getElementById('spShopId').value.trim().toUpperCase();
+  const newPassword = document.getElementById('spPassword').value;
+  const errEl = document.getElementById('spErr');
+  const successEl = document.getElementById('spSuccess');
+  errEl.style.display = 'none'; successEl.style.display = 'none';
+
+  if (!shopId || !newPassword || newPassword.length < 4) {
+    errEl.textContent = '❌ Shop ID aur 4+ character password chahiye';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/shop/set-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shopId, newPassword })
+    });
+    const data = await res.json();
+    if (data.success) {
+      successEl.textContent = '✅ Password set ho gaya! Ab login karo.';
+      successEl.style.display = 'block';
+      document.getElementById('loginShopId').value = shopId;
+    } else {
+      errEl.textContent = '❌ ' + data.error;
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    errEl.textContent = '❌ Network error';
+    errEl.style.display = 'block';
+  }
+}
+
+async function loadAdminPanel() {
+  try {
+    const res = await fetch('/api/admin/profile', {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (!res.ok) {
+      localStorage.removeItem('qrprint_token');
+      authToken = null;
+      return;
+    }
+    const shop = await res.json();
+    currentShop = shop;
+
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('adminPanel').classList.remove('hidden');
+    document.getElementById('logoutBtn').classList.remove('hidden');
+
+    document.getElementById('adminShopName').textContent = shop.name;
+    document.getElementById('setName').value = shop.name;
+    document.getElementById('setAddr').value = shop.address || '';
+    document.getElementById('setPhone').value = shop.phone || '';
+    document.getElementById('setPriceBW').value = shop.price_bw;
+    document.getElementById('setPriceColor').value = shop.price_color;
+
+    if (shop.payment_mode === 'counter_only') {
+      selectSetPaymentOpt('setOptCounter');
+      document.querySelector('input[name="setPaymentMode"][value="counter_only"]').checked = true;
+    } else {
+      selectSetPaymentOpt('setOptBoth');
+      document.querySelector('input[name="setPaymentMode"][value="both"]').checked = true;
+    }
+
+    document.getElementById('adminQrImg').src = shop.qr_code;
+    document.getElementById('adminQrUrl').textContent = location.origin + '/print/' + shop.id;
+
+    await loadPrinterModelsAdmin(shop.printer_model);
+    loadStats(shop.id);
+    loadJobs();
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+async function loadPrinterModelsAdmin(currentModel) {
+  try {
+    const res = await fetch('/api/printer-models');
+    const data = await res.json();
+    const select = document.getElementById('setPrinter');
+    select.innerHTML = '';
+    let found = false;
+    data.models.forEach(model => {
+      const opt = document.createElement('option');
+      opt.value = model;
+      opt.textContent = model;
+      if (model === currentModel) { opt.selected = true; found = true; }
+      select.appendChild(opt);
+    });
+    if (!found && currentModel) {
+      const customOpt = document.createElement('option');
+      customOpt.value = 'Other (Manually Type Below)';
+      customOpt.selected = true;
+      select.insertBefore(customOpt, select.firstChild);
+      document.getElementById('customPrinterWrapAdmin').style.display = 'block';
+      document.getElementById('customPrinterInputAdmin').value = currentModel;
+    }
+  } catch(e) {}
+}
+
+function checkOtherPrinterAdmin() {
+  const select = document.getElementById('setPrinter');
+  const wrap = document.getElementById('customPrinterWrapAdmin');
+  wrap.style.display = select.value === 'Other (Manually Type Below)' ? 'block' : 'none';
+}
+
+function selectSetPaymentOpt(id) {
+  document.getElementById('setOptBoth').classList.remove('selected');
+  document.getElementById('setOptCounter').classList.remove('selected');
+  document.getElementById(id).classList.add('selected');
+}
+
+async function loadStats(shopId) {
+  try {
+    const res = await fetch(`/api/shop/${shopId}/stats`);
+    const stats = await res.json();
+    document.getElementById('todayPrints').textContent = stats.today_prints || 0;
+    document.getElementById('todayEarn').textContent = '₹' + (stats.today_earnings || 0);
+    document.getElementById('totalOrders').textContent = stats.total_orders || 0;
+  } catch(e) {}
+}
+
+async function loadJobs() {
+  try {
+    const res = await fetch('/api/admin/jobs', {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    const data = await res.json();
+    const tbody = document.getElementById('jobsList');
+    tbody.innerHTML = '';
+    data.jobs.forEach(job => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${job.file_name || '-'}</td>
+        <td>${job.total_pages || 1}×${job.copies || 1}</td>
+        <td>₹${job.amount || 0}</td>
+        <td><span class="status-pill ${job.status}">${job.status}</span></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  } catch(e) {}
+}
+
+async function saveSettings() {
+  let printerModel = document.getElementById('setPrinter').value;
+  if (printerModel === 'Other (Manually Type Below)') {
+    printerModel = document.getElementById('customPrinterInputAdmin').value.trim();
+  }
+  const paymentMode = document.querySelector('input[name="setPaymentMode"]:checked').value;
+
+  const successEl = document.getElementById('settingsSuccess');
+  const errEl = document.getElementById('settingsErr');
+  successEl.style.display = 'none'; errEl.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/admin/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+      body: JSON.stringify({
+        name: document.getElementById('setName').value,
+        address: document.getElementById('setAddr').value,
+        phone: document.getElementById('setPhone').value,
+        printer_model: printerModel,
+        price_bw: parseInt(document.getElementById('setPriceBW').value),
+        price_color: parseInt(document.getElementById('setPriceColor').value),
+        payment_mode: paymentMode
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      successEl.style.display = 'block';
+      document.getElementById('adminShopName').textContent = data.shop.name;
+    } else {
+      errEl.textContent = '❌ ' + data.error;
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    errEl.textContent = '❌ Network error';
+    errEl.style.display = 'block';
+  }
+}
+
+async function changePassword() {
+  const currentPassword = document.getElementById('currentPass').value;
+  const newPassword = document.getElementById('newPass').value;
+  const successEl = document.getElementById('passSuccess');
+  const errEl = document.getElementById('passErr');
+  successEl.style.display = 'none'; errEl.style.display = 'none';
+
+  if (!newPassword || newPassword.length < 4) {
+    errEl.textContent = '❌ Naya password kam se kam 4 character ka ho';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/change-password', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+    const data = await res.json();
+    if (data.success) {
+      successEl.style.display = 'block';
+      document.getElementById('currentPass').value = '';
+      document.getElementById('newPass').value = '';
+    } else {
+      errEl.textContent = '❌ ' + data.error;
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    errEl.textContent = '❌ Network error';
+    errEl.style.display = 'block';
+  }
+}
+
+function logout() {
+  localStorage.removeItem('qrprint_token');
+  location.reload();
+}
+</script>
+</body>
+</html>

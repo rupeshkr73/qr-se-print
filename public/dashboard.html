@@ -3,112 +3,100 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QR Se Print - Dashboard</title>
+<title>QR Se Print - Naya Shop Setup</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:'Space Grotesk',sans-serif; background:#f5f0e8; min-height:100vh; }
-nav { background:#0a0a0f; padding:16px 24px; display:flex; align-items:center; justify-content:space-between; }
-.logo { font-family:'Syne',sans-serif; font-size:20px; font-weight:800; color:#fff; }
-.logo span { color:#ff4d1c; }
-.nav-link { color:rgba(255,255,255,0.5); font-size:13px; font-weight:600; text-decoration:none; }
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
+nav{background:#0a0a0f;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#fff}
+.logo span{color:#ff4d1c}
+.nav-link{color:rgba(255,255,255,0.6);font-size:13px;font-weight:700;text-decoration:none;background:rgba(255,255,255,0.08);padding:8px 16px;border-radius:10px;transition:all 0.2s}
+.nav-link:hover{background:rgba(255,255,255,0.15);color:#fff}
+.hero{background:#0a0a0f;color:#fff;padding:36px 24px 50px}
+.hero h1{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;margin-bottom:6px}
+.hero p{color:rgba(255,255,255,0.5);font-size:13px}
+.body{max-width:600px;margin:-24px auto 40px;padding:0 16px}
+.card{background:#fff;border-radius:20px;padding:22px;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:16px}
+.card h2{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+.badge{width:24px;height:24px;border-radius:50%;background:#ff4d1c;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-group.full{grid-column:1/-1}
+label{font-size:11px;font-weight:600;color:#6b6870;text-transform:uppercase;letter-spacing:0.5px}
+input,select{padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-size:14px;outline:none;transition:border-color 0.2s;width:100%}
+input:focus,select:focus{border-color:#1c6fff}
+.price-wrap{position:relative}
+.price-wrap span{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-weight:700;color:#6b6870}
+.price-wrap input{padding-left:26px}
 
-.hero { background:#0a0a0f; color:#fff; padding:40px 24px 56px; }
-.hero h1 { font-family:'Syne',sans-serif; font-size:30px; font-weight:800; margin-bottom:6px; }
-.hero p { color:rgba(255,255,255,0.5); font-size:14px; }
+/* Payment mode selector */
+.payment-opts{display:flex;flex-direction:column;gap:10px}
+.payment-opt{display:flex;align-items:flex-start;gap:12px;padding:14px;border:2px solid #e2ddd6;border-radius:14px;cursor:pointer;transition:all 0.2s}
+.payment-opt.selected{border-color:#ff4d1c;background:#fff5f0}
+.payment-opt input{width:auto;margin-top:3px}
+.payment-opt-text strong{font-size:14px;font-weight:700;display:block;margin-bottom:2px}
+.payment-opt-text span{font-size:12px;color:#6b6870}
 
-.body { max-width:860px; margin:-24px auto 40px; padding:0 16px; }
+.custom-printer-wrap{margin-top:10px;display:none}
 
-.stats { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:18px; }
-.stat { background:#fff; border-radius:16px; padding:18px; box-shadow:0 2px 12px rgba(0,0,0,0.06); }
-.stat-lbl { font-size:11px; color:#6b6870; font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; }
-.stat-val { font-family:'Syne',sans-serif; font-size:26px; font-weight:800; }
-.green { color:#00c853; }
-.orange { color:#ff4d1c; }
+.btn-primary{background:#ff4d1c;color:#fff;border:none;border-radius:12px;padding:14px 24px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;cursor:pointer;width:100%;transition:all 0.2s}
+.btn-primary:hover{background:#e03d0e;transform:translateY(-1px)}
+.btn-primary:disabled{background:#999;cursor:not-allowed;transform:none}
+.btn-secondary{background:#0a0a0f;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;cursor:pointer}
 
-.card { background:#fff; border-radius:20px; padding:24px; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:16px; }
-.card h2 { font-family:'Syne',sans-serif; font-size:17px; font-weight:700; margin-bottom:18px; display:flex; align-items:center; gap:10px; }
-.badge { width:26px; height:26px; border-radius:50%; background:#ff4d1c; color:#fff; font-size:12px; font-weight:700; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.qr-result{display:none;background:linear-gradient(135deg,#0a0a0f,#1a1a2e);border-radius:20px;padding:26px;color:#fff;text-align:center;margin-top:14px}
+.qr-result h3{font-family:'Syne',sans-serif;font-size:19px;margin-bottom:6px}
+.qr-result p{color:rgba(255,255,255,0.5);font-size:12px;margin-bottom:18px}
+#qrImage{background:#fff;padding:12px;border-radius:14px;display:inline-block;margin-bottom:14px}
+#qrImage img{display:block;width:170px;height:170px}
+.qr-url{background:rgba(255,255,255,0.08);border-radius:10px;padding:10px 14px;font-size:11px;color:rgba(255,255,255,0.7);margin-bottom:14px;word-break:break-all}
+.qr-actions{display:flex;gap:10px;justify-content:center}
 
-.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:14px; }
-.form-group { display:flex; flex-direction:column; gap:5px; }
-label { font-size:11px; font-weight:600; color:#6b6870; text-transform:uppercase; letter-spacing:0.5px; }
-input, select { padding:11px 13px; border:1.5px solid #e2ddd6; border-radius:10px; font-family:'Space Grotesk',sans-serif; font-size:14px; outline:none; transition:border-color 0.2s; }
-input:focus, select:focus { border-color:#1c6fff; }
-.price-wrap { position:relative; }
-.price-wrap span { position:absolute; left:13px; top:50%; transform:translateY(-50%); font-weight:700; color:#6b6870; }
-.price-wrap input { padding-left:26px; }
+.shop-id-box{background:#e8f9ef;border:1.5px solid #a3e6bc;border-radius:14px;padding:16px;margin-top:14px}
+.shop-id-box h4{font-size:13px;font-weight:700;color:#00c853;margin-bottom:6px}
+.shop-id-val{font-family:monospace;font-size:16px;font-weight:700;color:#0a0a0f;letter-spacing:1px}
+.shop-id-box p{font-size:11px;color:#6b6870;margin-top:6px}
 
-.btn-primary { background:#ff4d1c; color:#fff; border:none; border-radius:12px; padding:14px 24px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:15px; cursor:pointer; width:100%; transition:all 0.2s; }
-.btn-primary:hover { background:#e03d0e; transform:translateY(-1px); }
-.btn-secondary { background:#0a0a0f; color:#fff; border:none; border-radius:10px; padding:10px 20px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:13px; cursor:pointer; }
+.password-box{background:#fff8e8;border:1.5px solid #ffd97a;border-radius:14px;padding:16px;margin-top:10px}
+.password-box h4{font-size:13px;font-weight:700;color:#ff8f00;margin-bottom:6px}
+.password-box p{font-size:11px;color:#6b6870}
 
-/* QR */
-.qr-result { display:none; background:linear-gradient(135deg,#0a0a0f,#1a1a2e); border-radius:20px; padding:28px; color:#fff; text-align:center; margin-top:16px; }
-.qr-result h3 { font-family:'Syne',sans-serif; font-size:20px; margin-bottom:6px; }
-.qr-result p { color:rgba(255,255,255,0.5); font-size:13px; margin-bottom:20px; }
-#qrImage { background:#fff; padding:12px; border-radius:14px; display:inline-block; margin-bottom:16px; }
-#qrImage img { display:block; width:180px; height:180px; }
-.qr-url { background:rgba(255,255,255,0.08); border-radius:10px; padding:10px 14px; font-size:12px; color:rgba(255,255,255,0.7); margin-bottom:16px; word-break:break-all; }
-.qr-actions { display:flex; gap:10px; justify-content:center; }
+.admin-link-box{background:#f0f4ff;border:1.5px solid #b3d1ff;border-radius:14px;padding:14px;margin-top:14px;text-align:center}
+.admin-link-box a{color:#1c6fff;font-weight:700;font-size:13px;text-decoration:none}
 
-/* Shop ID box */
-.shop-id-box { background:#e8f9ef; border:1.5px solid #a3e6bc; border-radius:14px; padding:16px; margin-top:14px; }
-.shop-id-box h4 { font-size:13px; font-weight:700; color:#00c853; margin-bottom:6px; }
-.shop-id-val { font-family:monospace; font-size:16px; font-weight:700; color:#0a0a0f; letter-spacing:1px; }
-.shop-id-box p { font-size:11px; color:#6b6870; margin-top:6px; }
+.err-msg{font-size:12px;color:#ff4d1c;margin-top:8px;display:none}
 
-/* Jobs table */
-.jobs-table { width:100%; border-collapse:collapse; }
-.jobs-table th { text-align:left; font-size:11px; font-weight:600; color:#6b6870; text-transform:uppercase; padding:0 0 10px; }
-.jobs-table td { padding:10px 0; border-bottom:1px solid #f0ebe3; font-size:13px; }
-.status { padding:3px 10px; border-radius:20px; font-size:11px; font-weight:700; }
-.status.printed { background:#e8f9ef; color:#00c853; }
-.status.queued { background:#fff8e8; color:#ff8f00; }
-.status.pending { background:#f0ebe3; color:#6b6870; }
-.status.failed { background:#fff0ed; color:#ff4d1c; }
-
-@media(max-width:600px) {
-  .form-grid { grid-template-columns:1fr; }
-  .stats { grid-template-columns:1fr 1fr; }
-}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 
 <nav>
   <div class="logo">QR Se <span>Print</span></div>
-  <a class="nav-link" href="/">Home</a>
+  <a class="nav-link" href="/admin">🔐 Shop Owner Login</a>
 </nav>
 
 <div class="hero">
-  <h1>Shop Dashboard</h1>
-  <p>Apni dukan setup karo aur QR Code banao</p>
+  <h1>Naya Shop Setup Karo</h1>
+  <p>Apni dukan register karo aur QR Code banao</p>
 </div>
 
 <div class="body">
 
-  <!-- Stats -->
-  <div class="stats">
-    <div class="stat"><div class="stat-lbl">Aaj Prints</div><div class="stat-val orange" id="todayPrints">0</div></div>
-    <div class="stat"><div class="stat-lbl">Aaj Kamai</div><div class="stat-val green" id="todayEarn">₹0</div></div>
-    <div class="stat"><div class="stat-lbl">Total Orders</div><div class="stat-val" id="totalOrders">0</div></div>
-  </div>
-
-  <!-- Setup -->
   <div class="card">
-    <h2><div class="badge">1</div> Shop Setup</h2>
+    <h2><div class="badge">1</div> Shop Details</h2>
     <div class="form-grid">
-      <div class="form-group"><label>Shop Ka Naam *</label><input id="shopName" placeholder="Sharma Print Shop"></div>
-      <div class="form-group"><label>Printer Model</label>
-        <select id="printerModel">
-          <option>Epson L8050</option><option>Epson L3210</option>
-          <option>HP DeskJet 2776</option><option>Canon PIXMA G2010</option>
-          <option>Brother DCP-T226</option>
+      <div class="form-group full"><label>Shop Ka Naam *</label><input id="shopName" placeholder="Sharma Print Shop"></div>
+      <div class="form-group full">
+        <label>Printer Model *</label>
+        <select id="printerModel" onchange="checkOtherPrinter()">
+          <option value="">-- Printer select karo --</option>
         </select>
+        <div class="custom-printer-wrap" id="customPrinterWrap">
+          <input id="customPrinterInput" placeholder="Apna printer model type karo">
+        </div>
       </div>
-    </div>
-    <div class="form-grid">
       <div class="form-group"><label>Address</label><input id="shopAddr" placeholder="Shop address"></div>
       <div class="form-group"><label>Phone</label><input id="shopPhone" placeholder="+91 XXXXX XXXXX"></div>
     </div>
@@ -127,17 +115,38 @@ input:focus, select:focus { border-color:#1c6fff; }
   </div>
 
   <div class="card">
-    <h2><div class="badge">3</div> PhonePe Payment Setup</h2>
-    <div class="form-grid">
-      <div class="form-group"><label>Merchant ID</label><input id="merchantId" placeholder="PGTESTPAYUAT" type="password"></div>
-      <div class="form-group"><label>Salt Key</label><input id="saltKey" placeholder="Salt key from PhonePe" type="password"></div>
+    <h2><div class="badge">3</div> Payment Mode</h2>
+    <div class="payment-opts">
+      <label class="payment-opt selected" id="optBoth">
+        <input type="radio" name="paymentMode" value="both" checked onchange="selectPaymentOpt('optBoth')">
+        <div class="payment-opt-text">
+          <strong>💳 Online Payment + Counter Payment</strong>
+          <span>Customer ko dono option milega — Razorpay se online ya counter pe cash</span>
+        </div>
+      </label>
+      <label class="payment-opt" id="optCounter">
+        <input type="radio" name="paymentMode" value="counter_only" onchange="selectPaymentOpt('optCounter')">
+        <div class="payment-opt-text">
+          <strong>💵 Sirf Counter Payment</strong>
+          <span>Online payment nahi chahiye, sirf counter pe cash collect karo</span>
+        </div>
+      </label>
     </div>
-    <p style="font-size:12px;color:#6b6870;">PhonePe Business dashboard se milega. Abhi khali chhod sakte ho — baad mein add karo.</p>
   </div>
 
   <div class="card">
-    <h2><div class="badge">4</div> QR Code Generate Karo</h2>
-    <button class="btn-primary" onclick="registerShop()">⚡ Register & QR Generate Karo</button>
+    <h2><div class="badge">4</div> Admin Login Password</h2>
+    <div class="form-group full">
+      <label>Password Banao (Admin Panel Login Ke Liye) *</label>
+      <input type="password" id="shopPassword" placeholder="Kam se kam 4 character" minlength="4">
+    </div>
+    <p style="font-size:11px;color:#6b6870;margin-top:8px;">Yeh password Shop ID ke saath admin panel login karne ke liye use hoga — printer, price, naam change karne ke liye.</p>
+  </div>
+
+  <div class="card">
+    <h2><div class="badge">5</div> QR Code Generate Karo</h2>
+    <button class="btn-primary" id="registerBtn" onclick="registerShop()">⚡ Register & QR Generate Karo</button>
+    <div class="err-msg" id="errMsg"></div>
 
     <div class="qr-result" id="qrResult">
       <h3>🎉 QR Code Ready!</h3>
@@ -151,34 +160,71 @@ input:focus, select:focus { border-color:#1c6fff; }
       <div class="shop-id-box">
         <h4>✅ Aapka Shop ID (Save Karo!)</h4>
         <div class="shop-id-val" id="shopIdDisplay">---</div>
-        <p>Yeh ID print agent mein daalni hai. Copy karke safe jagah save karo.</p>
+        <p>Yeh ID print agent (PC) mein daalni hai, aur admin panel login ke liye bhi.</p>
+      </div>
+      <div class="admin-link-box">
+        <p style="font-size:12px;color:#6b6870;margin-bottom:6px;">Settings change karne ke liye:</p>
+        <a href="/admin">👉 Admin Panel Login Karo</a>
       </div>
     </div>
-  </div>
-
-  <!-- Recent Jobs -->
-  <div class="card" id="jobsCard" style="display:none;">
-    <h2>📋 Recent Print Jobs</h2>
-    <table class="jobs-table">
-      <thead><tr><th>File</th><th>Amount</th><th>Time</th><th>Status</th></tr></thead>
-      <tbody id="jobsList"></tbody>
-    </table>
   </div>
 
 </div>
 
 <script>
-let currentShopId = localStorage.getItem('qrprint_shopId');
 let qrDataUrl = null;
 
-// Auto-load if shop exists
-if (currentShopId) loadDashboard(currentShopId);
+// Printer list load karo
+async function loadPrinterModels() {
+  try {
+    const res = await fetch('/api/printer-models');
+    const data = await res.json();
+    const select = document.getElementById('printerModel');
+    data.models.forEach(model => {
+      const opt = document.createElement('option');
+      opt.value = model;
+      opt.textContent = model;
+      select.appendChild(opt);
+    });
+  } catch(e) {
+    console.error('Printer list load nahi hui');
+  }
+}
+
+function checkOtherPrinter() {
+  const select = document.getElementById('printerModel');
+  const wrap = document.getElementById('customPrinterWrap');
+  if (select.value === 'Other (Manually Type Below)') {
+    wrap.style.display = 'block';
+  } else {
+    wrap.style.display = 'none';
+  }
+}
+
+function selectPaymentOpt(id) {
+  document.getElementById('optBoth').classList.remove('selected');
+  document.getElementById('optCounter').classList.remove('selected');
+  document.getElementById(id).classList.add('selected');
+}
 
 async function registerShop() {
   const name = document.getElementById('shopName').value.trim();
-  if (!name) { alert('Shop ka naam zaroori hai!'); return; }
+  const password = document.getElementById('shopPassword').value;
+  let printerModel = document.getElementById('printerModel').value;
+  const errMsg = document.getElementById('errMsg');
+  errMsg.style.display = 'none';
 
-  const btn = document.querySelector('.btn-primary');
+  if (!name) { showError('Shop ka naam zaroori hai!'); return; }
+  if (printerModel === 'Other (Manually Type Below)') {
+    printerModel = document.getElementById('customPrinterInput').value.trim();
+    if (!printerModel) { showError('Apna printer model type karo!'); return; }
+  }
+  if (!printerModel) { showError('Printer select karo!'); return; }
+  if (!password || password.length < 4) { showError('Password kam se kam 4 character ka hona chahiye!'); return; }
+
+  const paymentMode = document.querySelector('input[name="paymentMode"]:checked').value;
+
+  const btn = document.getElementById('registerBtn');
   btn.textContent = '⏳ Register ho raha hai...';
   btn.disabled = true;
 
@@ -190,27 +236,30 @@ async function registerShop() {
         name,
         address: document.getElementById('shopAddr').value,
         phone: document.getElementById('shopPhone').value,
-        printer_model: document.getElementById('printerModel').value,
+        printer_model: printerModel,
         price_bw: parseInt(document.getElementById('priceBW').value),
         price_color: parseInt(document.getElementById('priceColor').value),
-        phonepe_merchant_id: document.getElementById('merchantId').value,
-        phonepe_salt_key: document.getElementById('saltKey').value
+        payment_mode: paymentMode,
+        password
       })
     });
     const data = await res.json();
     if (data.success) {
-      currentShopId = data.shopId;
-      localStorage.setItem('qrprint_shopId', currentShopId);
       showQR(data.qrCode, data.qrUrl, data.shopId);
-      loadDashboard(currentShopId);
     } else {
-      alert('Error: ' + data.error);
+      showError(data.error || 'Kuch error aaya, dobara try karo');
     }
   } catch(e) {
-    alert('Network error: ' + e.message);
+    showError('Network error: ' + e.message);
   }
   btn.textContent = '⚡ Register & QR Generate Karo';
   btn.disabled = false;
+}
+
+function showError(msg) {
+  const errMsg = document.getElementById('errMsg');
+  errMsg.textContent = '❌ ' + msg;
+  errMsg.style.display = 'block';
 }
 
 function showQR(qrCode, qrUrl, shopId) {
@@ -222,6 +271,7 @@ function showQR(qrCode, qrUrl, shopId) {
   qrDataUrl = qrCode;
   document.getElementById('qrUrl').textContent = qrUrl;
   document.getElementById('shopIdDisplay').textContent = shopId;
+  document.getElementById('qrResult').scrollIntoView({ behavior: 'smooth' });
 }
 
 function downloadQR() {
@@ -236,18 +286,7 @@ function copyUrl() {
   navigator.clipboard.writeText(url).then(() => alert('✅ URL copy ho gaya!'));
 }
 
-async function loadDashboard(shopId) {
-  try {
-    const res = await fetch(`/api/shop/${shopId}/stats`);
-    const stats = await res.json();
-    document.getElementById('todayPrints').textContent = stats.today_prints || 0;
-    document.getElementById('todayEarn').textContent = '₹' + (stats.today_earnings || 0);
-    document.getElementById('totalOrders').textContent = stats.total_orders || 0;
-  } catch(e) {}
-}
-
-// Auto refresh stats every 30s
-if (currentShopId) setInterval(() => loadDashboard(currentShopId), 30000);
+loadPrinterModels();
 </script>
 </body>
 </html>
