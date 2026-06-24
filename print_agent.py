@@ -13,7 +13,7 @@ from datetime import datetime
 from pathlib import Path
 
 # ============================================================
-SHOP_ID         = "SHOP_ECB1AB8A"   # Apna Shop ID daalo
+SHOP_ID         = "AAPKA_SHOP_ID"   # Apna Shop ID daalo
 SERVER_URL      = "https://qr-se-print.onrender.com"
 CHECK_INTERVAL  = 5
 LOG_FILE        = "print_agent_log.txt"
@@ -39,6 +39,14 @@ def show_banner():
     """)
 
 def check_printer():
+    """
+    NOTE: Agent hamesha Windows ke "Default Printer" ko use karta hai —
+    yeh wahi printer hai jo dashboard mein "🔍 Auto Detect" option ka matlab hai.
+    Agar shop owner ne dashboard mein specific model bhi select kiya ho (jaise
+    "Canon PIXMA G2010"), woh sirf record/display ke liye hai — actual printing
+    isi system default printer se hoti hai. Isliye PC mein sahi printer ko
+    "Set as Default Printer" karna zaroori hai (Windows Settings > Printers).
+    """
     try:
         import win32print
         printers = win32print.EnumPrinters(
@@ -46,7 +54,7 @@ def check_printer():
         )
         if printers:
             default = win32print.GetDefaultPrinter()
-            log(f"✅ Printer: {default}")
+            log(f"✅ System Default Printer (Auto Detected): {default}")
             return True, default
         log("❌ Printer nahi mila!", "ERROR")
         return False, None

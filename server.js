@@ -18,8 +18,7 @@ const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || 'drnswjs1q';
 const CLD_API_KEY = process.env.CLOUDINARY_API_KEY || '224393314967214';
 const CLD_API_SECRET = process.env.CLOUDINARY_API_SECRET || 'dnTnlUZI4e-yJJOBN0K_oLZW6Y0';
 
-const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
-const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
+// (Global RAZORPAY_KEY_ID/SECRET removed — each shop now stores its own gateway credentials)
 
 const JWT_SECRET = process.env.JWT_SECRET || 'qrseprint_default_secret_change_in_production_xk29';
 
@@ -44,6 +43,7 @@ const upload = multer({
 });
 
 const PRINTER_MODELS = [
+  '🔍 Auto Detect (System Installed Printer)',
   'Epson L120', 'Epson L130', 'Epson L210', 'Epson L220', 'Epson L360', 'Epson L361',
   'Epson L380', 'Epson L385', 'Epson L395', 'Epson L1110', 'Epson L1210', 'Epson L1250',
   'Epson L1255', 'Epson L1300', 'Epson L1350', 'Epson L1455', 'Epson L3100', 'Epson L3101',
@@ -54,30 +54,38 @@ const PRINTER_MODELS = [
   'Epson L5290', 'Epson L5390', 'Epson L5590', 'Epson L6160', 'Epson L6170', 'Epson L6190',
   'Epson L6270', 'Epson L6290', 'Epson L6460', 'Epson L6490', 'Epson L6570', 'Epson L6580',
   'Epson L8050', 'Epson L8160', 'Epson L8180', 'Epson L11050', 'Epson L14150', 'Epson L15150',
-  'Epson L15160', 'Epson L15180',
-  'Epson M1100', 'Epson M1120', 'Epson M1140', 'Epson M2140', 'Epson WF-2810', 'Epson WF-2830',
-  'Epson WF-3825', 'Epson WF-C5390',
+  'Epson L15160', 'Epson L15180', 'Epson L18050',
+  'Epson M1100', 'Epson M1120', 'Epson M1140', 'Epson M1170', 'Epson M2120', 'Epson M2140',
+  'Epson M2170', 'Epson WF-2810', 'Epson WF-2830', 'Epson WF-3825', 'Epson WF-C5390',
   'Canon PIXMA G1010', 'Canon PIXMA G1020', 'Canon PIXMA G1030', 'Canon PIXMA G2002',
   'Canon PIXMA G2010', 'Canon PIXMA G2012', 'Canon PIXMA G2020', 'Canon PIXMA G2070',
   'Canon PIXMA G3000', 'Canon PIXMA G3010', 'Canon PIXMA G3012', 'Canon PIXMA G3020',
   'Canon PIXMA G3060', 'Canon PIXMA G3070', 'Canon PIXMA G4010', 'Canon PIXMA G4020',
   'Canon PIXMA G4070', 'Canon PIXMA G5070', 'Canon PIXMA G6070', 'Canon PIXMA G7070',
-  'Canon PIXMA TS207', 'Canon PIXMA TS307', 'Canon PIXMA TS3340', 'Canon PIXMA E477',
-  'Canon PIXMA E4270', 'Canon PIXMA MG2470', 'Canon PIXMA MG3070',
-  'Canon LBP6030', 'Canon LBP2900', 'Canon LBP3300', 'Canon imageCLASS MF3010',
+  'Canon PIXMA TS207', 'Canon PIXMA TS307', 'Canon PIXMA TS3340', 'Canon PIXMA TS3475',
+  'Canon PIXMA E477', 'Canon PIXMA E3370', 'Canon PIXMA E4270', 'Canon PIXMA MG2470',
+  'Canon PIXMA MG3070',
+  'Canon LBP2900', 'Canon LBP3300', 'Canon LBP6030', 'Canon LBP6230DW', 'Canon LBP226dw',
+  'Canon imageCLASS MF3010', 'Canon imageCLASS MF237w', 'Canon imageCLASS MF244dw',
   'HP DeskJet 1112', 'HP DeskJet 2131', 'HP DeskJet 2332', 'HP DeskJet 2710',
   'HP DeskJet 2720', 'HP DeskJet 2776', 'HP DeskJet 2778', 'HP DeskJet 3635',
   'HP DeskJet 3776', 'HP DeskJet 3835', 'HP DeskJet 4178', 'HP DeskJet Ink Advantage 2135',
   'HP Smart Tank 515', 'HP Smart Tank 520', 'HP Smart Tank 580', 'HP Smart Tank 615',
-  'HP Smart Tank 670', 'HP Ink Tank 315', 'HP Ink Tank 319', 'HP Ink Tank 415',
-  'HP Ink Tank 419', 'HP Ink Tank Wireless 416',
-  'HP LaserJet P1108', 'HP LaserJet Pro M15a', 'HP LaserJet Pro M1136', 'HP LaserJet Pro M126nw',
-  'HP LaserJet Pro M404dn', 'HP LaserJet Pro MFP M126nw', 'HP LaserJet Pro MFP M225dw',
-  'HP LaserJet 1020', 'HP LaserJet 1018',
+  'HP Smart Tank 670', 'HP Smart Tank 750', 'HP Ink Tank 315', 'HP Ink Tank 319',
+  'HP Ink Tank 415', 'HP Ink Tank 419', 'HP Ink Tank Wireless 416',
+  'HP LaserJet 1018', 'HP LaserJet 1020', 'HP LaserJet 1022', 'HP LaserJet M1005',
+  'HP LaserJet M1136', 'HP LaserJet P1108', 'HP LaserJet P1505', 'HP LaserJet Pro M15a',
+  'HP LaserJet Pro M15w', 'HP LaserJet Pro M126nw', 'HP LaserJet Pro M404dn',
+  'HP LaserJet Pro MFP M126nw', 'HP LaserJet Pro MFP M225dw',
   'Brother DCP-T220', 'Brother DCP-T225', 'Brother DCP-T226', 'Brother DCP-T310',
   'Brother DCP-T420W', 'Brother DCP-T426W', 'Brother DCP-T520W', 'Brother DCP-T710W',
-  'Brother DCP-T820DW', 'Brother HL-L2321D', 'Brother HL-L2361DN', 'Brother HL-L2375DW',
-  'Brother MFC-J2330DW', 'Brother MFC-T920DW',
+  'Brother DCP-T820DW', 'Brother HL-1201', 'Brother HL-1221fn', 'Brother HL-L2321D',
+  'Brother HL-L2361DN', 'Brother HL-L2375DW', 'Brother MFC-J2330DW', 'Brother MFC-T920DW',
+  'Brother MFC-T4500DW',
+  'Kyocera Ecosys P2040dn', 'Kyocera Ecosys P2235dn', 'Kyocera Ecosys M2040dn',
+  'Kyocera Ecosys M2540dn', 'Kyocera FS-1020D',
+  'Ricoh SP 210', 'Ricoh SP 311DN', 'Ricoh MP 2014',
+  'Samsung ML-1640', 'Samsung Xpress M2020',
   'Other (Manually Type Below)'
 ];
 
@@ -157,6 +165,12 @@ async function initDB() {
         price_color INTEGER DEFAULT 10,
         payment_mode VARCHAR(20) DEFAULT 'both',
         password_hash VARCHAR(255),
+        payment_gateway VARCHAR(20) DEFAULT '',
+        razorpay_key_id VARCHAR(200) DEFAULT '',
+        razorpay_key_secret VARCHAR(200) DEFAULT '',
+        phonepe_merchant_id VARCHAR(200) DEFAULT '',
+        phonepe_salt_key VARCHAR(200) DEFAULT '',
+        phonepe_salt_index VARCHAR(10) DEFAULT '1',
         qr_code TEXT,
         created_at TIMESTAMP DEFAULT NOW()
       );
@@ -185,6 +199,12 @@ async function initDB() {
     await pool.query(`
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS payment_mode VARCHAR(20) DEFAULT 'both';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS payment_gateway VARCHAR(20) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS razorpay_key_id VARCHAR(200) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS razorpay_key_secret VARCHAR(200) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS phonepe_merchant_id VARCHAR(200) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS phonepe_salt_key VARCHAR(200) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS phonepe_salt_index VARCHAR(10) DEFAULT '1';
     `);
 
     console.log('Database ready!');
@@ -212,20 +232,41 @@ app.get('/api/printer-models', (req, res) => {
 
 app.post('/api/shop/register', async (req, res) => {
   try {
-    const { name, address, phone, printer_model, price_bw, price_color, payment_mode, password } = req.body;
+    const {
+      name, address, phone, printer_model, price_bw, price_color, payment_mode, password,
+      payment_gateway, razorpay_key_id, razorpay_key_secret,
+      phonepe_merchant_id, phonepe_salt_key, phonepe_salt_index
+    } = req.body;
 
     if (!name || !name.trim()) return res.status(400).json({ error: 'Shop ka naam zaroori hai' });
     if (!password || password.length < 4) return res.status(400).json({ error: 'Password kam se kam 4 character ka hona chahiye' });
 
-    const validPaymentModes = ['both', 'counter_only'];
+    const validPaymentModes = ['both', 'counter_only', 'online_only'];
     const finalPaymentMode = validPaymentModes.includes(payment_mode) ? payment_mode : 'both';
+
+    // Agar owner ne online payment chuna hai (both/online_only) to gateway details zaroori hain
+    const needsGateway = finalPaymentMode === 'both' || finalPaymentMode === 'online_only';
+    let finalGateway = '';
+    if (needsGateway) {
+      if (payment_gateway === 'razorpay' && razorpay_key_id && razorpay_key_secret) {
+        finalGateway = 'razorpay';
+      } else if (payment_gateway === 'phonepe' && phonepe_merchant_id && phonepe_salt_key) {
+        finalGateway = 'phonepe';
+      } else {
+        return res.status(400).json({ error: 'Online payment ke liye Razorpay ya PhonePe ki details zaroori hain' });
+      }
+    }
 
     const shopId = 'SHOP_' + uuidv4().substring(0,8).toUpperCase();
     const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
 
     await pool.query(
-      'INSERT INTO shops (id,name,address,phone,printer_model,price_bw,price_color,payment_mode,password_hash) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
-      [shopId, name, address, phone, printer_model, price_bw||5, price_color||10, finalPaymentMode, passwordHash]
+      `INSERT INTO shops 
+        (id,name,address,phone,printer_model,price_bw,price_color,payment_mode,password_hash,
+         payment_gateway,razorpay_key_id,razorpay_key_secret,phonepe_merchant_id,phonepe_salt_key,phonepe_salt_index)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+      [shopId, name, address, phone, printer_model, price_bw||5, price_color||10, finalPaymentMode, passwordHash,
+       finalGateway, razorpay_key_id||'', razorpay_key_secret||'', phonepe_merchant_id||'', phonepe_salt_key||'', phonepe_salt_index||'1']
     );
     const qrUrl = `${BASE_URL}/print/${shopId}`;
     const qrCode = await QRCode.toDataURL(qrUrl, { width:300, margin:2 });
@@ -277,7 +318,10 @@ app.post('/api/shop/set-password', async (req, res) => {
 
 app.get('/api/shop/:shopId', async (req, res) => {
   try {
-    const r = await pool.query('SELECT id,name,address,phone,printer_model,price_bw,price_color,payment_mode,qr_code FROM shops WHERE id=$1', [req.params.shopId]);
+    const r = await pool.query(
+      'SELECT id,name,address,phone,printer_model,price_bw,price_color,payment_mode,payment_gateway,razorpay_key_id,qr_code FROM shops WHERE id=$1',
+      [req.params.shopId]
+    );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
     res.json(r.rows[0]);
   } catch(err) { res.status(500).json({ error: err.message }); }
@@ -300,7 +344,13 @@ app.get('/api/shop/:shopId/stats', async (req, res) => {
 
 app.get('/api/admin/profile', verifyToken, async (req, res) => {
   try {
-    const r = await pool.query('SELECT id,name,address,phone,printer_model,price_bw,price_color,payment_mode,qr_code,created_at FROM shops WHERE id=$1', [req.shopId]);
+    const r = await pool.query(
+      `SELECT id,name,address,phone,printer_model,price_bw,price_color,payment_mode,qr_code,created_at,
+              payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index,
+              CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
+              CASE WHEN phonepe_salt_key != '' THEN true ELSE false END as has_phonepe_salt
+       FROM shops WHERE id=$1`, [req.shopId]
+    );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
     res.json(r.rows[0]);
   } catch(err) { res.status(500).json({ error: err.message }); }
@@ -308,10 +358,37 @@ app.get('/api/admin/profile', verifyToken, async (req, res) => {
 
 app.put('/api/admin/settings', verifyToken, async (req, res) => {
   try {
-    const { name, address, phone, printer_model, price_bw, price_color, payment_mode } = req.body;
+    const {
+      name, address, phone, printer_model, price_bw, price_color, payment_mode,
+      payment_gateway, razorpay_key_id, razorpay_key_secret,
+      phonepe_merchant_id, phonepe_salt_key, phonepe_salt_index
+    } = req.body;
 
-    const validPaymentModes = ['both', 'counter_only'];
+    const validPaymentModes = ['both', 'counter_only', 'online_only'];
     const finalPaymentMode = validPaymentModes.includes(payment_mode) ? payment_mode : 'both';
+
+    const needsGateway = finalPaymentMode === 'both' || finalPaymentMode === 'online_only';
+
+    // __KEEP__ sentinel ka matlab hai "purana secret hi rakho, change nahi karna"
+    let finalRzpSecret = razorpay_key_secret;
+    let finalPpSalt = phonepe_salt_key;
+    if (razorpay_key_secret === '__KEEP__' || phonepe_salt_key === '__KEEP__') {
+      const existing = await pool.query('SELECT razorpay_key_secret, phonepe_salt_key FROM shops WHERE id=$1', [req.shopId]);
+      if (existing.rows.length) {
+        if (razorpay_key_secret === '__KEEP__') finalRzpSecret = existing.rows[0].razorpay_key_secret;
+        if (phonepe_salt_key === '__KEEP__') finalPpSalt = existing.rows[0].phonepe_salt_key;
+      }
+    }
+
+    if (needsGateway) {
+      const validRazorpay = payment_gateway === 'razorpay' && razorpay_key_id && finalRzpSecret;
+      const validPhonepe = payment_gateway === 'phonepe' && phonepe_merchant_id && finalPpSalt;
+      if (!validRazorpay && !validPhonepe) {
+        return res.status(400).json({ error: 'Online payment ke liye Razorpay ya PhonePe ki details zaroori hain' });
+      }
+    }
+
+    const finalGateway = needsGateway ? payment_gateway : '';
 
     await pool.query(
       `UPDATE shops SET 
@@ -321,12 +398,20 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
         printer_model=COALESCE($4,printer_model), 
         price_bw=COALESCE($5,price_bw), 
         price_color=COALESCE($6,price_color),
-        payment_mode=$7
-      WHERE id=$8`,
-      [name, address, phone, printer_model, price_bw, price_color, finalPaymentMode, req.shopId]
+        payment_mode=$7,
+        payment_gateway=$8,
+        razorpay_key_id=$9,
+        razorpay_key_secret=$10,
+        phonepe_merchant_id=$11,
+        phonepe_salt_key=$12,
+        phonepe_salt_index=$13
+      WHERE id=$14`,
+      [name, address, phone, printer_model, price_bw, price_color, finalPaymentMode,
+       finalGateway, razorpay_key_id||'', finalRzpSecret||'', phonepe_merchant_id||'', finalPpSalt||'', phonepe_salt_index||'1',
+       req.shopId]
     );
 
-    const r = await pool.query('SELECT id,name,address,phone,printer_model,price_bw,price_color,payment_mode FROM shops WHERE id=$1', [req.shopId]);
+    const r = await pool.query('SELECT id,name,address,phone,printer_model,price_bw,price_color,payment_mode,payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index FROM shops WHERE id=$1', [req.shopId]);
     res.json({ success: true, shop: r.rows[0] });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
@@ -400,15 +485,18 @@ function parseSelectedPages(selectedPages, fallbackCount) {
   return Array.from({length: fallbackCount}, (_, i) => i + 1);
 }
 
-app.post('/api/payment/razorpay/create', async (req, res) => {
+// ─── ONLINE PAYMENT: Har shop apni Razorpay/PhonePe keys use karta hai ───
+// (Paisa seedha shop owner ke account mein jaata hai, system owner ke account mein nahi)
+
+app.post('/api/payment/online/create', async (req, res) => {
   try {
     const { jobId, colorMode, copies, totalPages, selectedPages } = req.body;
-    if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
-      return res.status(400).json({ error: 'Razorpay not configured' });
-    }
 
     const jobCheck = await pool.query(
-      'SELECT j.*, s.price_bw, s.price_color, s.payment_mode FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1', [jobId]
+      `SELECT j.*, s.price_bw, s.price_color, s.payment_mode, s.payment_gateway,
+              s.razorpay_key_id, s.razorpay_key_secret,
+              s.phonepe_merchant_id, s.phonepe_salt_key, s.phonepe_salt_index
+       FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1`, [jobId]
     );
     if (!jobCheck.rows.length) return res.status(404).json({ error:'Job not found' });
 
@@ -417,6 +505,9 @@ app.post('/api/payment/razorpay/create', async (req, res) => {
     if (job.payment_mode === 'counter_only') {
       return res.status(400).json({ error: 'Yeh shop sirf Counter payment accept karta hai' });
     }
+    if (!job.payment_gateway) {
+      return res.status(400).json({ error: 'Is shop ne abhi online payment setup nahi kiya hai' });
+    }
 
     const finalColorMode = colorMode || job.color_mode;
     const finalCopies = parseInt(copies) || job.copies;
@@ -424,64 +515,147 @@ app.post('/api/payment/razorpay/create', async (req, res) => {
     const finalSelectedPages = parseSelectedPages(selectedPages, job.total_pages);
     const pricePerPage = finalColorMode === 'color' ? job.price_color : job.price_bw;
     const amount = pricePerPage * finalPages * finalCopies;
-    const amountInPaise = amount * 100;
 
-    const orderData = JSON.stringify({
-      amount: amountInPaise,
-      currency: 'INR',
-      receipt: jobId,
-      notes: { jobId, colorMode: finalColorMode, copies: finalCopies, pages: finalPages }
-    });
-
-    const authHeader = 'Basic ' + Buffer.from(`${RAZORPAY_KEY_ID}:${RAZORPAY_KEY_SECRET}`).toString('base64');
-
-    const razorpayOrder = await new Promise((resolve, reject) => {
-      const options = {
-        hostname: 'api.razorpay.com',
-        path: '/v1/orders',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': authHeader,
-          'Content-Length': Buffer.byteLength(orderData)
-        }
-      };
-      const r = https.request(options, (resp) => {
-        let data = '';
-        resp.on('data', chunk => data += chunk);
-        resp.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
-      });
-      r.on('error', reject);
-      r.write(orderData);
-      r.end();
-    });
-
-    if (!razorpayOrder.id) return res.status(400).json({ error: 'Razorpay order failed', details: razorpayOrder });
-
+    // Common job update (gateway se pehle)
     await pool.query(
-      'UPDATE print_jobs SET razorpay_order_id=$1, color_mode=$2, copies=$3, total_pages=$4, selected_pages=$5, amount=$6, payment_method=$7 WHERE id=$8',
-      [razorpayOrder.id, finalColorMode, finalCopies, finalPages, finalSelectedPages.join(','), amount, 'online', jobId]
+      'UPDATE print_jobs SET color_mode=$1, copies=$2, total_pages=$3, selected_pages=$4, amount=$5 WHERE id=$6',
+      [finalColorMode, finalCopies, finalPages, finalSelectedPages.join(','), amount, jobId]
     );
 
-    res.json({
-      success: true,
-      orderId: razorpayOrder.id,
-      amount: amountInPaise,
-      keyId: RAZORPAY_KEY_ID,
-      jobId
-    });
+    if (job.payment_gateway === 'razorpay') {
+      if (!job.razorpay_key_id || !job.razorpay_key_secret) {
+        return res.status(400).json({ error: 'Shop ki Razorpay keys set nahi hain' });
+      }
+      const amountInPaise = amount * 100;
+      const orderData = JSON.stringify({
+        amount: amountInPaise,
+        currency: 'INR',
+        receipt: jobId,
+        notes: { jobId, colorMode: finalColorMode, copies: finalCopies, pages: finalPages }
+      });
+      const authHeader = 'Basic ' + Buffer.from(`${job.razorpay_key_id}:${job.razorpay_key_secret}`).toString('base64');
+
+      const razorpayOrder = await new Promise((resolve, reject) => {
+        const options = {
+          hostname: 'api.razorpay.com',
+          path: '/v1/orders',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': authHeader,
+            'Content-Length': Buffer.byteLength(orderData)
+          }
+        };
+        const r = https.request(options, (resp) => {
+          let data = '';
+          resp.on('data', chunk => data += chunk);
+          resp.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+        });
+        r.on('error', reject);
+        r.write(orderData);
+        r.end();
+      });
+
+      if (!razorpayOrder.id) return res.status(400).json({ error: 'Razorpay order failed', details: razorpayOrder });
+
+      await pool.query(
+        'UPDATE print_jobs SET razorpay_order_id=$1, payment_method=$2 WHERE id=$3',
+        [razorpayOrder.id, 'online', jobId]
+      );
+
+      return res.json({
+        success: true,
+        gateway: 'razorpay',
+        orderId: razorpayOrder.id,
+        amount: amountInPaise,
+        keyId: job.razorpay_key_id,
+        jobId
+      });
+    }
+
+    if (job.payment_gateway === 'phonepe') {
+      if (!job.phonepe_merchant_id || !job.phonepe_salt_key) {
+        return res.status(400).json({ error: 'Shop ki PhonePe keys set nahi hain' });
+      }
+      const amountInPaise = amount * 100;
+      const merchantTransactionId = 'MT' + uuidv4().substring(0,16).replace(/-/g,'').toUpperCase();
+      const saltIndex = job.phonepe_salt_index || '1';
+
+      const payload = {
+        merchantId: job.phonepe_merchant_id,
+        merchantTransactionId,
+        merchantUserId: 'CUST_' + jobId,
+        amount: amountInPaise,
+        redirectUrl: `${BASE_URL}/print-success?jobId=${jobId}&gateway=phonepe&txn=${merchantTransactionId}`,
+        redirectMode: 'REDIRECT',
+        callbackUrl: `${BASE_URL}/api/payment/phonepe/callback`,
+        paymentInstrument: { type: 'PAY_PAGE' }
+      };
+
+      const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
+      const checksum = crypto.createHash('sha256')
+        .update(base64Payload + '/pg/v1/pay' + job.phonepe_salt_key)
+        .digest('hex') + '###' + saltIndex;
+
+      const phonepeResponse = await new Promise((resolve, reject) => {
+        const postData = JSON.stringify({ request: base64Payload });
+        const options = {
+          hostname: 'api.phonepe.com',
+          path: '/apis/hermes/pg/v1/pay',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-VERIFY': checksum,
+            'Content-Length': Buffer.byteLength(postData)
+          }
+        };
+        const r = https.request(options, (resp) => {
+          let data = '';
+          resp.on('data', chunk => data += chunk);
+          resp.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+        });
+        r.on('error', reject);
+        r.write(postData);
+        r.end();
+      });
+
+      if (!phonepeResponse.success) {
+        return res.status(400).json({ error: 'PhonePe order failed', details: phonepeResponse });
+      }
+
+      await pool.query(
+        'UPDATE print_jobs SET payment_id=$1, payment_method=$2 WHERE id=$3',
+        [merchantTransactionId, 'online', jobId]
+      );
+
+      return res.json({
+        success: true,
+        gateway: 'phonepe',
+        paymentUrl: phonepeResponse.data.instrumentResponse.redirectInfo.url,
+        jobId
+      });
+    }
+
+    res.status(400).json({ error: 'Unknown payment gateway' });
   } catch(err) {
-    console.error('Razorpay create error:', err.message);
+    console.error('Online payment create error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
+// Razorpay verify — frontend se signature check
 app.post('/api/payment/razorpay/verify', async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, jobId } = req.body;
 
+    const jobCheck = await pool.query(
+      'SELECT s.razorpay_key_secret FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1', [jobId]
+    );
+    if (!jobCheck.rows.length) return res.status(404).json({ error: 'Job not found' });
+    const keySecret = jobCheck.rows[0].razorpay_key_secret;
+
     const expectedSignature = crypto
-      .createHmac('sha256', RAZORPAY_KEY_SECRET)
+      .createHmac('sha256', keySecret)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest('hex');
 
@@ -502,17 +676,96 @@ app.post('/api/payment/razorpay/verify', async (req, res) => {
   }
 });
 
+// PhonePe webhook callback — payment success hone par PhonePe yahan call karta hai
+app.post('/api/payment/phonepe/callback', express.json(), async (req, res) => {
+  try {
+    const decoded = req.body.response
+      ? JSON.parse(Buffer.from(req.body.response, 'base64').toString())
+      : req.body;
+
+    if (decoded.code === 'PAYMENT_SUCCESS') {
+      const txnId = decoded.data.merchantTransactionId;
+      await pool.query(
+        'UPDATE print_jobs SET payment_status=$1, status=$2 WHERE payment_id=$3',
+        ['paid', 'queued', txnId]
+      );
+      console.log(`PhonePe payment success: ${txnId}`);
+    }
+    res.json({ success: true });
+  } catch(err) {
+    console.error('PhonePe callback error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PhonePe redirect ke baad status check (frontend polling ke liye)
+app.get('/api/payment/phonepe/status/:jobId', async (req, res) => {
+  try {
+    const r = await pool.query(
+      'SELECT j.payment_id, j.payment_status, s.phonepe_merchant_id, s.phonepe_salt_key, s.phonepe_salt_index FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1',
+      [req.params.jobId]
+    );
+    if (!r.rows.length) return res.status(404).json({ error: 'Job not found' });
+    const job = r.rows[0];
+
+    // Agar already paid hai DB mein (webhook se aaya), seedha return karo
+    if (job.payment_status === 'paid') {
+      return res.json({ success: true, status: 'PAYMENT_SUCCESS' });
+    }
+
+    // Warna PhonePe se directly status check karo
+    const txnId = job.payment_id;
+    const saltIndex = job.phonepe_salt_index || '1';
+    const checksum = crypto.createHash('sha256')
+      .update(`/pg/v1/status/${job.phonepe_merchant_id}/${txnId}${job.phonepe_salt_key}`)
+      .digest('hex') + '###' + saltIndex;
+
+    const statusResponse = await new Promise((resolve, reject) => {
+      const options = {
+        hostname: 'api.phonepe.com',
+        path: `/apis/hermes/pg/v1/status/${job.phonepe_merchant_id}/${txnId}`,
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-VERIFY': checksum,
+          'X-MERCHANT-ID': job.phonepe_merchant_id
+        }
+      };
+      const r2 = https.request(options, (resp) => {
+        let data = '';
+        resp.on('data', chunk => data += chunk);
+        resp.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+      });
+      r2.on('error', reject);
+      r2.end();
+    });
+
+    if (statusResponse.code === 'PAYMENT_SUCCESS') {
+      await pool.query('UPDATE print_jobs SET payment_status=$1, status=$2 WHERE id=$3', ['paid', 'queued', req.params.jobId]);
+    }
+
+    res.json({ success: true, status: statusResponse.code });
+  } catch(err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/payment/counter', async (req, res) => {
   try {
     const { jobId, colorMode, copies, totalPages, selectedPages } = req.body;
     if (!jobId) return res.status(400).json({ error:'Job ID required' });
 
     const jobCheck = await pool.query(
-      'SELECT j.*, s.price_bw, s.price_color FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1', [jobId]
+      'SELECT j.*, s.price_bw, s.price_color, s.payment_mode FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1', [jobId]
     );
     if (!jobCheck.rows.length) return res.status(404).json({ error:'Job not found' });
 
     const job = jobCheck.rows[0];
+
+    if (job.payment_mode === 'online_only') {
+      return res.status(400).json({ error: 'Yeh shop sirf Online payment accept karta hai' });
+    }
+
     const finalColorMode = colorMode || job.color_mode;
     const finalCopies = parseInt(copies) || job.copies;
     const finalPages = parseInt(totalPages) || job.total_pages;
@@ -573,9 +826,7 @@ app.get('/api/jobs/status/:jobId', async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
-app.get('/api/razorpay/config', (req, res) => {
-  res.json({ enabled: !!(RAZORPAY_KEY_ID && RAZORPAY_KEY_SECRET), keyId: RAZORPAY_KEY_ID || null });
-});
+// (Removed legacy global /api/razorpay/config — har shop ki apni gateway keys hoti hain ab)
 
 app.get('/', (req,res) => res.sendFile(path.join(__dirname,'public','index.html')));
 app.get('/print/:shopId', (req,res) => res.sendFile(path.join(__dirname,'public','customer.html')));
@@ -588,6 +839,6 @@ initDB().then(() => {
     console.log(`QR Se Print - Port ${PORT}`);
     console.log(`${BASE_URL}`);
     console.log(`Cloudinary: ${CLOUD_NAME}`);
-    console.log(`Razorpay: ${RAZORPAY_KEY_ID ? 'Configured' : 'Not configured (Counter only)'}`);
+    console.log(`Payment: Per-shop gateway (Razorpay/PhonePe), Counter always available unless online_only`);
   });
 });
