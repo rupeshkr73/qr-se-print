@@ -8,6 +8,7 @@ const QRCode = require('qrcode');
 const path = require('path');
 const https = require('https');
 const crypto = require('crypto');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,6 +20,8 @@ const CLD_API_SECRET = process.env.CLOUDINARY_API_SECRET || 'dnTnlUZI4e-yJJOBN0K
 
 const RAZORPAY_KEY_ID = process.env.RAZORPAY_KEY_ID || '';
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || '';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'qrseprint_default_secret_change_in_production_xk29';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -39,6 +42,44 @@ const upload = multer({
     allowed.includes(ext) ? cb(null, true) : cb(new Error('File type not allowed'));
   }
 });
+
+const PRINTER_MODELS = [
+  'Epson L120', 'Epson L130', 'Epson L210', 'Epson L220', 'Epson L360', 'Epson L361',
+  'Epson L380', 'Epson L385', 'Epson L395', 'Epson L1110', 'Epson L1210', 'Epson L1250',
+  'Epson L1255', 'Epson L1300', 'Epson L1350', 'Epson L1455', 'Epson L3100', 'Epson L3101',
+  'Epson L3110', 'Epson L3115', 'Epson L3116', 'Epson L3150', 'Epson L3151', 'Epson L3152',
+  'Epson L3156', 'Epson L3200', 'Epson L3210', 'Epson L3211', 'Epson L3215', 'Epson L3216',
+  'Epson L3250', 'Epson L3251', 'Epson L3252', 'Epson L3255', 'Epson L3256', 'Epson L3260',
+  'Epson L3550', 'Epson L3560', 'Epson L4150', 'Epson L4160', 'Epson L4260', 'Epson L5190',
+  'Epson L5290', 'Epson L5390', 'Epson L5590', 'Epson L6160', 'Epson L6170', 'Epson L6190',
+  'Epson L6270', 'Epson L6290', 'Epson L6460', 'Epson L6490', 'Epson L6570', 'Epson L6580',
+  'Epson L8050', 'Epson L8160', 'Epson L8180', 'Epson L11050', 'Epson L14150', 'Epson L15150',
+  'Epson L15160', 'Epson L15180',
+  'Epson M1100', 'Epson M1120', 'Epson M1140', 'Epson M2140', 'Epson WF-2810', 'Epson WF-2830',
+  'Epson WF-3825', 'Epson WF-C5390',
+  'Canon PIXMA G1010', 'Canon PIXMA G1020', 'Canon PIXMA G1030', 'Canon PIXMA G2002',
+  'Canon PIXMA G2010', 'Canon PIXMA G2012', 'Canon PIXMA G2020', 'Canon PIXMA G2070',
+  'Canon PIXMA G3000', 'Canon PIXMA G3010', 'Canon PIXMA G3012', 'Canon PIXMA G3020',
+  'Canon PIXMA G3060', 'Canon PIXMA G3070', 'Canon PIXMA G4010', 'Canon PIXMA G4020',
+  'Canon PIXMA G4070', 'Canon PIXMA G5070', 'Canon PIXMA G6070', 'Canon PIXMA G7070',
+  'Canon PIXMA TS207', 'Canon PIXMA TS307', 'Canon PIXMA TS3340', 'Canon PIXMA E477',
+  'Canon PIXMA E4270', 'Canon PIXMA MG2470', 'Canon PIXMA MG3070',
+  'Canon LBP6030', 'Canon LBP2900', 'Canon LBP3300', 'Canon imageCLASS MF3010',
+  'HP DeskJet 1112', 'HP DeskJet 2131', 'HP DeskJet 2332', 'HP DeskJet 2710',
+  'HP DeskJet 2720', 'HP DeskJet 2776', 'HP DeskJet 2778', 'HP DeskJet 3635',
+  'HP DeskJet 3776', 'HP DeskJet 3835', 'HP DeskJet 4178', 'HP DeskJet Ink Advantage 2135',
+  'HP Smart Tank 515', 'HP Smart Tank 520', 'HP Smart Tank 580', 'HP Smart Tank 615',
+  'HP Smart Tank 670', 'HP Ink Tank 315', 'HP Ink Tank 319', 'HP Ink Tank 415',
+  'HP Ink Tank 419', 'HP Ink Tank Wireless 416',
+  'HP LaserJet P1108', 'HP LaserJet Pro M15a', 'HP LaserJet Pro M1136', 'HP LaserJet Pro M126nw',
+  'HP LaserJet Pro M404dn', 'HP LaserJet Pro MFP M126nw', 'HP LaserJet Pro MFP M225dw',
+  'HP LaserJet 1020', 'HP LaserJet 1018',
+  'Brother DCP-T220', 'Brother DCP-T225', 'Brother DCP-T226', 'Brother DCP-T310',
+  'Brother DCP-T420W', 'Brother DCP-T426W', 'Brother DCP-T520W', 'Brother DCP-T710W',
+  'Brother DCP-T820DW', 'Brother HL-L2321D', 'Brother HL-L2361DN', 'Brother HL-L2375DW',
+  'Brother MFC-J2330DW', 'Brother MFC-T920DW',
+  'Other (Manually Type Below)'
+];
 
 async function uploadToCloudinary(fileBuffer, fileType) {
   return new Promise((resolve, reject) => {
@@ -96,7 +137,7 @@ async function deleteFromCloudinary(publicId) {
     const req = https.request(options, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
-      res.on('end', () => { try { console.log(`🗑️ Deleted: ${publicId}`); } catch(e) {} resolve(); });
+      res.on('end', () => { try { console.log(`Deleted: ${publicId}`); } catch(e) {} resolve(); });
     });
     req.on('error', () => resolve());
     req.write(postData);
@@ -111,9 +152,11 @@ async function initDB() {
         id VARCHAR(50) PRIMARY KEY,
         name VARCHAR(200) NOT NULL,
         address TEXT, phone VARCHAR(20),
-        printer_model VARCHAR(100),
+        printer_model VARCHAR(150),
         price_bw INTEGER DEFAULT 5,
         price_color INTEGER DEFAULT 10,
+        payment_mode VARCHAR(20) DEFAULT 'both',
+        password_hash VARCHAR(255),
         qr_code TEXT,
         created_at TIMESTAMP DEFAULT NOW()
       );
@@ -138,20 +181,51 @@ async function initDB() {
         printed_at TIMESTAMP
       );
     `);
-    console.log('✅ Database ready!');
-  } catch(err) { console.error('❌ DB error:', err.message); }
+
+    await pool.query(`
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS payment_mode VARCHAR(20) DEFAULT 'both';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
+    `);
+
+    console.log('Database ready!');
+  } catch(err) { console.error('DB error:', err.message); }
 }
 
-// ═══════════════════════════════════════════════
-// SHOP APIs
-// ═══════════════════════════════════════════════
+function verifyToken(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Login required' });
+  }
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.shopId = decoded.shopId;
+    next();
+  } catch(err) {
+    return res.status(401).json({ error: 'Session expired, please login again' });
+  }
+}
+
+app.get('/api/printer-models', (req, res) => {
+  res.json({ models: PRINTER_MODELS });
+});
+
 app.post('/api/shop/register', async (req, res) => {
   try {
-    const { name, address, phone, printer_model, price_bw, price_color } = req.body;
+    const { name, address, phone, printer_model, price_bw, price_color, payment_mode, password } = req.body;
+
+    if (!name || !name.trim()) return res.status(400).json({ error: 'Shop ka naam zaroori hai' });
+    if (!password || password.length < 4) return res.status(400).json({ error: 'Password kam se kam 4 character ka hona chahiye' });
+
+    const validPaymentModes = ['both', 'counter_only'];
+    const finalPaymentMode = validPaymentModes.includes(payment_mode) ? payment_mode : 'both';
+
     const shopId = 'SHOP_' + uuidv4().substring(0,8).toUpperCase();
+    const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
+
     await pool.query(
-      'INSERT INTO shops (id,name,address,phone,printer_model,price_bw,price_color) VALUES ($1,$2,$3,$4,$5,$6,$7)',
-      [shopId, name, address, phone, printer_model, price_bw||5, price_color||10]
+      'INSERT INTO shops (id,name,address,phone,printer_model,price_bw,price_color,payment_mode,password_hash) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
+      [shopId, name, address, phone, printer_model, price_bw||5, price_color||10, finalPaymentMode, passwordHash]
     );
     const qrUrl = `${BASE_URL}/print/${shopId}`;
     const qrCode = await QRCode.toDataURL(qrUrl, { width:300, margin:2 });
@@ -160,9 +234,50 @@ app.post('/api/shop/register', async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+app.post('/api/shop/login', async (req, res) => {
+  try {
+    const { shopId, password } = req.body;
+    if (!shopId || !password) return res.status(400).json({ error: 'Shop ID aur Password dono chahiye' });
+
+    const r = await pool.query('SELECT * FROM shops WHERE id=$1', [shopId.trim().toUpperCase()]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Shop ID nahi mila' });
+
+    const shop = r.rows[0];
+    const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
+
+    if (!shop.password_hash) {
+      return res.status(401).json({ error: 'Is shop ka password set nahi hai. Pehle Set Password karo.' });
+    }
+    if (shop.password_hash !== passwordHash) {
+      return res.status(401).json({ error: 'Password galat hai' });
+    }
+
+    const token = jwt.sign({ shopId: shop.id }, JWT_SECRET, { expiresIn: '24h' });
+    delete shop.password_hash;
+    res.json({ success: true, token, shop });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/shop/set-password', async (req, res) => {
+  try {
+    const { shopId, newPassword } = req.body;
+    if (!shopId || !newPassword || newPassword.length < 4) {
+      return res.status(400).json({ error: 'Shop ID aur kam se kam 4-character password chahiye' });
+    }
+    const r = await pool.query('SELECT id, password_hash FROM shops WHERE id=$1', [shopId.trim().toUpperCase()]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Shop ID nahi mila' });
+    if (r.rows[0].password_hash) {
+      return res.status(400).json({ error: 'Password already set hai. Login karke change karo.' });
+    }
+    const passwordHash = crypto.createHash('sha256').update(newPassword).digest('hex');
+    await pool.query('UPDATE shops SET password_hash=$1 WHERE id=$2', [passwordHash, shopId.trim().toUpperCase()]);
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/shop/:shopId', async (req, res) => {
   try {
-    const r = await pool.query('SELECT * FROM shops WHERE id=$1', [req.params.shopId]);
+    const r = await pool.query('SELECT id,name,address,phone,printer_model,price_bw,price_color,payment_mode,qr_code FROM shops WHERE id=$1', [req.params.shopId]);
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
     res.json(r.rows[0]);
   } catch(err) { res.status(500).json({ error: err.message }); }
@@ -183,9 +298,69 @@ app.get('/api/shop/:shopId/stats', async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
-// ═══════════════════════════════════════════════
-// FILE UPLOAD
-// ═══════════════════════════════════════════════
+app.get('/api/admin/profile', verifyToken, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT id,name,address,phone,printer_model,price_bw,price_color,payment_mode,qr_code,created_at FROM shops WHERE id=$1', [req.shopId]);
+    if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
+    res.json(r.rows[0]);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/admin/settings', verifyToken, async (req, res) => {
+  try {
+    const { name, address, phone, printer_model, price_bw, price_color, payment_mode } = req.body;
+
+    const validPaymentModes = ['both', 'counter_only'];
+    const finalPaymentMode = validPaymentModes.includes(payment_mode) ? payment_mode : 'both';
+
+    await pool.query(
+      `UPDATE shops SET 
+        name=COALESCE($1,name), 
+        address=COALESCE($2,address), 
+        phone=COALESCE($3,phone), 
+        printer_model=COALESCE($4,printer_model), 
+        price_bw=COALESCE($5,price_bw), 
+        price_color=COALESCE($6,price_color),
+        payment_mode=$7
+      WHERE id=$8`,
+      [name, address, phone, printer_model, price_bw, price_color, finalPaymentMode, req.shopId]
+    );
+
+    const r = await pool.query('SELECT id,name,address,phone,printer_model,price_bw,price_color,payment_mode FROM shops WHERE id=$1', [req.shopId]);
+    res.json({ success: true, shop: r.rows[0] });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/admin/change-password', verifyToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!newPassword || newPassword.length < 4) {
+      return res.status(400).json({ error: 'Naya password kam se kam 4 character ka hona chahiye' });
+    }
+    const r = await pool.query('SELECT password_hash FROM shops WHERE id=$1', [req.shopId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Shop not found' });
+
+    const currentHash = crypto.createHash('sha256').update(currentPassword || '').digest('hex');
+    if (r.rows[0].password_hash !== currentHash) {
+      return res.status(401).json({ error: 'Current password galat hai' });
+    }
+
+    const newHash = crypto.createHash('sha256').update(newPassword).digest('hex');
+    await pool.query('UPDATE shops SET password_hash=$1 WHERE id=$2', [newHash, req.shopId]);
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/admin/jobs', verifyToken, async (req, res) => {
+  try {
+    const r = await pool.query(
+      'SELECT id,file_name,amount,copies,color_mode,total_pages,status,payment_status,payment_method,created_at,printed_at FROM print_jobs WHERE shop_id=$1 ORDER BY created_at DESC LIMIT 50',
+      [req.shopId]
+    );
+    res.json({ jobs: r.rows });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error:'No file uploaded' });
@@ -203,9 +378,9 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     const pricePerPage = colorMode === 'color' ? shop.price_color : shop.price_bw;
     const amount = pricePerPage * numPages * numCopies;
 
-    console.log(`📤 Uploading: ${req.file.originalname} (${numPages} pages)`);
+    console.log(`Uploading: ${req.file.originalname} (${numPages} pages)`);
     const cloudResult = await uploadToCloudinary(req.file.buffer, fileType);
-    console.log(`✅ Cloudinary: ${cloudResult.url}`);
+    console.log(`Cloudinary: ${cloudResult.url}`);
 
     await pool.query(
       'INSERT INTO print_jobs (id,shop_id,file_name,file_url,file_public_id,file_type,total_pages,copies,color_mode,amount) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
@@ -217,10 +392,6 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
-// ═══════════════════════════════════════════════
-// PAYMENT — Razorpay + Counter, dono mein selectedPages support
-// ═══════════════════════════════════════════════
 
 function parseSelectedPages(selectedPages, fallbackCount) {
   if (Array.isArray(selectedPages) && selectedPages.length) {
@@ -237,11 +408,16 @@ app.post('/api/payment/razorpay/create', async (req, res) => {
     }
 
     const jobCheck = await pool.query(
-      'SELECT j.*, s.price_bw, s.price_color FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1', [jobId]
+      'SELECT j.*, s.price_bw, s.price_color, s.payment_mode FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1', [jobId]
     );
     if (!jobCheck.rows.length) return res.status(404).json({ error:'Job not found' });
 
     const job = jobCheck.rows[0];
+
+    if (job.payment_mode === 'counter_only') {
+      return res.status(400).json({ error: 'Yeh shop sirf Counter payment accept karta hai' });
+    }
+
     const finalColorMode = colorMode || job.color_mode;
     const finalCopies = parseInt(copies) || job.copies;
     const finalPages = parseInt(totalPages) || job.total_pages;
@@ -318,7 +494,7 @@ app.post('/api/payment/razorpay/verify', async (req, res) => {
       ['paid', 'queued', razorpay_payment_id, jobId]
     );
 
-    console.log(`✅ Razorpay payment verified: ${jobId} | ${razorpay_payment_id}`);
+    console.log(`Razorpay payment verified: ${jobId} | ${razorpay_payment_id}`);
     res.json({ success: true });
   } catch(err) {
     console.error('Razorpay verify error:', err.message);
@@ -350,7 +526,7 @@ app.post('/api/payment/counter', async (req, res) => {
       ['paid', 'queued', txnId, finalColorMode, finalCopies, finalPages, finalSelectedPages.join(','), amount, 'counter', jobId]
     );
 
-    console.log(`💵 Counter payment: ${jobId} | ₹${amount} | Pages: ${finalSelectedPages.join(',')}`);
+    console.log(`Counter payment: ${jobId} | Rs.${amount} | Pages: ${finalSelectedPages.join(',')}`);
     res.json({ success:true, txnId, amount });
   } catch(err) {
     console.error('Counter payment error:', err.message);
@@ -358,9 +534,6 @@ app.post('/api/payment/counter', async (req, res) => {
   }
 });
 
-// ═══════════════════════════════════════════════
-// PRINT JOB APIs — agent ko selected_pages bhi milta hai
-// ═══════════════════════════════════════════════
 app.get('/api/jobs/pending/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
@@ -380,7 +553,7 @@ app.post('/api/jobs/complete/:jobId', async (req, res) => {
     if (result.rows.length && result.rows[0].file_public_id) {
       await deleteFromCloudinary(result.rows[0].file_public_id);
     }
-    console.log(`🖨️ Printed + Deleted: ${req.params.jobId}`);
+    console.log(`Printed + Deleted: ${req.params.jobId}`);
     res.json({ success:true });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
@@ -407,13 +580,14 @@ app.get('/api/razorpay/config', (req, res) => {
 app.get('/', (req,res) => res.sendFile(path.join(__dirname,'public','index.html')));
 app.get('/print/:shopId', (req,res) => res.sendFile(path.join(__dirname,'public','customer.html')));
 app.get('/dashboard', (req,res) => res.sendFile(path.join(__dirname,'public','dashboard.html')));
+app.get('/admin', (req,res) => res.sendFile(path.join(__dirname,'public','admin.html')));
 app.get('/print-success', (req,res) => res.sendFile(path.join(__dirname,'public','success.html')));
 
 initDB().then(() => {
   app.listen(PORT, () => {
-    console.log(`🚀 QR Se Print — Port ${PORT}`);
-    console.log(`🌐 ${BASE_URL}`);
-    console.log(`☁️ Cloudinary: ${CLOUD_NAME}`);
-    console.log(`💳 Razorpay: ${RAZORPAY_KEY_ID ? 'Configured ✅' : 'Not configured (Counter only)'}`);
+    console.log(`QR Se Print - Port ${PORT}`);
+    console.log(`${BASE_URL}`);
+    console.log(`Cloudinary: ${CLOUD_NAME}`);
+    console.log(`Razorpay: ${RAZORPAY_KEY_ID ? 'Configured' : 'Not configured (Counter only)'}`);
   });
 });
