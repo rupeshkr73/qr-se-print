@@ -30,13 +30,21 @@ input:focus,select:focus{border-color:#1c6fff}
 .price-wrap span{position:absolute;left:13px;top:50%;transform:translateY(-50%);font-weight:700;color:#6b6870}
 .price-wrap input{padding-left:26px}
 
-/* Payment mode selector */
 .payment-opts{display:flex;flex-direction:column;gap:10px}
 .payment-opt{display:flex;align-items:flex-start;gap:12px;padding:14px;border:2px solid #e2ddd6;border-radius:14px;cursor:pointer;transition:all 0.2s}
 .payment-opt.selected{border-color:#ff4d1c;background:#fff5f0}
 .payment-opt input{width:auto;margin-top:3px}
 .payment-opt-text strong{font-size:14px;font-weight:700;display:block;margin-bottom:2px}
 .payment-opt-text span{font-size:12px;color:#6b6870}
+
+.gateway-section{display:none;margin-top:14px;padding-top:14px;border-top:1px dashed #e2ddd6}
+.gateway-tabs{display:flex;gap:8px;margin-bottom:14px}
+.gateway-tab{flex:1;padding:11px;border:1.5px solid #e2ddd6;border-radius:10px;text-align:center;font-size:13px;font-weight:700;cursor:pointer;background:#fff;transition:all 0.2s}
+.gateway-tab.active{background:#0a0a0f;color:#fff;border-color:#0a0a0f}
+.gateway-fields{display:none}
+.gateway-fields.show{display:block}
+.gateway-note{font-size:11px;color:#6b6870;margin-top:8px;line-height:1.5}
+.gateway-note a{color:#1c6fff;text-decoration:none;font-weight:700}
 
 .custom-printer-wrap{margin-top:10px;display:none}
 
@@ -57,10 +65,6 @@ input:focus,select:focus{border-color:#1c6fff}
 .shop-id-box h4{font-size:13px;font-weight:700;color:#00c853;margin-bottom:6px}
 .shop-id-val{font-family:monospace;font-size:16px;font-weight:700;color:#0a0a0f;letter-spacing:1px}
 .shop-id-box p{font-size:11px;color:#6b6870;margin-top:6px}
-
-.password-box{background:#fff8e8;border:1.5px solid #ffd97a;border-radius:14px;padding:16px;margin-top:10px}
-.password-box h4{font-size:13px;font-weight:700;color:#ff8f00;margin-bottom:6px}
-.password-box p{font-size:11px;color:#6b6870}
 
 .admin-link-box{background:#f0f4ff;border:1.5px solid #b3d1ff;border-radius:14px;padding:14px;margin-top:14px;text-align:center}
 .admin-link-box a{color:#1c6fff;font-weight:700;font-size:13px;text-decoration:none}
@@ -96,6 +100,9 @@ input:focus,select:focus{border-color:#1c6fff}
         <div class="custom-printer-wrap" id="customPrinterWrap">
           <input id="customPrinterInput" placeholder="Apna printer model type karo">
         </div>
+        <p style="font-size:11px;color:#6b6870;margin-top:8px;line-height:1.5;">
+          💡 <strong>Auto Detect</strong> recommended hai — agent automatically aapke PC ka "Default Printer" use karega. Bas PC pe Windows Settings → Printers mein sahi printer ko "Set as Default" kar dena.
+        </p>
       </div>
       <div class="form-group"><label>Address</label><input id="shopAddr" placeholder="Shop address"></div>
       <div class="form-group"><label>Phone</label><input id="shopPhone" placeholder="+91 XXXXX XXXXX"></div>
@@ -118,19 +125,52 @@ input:focus,select:focus{border-color:#1c6fff}
     <h2><div class="badge">3</div> Payment Mode</h2>
     <div class="payment-opts">
       <label class="payment-opt selected" id="optBoth">
-        <input type="radio" name="paymentMode" value="both" checked onchange="selectPaymentOpt('optBoth')">
+        <input type="radio" name="paymentMode" value="both" checked onchange="onPaymentModeChange('both')">
         <div class="payment-opt-text">
           <strong>💳 Online Payment + Counter Payment</strong>
-          <span>Customer ko dono option milega — Razorpay se online ya counter pe cash</span>
+          <span>Customer ko dono option milega — online ya counter pe cash</span>
+        </div>
+      </label>
+      <label class="payment-opt" id="optOnline">
+        <input type="radio" name="paymentMode" value="online_only" onchange="onPaymentModeChange('online_only')">
+        <div class="payment-opt-text">
+          <strong>🌐 Sirf Online Payment</strong>
+          <span>Counter payment nahi chahiye, sirf online accept karo</span>
         </div>
       </label>
       <label class="payment-opt" id="optCounter">
-        <input type="radio" name="paymentMode" value="counter_only" onchange="selectPaymentOpt('optCounter')">
+        <input type="radio" name="paymentMode" value="counter_only" onchange="onPaymentModeChange('counter_only')">
         <div class="payment-opt-text">
           <strong>💵 Sirf Counter Payment</strong>
           <span>Online payment nahi chahiye, sirf counter pe cash collect karo</span>
         </div>
       </label>
+    </div>
+
+    <!-- Gateway setup — sirf "both" ya "online_only" select hone par dikhega -->
+    <div class="gateway-section" id="gatewaySection">
+      <label style="margin-bottom:10px;display:block;">Payment Gateway Choose Karo *</label>
+      <div class="gateway-tabs">
+        <div class="gateway-tab active" id="tabRazorpay" onclick="selectGateway('razorpay')">Razorpay</div>
+        <div class="gateway-tab" id="tabPhonepe" onclick="selectGateway('phonepe')">PhonePe</div>
+      </div>
+
+      <div class="gateway-fields show" id="fieldsRazorpay">
+        <div class="form-grid">
+          <div class="form-group full"><label>Razorpay Key ID</label><input id="rzpKeyId" placeholder="rzp_live_xxxxxxxxxx"></div>
+          <div class="form-group full"><label>Razorpay Key Secret</label><input type="password" id="rzpKeySecret" placeholder="Key Secret"></div>
+        </div>
+        <p class="gateway-note">Razorpay Dashboard → Settings → API Keys se milegi. Account nahi hai to <a href="https://razorpay.com" target="_blank">razorpay.com</a> pe bana lo — paisa seedha aapke bank account mein aayega.</p>
+      </div>
+
+      <div class="gateway-fields" id="fieldsPhonepe">
+        <div class="form-grid">
+          <div class="form-group full"><label>PhonePe Merchant ID</label><input id="ppMerchantId" placeholder="MERCHANTUAT"></div>
+          <div class="form-group full"><label>PhonePe Salt Key</label><input type="password" id="ppSaltKey" placeholder="Salt Key"></div>
+          <div class="form-group"><label>Salt Index</label><input id="ppSaltIndex" placeholder="1" value="1"></div>
+        </div>
+        <p class="gateway-note">PhonePe Business Dashboard se milegi. Paisa seedha aapke account mein aayega.</p>
+      </div>
     </div>
   </div>
 
@@ -140,7 +180,7 @@ input:focus,select:focus{border-color:#1c6fff}
       <label>Password Banao (Admin Panel Login Ke Liye) *</label>
       <input type="password" id="shopPassword" placeholder="Kam se kam 4 character" minlength="4">
     </div>
-    <p style="font-size:11px;color:#6b6870;margin-top:8px;">Yeh password Shop ID ke saath admin panel login karne ke liye use hoga — printer, price, naam change karne ke liye.</p>
+    <p style="font-size:11px;color:#6b6870;margin-top:8px;">Yeh password Shop ID ke saath admin panel login karne ke liye use hoga — printer, price, payment settings change karne ke liye.</p>
   </div>
 
   <div class="card">
@@ -173,8 +213,8 @@ input:focus,select:focus{border-color:#1c6fff}
 
 <script>
 let qrDataUrl = null;
+let selectedGateway = 'razorpay';
 
-// Printer list load karo
 async function loadPrinterModels() {
   try {
     const res = await fetch('/api/printer-models');
@@ -186,6 +226,8 @@ async function loadPrinterModels() {
       opt.textContent = model;
       select.appendChild(opt);
     });
+    // Default: Auto Detect option pehle se selected rakho (recommended)
+    select.value = '🔍 Auto Detect (System Installed Printer)';
   } catch(e) {
     console.error('Printer list load nahi hui');
   }
@@ -194,17 +236,24 @@ async function loadPrinterModels() {
 function checkOtherPrinter() {
   const select = document.getElementById('printerModel');
   const wrap = document.getElementById('customPrinterWrap');
-  if (select.value === 'Other (Manually Type Below)') {
-    wrap.style.display = 'block';
-  } else {
-    wrap.style.display = 'none';
-  }
+  wrap.style.display = select.value === 'Other (Manually Type Below)' ? 'block' : 'none';
 }
 
-function selectPaymentOpt(id) {
-  document.getElementById('optBoth').classList.remove('selected');
-  document.getElementById('optCounter').classList.remove('selected');
-  document.getElementById(id).classList.add('selected');
+function onPaymentModeChange(mode) {
+  document.getElementById('optBoth').classList.toggle('selected', mode === 'both');
+  document.getElementById('optOnline').classList.toggle('selected', mode === 'online_only');
+  document.getElementById('optCounter').classList.toggle('selected', mode === 'counter_only');
+
+  const gatewaySection = document.getElementById('gatewaySection');
+  gatewaySection.style.display = (mode === 'both' || mode === 'online_only') ? 'block' : 'none';
+}
+
+function selectGateway(gw) {
+  selectedGateway = gw;
+  document.getElementById('tabRazorpay').classList.toggle('active', gw === 'razorpay');
+  document.getElementById('tabPhonepe').classList.toggle('active', gw === 'phonepe');
+  document.getElementById('fieldsRazorpay').classList.toggle('show', gw === 'razorpay');
+  document.getElementById('fieldsPhonepe').classList.toggle('show', gw === 'phonepe');
 }
 
 async function registerShop() {
@@ -223,6 +272,36 @@ async function registerShop() {
   if (!password || password.length < 4) { showError('Password kam se kam 4 character ka hona chahiye!'); return; }
 
   const paymentMode = document.querySelector('input[name="paymentMode"]:checked').value;
+  const needsGateway = paymentMode === 'both' || paymentMode === 'online_only';
+
+  let payload = {
+    name,
+    address: document.getElementById('shopAddr').value,
+    phone: document.getElementById('shopPhone').value,
+    printer_model: printerModel,
+    price_bw: parseInt(document.getElementById('priceBW').value),
+    price_color: parseInt(document.getElementById('priceColor').value),
+    payment_mode: paymentMode,
+    password
+  };
+
+  if (needsGateway) {
+    payload.payment_gateway = selectedGateway;
+    if (selectedGateway === 'razorpay') {
+      const keyId = document.getElementById('rzpKeyId').value.trim();
+      const keySecret = document.getElementById('rzpKeySecret').value.trim();
+      if (!keyId || !keySecret) { showError('Razorpay Key ID aur Key Secret dono daalo!'); return; }
+      payload.razorpay_key_id = keyId;
+      payload.razorpay_key_secret = keySecret;
+    } else if (selectedGateway === 'phonepe') {
+      const merchantId = document.getElementById('ppMerchantId').value.trim();
+      const saltKey = document.getElementById('ppSaltKey').value.trim();
+      if (!merchantId || !saltKey) { showError('PhonePe Merchant ID aur Salt Key dono daalo!'); return; }
+      payload.phonepe_merchant_id = merchantId;
+      payload.phonepe_salt_key = saltKey;
+      payload.phonepe_salt_index = document.getElementById('ppSaltIndex').value.trim() || '1';
+    }
+  }
 
   const btn = document.getElementById('registerBtn');
   btn.textContent = '⏳ Register ho raha hai...';
@@ -232,16 +311,7 @@ async function registerShop() {
     const res = await fetch('/api/shop/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name,
-        address: document.getElementById('shopAddr').value,
-        phone: document.getElementById('shopPhone').value,
-        printer_model: printerModel,
-        price_bw: parseInt(document.getElementById('priceBW').value),
-        price_color: parseInt(document.getElementById('priceColor').value),
-        payment_mode: paymentMode,
-        password
-      })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     if (data.success) {
@@ -260,6 +330,7 @@ function showError(msg) {
   const errMsg = document.getElementById('errMsg');
   errMsg.textContent = '❌ ' + msg;
   errMsg.style.display = 'block';
+  errMsg.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function showQR(qrCode, qrUrl, shopId) {

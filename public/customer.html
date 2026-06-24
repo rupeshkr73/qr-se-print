@@ -345,12 +345,8 @@ let state = {
 
 async function init() {
   try {
-    const [shopRes, rzpRes] = await Promise.all([
-      fetch(`/api/shop/${shopId}`),
-      fetch('/api/razorpay/config')
-    ]);
+    const shopRes = await fetch(`/api/shop/${shopId}`);
     const shop = await shopRes.json();
-    const rzp = await rzpRes.json();
 
     document.getElementById('shopName').textContent = shop.name;
     document.getElementById('shopAddr').textContent = '📍 ' + (shop.address || '');
@@ -359,11 +355,13 @@ async function init() {
     state.priceBW = shop.price_bw;
     state.priceColor = shop.price_color;
     state.shopPaymentMode = shop.payment_mode || 'both';
+    state.shopGateway = shop.payment_gateway || '';
+    state.razorpayKeyId = shop.razorpay_key_id || '';
 
-    // Shop ka payment_mode "counter_only" hai to online payment hamesha disable rahega,
-    // bhale hi Razorpay globally configured ho
-    state.razorpayEnabled = rzp.enabled && state.shopPaymentMode !== 'counter_only';
-    state.razorpayKeyId = rzp.keyId;
+    // "both" ya "online_only" mein online payment ka option dikhega, lekin sirf
+    // tab kaam karega jab shop ne actually gateway setup kiya ho
+    state.onlineAllowed = (state.shopPaymentMode === 'both' || state.shopPaymentMode === 'online_only') && !!state.shopGateway;
+    state.counterAllowed = (state.shopPaymentMode === 'both' || state.shopPaymentMode === 'counter_only');
 
     updatePrice();
   } catch(e) { toast('Shop load nahi hua'); }
@@ -598,18 +596,34 @@ function goPayment() {
   hide('secOptions'); show('secPayment'); setStep(4); updatePrice();
   const note = document.getElementById('razorpayNote');
   const onlineBtn = document.getElementById('onlineBtn');
+  const counterBtn = document.querySelector('.pay-counter-btn');
+
+  onlineBtn.style.display = state.onlineAllowed ? 'flex' : 'none';
+  counterBtn.style.display = state.counterAllowed ? 'flex' : 'none';
+
   if (state.shopPaymentMode === 'counter_only') {
-    onlineBtn.style.display = 'none';
     note.textContent = '💵 Yeh shop sirf Counter Payment accept karta hai';
-  } else if (state.razorpayEnabled) {
-    onlineBtn.style.display = 'flex';
-    note.textContent = '✅ Online payment available';
-    onlineBtn.disabled = false;
+  } else if (state.shopPaymentMode === 'online_only') {
+    if (state.onlineAllowed) {
+      note.textContent = '🌐 Yeh shop sirf Online Payment accept karta hai';
+    } else {
+      note.textContent = '⚠️ Online payment abhi setup nahi hua hai, shop owner se contact karo';
+      onlineBtn.style.display = 'flex';
+      onlineBtn.disabled = true;
+      onlineBtn.style.background = '#666';
+    }
   } else {
-    onlineBtn.style.display = 'flex';
-    note.textContent = '⚠️ Online payment abhi available nahi — Counter pe pay karo';
-    onlineBtn.disabled = true;
-    onlineBtn.style.background = '#666';
+    // both
+    if (state.onlineAllowed) {
+      note.textContent = '✅ Online ya Counter — jo chahiye chuno';
+      onlineBtn.disabled = false;
+      onlineBtn.style.background = '';
+    } else {
+      note.textContent = '⚠️ Online payment abhi available nahi — Counter pe pay karo';
+      onlineBtn.style.display = 'flex';
+      onlineBtn.disabled = true;
+      onlineBtn.style.background = '#666';
+    }
   }
 }
 
@@ -648,7 +662,7 @@ async function payOnline() {
   if (!state.jobId) { toast('❌ File upload karo pehle!'); return; }
   toast('💳 Payment create ho raha hai...');
   try {
-    const res = await fetch('/api/payment/razorpay/create', {
+    const res = await fetch('/api/payment/online/create', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -662,37 +676,42 @@ async function payOnline() {
     const data = await res.json();
     if (!data.success) { toast('❌ ' + (data.error || 'Payment create failed')); return; }
 
-    const options = {
-      key: data.keyId,
-      amount: data.amount,
-      currency: 'INR',
-      name: 'QR Se Print',
-      description: `Print Job - ${state.totalPages} pages`,
-      order_id: data.orderId,
-      handler: async function(response) {
-        const verifyRes = await fetch('/api/payment/razorpay/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-            jobId: state.jobId
-          })
-        });
-        const verifyData = await verifyRes.json();
-        if (verifyData.success) {
-          showSuccess('online', getTotal());
-        } else {
-          toast('❌ Payment verify nahi hua!');
-        }
-      },
-      prefill: {},
-      theme: { color: '#ff4d1c' }
-    };
-    const rzp = new Razorpay(options);
-    rzp.on('payment.failed', () => toast('❌ Payment failed! Try again.'));
-    rzp.open();
+    if (data.gateway === 'razorpay') {
+      const options = {
+        key: data.keyId,
+        amount: data.amount,
+        currency: 'INR',
+        name: 'QR Se Print',
+        description: `Print Job - ${state.totalPages} pages`,
+        order_id: data.orderId,
+        handler: async function(response) {
+          const verifyRes = await fetch('/api/payment/razorpay/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              jobId: state.jobId
+            })
+          });
+          const verifyData = await verifyRes.json();
+          if (verifyData.success) {
+            showSuccess('online', getTotal());
+          } else {
+            toast('❌ Payment verify nahi hua!');
+          }
+        },
+        prefill: {},
+        theme: { color: '#ff4d1c' }
+      };
+      const rzp = new Razorpay(options);
+      rzp.on('payment.failed', () => toast('❌ Payment failed! Try again.'));
+      rzp.open();
+    } else if (data.gateway === 'phonepe') {
+      // PhonePe redirect-based flow — customer ko PhonePe page pe le jaate hain
+      window.location.href = data.paymentUrl;
+    }
   } catch(e) {
     toast('❌ Network error: ' + e.message);
   }

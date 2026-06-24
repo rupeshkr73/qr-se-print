@@ -14,7 +14,6 @@ nav{background:#0a0a0f;padding:16px 24px;display:flex;align-items:center;justify
 .nav-link{color:rgba(255,255,255,0.6);font-size:13px;font-weight:700;text-decoration:none;background:rgba(255,255,255,0.08);padding:8px 16px;border-radius:10px;cursor:pointer;border:none;transition:all 0.2s}
 .nav-link:hover{background:rgba(255,255,255,0.15);color:#fff}
 
-/* Login screen */
 .login-wrap{max-width:420px;margin:60px auto;padding:0 16px}
 .login-card{background:#fff;border-radius:24px;padding:32px 26px;box-shadow:0 8px 40px rgba(0,0,0,0.08)}
 .login-card h1{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;margin-bottom:6px;text-align:center}
@@ -30,7 +29,6 @@ input:focus{border-color:#1c6fff}
 .help-text{text-align:center;margin-top:18px;font-size:12px;color:#6b6870}
 .help-text a{color:#1c6fff;font-weight:700;text-decoration:none;cursor:pointer}
 
-/* Admin panel (after login) */
 .hidden{display:none}
 .hero{background:#0a0a0f;color:#fff;padding:32px 24px 46px}
 .hero h1{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;margin-bottom:4px}
@@ -60,6 +58,15 @@ select{padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-fami
 .payment-opt-text strong{font-size:13px;font-weight:700;display:block}
 .payment-opt-text span{font-size:11px;color:#6b6870}
 
+.gateway-section{display:none;margin-top:14px;padding-top:14px;border-top:1px dashed #e2ddd6}
+.gateway-tabs{display:flex;gap:8px;margin-bottom:14px}
+.gateway-tab{flex:1;padding:10px;border:1.5px solid #e2ddd6;border-radius:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;background:#fff;transition:all 0.2s}
+.gateway-tab.active{background:#0a0a0f;color:#fff;border-color:#0a0a0f}
+.gateway-fields{display:none}
+.gateway-fields.show{display:block}
+.gateway-note{font-size:11px;color:#6b6870;margin-top:6px;line-height:1.5}
+.key-status{font-size:11px;color:#00c853;font-weight:700;margin-top:4px}
+
 .custom-printer-wrap{margin-top:10px;display:none}
 
 .btn-save{background:#00c853;color:#fff;border:none;border-radius:12px;padding:13px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;cursor:pointer;width:100%;margin-top:8px}
@@ -88,7 +95,6 @@ select{padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-fami
   <button class="nav-link hidden" id="logoutBtn" onclick="logout()">🚪 Logout</button>
 </nav>
 
-<!-- LOGIN SCREEN -->
 <div class="login-wrap" id="loginScreen">
   <div class="login-card">
     <h1>🔐 Shop Owner Login</h1>
@@ -123,7 +129,6 @@ select{padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-fami
   </div>
 </div>
 
-<!-- ADMIN PANEL (post login) -->
 <div class="hidden" id="adminPanel">
   <div class="hero">
     <h1 id="adminShopName">Shop Dashboard</h1>
@@ -167,13 +172,40 @@ select{padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-fami
       <label style="margin-bottom:8px;display:block;">Payment Mode</label>
       <div class="payment-opts">
         <label class="payment-opt" id="setOptBoth">
-          <input type="radio" name="setPaymentMode" value="both" onchange="selectSetPaymentOpt('setOptBoth')">
+          <input type="radio" name="setPaymentMode" value="both" onchange="onAdminPaymentModeChange('both')">
           <div class="payment-opt-text"><strong>💳 Online + Counter</strong><span>Dono option customer ko milega</span></div>
         </label>
+        <label class="payment-opt" id="setOptOnline">
+          <input type="radio" name="setPaymentMode" value="online_only" onchange="onAdminPaymentModeChange('online_only')">
+          <div class="payment-opt-text"><strong>🌐 Sirf Online</strong><span>Sirf online payment, counter nahi</span></div>
+        </label>
         <label class="payment-opt" id="setOptCounter">
-          <input type="radio" name="setPaymentMode" value="counter_only" onchange="selectSetPaymentOpt('setOptCounter')">
+          <input type="radio" name="setPaymentMode" value="counter_only" onchange="onAdminPaymentModeChange('counter_only')">
           <div class="payment-opt-text"><strong>💵 Sirf Counter</strong><span>Sirf cash counter pe</span></div>
         </label>
+      </div>
+
+      <div class="gateway-section" id="gatewaySectionAdmin">
+        <label style="margin:14px 0 10px;display:block;">Payment Gateway</label>
+        <div class="gateway-tabs">
+          <div class="gateway-tab active" id="adminTabRazorpay" onclick="selectGatewayAdmin('razorpay')">Razorpay</div>
+          <div class="gateway-tab" id="adminTabPhonepe" onclick="selectGatewayAdmin('phonepe')">PhonePe</div>
+        </div>
+        <div class="gateway-fields show" id="adminFieldsRazorpay">
+          <div class="form-grid">
+            <div class="form-group full"><label>Razorpay Key ID</label><input id="adminRzpKeyId" placeholder="rzp_live_xxxxxxxxxx"></div>
+            <div class="form-group full"><label>Razorpay Key Secret</label><input type="password" id="adminRzpKeySecret" placeholder="Naya secret daalo ya khali chodo agar change nahi karna"></div>
+          </div>
+          <div class="key-status" id="rzpKeyStatus"></div>
+        </div>
+        <div class="gateway-fields" id="adminFieldsPhonepe">
+          <div class="form-grid">
+            <div class="form-group full"><label>PhonePe Merchant ID</label><input id="adminPpMerchantId" placeholder="MERCHANTUAT"></div>
+            <div class="form-group full"><label>PhonePe Salt Key</label><input type="password" id="adminPpSaltKey" placeholder="Naya salt key daalo ya khali chodo"></div>
+            <div class="form-group"><label>Salt Index</label><input id="adminPpSaltIndex" value="1"></div>
+          </div>
+          <div class="key-status" id="ppKeyStatus"></div>
+        </div>
       </div>
 
       <button class="btn-save" onclick="saveSettings()">💾 Settings Save Karo</button>
@@ -204,6 +236,7 @@ select{padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-fami
 <script>
 let authToken = localStorage.getItem('qrprint_token');
 let currentShop = null;
+let adminSelectedGateway = 'razorpay';
 
 if (authToken) {
   loadAdminPanel();
@@ -309,12 +342,19 @@ async function loadAdminPanel() {
     document.getElementById('setPriceBW').value = shop.price_bw;
     document.getElementById('setPriceColor').value = shop.price_color;
 
-    if (shop.payment_mode === 'counter_only') {
-      selectSetPaymentOpt('setOptCounter');
-      document.querySelector('input[name="setPaymentMode"][value="counter_only"]').checked = true;
+    const mode = shop.payment_mode || 'both';
+    document.querySelector(`input[name="setPaymentMode"][value="${mode}"]`).checked = true;
+    onAdminPaymentModeChange(mode);
+
+    if (shop.payment_gateway === 'phonepe') {
+      selectGatewayAdmin('phonepe');
+      document.getElementById('adminPpMerchantId').value = shop.phonepe_merchant_id || '';
+      document.getElementById('adminPpSaltIndex').value = shop.phonepe_salt_index || '1';
+      document.getElementById('ppKeyStatus').textContent = shop.has_phonepe_salt ? '✅ Salt Key already set hai (khali rakho agar change nahi karna)' : '';
     } else {
-      selectSetPaymentOpt('setOptBoth');
-      document.querySelector('input[name="setPaymentMode"][value="both"]').checked = true;
+      selectGatewayAdmin('razorpay');
+      document.getElementById('adminRzpKeyId').value = shop.razorpay_key_id || '';
+      document.getElementById('rzpKeyStatus').textContent = shop.has_razorpay_secret ? '✅ Key Secret already set hai (khali rakho agar change nahi karna)' : '';
     }
 
     document.getElementById('adminQrImg').src = shop.qr_code;
@@ -359,10 +399,20 @@ function checkOtherPrinterAdmin() {
   wrap.style.display = select.value === 'Other (Manually Type Below)' ? 'block' : 'none';
 }
 
-function selectSetPaymentOpt(id) {
-  document.getElementById('setOptBoth').classList.remove('selected');
-  document.getElementById('setOptCounter').classList.remove('selected');
-  document.getElementById(id).classList.add('selected');
+function onAdminPaymentModeChange(mode) {
+  document.getElementById('setOptBoth').classList.toggle('selected', mode === 'both');
+  document.getElementById('setOptOnline').classList.toggle('selected', mode === 'online_only');
+  document.getElementById('setOptCounter').classList.toggle('selected', mode === 'counter_only');
+
+  document.getElementById('gatewaySectionAdmin').style.display = (mode === 'both' || mode === 'online_only') ? 'block' : 'none';
+}
+
+function selectGatewayAdmin(gw) {
+  adminSelectedGateway = gw;
+  document.getElementById('adminTabRazorpay').classList.toggle('active', gw === 'razorpay');
+  document.getElementById('adminTabPhonepe').classList.toggle('active', gw === 'phonepe');
+  document.getElementById('adminFieldsRazorpay').classList.toggle('show', gw === 'razorpay');
+  document.getElementById('adminFieldsPhonepe').classList.toggle('show', gw === 'phonepe');
 }
 
 async function loadStats(shopId) {
@@ -402,29 +452,48 @@ async function saveSettings() {
     printerModel = document.getElementById('customPrinterInputAdmin').value.trim();
   }
   const paymentMode = document.querySelector('input[name="setPaymentMode"]:checked').value;
+  const needsGateway = paymentMode === 'both' || paymentMode === 'online_only';
 
   const successEl = document.getElementById('settingsSuccess');
   const errEl = document.getElementById('settingsErr');
   successEl.style.display = 'none'; errEl.style.display = 'none';
 
+  let payload = {
+    name: document.getElementById('setName').value,
+    address: document.getElementById('setAddr').value,
+    phone: document.getElementById('setPhone').value,
+    printer_model: printerModel,
+    price_bw: parseInt(document.getElementById('setPriceBW').value),
+    price_color: parseInt(document.getElementById('setPriceColor').value),
+    payment_mode: paymentMode
+  };
+
+  if (needsGateway) {
+    payload.payment_gateway = adminSelectedGateway;
+    if (adminSelectedGateway === 'razorpay') {
+      payload.razorpay_key_id = document.getElementById('adminRzpKeyId').value.trim();
+      const newSecret = document.getElementById('adminRzpKeySecret').value.trim();
+      // Agar naya secret nahi daala, purana wala backend mein already hai use retain karo
+      payload.razorpay_key_secret = newSecret || (currentShop.has_razorpay_secret ? '__KEEP__' : '');
+    } else {
+      payload.phonepe_merchant_id = document.getElementById('adminPpMerchantId').value.trim();
+      const newSalt = document.getElementById('adminPpSaltKey').value.trim();
+      payload.phonepe_salt_key = newSalt || (currentShop.has_phonepe_salt ? '__KEEP__' : '');
+      payload.phonepe_salt_index = document.getElementById('adminPpSaltIndex').value.trim() || '1';
+    }
+  }
+
   try {
     const res = await fetch('/api/admin/settings', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
-      body: JSON.stringify({
-        name: document.getElementById('setName').value,
-        address: document.getElementById('setAddr').value,
-        phone: document.getElementById('setPhone').value,
-        printer_model: printerModel,
-        price_bw: parseInt(document.getElementById('setPriceBW').value),
-        price_color: parseInt(document.getElementById('setPriceColor').value),
-        payment_mode: paymentMode
-      })
+      body: JSON.stringify(payload)
     });
     const data = await res.json();
     if (data.success) {
       successEl.style.display = 'block';
       document.getElementById('adminShopName').textContent = data.shop.name;
+      loadAdminPanel();
     } else {
       errEl.textContent = '❌ ' + data.error;
       errEl.style.display = 'block';
