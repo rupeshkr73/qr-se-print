@@ -92,7 +92,10 @@ select{padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-fami
 
 <nav>
   <div class="logo">QR Se <span>Print</span></div>
-  <button class="nav-link hidden" id="logoutBtn" onclick="logout()">🚪 Logout</button>
+  <div style="display:flex;gap:8px;">
+    <a class="nav-link" href="/">🏠 Home</a>
+    <button class="nav-link hidden" id="logoutBtn" onclick="logout()">🚪 Logout</button>
+  </div>
 </nav>
 
 <div class="login-wrap" id="loginScreen">

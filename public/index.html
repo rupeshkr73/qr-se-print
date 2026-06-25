@@ -74,7 +74,10 @@ footer a{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weig
 <body>
 <nav>
   <div class="logo">QR Se <span>Print</span></div>
-  <a href="/dashboard" class="nav-btn">Shop Setup Karo</a>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <a href="/admin" style="color:rgba(255,255,255,0.6);font-size:13px;font-weight:700;text-decoration:none;">Shop Owner Login</a>
+    <a href="/dashboard" class="nav-btn">Shop Setup Karo</a>
+  </div>
 </nav>
 
 <div class="hero">
@@ -188,6 +191,9 @@ footer a{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weig
     </svg>
     Instagram: @rupeshkr73
   </a>
+  <div style="margin-top:14px;">
+    <a href="/superadmin" style="font-size:10px;color:#444;text-decoration:none;">Super Admin Login</a>
+  </div>
 </footer>
 <script>
 fetch('/api/setup-fee/current').then(r => r.json()).then(data => {

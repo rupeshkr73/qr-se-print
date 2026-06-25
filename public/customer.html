@@ -118,7 +118,7 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 .hidden{display:none}
 .footer{text-align:center;margin-top:28px;padding-top:18px}
 .footer p{font-size:11px;color:#9b968d;line-height:1.6;margin-bottom:8px}
-.footer-insta{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#ff4d1c;text-decoration:none;transition:opacity 0.2s}
+.footer-insta{display:inline-flex;align-items:center;justify-content:center;color:#ff4d1c;text-decoration:none;transition:opacity 0.2s}
 .footer-insta:hover{opacity:0.7}
 </style>
 </head>
@@ -239,7 +239,10 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
           <div id="pageRangePreview" style="font-size:11px;color:#6b6870;margin-top:6px;"></div>
         </div>
       </div>
-      <button class="btn-primary" onclick="goPayment()">Payment Pe Jao →</button>
+      <div class="btn-row">
+        <button class="btn" style="background:#f0ebe3;color:#0a0a0f;" onclick="backToPreview()">← Back</button>
+        <button class="btn-primary" style="margin-top:0;" onclick="goPayment()">Payment Pe Jao →</button>
+      </div>
     </div>
   </div>
 
@@ -269,6 +272,7 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
         </button>
       </div>
       <div class="pay-note" id="razorpayNote">Online payment loading...</div>
+      <button class="btn" style="background:#f0ebe3;color:#0a0a0f;width:100%;margin-top:14px;" onclick="backToOptions()">← Back</button>
     </div>
   </div>
 
@@ -289,13 +293,12 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 
   <div class="footer">
     <p>© 2026 All Rights Reserved | This System is Developed by Rupesh Kumar Mahato</p>
-    <a href="https://instagram.com/rupeshkr73" target="_blank" rel="noopener" class="footer-insta">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <a href="https://instagram.com/rupeshkr73" target="_blank" rel="noopener" class="footer-insta" aria-label="Instagram">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
         <rect x="2" y="2" width="20" height="20" rx="5" stroke="currentColor" stroke-width="2"/>
         <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/>
         <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor"/>
       </svg>
-      Instagram: @rupeshkr73
     </a>
   </div>
 </div>
@@ -313,6 +316,7 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
       <button class="crop-btn" id="cropManualBtn" onclick="applyCrop('manual')">✋ Manual Crop</button>
       <button class="crop-btn" id="cropRotateBtn" onclick="applyCrop('rotate')">🔄 Rotate</button>
       <button class="crop-btn" id="cropBrightBtn" onclick="applyCrop('bright')">☀️ Brighten</button>
+      <button class="crop-btn" id="cropDarkBtn" onclick="applyCrop('dark')">🌙 Darken</button>
     </div>
     <div class="crop-row">
       <button class="btn-primary" style="border-radius:12px;" onclick="confirmCrop()">✅ Apply</button>
@@ -540,6 +544,10 @@ function checkQuality() {
 }
 
 function goOptions() { hide('secPreview'); show('secOptions'); setStep(3); updatePrice(); }
+
+function backToPreview() { hide('secOptions'); show('secPreview'); setStep(2); }
+
+function backToOptions() { hide('secPayment'); show('secOptions'); setStep(3); }
 
 function setPageRangeMode(mode) {
   state.pageRangeMode = mode;
@@ -913,6 +921,22 @@ function applyCrop(mode) {
       toast('☀️ Brighter!');
       if (cropState.manualMode) renderCropHandles();
     } catch(e) { toast('⚠️ Brighten failed'); }
+  } else if (mode === 'dark') {
+    // Light/faded documents ko dark karne ke liye — ulta of brighten
+    const cc = document.getElementById('crop-canvas');
+    const ctx = cc.getContext('2d');
+    try {
+      const id = ctx.getImageData(0, 0, cc.width, cc.height);
+      const d = id.data;
+      for (let i=0;i<d.length;i+=4) { d[i]=Math.max(0,d[i]*0.75); d[i+1]=Math.max(0,d[i+1]*0.75); d[i+2]=Math.max(0,d[i+2]*0.75); }
+      ctx.putImageData(id, 0, 0);
+      const newSrc = document.createElement('canvas');
+      newSrc.width = cc.width; newSrc.height = cc.height;
+      newSrc.getContext('2d').putImageData(id, 0, 0);
+      cropState.sourceCanvas = newSrc;
+      toast('🌙 Darker!');
+      if (cropState.manualMode) renderCropHandles();
+    } catch(e) { toast('⚠️ Darken failed'); }
   }
 }
 
