@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QR Se Print - Setup Payment</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
+nav{background:#0a0a0f;padding:16px 24px}
+.logo{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#fff}
+.logo span{color:#ff4d1c}
+.wrap{max-width:480px;margin:40px auto;padding:0 16px}
+
+/* Pre-payment card */
+.pay-card{background:#fff;border-radius:24px;padding:30px 24px;box-shadow:0 8px 40px rgba(0,0,0,0.08);text-align:center}
+.pay-icon{width:70px;height:70px;border-radius:50%;background:linear-gradient(135deg,#ff4d1c,#ff8c00);display:flex;align-items:center;justify-content:center;font-size:34px;margin:0 auto 18px}
+.pay-card h1{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;margin-bottom:6px}
+.pay-card p{font-size:13px;color:#6b6870;margin-bottom:24px}
+
+.price-box{background:#0a0a0f;border-radius:18px;padding:24px;color:#fff;margin-bottom:20px}
+.price-box .label{font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:6px}
+.price-box .amount{font-family:'Syne',sans-serif;font-size:42px;font-weight:800;color:#ff4d1c}
+.price-box .sub{font-size:11px;color:rgba(255,255,255,0.4);margin-top:6px}
+
+.benefits{text-align:left;background:#f8f7f5;border-radius:14px;padding:16px 18px;margin-bottom:22px}
+.benefits li{font-size:13px;color:#444;margin-bottom:8px;list-style:none;display:flex;gap:8px;align-items:flex-start}
+.benefits li:last-child{margin-bottom:0}
+
+.pay-btn{width:100%;padding:17px;border-radius:14px;background:#ff4d1c;color:#fff;border:none;font-family:'Syne',sans-serif;font-size:18px;font-weight:800;cursor:pointer;transition:all 0.2s}
+.pay-btn:hover{background:#e03d0e;transform:translateY(-1px)}
+.pay-btn:disabled{background:#999;cursor:not-allowed}
+.err-msg{font-size:12px;color:#ff4d1c;margin-top:12px;display:none}
+
+/* Success / Download card */
+.success-card{display:none;background:#fff;border-radius:24px;padding:30px 24px;box-shadow:0 8px 40px rgba(0,0,0,0.08);text-align:center}
+.success-icon{width:76px;height:76px;border-radius:50%;background:linear-gradient(135deg,#00c853,#69f0ae);display:flex;align-items:center;justify-content:center;font-size:38px;margin:0 auto 18px;animation:pop 0.5s cubic-bezier(0.175,0.885,0.32,1.275)}
+@keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+.success-card h1{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;margin-bottom:6px}
+.success-card p{font-size:13px;color:#6b6870;margin-bottom:20px}
+
+.shop-id-box{background:#e8f9ef;border:1.5px solid #a3e6bc;border-radius:14px;padding:16px;margin-bottom:18px}
+.shop-id-box h4{font-size:12px;font-weight:700;color:#00c853;margin-bottom:6px}
+.shop-id-val{font-family:monospace;font-size:17px;font-weight:700;color:#0a0a0f;letter-spacing:1px}
+
+#qrImg{max-width:180px;border-radius:14px;box-shadow:0 4px 16px rgba(0,0,0,0.1);margin-bottom:18px}
+
+.download-btn{width:100%;padding:16px;border-radius:14px;background:#0a0a0f;color:#fff;border:none;font-family:'Syne',sans-serif;font-size:16px;font-weight:800;cursor:pointer;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px}
+.download-btn:hover{background:#222}
+
+.steps-mini{text-align:left;background:#fff8e8;border-radius:14px;padding:16px 18px;margin-top:18px}
+.steps-mini h4{font-size:13px;font-weight:700;color:#ff8f00;margin-bottom:8px}
+.steps-mini p{font-size:12px;color:#7a4f2d;line-height:1.7}
+</style>
+</head>
+<body>
+
+<nav><div class="logo">QR Se <span>Print</span></div></nav>
+
+<div class="wrap">
+
+  <!-- Payment Card -->
+  <div class="pay-card" id="payCard">
+    <div class="pay-icon">🔐</div>
+    <h1>Ek Aakhri Step!</h1>
+    <p>Setup fee complete karo aur QR Code + Print Agent download karo</p>
+
+    <div class="price-box">
+      <div class="label">One-Time Setup Fee</div>
+      <div class="amount" id="feeAmount">₹499</div>
+      <div class="sub">Lifetime access — koi monthly charge nahi</div>
+    </div>
+
+    <ul class="benefits">
+      <li>✅ <span>Apni shop ka unique QR Code</span></li>
+      <li>✅ <span>Print Agent software (PC ke liye)</span></li>
+      <li>✅ <span>Step-by-step setup guide</span></li>
+      <li>✅ <span>Unlimited print orders, koi commission nahi</span></li>
+    </ul>
+
+    <button class="pay-btn" id="payBtn" onclick="initiatePayment()">Pay ₹499 Karke Setup Complete Karo</button>
+    <div class="err-msg" id="errMsg"></div>
+  </div>
+
+  <!-- Success / Download Card -->
+  <div class="success-card" id="successCard">
+    <div class="success-icon">✓</div>
+    <h1>Payment Successful!</h1>
+    <p>Aapki shop ab ready hai. Niche se sab download karo</p>
+
+    <div class="shop-id-box">
+      <h4>✅ Aapka Shop ID</h4>
+      <div class="shop-id-val" id="shopIdDisplay">---</div>
+    </div>
+
+    <img id="qrImg" src="">
+
+    <button class="download-btn" onclick="downloadPackage()">
+      ⬇️ Print Agent + QR Code Download Karo
+    </button>
+
+    <div class="steps-mini">
+      <h4>📋 Ab Yeh Karo:</h4>
+      <p>
+        1. ZIP extract karo<br>
+        2. QR-Code.png print karke shop ke bahar lagao<br>
+        3. INSTALL.bat → Run as Administrator<br>
+        4. RUN_AGENT.bat se agent start karo<br>
+        5. README.txt mein poori detail hai
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const shopId = location.pathname.split('/').pop();
+
+async function loadShopId() {
+  document.getElementById('shopIdDisplay').textContent = shopId;
+  try {
+    const res = await fetch(`/api/setup-fee/amount/${shopId}`);
+    const data = await res.json();
+    if (data.amount) {
+      document.getElementById('feeAmount').textContent = '₹' + data.amount;
+      document.getElementById('payBtn').textContent = `Pay ₹${data.amount} Karke Setup Complete Karo`;
+    }
+  } catch(e) {}
+}
+
+async function initiatePayment() {
+  const btn = document.getElementById('payBtn');
+  const errEl = document.getElementById('errMsg');
+  errEl.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = '⏳ Payment shuru ho raha hai...';
+
+  try {
+    const res = await fetch('/api/setup-fee/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ shopId })
+    });
+    const data = await res.json();
+    if (!data.success) {
+      errEl.textContent = '❌ ' + (data.error || 'Payment create nahi hua');
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Pay ₹499 Karke Setup Complete Karo';
+      return;
+    }
+
+    const options = {
+      key: data.keyId,
+      amount: data.amount,
+      currency: 'INR',
+      name: 'QR Se Print',
+      description: 'One-Time Setup Fee',
+      order_id: data.orderId,
+      handler: async function(response) {
+        const verifyRes = await fetch('/api/setup-fee/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            razorpay_order_id: response.razorpay_order_id,
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_signature: response.razorpay_signature,
+            shopId
+          })
+        });
+        const verifyData = await verifyRes.json();
+        if (verifyData.success) {
+          showSuccess(verifyData.qrCode);
+        } else {
+          errEl.textContent = '❌ Payment verify nahi hua. Support se contact karo.';
+          errEl.style.display = 'block';
+        }
+      },
+      modal: {
+        ondismiss: function() {
+          btn.disabled = false;
+          btn.textContent = 'Pay ₹499 Karke Setup Complete Karo';
+        }
+      },
+      theme: { color: '#ff4d1c' }
+    };
+    const rzp = new Razorpay(options);
+    rzp.on('payment.failed', () => {
+      errEl.textContent = '❌ Payment failed! Dobara try karo.';
+      errEl.style.display = 'block';
+      btn.disabled = false;
+      btn.textContent = 'Pay ₹499 Karke Setup Complete Karo';
+    });
+    rzp.open();
+  } catch(e) {
+    errEl.textContent = '❌ Network error: ' + e.message;
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Pay ₹499 Karke Setup Complete Karo';
+  }
+}
+
+function showSuccess(qrCode) {
+  document.getElementById('payCard').style.display = 'none';
+  document.getElementById('successCard').style.display = 'block';
+  document.getElementById('qrImg').src = qrCode;
+  document.getElementById('successCard').scrollIntoView({ behavior: 'smooth' });
+}
+
+function downloadPackage() {
+  window.location.href = `/api/download/agent-package/${shopId}`;
+}
+
+loadShopId();
+</script>
+</body>
+</html>

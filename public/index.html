@@ -6,55 +6,75 @@
 <title>QR Se Print - Smart Print System</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:'Space Grotesk',sans-serif; background:#f5f0e8; }
-nav { background:#0a0a0f; padding:16px 32px; display:flex; align-items:center; justify-content:space-between; }
-.logo { font-family:'Syne',sans-serif; font-size:22px; font-weight:800; color:#fff; }
-.logo span { color:#ff4d1c; }
-.nav-btn { background:#ff4d1c; color:#fff; border:none; border-radius:10px; padding:10px 20px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:14px; cursor:pointer; text-decoration:none; }
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8}
+nav{background:#0a0a0f;padding:16px 32px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#fff}
+.logo span{color:#ff4d1c}
+.nav-btn{background:#ff4d1c;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;cursor:pointer;text-decoration:none}
 
-.hero { background:#0a0a0f; color:#fff; padding:80px 24px; text-align:center; position:relative; overflow:hidden; }
-.hero::before { content:''; position:absolute; top:-100px; left:50%; transform:translateX(-50%); width:600px; height:600px; background:radial-gradient(circle, rgba(255,77,28,0.15) 0%, transparent 70%); }
-.hero h1 { font-family:'Syne',sans-serif; font-size:48px; font-weight:800; margin-bottom:16px; line-height:1.1; position:relative; }
-.hero h1 span { color:#ff4d1c; }
-.hero p { color:rgba(255,255,255,0.6); font-size:18px; margin-bottom:32px; position:relative; }
-.hero-btns { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; position:relative; }
-.btn-hero { padding:16px 32px; border-radius:14px; font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:16px; cursor:pointer; border:none; text-decoration:none; }
-.btn-red { background:#ff4d1c; color:#fff; }
-.btn-outline { background:transparent; color:#fff; border:2px solid rgba(255,255,255,0.2); }
+.hero{background:#0a0a0f;color:#fff;padding:80px 24px;text-align:center;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-100px;left:50%;transform:translateX(-50%);width:600px;height:600px;background:radial-gradient(circle, rgba(255,77,28,0.15) 0%, transparent 70%)}
+.hero h1{font-family:'Syne',sans-serif;font-size:48px;font-weight:800;margin-bottom:16px;line-height:1.1;position:relative}
+.hero h1 span{color:#ff4d1c}
+.hero p{color:rgba(255,255,255,0.6);font-size:18px;margin-bottom:32px;position:relative}
+.hero-btns{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;position:relative}
+.btn-hero{padding:16px 32px;border-radius:14px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:16px;cursor:pointer;border:none;text-decoration:none}
+.btn-red{background:#ff4d1c;color:#fff}
+.btn-outline{background:transparent;color:#fff;border:2px solid rgba(255,255,255,0.2)}
 
-.how { padding:64px 24px; max-width:860px; margin:0 auto; }
-.how h2 { font-family:'Syne',sans-serif; font-size:32px; font-weight:800; text-align:center; margin-bottom:40px; }
-.steps-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }
-.step-card { text-align:center; }
-.step-num { width:48px; height:48px; border-radius:50%; background:#ff4d1c; color:#fff; font-family:'Syne',sans-serif; font-size:20px; font-weight:800; display:flex; align-items:center; justify-content:center; margin:0 auto 14px; }
-.step-card h3 { font-size:15px; font-weight:700; margin-bottom:6px; }
-.step-card p { font-size:13px; color:#6b6870; line-height:1.5; }
+.price-banner{background:#fff5f0;border-bottom:1px solid #ffd6c2;padding:14px 24px;text-align:center}
+.price-banner span{font-size:14px;font-weight:700;color:#cc3300}
+.price-banner strong{color:#ff4d1c;font-family:'Syne',sans-serif;font-size:16px}
 
-.features { background:#0a0a0f; padding:64px 24px; }
-.features-inner { max-width:860px; margin:0 auto; }
-.features h2 { font-family:'Syne',sans-serif; font-size:32px; font-weight:800; color:#fff; text-align:center; margin-bottom:40px; }
-.feat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
-.feat-card { background:rgba(255,255,255,0.05); border-radius:16px; padding:24px; border:1px solid rgba(255,255,255,0.08); }
-.feat-icon { font-size:32px; margin-bottom:12px; }
-.feat-card h3 { font-size:16px; font-weight:700; color:#fff; margin-bottom:8px; }
-.feat-card p { font-size:13px; color:rgba(255,255,255,0.5); line-height:1.5; }
+.how{padding:64px 24px;max-width:860px;margin:0 auto}
+.how h2{font-family:'Syne',sans-serif;font-size:32px;font-weight:800;text-align:center;margin-bottom:40px}
+.steps-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+.step-card{text-align:center}
+.step-num{width:48px;height:48px;border-radius:50%;background:#ff4d1c;color:#fff;font-family:'Syne',sans-serif;font-size:20px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+.step-card h3{font-size:15px;font-weight:700;margin-bottom:6px}
+.step-card p{font-size:13px;color:#6b6870;line-height:1.5}
 
-.cta { padding:64px 24px; text-align:center; }
-.cta h2 { font-family:'Syne',sans-serif; font-size:32px; font-weight:800; margin-bottom:12px; }
-.cta p { color:#6b6870; font-size:16px; margin-bottom:28px; }
+.pricing{padding:64px 24px;max-width:500px;margin:0 auto}
+.pricing h2{font-family:'Syne',sans-serif;font-size:30px;font-weight:800;text-align:center;margin-bottom:32px}
+.price-card{background:#0a0a0f;border-radius:24px;padding:36px 28px;text-align:center;color:#fff;position:relative;overflow:hidden}
+.price-card::before{content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:#ff4d1c;border-radius:50%;opacity:0.12}
+.price-card .tag{display:inline-block;background:rgba(255,77,28,0.15);color:#ff4d1c;font-size:12px;font-weight:700;padding:5px 14px;border-radius:20px;margin-bottom:16px}
+.price-card .amount{font-family:'Syne',sans-serif;font-size:56px;font-weight:800;margin-bottom:4px;position:relative}
+.price-card .period{font-size:13px;color:rgba(255,255,255,0.4);margin-bottom:24px}
+.price-card ul{text-align:left;list-style:none;margin-bottom:28px}
+.price-card li{font-size:14px;color:rgba(255,255,255,0.8);margin-bottom:12px;display:flex;gap:10px;align-items:flex-start}
+.price-card li:last-child{margin-bottom:0}
+.price-card .btn-hero{width:100%}
 
-@media(max-width:600px) {
-  .hero h1 { font-size:32px; }
-  .steps-grid { grid-template-columns:1fr 1fr; }
-  .feat-grid { grid-template-columns:1fr; }
+.features{background:#0a0a0f;padding:64px 24px}
+.features-inner{max-width:860px;margin:0 auto}
+.features h2{font-family:'Syne',sans-serif;font-size:32px;font-weight:800;color:#fff;text-align:center;margin-bottom:40px}
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.feat-card{background:rgba(255,255,255,0.05);border-radius:16px;padding:24px;border:1px solid rgba(255,255,255,0.08)}
+.feat-icon{font-size:32px;margin-bottom:12px}
+.feat-card h3{font-size:16px;font-weight:700;color:#fff;margin-bottom:8px}
+.feat-card p{font-size:13px;color:rgba(255,255,255,0.5);line-height:1.5}
+
+.cta{padding:64px 24px;text-align:center}
+.cta h2{font-family:'Syne',sans-serif;font-size:32px;font-weight:800;margin-bottom:12px}
+.cta p{color:#6b6870;font-size:16px;margin-bottom:28px}
+
+footer{text-align:center;padding:30px 24px;background:#0a0a0f}
+footer p{font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:8px}
+footer a{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:#ff4d1c;text-decoration:none}
+
+@media(max-width:600px){
+  .hero h1{font-size:32px}
+  .steps-grid{grid-template-columns:1fr 1fr}
+  .feat-grid{grid-template-columns:1fr}
 }
 </style>
 </head>
 <body>
 <nav>
   <div class="logo">QR Se <span>Print</span></div>
-  <a href="/dashboard" class="nav-btn">Shop Owner Login</a>
+  <a href="/dashboard" class="nav-btn">Shop Setup Karo</a>
 </nav>
 
 <div class="hero">
@@ -62,11 +82,15 @@ nav { background:#0a0a0f; padding:16px 32px; display:flex; align-items:center; j
   <p>Bina wire, bina computer — sirf QR scan karo<br>aur seconds mein print nikal aao</p>
   <div class="hero-btns">
     <a href="/dashboard" class="btn-hero btn-red">🏪 Shop Setup Karo</a>
-    <a href="#how" class="btn-hero btn-outline">Kaise Kaam Karta Hai?</a>
+    <a href="#pricing" class="btn-hero btn-outline">Pricing Dekho</a>
   </div>
 </div>
 
-<div class="how" id="how">
+<div class="price-banner">
+  <span>🚀 Shuru karo sirf <strong>₹<span id="setupFeeBanner">499</span></strong> mein — One-time fee, lifetime access!</span>
+</div>
+
+<div class="how">
   <h2>Sirf 4 Steps Mein Print!</h2>
   <div class="steps-grid">
     <div class="step-card">
@@ -82,13 +106,31 @@ nav { background:#0a0a0f; padding:16px 32px; display:flex; align-items:center; j
     <div class="step-card">
       <div class="step-num">3</div>
       <h3>Payment Karo</h3>
-      <p>PhonePe, GPay, UPI se turant payment</p>
+      <p>Online ya Counter — jo chahiye chuno</p>
     </div>
     <div class="step-card">
       <div class="step-num">4</div>
       <h3>Print Lo!</h3>
       <p>Automatically printer se print nikal aata hai</p>
     </div>
+  </div>
+</div>
+
+<div class="pricing" id="pricing">
+  <h2>Simple Pricing</h2>
+  <div class="price-card">
+    <span class="tag">ONE-TIME PAYMENT</span>
+    <div class="amount">₹<span id="setupFeeMain">499</span></div>
+    <div class="period">Sirf ek baar — koi monthly fee nahi</div>
+    <ul>
+      <li>✅ <span>Apni shop ka unique QR Code</span></li>
+      <li>✅ <span>Print Agent software (lifetime)</span></li>
+      <li>✅ <span>Unlimited print orders</span></li>
+      <li>✅ <span>Online + Counter payment support</span></li>
+      <li>✅ <span>Apna khud ka Razorpay/PhonePe account use karo</span></li>
+      <li>✅ <span>Koi commission ya hidden charge nahi</span></li>
+    </ul>
+    <a href="/dashboard" class="btn-hero btn-red">Abhi Shuru Karo</a>
   </div>
 </div>
 
@@ -108,8 +150,8 @@ nav { background:#0a0a0f; padding:16px 32px; display:flex; align-items:center; j
       </div>
       <div class="feat-card">
         <div class="feat-icon">💰</div>
-        <h3>Auto Payment</h3>
-        <p>Pehle payment, tab print — koi credit nahi, koi risk nahi</p>
+        <h3>Apna Paisa, Apna Account</h3>
+        <p>Online payment seedha aapke Razorpay/PhonePe account mein aata hai</p>
       </div>
       <div class="feat-card">
         <div class="feat-icon">📊</div>
@@ -119,7 +161,7 @@ nav { background:#0a0a0f; padding:16px 32px; display:flex; align-items:center; j
       <div class="feat-card">
         <div class="feat-icon">🖨️</div>
         <h3>Koi bhi Printer</h3>
-        <p>Epson, HP, Canon, Brother — sab kaam karta hai</p>
+        <p>Epson, HP, Canon, Brother — sab kaam karta hai, Auto-Detect bhi available</p>
       </div>
       <div class="feat-card">
         <div class="feat-icon">⚡</div>
@@ -131,9 +173,29 @@ nav { background:#0a0a0f; padding:16px 32px; display:flex; align-items:center; j
 </div>
 
 <div class="cta">
-  <h2>Abhi Shuru Karo — Free Mein!</h2>
-  <p>Apni shop setup karo aur QR Code banao — 5 minute mein ready</p>
+  <h2>Abhi Shuru Karo!</h2>
+  <p>Apni shop setup karo — sirf ₹<span id="setupFeeCta">499</span> mein lifetime access</p>
   <a href="/dashboard" class="btn-hero btn-red">🚀 Shop Setup Karo</a>
 </div>
+
+<footer>
+  <p>© 2026 All Rights Reserved | This System is Developed by Rupesh Kumar Mahato</p>
+  <a href="https://instagram.com/rupeshkr73" target="_blank" rel="noopener">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="2" width="20" height="20" rx="5" stroke="currentColor" stroke-width="2"/>
+      <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/>
+      <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor"/>
+    </svg>
+    Instagram: @rupeshkr73
+  </a>
+</footer>
+<script>
+fetch('/api/setup-fee/current').then(r => r.json()).then(data => {
+  ['setupFeeBanner','setupFeeMain','setupFeeCta'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = data.amount;
+  });
+}).catch(() => {});
+</script>
 </body>
 </html>

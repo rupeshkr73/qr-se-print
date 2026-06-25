@@ -183,30 +183,20 @@ input:focus,select:focus{border-color:#1c6fff}
     <p style="font-size:11px;color:#6b6870;margin-top:8px;">Yeh password Shop ID ke saath admin panel login karne ke liye use hoga — printer, price, payment settings change karne ke liye.</p>
   </div>
 
-  <div class="card">
-    <h2><div class="badge">5</div> QR Code Generate Karo</h2>
-    <button class="btn-primary" id="registerBtn" onclick="registerShop()">⚡ Register & QR Generate Karo</button>
-    <div class="err-msg" id="errMsg"></div>
-
-    <div class="qr-result" id="qrResult">
-      <h3>🎉 QR Code Ready!</h3>
-      <p>Is QR Code ko print karke shop ke bahar lagao</p>
-      <div id="qrImage"></div>
-      <div class="qr-url" id="qrUrl"></div>
-      <div class="qr-actions">
-        <button class="btn-secondary" onclick="downloadQR()">⬇️ Download</button>
-        <button class="btn-secondary" onclick="copyUrl()">🔗 URL Copy</button>
-      </div>
-      <div class="shop-id-box">
-        <h4>✅ Aapka Shop ID (Save Karo!)</h4>
-        <div class="shop-id-val" id="shopIdDisplay">---</div>
-        <p>Yeh ID print agent (PC) mein daalni hai, aur admin panel login ke liye bhi.</p>
-      </div>
-      <div class="admin-link-box">
-        <p style="font-size:12px;color:#6b6870;margin-bottom:6px;">Settings change karne ke liye:</p>
-        <a href="/admin">👉 Admin Panel Login Karo</a>
-      </div>
+  <div class="card" style="background:linear-gradient(135deg,#0a0a0f,#1a1a2e);color:#fff;">
+    <h2 style="color:#fff;"><div class="badge">5</div> Setup Fee — Sirf Ek Baar</h2>
+    <div style="background:rgba(255,255,255,0.08);border-radius:14px;padding:18px;margin-bottom:16px;text-align:center;">
+      <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:4px;">One-Time Setup Fee</div>
+      <div style="font-family:'Syne',sans-serif;font-size:36px;font-weight:800;color:#ff4d1c;">₹<span id="setupFeeDisplay">499</span></div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px;">QR Code + Print Agent + Lifetime Access</div>
     </div>
+    <button class="btn-primary" id="registerBtn" onclick="registerShop()">⚡ Register Karo & ₹<span id="setupFeeDisplay2">499</span> Setup Fee Pay Karo</button>
+    <div class="err-msg" id="errMsg"></div>
+    <p style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:10px;text-align:center;">Register karte hi aap payment page pe pahunch jaoge. Payment ke baad QR Code aur Print Agent download milega.</p>
+  </div>
+
+  <div style="text-align:center;margin-top:30px;">
+    <a href="/superadmin" style="font-size:11px;color:#bbb;text-decoration:none;">Admin Login</a>
   </div>
 
 </div>
@@ -315,14 +305,19 @@ async function registerShop() {
     });
     const data = await res.json();
     if (data.success) {
-      showQR(data.qrCode, data.qrUrl, data.shopId);
+      // Shop create ho gayi (pending). Ab setup fee payment page pe le jaate hain.
+      btn.textContent = '✅ Ho gaya! Payment page pe le jaa rahe hain...';
+      setTimeout(() => {
+        location.href = '/setup-payment/' + data.shopId;
+      }, 800);
+      return;
     } else {
       showError(data.error || 'Kuch error aaya, dobara try karo');
     }
   } catch(e) {
     showError('Network error: ' + e.message);
   }
-  btn.textContent = '⚡ Register & QR Generate Karo';
+  btn.textContent = '⚡ Register Karo & ₹499 Setup Fee Pay Karo';
   btn.disabled = false;
 }
 
@@ -357,7 +352,17 @@ function copyUrl() {
   navigator.clipboard.writeText(url).then(() => alert('✅ URL copy ho gaya!'));
 }
 
+async function loadSetupFee() {
+  try {
+    const res = await fetch('/api/setup-fee/current');
+    const data = await res.json();
+    document.getElementById('setupFeeDisplay').textContent = data.amount;
+    document.getElementById('setupFeeDisplay2').textContent = data.amount;
+  } catch(e) {}
+}
+
 loadPrinterModels();
+loadSetupFee();
 </script>
 </body>
 </html>

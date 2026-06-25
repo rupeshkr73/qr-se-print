@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Super Admin - QR Se Print</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
+nav{background:#0a0a0f;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#fff}
+.logo span{color:#ff4d1c}
+.nav-link{color:rgba(255,255,255,0.6);font-size:13px;font-weight:700;text-decoration:none;background:rgba(255,255,255,0.08);padding:8px 16px;border-radius:10px;cursor:pointer;border:none;transition:all 0.2s}
+.nav-link:hover{background:rgba(255,255,255,0.15);color:#fff}
+.hidden{display:none}
+
+.login-wrap{max-width:400px;margin:80px auto;padding:0 16px}
+.login-card{background:#fff;border-radius:24px;padding:32px 26px;box-shadow:0 8px 40px rgba(0,0,0,0.08)}
+.login-card h1{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;margin-bottom:6px;text-align:center}
+.login-card p{font-size:13px;color:#6b6870;text-align:center;margin-bottom:24px}
+.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+label{font-size:11px;font-weight:600;color:#6b6870;text-transform:uppercase;letter-spacing:0.5px}
+input{padding:13px 15px;border:1.5px solid #e2ddd6;border-radius:12px;font-family:'Space Grotesk',sans-serif;font-size:15px;outline:none;width:100%}
+input:focus{border-color:#1c6fff}
+.btn-primary{background:#ff4d1c;color:#fff;border:none;border-radius:12px;padding:15px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;cursor:pointer;width:100%}
+.btn-primary:hover{background:#e03d0e}
+.err-msg{font-size:12px;color:#ff4d1c;margin-top:10px;text-align:center;display:none}
+
+.hero{background:#0a0a0f;color:#fff;padding:32px 24px 46px}
+.hero h1{font-family:'Syne',sans-serif;font-size:26px;font-weight:800}
+.hero p{color:rgba(255,255,255,0.5);font-size:13px;margin-top:4px}
+.body{max-width:1000px;margin:-22px auto 40px;padding:0 16px}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.stat{background:#fff;border-radius:16px;padding:18px;box-shadow:0 2px 12px rgba(0,0,0,0.06);text-align:center}
+.stat-lbl{font-size:11px;color:#6b6870;font-weight:600;text-transform:uppercase;margin-bottom:6px}
+.stat-val{font-family:'Syne',sans-serif;font-size:24px;font-weight:800}
+.green{color:#00c853}
+.orange{color:#ff4d1c}
+.blue{color:#1c6fff}
+
+.card{background:#fff;border-radius:20px;padding:22px;box-shadow:0 2px 12px rgba(0,0,0,0.06)}
+.card h2{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.filter-tabs{display:flex;gap:6px}
+.filter-tab{padding:6px 14px;border-radius:8px;border:1.5px solid #e2ddd6;background:#fff;font-size:12px;font-weight:700;cursor:pointer}
+.filter-tab.active{background:#0a0a0f;color:#fff;border-color:#0a0a0f}
+
+.shop-table{width:100%;border-collapse:collapse}
+.shop-table th{text-align:left;font-size:10px;font-weight:700;color:#6b6870;text-transform:uppercase;padding:0 10px 10px;border-bottom:2px solid #f0ebe3}
+.shop-table td{padding:12px 10px;border-bottom:1px solid #f0ebe3;font-size:13px;vertical-align:top}
+.shop-name{font-weight:700}
+.shop-id-mono{font-family:monospace;font-size:11px;color:#6b6870}
+.status-pill{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.status-pill.active{background:#e8f9ef;color:#00c853}
+.status-pill.pending{background:#fff8e8;color:#ff8f00}
+.contact-cell{font-size:12px;color:#444;line-height:1.5}
+.earnings-cell{font-weight:700;color:#00c853}
+
+@media(max-width:700px){.stats{grid-template-columns:1fr 1fr}.shop-table{font-size:11px}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">QR Se <span>Print</span> <span style="color:#fff;font-size:11px;font-weight:400;">SUPER ADMIN</span></div>
+  <button class="nav-link hidden" id="logoutBtn" onclick="logout()">🚪 Logout</button>
+</nav>
+
+<div class="login-wrap" id="loginScreen">
+  <div class="login-card">
+    <h1>🔐 Super Admin</h1>
+    <p>Sirf authorized access</p>
+    <div class="form-group">
+      <label>Admin ID</label>
+      <input id="adminIdInput" placeholder="Admin ID">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="adminPasswordInput" placeholder="••••••">
+    </div>
+    <button class="btn-primary" id="loginBtn" onclick="doLogin()">Login</button>
+    <div class="err-msg" id="loginErr"></div>
+  </div>
+</div>
+
+<div class="hidden" id="panel">
+  <div class="hero">
+    <h1>Super Admin Panel</h1>
+    <p>Saari shops ki overview aur earnings</p>
+  </div>
+  <div class="body">
+
+    <div class="card" style="margin-bottom:20px;">
+      <h2><span>💰 Setup Fee / Offer Price</span></h2>
+      <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;">
+        <div style="flex:1;min-width:160px;">
+          <label style="font-size:11px;color:#6b6870;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px;">Current Price (₹)</label>
+          <input type="number" id="setupFeeInput" min="0" style="width:100%;padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:18px;font-weight:700;font-family:'Syne',sans-serif;">
+        </div>
+        <button class="filter-tab" style="padding:11px 22px;background:#00c853;color:#fff;border-color:#00c853;font-size:13px;" onclick="updateSetupFee()">💾 Update Karo</button>
+      </div>
+      <p style="font-size:11px;color:#6b6870;margin-top:10px;">Yeh price homepage, dashboard, aur payment page pe turant reflect hoga. Naye registrations isi naye price pe honge. Purani shops ka price change nahi hota.</p>
+      <div id="setupFeeMsg" style="font-size:12px;margin-top:8px;display:none;"></div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-lbl">Total Shops</div><div class="stat-val" id="totalShops">0</div></div>
+      <div class="stat"><div class="stat-lbl">Active Shops</div><div class="stat-val green" id="activeShops">0</div></div>
+      <div class="stat"><div class="stat-lbl">Pending Payment</div><div class="stat-val orange" id="pendingShops">0</div></div>
+      <div class="stat"><div class="stat-lbl">Setup Fee Total</div><div class="stat-val blue" id="setupRevenue">₹0</div></div>
+    </div>
+
+    <div class="card">
+      <h2>
+        <span>📋 Saari Shops</span>
+        <div class="filter-tabs">
+          <div class="filter-tab active" id="filterAll" onclick="setFilter('all')">All</div>
+          <div class="filter-tab" id="filterActive" onclick="setFilter('active')">Active</div>
+          <div class="filter-tab" id="filterPending" onclick="setFilter('pending')">Pending</div>
+        </div>
+      </h2>
+      <div style="overflow-x:auto;">
+        <table class="shop-table">
+          <thead>
+            <tr>
+              <th>Shop Name / ID</th>
+              <th>Contact</th>
+              <th>Printer</th>
+              <th>Setup Status</th>
+              <th>Print Earnings</th>
+              <th>Registered</th>
+            </tr>
+          </thead>
+          <tbody id="shopsList"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let authToken = localStorage.getItem('qrprint_superadmin_token');
+let allShops = [];
+let currentFilter = 'all';
+
+if (authToken) loadPanel();
+
+async function doLogin() {
+  const adminId = document.getElementById('adminIdInput').value.trim();
+  const password = document.getElementById('adminPasswordInput').value;
+  const errEl = document.getElementById('loginErr');
+  errEl.style.display = 'none';
+
+  if (!adminId || !password) {
+    errEl.textContent = '❌ ID aur Password dono daalo';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true; btn.textContent = 'Login ho raha hai...';
+
+  try {
+    const res = await fetch('/api/superadmin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminId, password })
+    });
+    const data = await res.json();
+    if (data.success) {
+      authToken = data.token;
+      localStorage.setItem('qrprint_superadmin_token', authToken);
+      loadPanel();
+    } else {
+      errEl.textContent = '❌ ' + data.error;
+      errEl.style.display = 'block';
+    }
+  } catch(e) {
+    errEl.textContent = '❌ Network error';
+    errEl.style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = 'Login';
+}
+
+async function loadPanel() {
+  try {
+    const [overviewRes, shopsRes, feeRes] = await Promise.all([
+      fetch('/api/superadmin/overview', { headers: { 'Authorization': 'Bearer ' + authToken } }),
+      fetch('/api/superadmin/shops', { headers: { 'Authorization': 'Bearer ' + authToken } }),
+      fetch('/api/superadmin/setup-fee', { headers: { 'Authorization': 'Bearer ' + authToken } })
+    ]);
+
+    if (!overviewRes.ok || !shopsRes.ok) {
+      localStorage.removeItem('qrprint_superadmin_token');
+      authToken = null;
+      return;
+    }
+
+    const overview = await overviewRes.json();
+    const shopsData = await shopsRes.json();
+    allShops = shopsData.shops;
+
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('panel').classList.remove('hidden');
+    document.getElementById('logoutBtn').classList.remove('hidden');
+
+    document.getElementById('totalShops').textContent = overview.total_shops;
+    document.getElementById('activeShops').textContent = overview.active_shops;
+    document.getElementById('pendingShops').textContent = overview.pending_shops;
+    document.getElementById('setupRevenue').textContent = '₹' + overview.total_setup_revenue;
+
+    if (feeRes.ok) {
+      const feeData = await feeRes.json();
+      document.getElementById('setupFeeInput').value = feeData.amount;
+    }
+
+    renderShops();
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+async function updateSetupFee() {
+  const amount = document.getElementById('setupFeeInput').value;
+  const msgEl = document.getElementById('setupFeeMsg');
+  msgEl.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/superadmin/setup-fee', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+      body: JSON.stringify({ amount })
+    });
+    const data = await res.json();
+    if (data.success) {
+      msgEl.textContent = `✅ Price update ho gaya — ab naye registrations ₹${data.amount} pe honge`;
+      msgEl.style.color = '#00c853';
+      msgEl.style.display = 'block';
+    } else {
+      msgEl.textContent = '❌ ' + data.error;
+      msgEl.style.color = '#ff4d1c';
+      msgEl.style.display = 'block';
+    }
+  } catch(e) {
+    msgEl.textContent = '❌ Network error';
+    msgEl.style.color = '#ff4d1c';
+    msgEl.style.display = 'block';
+  }
+}
+
+function setFilter(f) {
+  currentFilter = f;
+  document.getElementById('filterAll').classList.toggle('active', f === 'all');
+  document.getElementById('filterActive').classList.toggle('active', f === 'active');
+  document.getElementById('filterPending').classList.toggle('active', f === 'pending');
+  renderShops();
+}
+
+async function renderShops() {
+  const tbody = document.getElementById('shopsList');
+  tbody.innerHTML = '';
+
+  let filtered = allShops;
+  if (currentFilter === 'active') filtered = allShops.filter(s => s.setup_paid);
+  if (currentFilter === 'pending') filtered = allShops.filter(s => !s.setup_paid);
+
+  for (const shop of filtered) {
+    const tr = document.createElement('tr');
+    const createdDate = new Date(shop.created_at).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+
+    tr.innerHTML = `
+      <td>
+        <div class="shop-name">${shop.name}</div>
+        <div class="shop-id-mono">${shop.id}</div>
+      </td>
+      <td class="contact-cell">
+        📍 ${shop.address || '-'}<br>
+        📞 ${shop.phone || '-'}
+      </td>
+      <td style="font-size:12px;">${shop.printer_model || '-'}</td>
+      <td><span class="status-pill ${shop.setup_paid ? 'active' : 'pending'}">${shop.setup_paid ? '✅ Active' : '⏳ Pending'}</span></td>
+      <td class="earnings-cell" id="earn-${shop.id}">Loading...</td>
+      <td style="font-size:11px;color:#6b6870;">${createdDate}</td>
+    `;
+    tbody.appendChild(tr);
+
+    // Earnings async load karo
+    fetch(`/api/superadmin/shop/${shop.id}/earnings`, { headers: { 'Authorization': 'Bearer ' + authToken } })
+      .then(r => r.json())
+      .then(data => {
+        const cell = document.getElementById(`earn-${shop.id}`);
+        if (cell) cell.textContent = `₹${data.total_earnings} (${data.total_orders} orders)`;
+      })
+      .catch(() => {});
+  }
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#6b6870;padding:24px;">Koi shop nahi mila</td></tr>';
+  }
+}
+
+function logout() {
+  localStorage.removeItem('qrprint_superadmin_token');
+  location.reload();
+}
+</script>
+</body>
+</html>

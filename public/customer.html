@@ -346,6 +346,24 @@ let state = {
 async function init() {
   try {
     const shopRes = await fetch(`/api/shop/${shopId}`);
+
+    if (shopRes.status === 403) {
+      const errData = await shopRes.json();
+      document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Space Grotesk',sans-serif;">
+        <div style="font-size:48px;margin-bottom:16px;">⚠️</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:20px;margin-bottom:10px;">Shop Abhi Active Nahi Hai</h2>
+        <p style="color:#6b6870;font-size:14px;">${errData.error}</p>
+      </div>`;
+      return;
+    }
+    if (shopRes.status === 404) {
+      document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Space Grotesk',sans-serif;">
+        <div style="font-size:48px;margin-bottom:16px;">❌</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:20px;">Shop Nahi Mila</h2>
+      </div>`;
+      return;
+    }
+
     const shop = await shopRes.json();
 
     document.getElementById('shopName').textContent = shop.name;
