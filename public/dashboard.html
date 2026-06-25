@@ -190,6 +190,10 @@ input:focus,select:focus{border-color:#1c6fff}
     <h2 style="color:#fff;"><div class="badge">5</div> Setup Fee — Sirf Ek Baar</h2>
     <div style="background:rgba(255,255,255,0.08);border-radius:14px;padding:18px;margin-bottom:16px;text-align:center;">
       <div style="font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:4px;">One-Time Setup Fee</div>
+      <div style="display:flex;align-items:baseline;justify-content:center;gap:8px;margin-bottom:2px;">
+        <s id="setupFeeActualDisplay" style="font-size:14px;color:rgba(255,255,255,0.35);">₹999</s>
+        <span id="setupFeeBadge" style="background:#00c853;color:#fff;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;">50% OFF</span>
+      </div>
       <div style="font-family:'Syne',sans-serif;font-size:36px;font-weight:800;color:#ff4d1c;">₹<span id="setupFeeDisplay">499</span></div>
       <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:4px;">QR Code + Print Agent + Lifetime Access</div>
     </div>
@@ -359,8 +363,20 @@ async function loadSetupFee() {
   try {
     const res = await fetch('/api/setup-fee/current');
     const data = await res.json();
-    document.getElementById('setupFeeDisplay').textContent = data.amount;
-    document.getElementById('setupFeeDisplay2').textContent = data.amount;
+    const offer = data.offerPrice ?? data.amount;
+    const actual = data.actualPrice;
+
+    document.getElementById('setupFeeDisplay').textContent = offer;
+    document.getElementById('setupFeeDisplay2').textContent = offer;
+
+    if (actual && actual > offer) {
+      const pct = Math.round(((actual - offer) / actual) * 100);
+      document.getElementById('setupFeeActualDisplay').textContent = '₹' + actual;
+      document.getElementById('setupFeeBadge').textContent = pct + '% OFF';
+    } else {
+      document.getElementById('setupFeeActualDisplay').style.display = 'none';
+      document.getElementById('setupFeeBadge').style.display = 'none';
+    }
   } catch(e) {}
 }
 

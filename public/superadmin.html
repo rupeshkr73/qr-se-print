@@ -96,14 +96,27 @@ input:focus{border-color:#1c6fff}
 
     <div class="card" style="margin-bottom:20px;">
       <h2><span>💰 Setup Fee / Offer Price</span></h2>
-      <div style="display:flex;gap:14px;align-items:flex-end;flex-wrap:wrap;">
-        <div style="flex:1;min-width:160px;">
-          <label style="font-size:11px;color:#6b6870;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px;">Current Price (₹)</label>
-          <input type="number" id="setupFeeInput" min="0" style="width:100%;padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:18px;font-weight:700;font-family:'Syne',sans-serif;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+        <div>
+          <label style="font-size:11px;color:#6b6870;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px;">Actual Price (₹) <span style="font-weight:400;text-transform:none;">— katega hua dikhega</span></label>
+          <input type="number" id="actualPriceInput" min="0" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:18px;font-weight:700;font-family:'Syne',sans-serif;">
         </div>
-        <button class="filter-tab" style="padding:11px 22px;background:#00c853;color:#fff;border-color:#00c853;font-size:13px;" onclick="updateSetupFee()">💾 Update Karo</button>
+        <div>
+          <label style="font-size:11px;color:#6b6870;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px;">Offer Price (₹) <span style="font-weight:400;text-transform:none;">— customer yahi dega</span></label>
+          <input type="number" id="offerPriceInput" min="0" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid #ff4d1c;border-radius:10px;font-size:18px;font-weight:700;font-family:'Syne',sans-serif;color:#ff4d1c;">
+        </div>
       </div>
-      <p style="font-size:11px;color:#6b6870;margin-top:10px;">Yeh price homepage, dashboard, aur payment page pe turant reflect hoga. Naye registrations isi naye price pe honge. Purani shops ka price change nahi hota.</p>
+
+      <!-- Live Preview - jaisa homepage pe dikhega -->
+      <div style="background:#0a0a0f;border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+        <span style="font-size:11px;color:rgba(255,255,255,0.5);">Preview:</span>
+        <span style="font-family:'Syne',sans-serif;font-size:15px;color:rgba(255,255,255,0.4);text-decoration:line-through;" id="previewActual">₹999</span>
+        <span style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#ff4d1c;" id="previewOffer">₹499</span>
+        <span id="previewDiscount" style="background:#00c853;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">50% OFF</span>
+      </div>
+
+      <button class="filter-tab" style="padding:11px 22px;background:#00c853;color:#fff;border-color:#00c853;font-size:13px;width:100%;" onclick="updateSetupFee()">💾 Update Karo</button>
+      <p style="font-size:11px;color:#6b6870;margin-top:10px;">Yeh prices homepage, dashboard, aur payment page pe turant reflect honge. Naye registrations isi naye Offer Price pe honge. Purani shops ka price change nahi hota.</p>
       <div id="setupFeeMsg" style="font-size:12px;margin-top:8px;display:none;"></div>
     </div>
 
@@ -216,7 +229,9 @@ async function loadPanel() {
 
     if (feeRes.ok) {
       const feeData = await feeRes.json();
-      document.getElementById('setupFeeInput').value = feeData.amount;
+      document.getElementById('actualPriceInput').value = feeData.actualPrice;
+      document.getElementById('offerPriceInput').value = feeData.offerPrice;
+      updatePreview();
     }
 
     renderShops();
@@ -225,8 +240,26 @@ async function loadPanel() {
   }
 }
 
+function updatePreview() {
+  const actual = parseInt(document.getElementById('actualPriceInput').value) || 0;
+  const offer = parseInt(document.getElementById('offerPriceInput').value) || 0;
+
+  document.getElementById('previewActual').textContent = '₹' + actual;
+  document.getElementById('previewOffer').textContent = '₹' + offer;
+
+  const discountEl = document.getElementById('previewDiscount');
+  if (actual > 0 && offer > 0 && actual > offer) {
+    const pct = Math.round(((actual - offer) / actual) * 100);
+    discountEl.textContent = pct + '% OFF';
+    discountEl.style.display = 'inline-block';
+  } else {
+    discountEl.style.display = 'none';
+  }
+}
+
 async function updateSetupFee() {
-  const amount = document.getElementById('setupFeeInput').value;
+  const actualPrice = document.getElementById('actualPriceInput').value;
+  const offerPrice = document.getElementById('offerPriceInput').value;
   const msgEl = document.getElementById('setupFeeMsg');
   msgEl.style.display = 'none';
 
@@ -234,11 +267,11 @@ async function updateSetupFee() {
     const res = await fetch('/api/superadmin/setup-fee', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
-      body: JSON.stringify({ amount })
+      body: JSON.stringify({ actualPrice, offerPrice })
     });
     const data = await res.json();
     if (data.success) {
-      msgEl.textContent = `✅ Price update ho gaya — ab naye registrations ₹${data.amount} pe honge`;
+      msgEl.textContent = `✅ Price update ho gaya — naye registrations ₹${data.actualPrice} (katega) → ₹${data.offerPrice} pe honge`;
       msgEl.style.color = '#00c853';
       msgEl.style.display = 'block';
     } else {

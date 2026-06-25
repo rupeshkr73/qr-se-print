@@ -90,7 +90,7 @@ footer a{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weig
 </div>
 
 <div class="price-banner">
-  <span>🚀 Shuru karo sirf <strong>₹<span id="setupFeeBanner">499</span></strong> mein — One-time fee, lifetime access!</span>
+  <span>🚀 Shuru karo sirf <s id="setupFeeBannerActual" style="opacity:0.6;">₹999</s> <strong>₹<span id="setupFeeBanner">499</span></strong> mein — One-time fee, lifetime access!</span>
 </div>
 
 <div class="how">
@@ -123,6 +123,10 @@ footer a{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weig
   <h2>Simple Pricing</h2>
   <div class="price-card">
     <span class="tag">ONE-TIME PAYMENT</span>
+    <div style="display:flex;align-items:baseline;justify-content:center;gap:10px;flex-wrap:wrap;">
+      <s id="setupFeeMainActual" style="font-family:'Syne',sans-serif;font-size:22px;color:rgba(255,255,255,0.35);">₹999</s>
+      <span id="discountBadge" style="background:#00c853;color:#fff;font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px;">50% OFF</span>
+    </div>
     <div class="amount">₹<span id="setupFeeMain">499</span></div>
     <div class="period">Sirf ek baar — koi monthly fee nahi</div>
     <ul>
@@ -197,10 +201,31 @@ footer a{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weig
 </footer>
 <script>
 fetch('/api/setup-fee/current').then(r => r.json()).then(data => {
+  const offer = data.offerPrice ?? data.amount;
+  const actual = data.actualPrice;
+
   ['setupFeeBanner','setupFeeMain','setupFeeCta'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.textContent = data.amount;
+    if (el) el.textContent = offer;
   });
+
+  if (actual && actual > offer) {
+    const pct = Math.round(((actual - offer) / actual) * 100);
+    const bannerActual = document.getElementById('setupFeeBannerActual');
+    const mainActual = document.getElementById('setupFeeMainActual');
+    const badge = document.getElementById('discountBadge');
+    if (bannerActual) bannerActual.textContent = '₹' + actual;
+    if (mainActual) mainActual.textContent = '₹' + actual;
+    if (badge) badge.textContent = pct + '% OFF';
+  } else {
+    // Agar actual price set nahi hai ya offer se kam/equal hai, strikethrough hide karo
+    const bannerActual = document.getElementById('setupFeeBannerActual');
+    const mainActual = document.getElementById('setupFeeMainActual');
+    const badge = document.getElementById('discountBadge');
+    if (bannerActual) bannerActual.style.display = 'none';
+    if (mainActual) mainActual.style.display = 'none';
+    if (badge) badge.style.display = 'none';
+  }
 }).catch(() => {});
 </script>
 </body>
