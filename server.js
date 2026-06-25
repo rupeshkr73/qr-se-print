@@ -27,6 +27,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'qrseprint_default_secret_change_in
 // Setup Fee collect karne ke liye system owner (Rupesh) ki Razorpay keys.
 // Yeh per-shop gateway keys se ALAG hai — yeh sirf ₹499 registration fee ke liye hai.
 const SETUP_FEE_AMOUNT = parseInt(process.env.SETUP_FEE_AMOUNT || '499');
+const SETUP_ACTUAL_PRICE = parseInt(process.env.SETUP_ACTUAL_PRICE || '999');
 const OWNER_RAZORPAY_KEY_ID = process.env.OWNER_RAZORPAY_KEY_ID || 'rzp_live_T2bp3UTHAKTfOV';
 const OWNER_RAZORPAY_KEY_SECRET = process.env.OWNER_RAZORPAY_KEY_SECRET || 'Fw64wrlkbOIWq5FqJfnVYApz';
 
@@ -244,12 +245,18 @@ async function initDB() {
       WHERE setup_paid = false AND qr_code IS NOT NULL AND qr_code != '' AND setup_payment_id = ''
     `);
 
-    // Default setup fee seed karo agar database mein abhi tak set nahi hai
+    // Default setup fee (offer + actual price) seed karo agar database mein abhi tak set nahi hai
     await pool.query(`
       INSERT INTO system_settings (key, value)
       VALUES ('setup_fee_amount', $1)
       ON CONFLICT (key) DO NOTHING
     `, [SETUP_FEE_AMOUNT.toString()]);
+
+    await pool.query(`
+      INSERT INTO system_settings (key, value)
+      VALUES ('setup_actual_price', $1)
+      ON CONFLICT (key) DO NOTHING
+    `, [SETUP_ACTUAL_PRICE.toString()]);
 
     console.log('Database ready!');
   } catch(err) { console.error('DB error:', err.message); }
@@ -261,6 +268,20 @@ async function getSetupFeeAmount() {
     if (r.rows.length) return parseInt(r.rows[0].value);
   } catch(e) {}
   return SETUP_FEE_AMOUNT;
+}
+
+async function getSetupPricing() {
+  try {
+    const r = await pool.query("SELECT key, value FROM system_settings WHERE key IN ('setup_fee_amount','setup_actual_price')");
+    const map = {};
+    r.rows.forEach(row => { map[row.key] = parseInt(row.value); });
+    return {
+      offerPrice: map.setup_fee_amount ?? SETUP_FEE_AMOUNT,
+      actualPrice: map.setup_actual_price ?? SETUP_ACTUAL_PRICE
+    };
+  } catch(e) {
+    return { offerPrice: SETUP_FEE_AMOUNT, actualPrice: SETUP_ACTUAL_PRICE };
+  }
 }
 
 function verifyToken(req, res, next) {
@@ -284,8 +305,8 @@ app.get('/api/printer-models', (req, res) => {
 
 app.get('/api/setup-fee/current', async (req, res) => {
   try {
-    const amount = await getSetupFeeAmount();
-    res.json({ amount });
+    const pricing = await getSetupPricing();
+    res.json({ amount: pricing.offerPrice, offerPrice: pricing.offerPrice, actualPrice: pricing.actualPrice });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1175,25 +1196,45 @@ app.get('/api/superadmin/shop/:shopId/earnings', verifySuperAdmin, async (req, r
 // ─── Setup Fee / Offer Price Management — Super Admin live change kar sake ───
 app.get('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
   try {
-    const amount = await getSetupFeeAmount();
-    res.json({ amount, default: SETUP_FEE_AMOUNT });
+    const pricing = await getSetupPricing();
+    res.json({
+      offerPrice: pricing.offerPrice,
+      actualPrice: pricing.actualPrice,
+      defaultOfferPrice: SETUP_FEE_AMOUNT,
+      defaultActualPrice: SETUP_ACTUAL_PRICE
+    });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
 app.put('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
   try {
-    const { amount } = req.body;
-    const newAmount = parseInt(amount);
-    if (isNaN(newAmount) || newAmount < 0) {
-      return res.status(400).json({ error: 'Valid amount daalo (0 ya zyada)' });
+    const { offerPrice, actualPrice } = req.body;
+    const newOfferPrice = parseInt(offerPrice);
+    const newActualPrice = parseInt(actualPrice);
+
+    if (isNaN(newOfferPrice) || newOfferPrice < 0) {
+      return res.status(400).json({ error: 'Valid Offer Price daalo (0 ya zyada)' });
     }
+    if (isNaN(newActualPrice) || newActualPrice < 0) {
+      return res.status(400).json({ error: 'Valid Actual Price daalo (0 ya zyada)' });
+    }
+    if (newActualPrice < newOfferPrice) {
+      return res.status(400).json({ error: 'Actual Price, Offer Price se kam nahi ho sakta' });
+    }
+
     await pool.query(
       `INSERT INTO system_settings (key, value, updated_at) VALUES ('setup_fee_amount', $1, NOW())
        ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
-      [newAmount.toString()]
+      [newOfferPrice.toString()]
     );
-    console.log(`Setup fee updated by super admin: ₹${newAmount}`);
-    res.json({ success: true, amount: newAmount });
+    await pool.query(
+      `INSERT INTO system_settings (key, value, updated_at) VALUES ('setup_actual_price', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
+      [newActualPrice.toString()]
+    );
+
+    console.log(`Setup pricing updated by super admin: Actual ₹${newActualPrice}, Offer ₹${newOfferPrice}`);
+    res.json({ success: true, offerPrice: newOfferPrice, actualPrice: newActualPrice });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
