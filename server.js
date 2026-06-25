@@ -9,6 +9,8 @@ const path = require('path');
 const https = require('https');
 const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
+const fs = require('fs');
+const archiver = require('archiver');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,6 +23,16 @@ const CLD_API_SECRET = process.env.CLOUDINARY_API_SECRET || 'dnTnlUZI4e-yJJOBN0K
 // (Global RAZORPAY_KEY_ID/SECRET removed — each shop now stores its own gateway credentials)
 
 const JWT_SECRET = process.env.JWT_SECRET || 'qrseprint_default_secret_change_in_production_xk29';
+
+// Setup Fee collect karne ke liye system owner (Rupesh) ki Razorpay keys.
+// Yeh per-shop gateway keys se ALAG hai — yeh sirf ₹499 registration fee ke liye hai.
+const SETUP_FEE_AMOUNT = parseInt(process.env.SETUP_FEE_AMOUNT || '499');
+const OWNER_RAZORPAY_KEY_ID = process.env.OWNER_RAZORPAY_KEY_ID || 'rzp_live_T2bp3UTHAKTfOV';
+const OWNER_RAZORPAY_KEY_SECRET = process.env.OWNER_RAZORPAY_KEY_SECRET || 'Fw64wrlkbOIWq5FqJfnVYApz';
+
+// Super Admin login (Rupesh ka khud ka panel — sabhi shops dekhne ke liye)
+const SUPER_ADMIN_ID = process.env.SUPER_ADMIN_ID || 'rupeshkr73';
+const SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || 'Rupesh@2608';
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -171,9 +183,19 @@ async function initDB() {
         phonepe_merchant_id VARCHAR(200) DEFAULT '',
         phonepe_salt_key VARCHAR(200) DEFAULT '',
         phonepe_salt_index VARCHAR(10) DEFAULT '1',
+        setup_paid BOOLEAN DEFAULT false,
+        setup_payment_id VARCHAR(200) DEFAULT '',
+        setup_order_id VARCHAR(200) DEFAULT '',
+        setup_amount INTEGER DEFAULT 0,
         qr_code TEXT,
         created_at TIMESTAMP DEFAULT NOW()
       );
+      CREATE TABLE IF NOT EXISTS system_settings (
+        key VARCHAR(100) PRIMARY KEY,
+        value TEXT,
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+
       CREATE TABLE IF NOT EXISTS print_jobs (
         id VARCHAR(50) PRIMARY KEY,
         shop_id VARCHAR(50),
@@ -205,10 +227,40 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS phonepe_merchant_id VARCHAR(200) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS phonepe_salt_key VARCHAR(200) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS phonepe_salt_index VARCHAR(10) DEFAULT '1';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS setup_paid BOOLEAN DEFAULT false;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS setup_payment_id VARCHAR(200) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS setup_order_id VARCHAR(200) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS setup_amount INTEGER DEFAULT 0;
     `);
+
+    // GRANDFATHER MIGRATION: Purani shops jo setup-fee feature se PEHLE bani thi,
+    // unka setup_paid abhi false hai (default) lekin unhone kabhi setup fee dene
+    // ka option dekha hi nahi tha. Unhe lock out karna unfair hoga, isliye
+    // ek baar ke liye unhe auto-activate kar dete hain. Yeh column sirf ek baar
+    // chalta hai — jin shops ka qr_code already generated hai (purana flow se)
+    // unhi ko activate karta hai, future naye registrations is condition mein nahi aayenge.
+    await pool.query(`
+      UPDATE shops SET setup_paid = true
+      WHERE setup_paid = false AND qr_code IS NOT NULL AND qr_code != '' AND setup_payment_id = ''
+    `);
+
+    // Default setup fee seed karo agar database mein abhi tak set nahi hai
+    await pool.query(`
+      INSERT INTO system_settings (key, value)
+      VALUES ('setup_fee_amount', $1)
+      ON CONFLICT (key) DO NOTHING
+    `, [SETUP_FEE_AMOUNT.toString()]);
 
     console.log('Database ready!');
   } catch(err) { console.error('DB error:', err.message); }
+}
+
+async function getSetupFeeAmount() {
+  try {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key='setup_fee_amount'");
+    if (r.rows.length) return parseInt(r.rows[0].value);
+  } catch(e) {}
+  return SETUP_FEE_AMOUNT;
 }
 
 function verifyToken(req, res, next) {
@@ -230,6 +282,21 @@ app.get('/api/printer-models', (req, res) => {
   res.json({ models: PRINTER_MODELS });
 });
 
+app.get('/api/setup-fee/current', async (req, res) => {
+  try {
+    const amount = await getSetupFeeAmount();
+    res.json({ amount });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/setup-fee/amount/:shopId', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT setup_amount, setup_paid FROM shops WHERE id=$1', [req.params.shopId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Shop not found' });
+    res.json({ amount: r.rows[0].setup_amount, paid: r.rows[0].setup_paid });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/shop/register', async (req, res) => {
   try {
     const {
@@ -244,7 +311,6 @@ app.post('/api/shop/register', async (req, res) => {
     const validPaymentModes = ['both', 'counter_only', 'online_only'];
     const finalPaymentMode = validPaymentModes.includes(payment_mode) ? payment_mode : 'both';
 
-    // Agar owner ne online payment chuna hai (both/online_only) to gateway details zaroori hain
     const needsGateway = finalPaymentMode === 'both' || finalPaymentMode === 'online_only';
     let finalGateway = '';
     if (needsGateway) {
@@ -259,20 +325,116 @@ app.post('/api/shop/register', async (req, res) => {
 
     const shopId = 'SHOP_' + uuidv4().substring(0,8).toUpperCase();
     const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
+    const currentSetupFee = await getSetupFeeAmount();
 
+    // Shop create hoti hai lekin setup_paid=false rehta hai by default.
+    // QR Code aur Print Agent sirf setup fee payment confirm hone ke baad milte hain.
     await pool.query(
       `INSERT INTO shops 
         (id,name,address,phone,printer_model,price_bw,price_color,payment_mode,password_hash,
-         payment_gateway,razorpay_key_id,razorpay_key_secret,phonepe_merchant_id,phonepe_salt_key,phonepe_salt_index)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+         payment_gateway,razorpay_key_id,razorpay_key_secret,phonepe_merchant_id,phonepe_salt_key,phonepe_salt_index,
+         setup_paid,setup_amount)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,false,$16)`,
       [shopId, name, address, phone, printer_model, price_bw||5, price_color||10, finalPaymentMode, passwordHash,
-       finalGateway, razorpay_key_id||'', razorpay_key_secret||'', phonepe_merchant_id||'', phonepe_salt_key||'', phonepe_salt_index||'1']
+       finalGateway, razorpay_key_id||'', razorpay_key_secret||'', phonepe_merchant_id||'', phonepe_salt_key||'', phonepe_salt_index||'1',
+       currentSetupFee]
     );
-    const qrUrl = `${BASE_URL}/print/${shopId}`;
-    const qrCode = await QRCode.toDataURL(qrUrl, { width:300, margin:2 });
-    await pool.query('UPDATE shops SET qr_code=$1 WHERE id=$2', [qrCode, shopId]);
-    res.json({ success:true, shopId, qrCode, qrUrl });
+
+    res.json({ success: true, shopId, setupFeeAmount: currentSetupFee });
   } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── SETUP FEE PAYMENT — Rupesh (system owner) ki Razorpay account mein paisa aata hai ───
+app.post('/api/setup-fee/create', async (req, res) => {
+  try {
+    const { shopId } = req.body;
+    if (!shopId) return res.status(400).json({ error: 'Shop ID required' });
+
+    const shopResult = await pool.query('SELECT id, setup_paid, setup_amount FROM shops WHERE id=$1', [shopId]);
+    if (!shopResult.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
+    if (shopResult.rows[0].setup_paid) return res.status(400).json({ error: 'Setup fee already paid hai' });
+
+    const amount = shopResult.rows[0].setup_amount || SETUP_FEE_AMOUNT;
+    const amountInPaise = amount * 100;
+
+    const orderData = JSON.stringify({
+      amount: amountInPaise,
+      currency: 'INR',
+      receipt: 'SETUP_' + shopId,
+      notes: { shopId, type: 'setup_fee' }
+    });
+
+    const authHeader = 'Basic ' + Buffer.from(`${OWNER_RAZORPAY_KEY_ID}:${OWNER_RAZORPAY_KEY_SECRET}`).toString('base64');
+
+    const razorpayOrder = await new Promise((resolve, reject) => {
+      const options = {
+        hostname: 'api.razorpay.com',
+        path: '/v1/orders',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': authHeader,
+          'Content-Length': Buffer.byteLength(orderData)
+        }
+      };
+      const r = https.request(options, (resp) => {
+        let data = '';
+        resp.on('data', chunk => data += chunk);
+        resp.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+      });
+      r.on('error', reject);
+      r.write(orderData);
+      r.end();
+    });
+
+    if (!razorpayOrder.id) return res.status(400).json({ error: 'Setup fee order create nahi hua', details: razorpayOrder });
+
+    await pool.query('UPDATE shops SET setup_order_id=$1 WHERE id=$2', [razorpayOrder.id, shopId]);
+
+    res.json({
+      success: true,
+      orderId: razorpayOrder.id,
+      amount: amountInPaise,
+      keyId: OWNER_RAZORPAY_KEY_ID,
+      shopId
+    });
+  } catch(err) {
+    console.error('Setup fee create error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/setup-fee/verify', async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, shopId } = req.body;
+
+    const expectedSignature = crypto
+      .createHmac('sha256', OWNER_RAZORPAY_KEY_SECRET)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({ error: 'Payment verification failed' });
+    }
+
+    // Payment confirm — ab shop activate karo aur QR generate karo
+    const shopResult = await pool.query('SELECT id FROM shops WHERE id=$1 AND setup_order_id=$2', [shopId, razorpay_order_id]);
+    if (!shopResult.rows.length) return res.status(404).json({ error: 'Shop ya order match nahi hua' });
+
+    const qrUrl = `${BASE_URL}/print/${shopId}`;
+    const qrCode = await QRCode.toDataURL(qrUrl, { width: 300, margin: 2 });
+
+    await pool.query(
+      'UPDATE shops SET setup_paid=true, setup_payment_id=$1, qr_code=$2 WHERE id=$3',
+      [razorpay_payment_id, qrCode, shopId]
+    );
+
+    console.log(`Setup fee paid: ${shopId} | Payment: ${razorpay_payment_id}`);
+    res.json({ success: true, shopId, qrCode, qrUrl });
+  } catch(err) {
+    console.error('Setup fee verify error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
 });
 
 app.post('/api/shop/login', async (req, res) => {
@@ -319,10 +481,13 @@ app.post('/api/shop/set-password', async (req, res) => {
 app.get('/api/shop/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,name,address,phone,printer_model,price_bw,price_color,payment_mode,payment_gateway,razorpay_key_id,qr_code FROM shops WHERE id=$1',
+      'SELECT id,name,address,phone,printer_model,price_bw,price_color,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid FROM shops WHERE id=$1',
       [req.params.shopId]
     );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
+    if (!r.rows[0].setup_paid) {
+      return res.status(403).json({ error: 'Shop ka setup abhi incomplete hai. Shop owner ko setup fee complete karna hoga.' });
+    }
     res.json(r.rows[0]);
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
@@ -790,7 +955,10 @@ app.post('/api/payment/counter', async (req, res) => {
 app.get('/api/jobs/pending/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,file_name,file_url,file_public_id,file_type,copies,color_mode,total_pages,selected_pages,amount FROM print_jobs WHERE shop_id=$1 AND status=$2 AND payment_status=$3 ORDER BY created_at ASC LIMIT 5',
+      `SELECT j.id,j.file_name,j.file_url,j.file_public_id,j.file_type,j.copies,j.color_mode,j.total_pages,j.selected_pages,j.amount 
+       FROM print_jobs j JOIN shops s ON j.shop_id=s.id
+       WHERE j.shop_id=$1 AND j.status=$2 AND j.payment_status=$3 AND s.setup_paid=true 
+       ORDER BY j.created_at ASC LIMIT 5`,
       [req.params.shopId, 'queued', 'paid']
     );
     res.json({ jobs: r.rows });
@@ -826,13 +994,209 @@ app.get('/api/jobs/status/:jobId', async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
-// (Removed legacy global /api/razorpay/config — har shop ki apni gateway keys hoti hain ab)
+// ─── Setup ke baad Print Agent Package Download ───
+// Sirf paid (setup_paid=true) shops ke liye kaam karta hai
+app.get('/api/download/agent-package/:shopId', async (req, res) => {
+  try {
+    const shopId = req.params.shopId;
+    const r = await pool.query('SELECT id, name, setup_paid FROM shops WHERE id=$1', [shopId]);
+    if (!r.rows.length) return res.status(404).send('Shop not found');
+    if (!r.rows[0].setup_paid) return res.status(403).send('Setup fee pehle complete karo');
 
-app.get('/', (req,res) => res.sendFile(path.join(__dirname,'public','index.html')));
+    const shopName = r.rows[0].name;
+
+    // print_agent.py template padhke us mein Shop ID fill karo
+    let agentCode = fs.readFileSync(path.join(__dirname, 'agent-template', 'print_agent.py'), 'utf8');
+    agentCode = agentCode.replace('AAPKA_SHOP_ID', shopId);
+    agentCode = agentCode.replace(
+      'SERVER_URL      = "https://qr-se-print.onrender.com"',
+      `SERVER_URL      = "${BASE_URL}"`
+    );
+
+    const installBat = fs.readFileSync(path.join(__dirname, 'agent-template', 'INSTALL.bat'), 'utf8');
+
+    const readme = `========================================
+QR SE PRINT - SETUP INSTRUCTIONS
+========================================
+
+Shop: ${shopName}
+Shop ID: ${shopId}
+
+Bahut Simple 4 Steps Hain:
+
+STEP 1 - QR CODE
+----------------
+Is folder mein "QR-Code.png" file hai.
+Ise PRINT KARKE apni shop ke counter/bahar lagao.
+Customer yeh QR scan karke print bhej sakta hai.
+
+STEP 2 - PRINT AGENT INSTALL KARO
+-----------------------------------
+1. "INSTALL.bat" file pe RIGHT-CLICK karo
+2. "Run as Administrator" choose karo
+3. Yeh automatically Python, packages, aur SumatraPDF install karega
+
+STEP 3 - AGENT START KARO
+--------------------------
+1. Same folder mein "RUN_AGENT.bat" double-click karo
+2. Ek black window khulegi jisme likha hoga:
+   "Agent start | Shop: ${shopId}"
+3. Yeh window HAMESHA KHULI RAKHO jab tak shop khuli hai
+
+STEP 4 - TEST KARO
+-------------------
+1. Apne phone se QR Code scan karo
+2. Koi PDF/photo upload karo
+3. Payment karo (online ya counter)
+4. Printer se print nikal aayega!
+
+========================================
+IMPORTANT
+========================================
+- Printer ko PC se connect karo aur "Set as Default Printer" karo
+  (Windows Settings > Bluetooth & devices > Printers & scanners)
+- Agent ki black window band mat karo
+- PC restart hone par phir se RUN_AGENT.bat chalana padega
+  (ya INSTALL.bat ke time "Startup mein add karo" Yes select karo)
+
+Koi problem aaye to apna Shop ID (${shopId}) ready rakhna.
+
+========================================
+QR Se Print | Developed by Rupesh Kumar Mahato
+Instagram: @rupeshkr73
+========================================
+`;
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="QR-Se-Print-Setup-${shopId}.zip"`);
+
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.pipe(res);
+
+    archive.append(agentCode, { name: 'print_agent.py' });
+    archive.append(installBat, { name: 'INSTALL.bat' });
+    archive.append(readme, { name: 'README.txt' });
+
+    // QR code image bhi add karo (base64 se PNG banake)
+    const qrResult = await pool.query('SELECT qr_code FROM shops WHERE id=$1', [shopId]);
+    if (qrResult.rows.length && qrResult.rows[0].qr_code) {
+      const base64Data = qrResult.rows[0].qr_code.replace(/^data:image\/png;base64,/, '');
+      archive.append(Buffer.from(base64Data, 'base64'), { name: 'QR-Code.png' });
+    }
+
+    archive.finalize();
+  } catch(err) {
+    console.error('Download package error:', err.message);
+    res.status(500).send('Package banane mein error: ' + err.message);
+  }
+});
+
+
+
+// ═══════════════════════════════════════════════
+// SUPER ADMIN APIs — Rupesh ka khud ka panel, sab shops dekhne ke liye
+// ═══════════════════════════════════════════════
+
+function verifySuperAdmin(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Login required' });
+  }
+  const token = authHeader.split(' ')[1];
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== 'super_admin') throw new Error('Not super admin');
+    next();
+  } catch(err) {
+    return res.status(401).json({ error: 'Session expired, please login again' });
+  }
+}
+
+app.post('/api/superadmin/login', async (req, res) => {
+  try {
+    const { adminId, password } = req.body;
+    if (adminId !== SUPER_ADMIN_ID || password !== SUPER_ADMIN_PASSWORD) {
+      return res.status(401).json({ error: 'ID ya Password galat hai' });
+    }
+    const token = jwt.sign({ role: 'super_admin', adminId }, JWT_SECRET, { expiresIn: '24h' });
+    res.json({ success: true, token });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/superadmin/overview', verifySuperAdmin, async (req, res) => {
+  try {
+    const shopCount = await pool.query('SELECT COUNT(*) as total, COUNT(CASE WHEN setup_paid THEN 1 END) as active FROM shops');
+    const earnings = await pool.query(`
+      SELECT 
+        COALESCE(SUM(setup_amount) FILTER (WHERE setup_paid), 0) as total_setup_revenue,
+        COUNT(*) FILTER (WHERE setup_paid) as paid_shops
+      FROM shops
+    `);
+    const printEarnings = await pool.query(`SELECT COALESCE(SUM(amount),0) as total FROM print_jobs WHERE payment_status='paid'`);
+
+    res.json({
+      total_shops: parseInt(shopCount.rows[0].total),
+      active_shops: parseInt(shopCount.rows[0].active),
+      pending_shops: parseInt(shopCount.rows[0].total) - parseInt(shopCount.rows[0].active),
+      total_setup_revenue: parseInt(earnings.rows[0].total_setup_revenue),
+      total_print_volume: parseInt(printEarnings.rows[0].total)
+    });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/superadmin/shops', verifySuperAdmin, async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT id, name, address, phone, printer_model, price_bw, price_color,
+             payment_mode, payment_gateway, setup_paid, setup_amount, created_at
+      FROM shops ORDER BY created_at DESC
+    `);
+    res.json({ shops: r.rows });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/superadmin/shop/:shopId/earnings', verifySuperAdmin, async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT COUNT(*) as total_orders, COALESCE(SUM(amount),0) as total_earnings
+      FROM print_jobs WHERE shop_id=$1 AND payment_status='paid'
+    `, [req.params.shopId]);
+    res.json(r.rows[0]);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Setup Fee / Offer Price Management — Super Admin live change kar sake ───
+app.get('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
+  try {
+    const amount = await getSetupFeeAmount();
+    res.json({ amount, default: SETUP_FEE_AMOUNT });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const newAmount = parseInt(amount);
+    if (isNaN(newAmount) || newAmount < 0) {
+      return res.status(400).json({ error: 'Valid amount daalo (0 ya zyada)' });
+    }
+    await pool.query(
+      `INSERT INTO system_settings (key, value, updated_at) VALUES ('setup_fee_amount', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
+      [newAmount.toString()]
+    );
+    console.log(`Setup fee updated by super admin: ₹${newAmount}`);
+    res.json({ success: true, amount: newAmount });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+
 app.get('/print/:shopId', (req,res) => res.sendFile(path.join(__dirname,'public','customer.html')));
 app.get('/dashboard', (req,res) => res.sendFile(path.join(__dirname,'public','dashboard.html')));
 app.get('/admin', (req,res) => res.sendFile(path.join(__dirname,'public','admin.html')));
+app.get('/superadmin', (req,res) => res.sendFile(path.join(__dirname,'public','superadmin.html')));
 app.get('/print-success', (req,res) => res.sendFile(path.join(__dirname,'public','success.html')));
+app.get('/setup-payment/:shopId', (req,res) => res.sendFile(path.join(__dirname,'public','setup-payment.html')));
 
 initDB().then(() => {
   app.listen(PORT, () => {
