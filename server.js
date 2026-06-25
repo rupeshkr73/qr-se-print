@@ -1036,6 +1036,13 @@ STEP 2 - PRINT AGENT INSTALL KARO
 2. "Run as Administrator" choose karo
 3. Yeh automatically Python, packages, aur SumatraPDF install karega
 
+   ⚠️ AGAR SUMATRAPDF DOWNLOAD HONE MEIN BAHUT TIME LAG RAHA HAI:
+   1. Installer ko band kar do (window close kar do)
+   2. Google pe search karo: "SumatraPDF download"
+   3. Official site (sumatrapdfreader.org) se download karo
+   4. Manually install karo (Next, Next, Finish)
+   5. Uske baad seedha STEP 3 pe jao (RUN_AGENT.bat chalao)
+
 STEP 3 - AGENT START KARO
 --------------------------
 1. Same folder mein "RUN_AGENT.bat" double-click karo
