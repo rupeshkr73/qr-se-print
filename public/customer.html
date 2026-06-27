@@ -87,9 +87,10 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 /* Perspective crop (ID Card mode) - 4 independent corner handles */
 .persp-crop-wrap{position:relative;display:flex;justify-content:center;touch-action:none}
 .persp-crop-wrap img{max-width:100%;max-height:320px;display:block;border-radius:6px;pointer-events:none}
-.persp-crop-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.persp-crop-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1}
 .persp-crop-svg polygon{fill:rgba(255,77,28,0.15);stroke:#ff4d1c;stroke-width:2}
-.persp-handle{position:absolute;width:18px;height:18px;background:#ff4d1c;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3);cursor:grab;touch-action:none;transform:translate(-50%,-50%)}
+.persp-handle{position:absolute;width:28px;height:28px;background:#ff4d1c;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4);cursor:grab;touch-action:none;transform:translate(-50%,-50%);z-index:10}
+.persp-handle:active{cursor:grabbing;background:#e03d0e}
 
 
 .mode-option{display:flex;align-items:center;gap:14px;padding:16px;border:1.5px solid #e2ddd6;border-radius:14px;cursor:pointer;margin-bottom:12px;transition:all 0.2s}
@@ -853,7 +854,6 @@ function resetCanvasItemAdjustments() {
 
 // ─── CANVAS MODE: Perspective Crop (4 independent corners — Photoshop-style) ───
 let perspCropState = null;
-let perspDragCorner = null;
 
 function togglePerspectiveCrop() {
   if (!activeItemId) { toast('⚠️ Pehle Front ya Back document pe click karo'); return; }
@@ -874,7 +874,6 @@ function initPerspectiveCrop() {
   img.src = item.sourceCanvas.toDataURL('image/jpeg', 0.92);
   img.onload = () => {
     const w = img.clientWidth, h = img.clientHeight;
-    // Default corners: 8% margin se thoda andar (taaki unwanted background nazar aaye crop karne ke liye)
     const m = 0.08;
     perspCropState = {
       tl: { x: w * m, y: h * m },
@@ -884,7 +883,7 @@ function initPerspectiveCrop() {
       imgW: w, imgH: h
     };
     renderPerspectiveHandles();
-    setupPerspectiveDrag();
+    setupPerspectiveDrag('perspHandle-', 'perspCropWrap', perspCropState, renderPerspectiveHandles, 'perspCropPolygon');
   };
 }
 
@@ -904,46 +903,88 @@ function renderPerspectiveHandles() {
   poly.setAttribute('points', `${s.tl.x},${s.tl.y} ${s.tr.x},${s.tr.y} ${s.br.x},${s.br.y} ${s.bl.x},${s.bl.y}`);
 }
 
-function setupPerspectiveDrag() {
-  ['tl','tr','bl','br'].forEach(corner => {
-    const handle = document.getElementById('perspHandle-' + corner);
-    handle.onpointerdown = (e) => {
+/**
+ * Generic, robust 4-corner drag setup — ID Card aur Direct mode dono use karte hain.
+ *
+ * DESIGN: Har handle ka apna PRIVATE closure state hota hai (koi shared global
+ * "kaunsa corner drag ho raha hai" variable nahi) — isliye agar kisi wajah se
+ * ek handle ka pointerup miss bhi ho jaaye, doosre handles us se bilkul
+ * unaffected rehte hain. Yeh exact root cause tha "right side stuck" bug ka:
+ * shared variable + setPointerCapture ka conflict kuch Android WebViews mein
+ * doosre corner ke move events ko silently drop kar raha tha.
+ *
+ * Touch aur Mouse dono ko ALAG SE, explicitly handle karte hain — Pointer
+ * Events API par depend nahi karte, jiska browser/OS-specific behavior
+ * inconsistent nikla.
+ */
+function setupPerspectiveDrag(handlePrefix, wrapId, cropState, renderFn, polygonId) {
+  const wrap = document.getElementById(wrapId);
+
+  ['tl', 'tr', 'bl', 'br'].forEach(corner => {
+    const handle = document.getElementById(handlePrefix + corner);
+    // Purane listeners hatao agar re-init ho raha hai (warna duplicate ho jaayenge)
+    const freshHandle = handle.cloneNode(true);
+    handle.parentNode.replaceChild(freshHandle, handle);
+
+    let dragging = false;
+
+    function getRelativePos(clientX, clientY) {
+      const rect = wrap.getBoundingClientRect();
+      let x = clientX - rect.left;
+      let y = clientY - rect.top;
+      x = Math.max(0, Math.min(cropState.imgW, x));
+      y = Math.max(0, Math.min(cropState.imgH, y));
+      return { x, y };
+    }
+
+    function moveCorner(clientX, clientY) {
+      cropState[corner] = getRelativePos(clientX, clientY);
+      renderFn();
+    }
+
+    // ── Mouse events ──
+    freshHandle.addEventListener('mousedown', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      perspDragCorner = corner;
-      // Pointer ko explicitly is handle pe "lock" karte hain — warna mobile
-      // pe jab finger fast move karta hai, events doosre element ko chale
-      // jaate hain aur handle "stuck" feel hota hai (sirf left wala move
-      // hota tha kyunki woh accidentally sahi element pe pointer capture
-      // paa raha tha, right wala nahi)
-      try { handle.setPointerCapture(e.pointerId); } catch(err) {}
-      document.addEventListener('pointermove', onPerspectiveDragMove);
-      document.addEventListener('pointerup', onPerspectiveDragUp);
-    };
+      dragging = true;
+      document.body.style.userSelect = 'none';
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!dragging) return;
+      moveCorner(e.clientX, e.clientY);
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (dragging) {
+        dragging = false;
+        document.body.style.userSelect = '';
+      }
+    });
+
+    // ── Touch events ──
+    freshHandle.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      dragging = true;
+    }, { passive: false });
+
+    freshHandle.addEventListener('touchmove', (e) => {
+      if (!dragging) return;
+      e.preventDefault();
+      const t = e.touches[0];
+      moveCorner(t.clientX, t.clientY);
+    }, { passive: false });
+
+    freshHandle.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      dragging = false;
+    }, { passive: false });
+
+    freshHandle.addEventListener('touchcancel', () => {
+      dragging = false;
+    });
   });
-}
-
-function onPerspectiveDragMove(e) {
-  if (!perspDragCorner || !perspCropState) return;
-  e.preventDefault();
-  const wrap = document.getElementById('perspCropWrap');
-  const rect = wrap.getBoundingClientRect();
-  let x = e.clientX - rect.left;
-  let y = e.clientY - rect.top;
-  x = Math.max(0, Math.min(perspCropState.imgW, x));
-  y = Math.max(0, Math.min(perspCropState.imgH, y));
-  perspCropState[perspDragCorner] = { x, y };
-  renderPerspectiveHandles();
-}
-
-function onPerspectiveDragUp(e) {
-  if (perspDragCorner) {
-    const handle = document.getElementById('perspHandle-' + perspDragCorner);
-    try { handle.releasePointerCapture(e.pointerId); } catch(err) {}
-  }
-  perspDragCorner = null;
-  document.removeEventListener('pointermove', onPerspectiveDragMove);
-  document.removeEventListener('pointerup', onPerspectiveDragUp);
 }
 
 function applyPerspectiveCrop() {
@@ -1365,7 +1406,6 @@ function toggleDirectCrop() {
 
 // ─── DIRECT MODE: Perspective Crop (4 independent corners) ───
 let directPerspCropState = null;
-let directPerspDragCorner = null;
 
 function toggleDirectPerspCrop() {
   if (!state.directImageState) { toast('⚠️ Yeh sirf image files ke liye hai'); return; }
@@ -1395,7 +1435,7 @@ function initDirectPerspCrop() {
       imgW: w, imgH: h
     };
     renderDirectPerspHandles();
-    setupDirectPerspDrag();
+    setupPerspectiveDrag('directPerspHandle-', 'directPerspCropWrap', directPerspCropState, renderDirectPerspHandles, 'directPerspCropPolygon');
   };
 }
 
@@ -1413,43 +1453,6 @@ function renderDirectPerspHandles() {
 
   const poly = document.getElementById('directPerspCropPolygon');
   poly.setAttribute('points', `${s.tl.x},${s.tl.y} ${s.tr.x},${s.tr.y} ${s.br.x},${s.br.y} ${s.bl.x},${s.bl.y}`);
-}
-
-function setupDirectPerspDrag() {
-  ['tl','tr','bl','br'].forEach(corner => {
-    const handle = document.getElementById('directPerspHandle-' + corner);
-    handle.onpointerdown = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      directPerspDragCorner = corner;
-      try { handle.setPointerCapture(e.pointerId); } catch(err) {}
-      document.addEventListener('pointermove', onDirectPerspDragMove);
-      document.addEventListener('pointerup', onDirectPerspDragUp);
-    };
-  });
-}
-
-function onDirectPerspDragMove(e) {
-  if (!directPerspDragCorner || !directPerspCropState) return;
-  e.preventDefault();
-  const wrap = document.getElementById('directPerspCropWrap');
-  const rect = wrap.getBoundingClientRect();
-  let x = e.clientX - rect.left;
-  let y = e.clientY - rect.top;
-  x = Math.max(0, Math.min(directPerspCropState.imgW, x));
-  y = Math.max(0, Math.min(directPerspCropState.imgH, y));
-  directPerspCropState[directPerspDragCorner] = { x, y };
-  renderDirectPerspHandles();
-}
-
-function onDirectPerspDragUp(e) {
-  if (directPerspDragCorner) {
-    const handle = document.getElementById('directPerspHandle-' + directPerspDragCorner);
-    try { handle.releasePointerCapture(e.pointerId); } catch(err) {}
-  }
-  directPerspDragCorner = null;
-  document.removeEventListener('pointermove', onDirectPerspDragMove);
-  document.removeEventListener('pointerup', onDirectPerspDragUp);
 }
 
 function applyDirectPerspCrop() {
