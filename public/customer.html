@@ -1084,16 +1084,24 @@ function applyPerspectiveCrop() {
     br: { x: s.br.x * scaleX, y: s.br.y * scaleY }
   };
 
-  // Output size: top edge aur left edge ki average length use karte hain
-  const outW = Math.round((dist(srcCorners.tl, srcCorners.tr) + dist(srcCorners.bl, srcCorners.br)) / 2);
-  const outH = Math.round((dist(srcCorners.tl, srcCorners.bl) + dist(srcCorners.tr, srcCorners.br)) / 2);
+  // Output size: top edge aur left edge ki average length use karte hain.
+  // 2000px tak cap karte hain — mobile pe per-pixel warp ko reasonable
+  // time mein chalane ke liye (print ke liye yeh resolution kaafi hai).
+  let outW = Math.round((dist(srcCorners.tl, srcCorners.tr) + dist(srcCorners.bl, srcCorners.br)) / 2);
+  let outH = Math.round((dist(srcCorners.tl, srcCorners.bl) + dist(srcCorners.tr, srcCorners.br)) / 2);
+  const MAX_DIM = 2000;
+  if (outW > MAX_DIM || outH > MAX_DIM) {
+    const scaleDown = MAX_DIM / Math.max(outW, outH);
+    outW = Math.round(outW * scaleDown);
+    outH = Math.round(outH * scaleDown);
+  }
 
   const out = document.createElement('canvas');
   out.width = outW; out.height = outH;
   const ctx = out.getContext('2d');
 
   // Perspective transform: 4-point source quad ko rectangle mein map karte hain
-  // (triangulation-based warp — do triangles mein split karke affine transform)
+  // (homography-based per-pixel warp — true projective transform, OpenCV jaisa)
   drawPerspectiveWarp(ctx, item.sourceCanvas, srcCorners, outW, outH);
 
   item.originalCanvas = out;
@@ -1118,49 +1126,127 @@ function dist(p1, p2) {
   return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
 }
 
-function drawPerspectiveWarp(ctx, sourceCanvas, corners, outW, outH) {
-  // 4-point quad ko 2 triangles mein todke, har triangle ko affine-transform
-  // se target rectangle ke corresponding triangle mein draw karte hain.
-  // Yeh Photoshop Perspective Crop jaisa hi result deta hai bina kisi
-  // external library ke (sirf Canvas 2D transform matrix use karke).
-  const dst = {
-    tl: { x: 0, y: 0 }, tr: { x: outW, y: 0 },
-    bl: { x: 0, y: outH }, br: { x: outW, y: outH }
-  };
+function solveLinearSystem8(A, b) {
+  // 8x8 Gaussian elimination with partial pivoting — used to compute the
+  // homography matrix from 4 point correspondences.
+  const n = 8;
+  const M = A.map((row, i) => [...row, b[i]]);
 
-  function drawTriangle(src0, src1, src2, dst0, dst1, dst2) {
-    ctx.save();
-    // Clip to destination triangle
-    ctx.beginPath();
-    ctx.moveTo(dst0.x, dst0.y);
-    ctx.lineTo(dst1.x, dst1.y);
-    ctx.lineTo(dst2.x, dst2.y);
-    ctx.closePath();
-    ctx.clip();
-
-    // 3-point affine solve: dst = [[a,c],[b,d]] * src + [e,f]
-    // Yeh standard closed-form Cramer's-rule solution hai, verified
-    // numerically (pehle wali formula mein numerator galat tha, jiski
-    // wajah se result rotated/skewed nikal raha tha)
-    const denom = (src1.x - src0.x) * (src2.y - src0.y) - (src2.x - src0.x) * (src1.y - src0.y);
-    if (Math.abs(denom) < 1e-6) { ctx.restore(); return; }
-
-    const a = (dst0.x*(src1.y-src2.y) + dst1.x*(src2.y-src0.y) + dst2.x*(src0.y-src1.y)) / denom;
-    const c = (dst0.x*(src2.x-src1.x) + dst1.x*(src0.x-src2.x) + dst2.x*(src1.x-src0.x)) / denom;
-    const e = (dst0.x*(src1.x*src2.y-src2.x*src1.y) + dst1.x*(src2.x*src0.y-src0.x*src2.y) + dst2.x*(src0.x*src1.y-src1.x*src0.y)) / denom;
-
-    const b = (dst0.y*(src1.y-src2.y) + dst1.y*(src2.y-src0.y) + dst2.y*(src0.y-src1.y)) / denom;
-    const d = (dst0.y*(src2.x-src1.x) + dst1.y*(src0.x-src2.x) + dst2.y*(src1.x-src0.x)) / denom;
-    const f = (dst0.y*(src1.x*src2.y-src2.x*src1.y) + dst1.y*(src2.x*src0.y-src0.x*src2.y) + dst2.y*(src0.x*src1.y-src1.x*src0.y)) / denom;
-
-    ctx.transform(a, b, c, d, e, f);
-    ctx.drawImage(sourceCanvas, 0, 0);
-    ctx.restore();
+  for (let col = 0; col < n; col++) {
+    let maxRow = col;
+    for (let row = col + 1; row < n; row++) {
+      if (Math.abs(M[row][col]) > Math.abs(M[maxRow][col])) maxRow = row;
+    }
+    [M[col], M[maxRow]] = [M[maxRow], M[col]];
+    if (Math.abs(M[col][col]) < 1e-12) continue;
+    for (let row = col + 1; row < n; row++) {
+      const factor = M[row][col] / M[col][col];
+      for (let k = col; k <= n; k++) M[row][k] -= factor * M[col][k];
+    }
   }
 
-  // Quad ko 2 triangles mein split: (tl,tr,bl) aur (tr,br,bl)
-  drawTriangle(corners.tl, corners.tr, corners.bl, dst.tl, dst.tr, dst.bl);
-  drawTriangle(corners.tr, corners.br, corners.bl, dst.tr, dst.br, dst.bl);
+  const x = new Array(n).fill(0);
+  for (let row = n - 1; row >= 0; row--) {
+    let sum = M[row][n];
+    for (let col = row + 1; col < n; col++) sum -= M[row][col] * x[col];
+    x[row] = Math.abs(M[row][row]) > 1e-12 ? sum / M[row][row] : 0;
+  }
+  return x;
+}
+
+function computeHomography(src, dst) {
+  // src, dst: arrays of 4 {x,y} points in order [tl, tr, br, bl].
+  // Solves dst = H * src (homogeneous coords) using Direct Linear Transform,
+  // with h33 fixed to 1 (standard simplification for 4-point homography).
+  const M = [], B = [];
+  for (let i = 0; i < 4; i++) {
+    const sx = src[i].x, sy = src[i].y;
+    const dx = dst[i].x, dy = dst[i].y;
+    M.push([sx, sy, 1, 0, 0, 0, -dx*sx, -dx*sy]); B.push(dx);
+    M.push([0, 0, 0, sx, sy, 1, -dy*sx, -dy*sy]); B.push(dy);
+  }
+  const h = solveLinearSystem8(M, B);
+  return [h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], 1];
+}
+
+function invertHomography3x3(h) {
+  const [a,b,c,d,e,f,g,i,j] = h;
+  const det = a*(e*j - f*i) - b*(d*j - f*g) + c*(d*i - e*g);
+  if (Math.abs(det) < 1e-12) return null;
+  return [
+    (e*j - f*i)/det, (c*i - b*j)/det, (b*f - c*e)/det,
+    (f*g - d*j)/det, (a*j - c*g)/det, (c*d - a*f)/det,
+    (d*i - e*g)/det, (b*g - a*i)/det, (a*e - b*d)/det
+  ];
+}
+
+function drawPerspectiveWarp(ctx, sourceCanvas, corners, outW, outH) {
+  /*
+   * TRUE PROJECTIVE (perspective) transform via per-pixel inverse mapping.
+   *
+   * Pehle ka triangulation+affine approach do alag-alag triangles ko
+   * independently transform karta tha — agar dono triangles thodा bhi
+   * mismatch ho jaate (rounding, clip-path boundary issues), to result mein
+   * gaps/black-areas ya visible seam aa jaata tha, jo exactly screenshots
+   * mein dikha. Yeh naya approach POORE quad ko EK SINGLE homography se
+   * map karta hai — koi triangle split nahi, koi seam nahi, mathematically
+   * guaranteed accurate (4-point DLT homography, OpenCV jaisa hi method).
+   *
+   * Process: destination ke har pixel ke liye, inverse homography se pata
+   * karte hain woh kis source pixel se aaya — phir uska color sample
+   * karte hain. Yeh "backward mapping" hai, jo forward mapping (jisme
+   * gaps ban sakte hain) se zyada reliable hai.
+   */
+  const dst = [
+    { x: 0, y: 0 }, { x: outW, y: 0 }, { x: outW, y: outH }, { x: 0, y: outH }
+  ];
+  const src = [corners.tl, corners.tr, corners.br, corners.bl];
+
+  const H = computeHomography(src, dst);       // src -> dst
+  const Hinv = invertHomography3x3(H);          // dst -> src (for backward mapping)
+  if (!Hinv) return;
+
+  // Source image ka pixel data nikalo
+  const srcCtx = sourceCanvas.getContext('2d');
+  const srcData = srcCtx.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
+  const sw = sourceCanvas.width, sh = sourceCanvas.height;
+  const sPixels = srcData.data;
+
+  // Output image data taiyar karo
+  const outImageData = ctx.createImageData(outW, outH);
+  const oPixels = outImageData.data;
+
+  for (let y = 0; y < outH; y++) {
+    for (let x = 0; x < outW; x++) {
+      const w = Hinv[6]*x + Hinv[7]*y + Hinv[8];
+      const sx = (Hinv[0]*x + Hinv[1]*y + Hinv[2]) / w;
+      const sy = (Hinv[3]*x + Hinv[4]*y + Hinv[5]) / w;
+
+      const oIdx = (y * outW + x) * 4;
+
+      if (sx < 0 || sx >= sw - 1 || sy < 0 || sy >= sh - 1) {
+        // Source ke bahar — white rakho (safe default, koi black gap nahi)
+        oPixels[oIdx] = 255; oPixels[oIdx+1] = 255; oPixels[oIdx+2] = 255; oPixels[oIdx+3] = 255;
+        continue;
+      }
+
+      // Bilinear interpolation — smooth result, jagged edges nahi
+      const x0 = Math.floor(sx), y0 = Math.floor(sy);
+      const fx = sx - x0, fy = sy - y0;
+      const i00 = (y0 * sw + x0) * 4;
+      const i10 = (y0 * sw + x0 + 1) * 4;
+      const i01 = ((y0 + 1) * sw + x0) * 4;
+      const i11 = ((y0 + 1) * sw + x0 + 1) * 4;
+
+      for (let ch = 0; ch < 4; ch++) {
+        const top = sPixels[i00+ch] * (1-fx) + sPixels[i10+ch] * fx;
+        const bot = sPixels[i01+ch] * (1-fx) + sPixels[i11+ch] * fx;
+        oPixels[oIdx+ch] = top * (1-fy) + bot * fy;
+      }
+    }
+  }
+
+  ctx.putImageData(outImageData, 0, 0);
 }
 
 function cancelPerspectiveCrop() {
@@ -1558,8 +1644,14 @@ function applyDirectPerspCrop() {
     br: { x: s.br.x * scaleX, y: s.br.y * scaleY }
   };
 
-  const outW = Math.round((dist(srcCorners.tl, srcCorners.tr) + dist(srcCorners.bl, srcCorners.br)) / 2);
-  const outH = Math.round((dist(srcCorners.tl, srcCorners.bl) + dist(srcCorners.tr, srcCorners.br)) / 2);
+  let outW = Math.round((dist(srcCorners.tl, srcCorners.tr) + dist(srcCorners.bl, srcCorners.br)) / 2);
+  let outH = Math.round((dist(srcCorners.tl, srcCorners.bl) + dist(srcCorners.tr, srcCorners.br)) / 2);
+  const MAX_DIM_DIRECT = 2000;
+  if (outW > MAX_DIM_DIRECT || outH > MAX_DIM_DIRECT) {
+    const scaleDown = MAX_DIM_DIRECT / Math.max(outW, outH);
+    outW = Math.round(outW * scaleDown);
+    outH = Math.round(outH * scaleDown);
+  }
 
   const out = document.createElement('canvas');
   out.width = outW; out.height = outH;
