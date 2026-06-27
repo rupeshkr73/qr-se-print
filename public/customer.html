@@ -93,14 +93,34 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 .persp-handle:active{cursor:grabbing;background:#e03d0e}
 
 
-.mode-option{display:flex;align-items:center;gap:14px;padding:16px;border:1.5px solid #e2ddd6;border-radius:14px;cursor:pointer;margin-bottom:12px;transition:all 0.2s}
+.mode-option{display:flex;flex-direction:column;gap:10px;padding:16px;border:1.5px solid #e2ddd6;border-radius:14px;cursor:pointer;margin-bottom:12px;transition:all 0.2s}
 .mode-option:hover{border-color:#ff4d1c;background:#fff8f5}
 .mode-option:last-child{margin-bottom:0}
 .mode-icon{font-size:30px;flex-shrink:0}
+.mode-option-bottom{display:flex;align-items:center;gap:14px;width:100%}
 .mode-text{flex:1;display:flex;flex-direction:column;gap:3px}
 .mode-text strong{font-size:14px;font-weight:700}
 .mode-text span{font-size:12px;color:#6b6870;line-height:1.4}
 .mode-arrow{font-size:18px;color:#ff4d1c;flex-shrink:0}
+
+/* Mini animated flow preview — Document -> Steps -> Print */
+.mode-flow-preview{display:flex;align-items:center;justify-content:center;gap:6px;background:#f8f7f5;border-radius:12px;padding:14px 8px;flex-wrap:nowrap;overflow-x:auto}
+.flow-step{display:flex;flex-direction:column;align-items:center;gap:4px;opacity:0.35;transform:scale(0.85);transition:opacity 0.4s,transform 0.4s;flex-shrink:0;min-width:46px}
+.flow-step.active{opacity:1;transform:scale(1)}
+.flow-emoji{font-size:24px;display:inline-block;transition:transform 0.4s}
+.flow-lbl{font-size:9px;font-weight:700;color:#6b6870;white-space:nowrap}
+.flow-step.active .flow-lbl{color:#ff4d1c}
+.flow-arrow{font-size:13px;color:#cfc8bd;flex-shrink:0}
+
+/* Perspective/skew demo for ID Card flow — shows a tilted card straightening */
+.flow-emoji.skew-demo{display:inline-block;animation:skewFix 2.4s ease-in-out infinite}
+@keyframes skewFix{
+  0%{transform:perspective(120px) rotateY(0deg) skewX(0deg)}
+  30%{transform:perspective(120px) rotateY(18deg) skewX(-6deg)}
+  60%{transform:perspective(120px) rotateY(0deg) skewX(0deg)}
+  100%{transform:perspective(120px) rotateY(0deg) skewX(0deg)}
+}
+
 .btn-back-add:hover{background:#1c6fff;color:#fff}
 #preview-canvas,#preview-img{max-width:100%;max-height:240px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.1)}
 .page-nav{display:flex;align-items:center;gap:12px;margin-top:8px}
@@ -237,20 +257,38 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
       <div class="card-head"><h3>📋 Kaise Print Karna Hai?</h3></div>
       <div class="card-body">
         <div class="mode-option" onclick="chooseMode('direct')">
-          <div class="mode-icon">📄</div>
-          <div class="mode-text">
-            <strong>Direct Print Karo</strong>
-            <span>Normal document — jaisa hai waisa hi print hoga (resume, notes, reports)</span>
+          <div class="mode-flow-preview" id="directFlowPreview">
+            <div class="flow-step active" data-step="0"><span class="flow-emoji">📄</span><span class="flow-lbl">Document</span></div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step" data-step="1"><span class="flow-emoji">📐</span><span class="flow-lbl">A4 Fit</span></div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step" data-step="2"><span class="flow-emoji">📋</span><span class="flow-lbl">Pages</span></div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step" data-step="3"><span class="flow-emoji">🖨️</span><span class="flow-lbl">Print</span></div>
           </div>
-          <div class="mode-arrow">→</div>
+          <div class="mode-option-bottom">
+            <div class="mode-text">
+              <strong>Direct Print Karo</strong>
+              <span>Normal document — jaisa hai waisa hi print hoga (resume, notes, reports)</span>
+            </div>
+            <div class="mode-arrow">→</div>
+          </div>
         </div>
         <div class="mode-option" id="canvasModeOption" onclick="chooseMode('canvas')">
-          <div class="mode-icon">🪪</div>
-          <div class="mode-text">
-            <strong>ID Card / Canvas Edit Karo</strong>
-            <span>Aadhaar, PAN, Voter ID jaisे documents — A4 pe size/position khud set karo, front+back dono</span>
+          <div class="mode-flow-preview" id="canvasFlowPreview">
+            <div class="flow-step active" data-step="0"><span class="flow-emoji">📄</span><span class="flow-lbl">Document</span></div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step" data-step="1"><span class="flow-emoji skew-demo">🪪</span><span class="flow-lbl">Crop Fix</span></div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step" data-step="2"><span class="flow-emoji">🖨️</span><span class="flow-lbl">Print</span></div>
           </div>
-          <div class="mode-arrow">→</div>
+          <div class="mode-option-bottom">
+            <div class="mode-text">
+              <strong>ID Card / Canvas Edit Karo</strong>
+              <span>Aadhaar, PAN, Voter ID jaisे documents — A4 pe size/position khud set karo, front+back dono</span>
+            </div>
+            <div class="mode-arrow">→</div>
+          </div>
         </div>
         <p id="canvasModeUnavailable" class="hidden" style="font-size:11px;color:#6b6870;text-align:center;margin-top:4px;">ℹ️ Canvas Edit sirf PDF/Image (JPG, PNG) files ke liye available hai — Word documents ke liye sirf Direct Print karo</p>
       </div>
@@ -595,6 +633,26 @@ let state = {
   selectedPages: [],
   printPageCount: 1
 };
+
+// ─── Mini animated flow preview (Mode Selection screen) ───
+// Har card ke andar steps ko ek-ek karke "active" karte hain, jaisa
+// ek chhota slideshow — taaki customer ko exactly samajh aaye flow kya hoga
+function startFlowPreviewAnimation(containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const steps = container.querySelectorAll('.flow-step');
+  if (!steps.length) return;
+  let current = 0;
+
+  setInterval(() => {
+    steps.forEach(s => s.classList.remove('active'));
+    current = (current + 1) % steps.length;
+    steps[current].classList.add('active');
+  }, 1100);
+}
+
+startFlowPreviewAnimation('directFlowPreview');
+startFlowPreviewAnimation('canvasFlowPreview');
 
 async function init() {
   try {
