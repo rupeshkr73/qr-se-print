@@ -40,6 +40,33 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 .card-head h3{font-size:15px;font-weight:700}
 .card-body{padding:16px 18px}
 .preview-wrap{background:#f8f7f5;border-radius:12px;padding:12px;text-align:center;min-height:180px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px}
+
+/* A4 Canvas Editor — drag/resize/rotate document items on an A4-ratio page */
+.a4-canvas-wrap{background:#e8e6e1;border-radius:12px;padding:16px;display:flex;justify-content:center;overflow:hidden}
+.a4-canvas{position:relative;width:280px;height:396px;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,0.15);border-radius:4px;overflow:hidden;touch-action:none}
+.canvas-item{position:absolute;cursor:move;touch-action:none;user-select:none;border:2px dashed transparent;box-sizing:border-box}
+.canvas-item.active{border-color:#ff4d1c}
+.canvas-item img,.canvas-item canvas{width:100%;height:100%;display:block;pointer-events:none;object-fit:contain}
+.canvas-item .item-label{position:absolute;top:-22px;left:0;font-size:10px;font-weight:700;background:#0a0a0f;color:#fff;padding:2px 8px;border-radius:6px;opacity:0;transition:opacity 0.15s;white-space:nowrap}
+.canvas-item.active .item-label{opacity:1}
+.resize-handle{position:absolute;width:16px;height:16px;background:#ff4d1c;border:2px solid #fff;border-radius:50%;bottom:-8px;right:-8px;cursor:nwse-resize;display:none;box-shadow:0 1px 4px rgba(0,0,0,0.3)}
+.canvas-item.active .resize-handle{display:block}
+.rotate-handle{position:absolute;width:22px;height:22px;background:#1c6fff;border:2px solid #fff;border-radius:50%;top:-12px;left:50%;transform:translateX(-50%);cursor:grab;display:none;box-shadow:0 1px 4px rgba(0,0,0,0.3);font-size:11px;align-items:center;justify-content:center;color:#fff;line-height:1;}
+.canvas-item.active .rotate-handle{display:flex}
+.remove-handle{position:absolute;width:18px;height:18px;background:#ff4d1c;border:2px solid #fff;border-radius:50%;top:-9px;right:-9px;cursor:pointer;display:none;box-shadow:0 1px 4px rgba(0,0,0,0.3);align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;line-height:1;}
+.canvas-item.active .remove-handle{display:flex}
+
+.btn-back-add{padding:10px 18px;border-radius:10px;border:1.5px solid #1c6fff;background:#f0f4ff;color:#1c6fff;font-size:13px;font-weight:700;cursor:pointer;font-family:'Space Grotesk',sans-serif;transition:all 0.2s}
+
+.mode-option{display:flex;align-items:center;gap:14px;padding:16px;border:1.5px solid #e2ddd6;border-radius:14px;cursor:pointer;margin-bottom:12px;transition:all 0.2s}
+.mode-option:hover{border-color:#ff4d1c;background:#fff8f5}
+.mode-option:last-child{margin-bottom:0}
+.mode-icon{font-size:30px;flex-shrink:0}
+.mode-text{flex:1;display:flex;flex-direction:column;gap:3px}
+.mode-text strong{font-size:14px;font-weight:700}
+.mode-text span{font-size:12px;color:#6b6870;line-height:1.4}
+.mode-arrow{font-size:18px;color:#ff4d1c;flex-shrink:0}
+.btn-back-add:hover{background:#1c6fff;color:#fff}
 #preview-canvas,#preview-img{max-width:100%;max-height:240px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.1)}
 .page-nav{display:flex;align-items:center;gap:12px;margin-top:8px}
 .page-nav-btn{width:32px;height:32px;border-radius:50%;border:1.5px solid #e2ddd6;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;font-weight:700;transition:all 0.2s}
@@ -155,17 +182,71 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
     </div>
   </div>
 
-  <div id="secPreview" class="hidden">
+  <div id="secModeSelect" class="hidden">
+    <div class="card">
+      <div class="card-head"><h3>📋 Kaise Print Karna Hai?</h3></div>
+      <div class="card-body">
+        <div class="mode-option" onclick="chooseMode('direct')">
+          <div class="mode-icon">📄</div>
+          <div class="mode-text">
+            <strong>Direct Print Karo</strong>
+            <span>Normal document — jaisa hai waisa hi print hoga (resume, notes, reports)</span>
+          </div>
+          <div class="mode-arrow">→</div>
+        </div>
+        <div class="mode-option" id="canvasModeOption" onclick="chooseMode('canvas')">
+          <div class="mode-icon">🪪</div>
+          <div class="mode-text">
+            <strong>ID Card / Canvas Edit Karo</strong>
+            <span>Aadhaar, PAN, Voter ID jaisे documents — A4 pe size/position khud set karo, front+back dono</span>
+          </div>
+          <div class="mode-arrow">→</div>
+        </div>
+        <p id="canvasModeUnavailable" class="hidden" style="font-size:11px;color:#6b6870;text-align:center;margin-top:4px;">ℹ️ Canvas Edit sirf PDF/Image (JPG, PNG) files ke liye available hai — Word documents ke liye sirf Direct Print karo</p>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div id="secDirectPreview" class="hidden">
     <div class="card">
       <div class="card-head">
         <h3>📋 Document Preview</h3>
+        <span id="directFileName" style="font-size:11px;color:#6b6870;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      </div>
+      <div class="card-body">
+        <div class="preview-wrap" id="directPreviewWrap">
+          <div id="directPreviewLoading">⏳ Loading preview...</div>
+          <canvas id="direct-preview-canvas" style="display:none;max-width:100%;max-height:280px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.1);"></canvas>
+          <img id="direct-preview-img" style="display:none;max-width:100%;max-height:280px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.1);">
+        </div>
+        <div id="directPageNavWrap" style="text-align:center;margin-top:8px;display:none;">
+          <div class="page-nav">
+            <button class="page-nav-btn" id="directPrevPageBtn" onclick="changeDirectPage(-1)" disabled>‹</button>
+            <span class="page-info">Page <span id="directCurrentPageNum">1</span> of <span id="directTotalPageNum">1</span></span>
+            <button class="page-nav-btn" id="directNextPageBtn" onclick="changeDirectPage(1)">›</button>
+          </div>
+          <div class="page-badge">📄 <span id="directPageCountBadge">1</span> pages detected</div>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row" style="grid-template-columns:1fr;">
+      <button class="btn btn-green" onclick="goOptions()">✅ Aage Bado</button>
+    </div>
+  </div>
+
+  <div id="secPreview" class="hidden">
+    <div class="card">
+      <div class="card-head">
+        <h3>📋 Document Adjust Karo</h3>
         <span id="fileName" style="font-size:11px;color:#6b6870;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
       </div>
       <div class="card-body">
-        <div class="preview-wrap" id="previewWrap">
-          <div id="previewLoading">⏳ Loading preview...</div>
-          <canvas id="preview-canvas" style="display:none;"></canvas>
-          <img id="preview-img" style="display:none;">
+        <p style="font-size:12px;color:#6b6870;margin-bottom:10px;">Document ko drag karke move karo, corner se resize karo, ↻ se seedha karo</p>
+        <div class="a4-canvas-wrap">
+          <div class="a4-canvas" id="a4Canvas">
+            <!-- Front aur Back items yahan JS se add honge -->
+          </div>
         </div>
         <div id="pageNavWrap" style="text-align:center;margin-top:8px;display:none;">
           <div class="page-nav">
@@ -174,6 +255,13 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
             <button class="page-nav-btn" id="nextPageBtn" onclick="changePage(1)">›</button>
           </div>
           <div class="page-badge">📄 <span id="pageCountBadge">1</span> pages detected</div>
+        </div>
+        <div style="margin-top:14px;text-align:center;">
+          <button class="btn-back-add" id="addBackBtn" onclick="triggerBackUpload()">➕ Back Side Add Karo</button>
+          <input type="file" id="backFileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="handleBackFile(this)">
+        </div>
+        <div style="margin-top:10px;text-align:center;">
+          <button class="btn-back-add" id="resetCanvasBtn" onclick="resetCanvasItems()" style="background:#fff0ed;color:#ff4d1c;border-color:#ffb3a0;">↺ Reset Position</button>
         </div>
       </div>
     </div>
@@ -184,8 +272,7 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
         <div class="q-desc" id="qDesc">Print ke liye ready hai.</div>
       </div>
     </div>
-    <div class="btn-row">
-      <button class="btn btn-blue" onclick="openCrop()">✂️ Crop/Fix</button>
+    <div class="btn-row" style="grid-template-columns:1fr;">
       <button class="btn btn-green" onclick="goOptions()">✅ Aage Bado</button>
     </div>
   </div>
@@ -303,27 +390,6 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
   </div>
 </div>
 
-<div class="overlay" id="cropOverlay">
-  <div class="crop-modal">
-    <h3>✂️ Crop & Fix</h3>
-    <p>Document ko A4 size mein adjust karo</p>
-    <div class="crop-canvas-wrap" id="cropCanvasWrap" style="position:relative;">
-      <canvas id="crop-canvas"></canvas>
-      <div id="cropHandles" style="display:none;position:absolute;inset:0;"></div>
-    </div>
-    <div class="crop-acts">
-      <button class="crop-btn" id="cropAutoBtn" onclick="applyCrop('auto')">🤖 Auto A4</button>
-      <button class="crop-btn" id="cropManualBtn" onclick="applyCrop('manual')">✋ Manual Crop</button>
-      <button class="crop-btn" id="cropRotateBtn" onclick="applyCrop('rotate')">🔄 Rotate</button>
-      <button class="crop-btn" id="cropBrightBtn" onclick="applyCrop('bright')">☀️ Brighten</button>
-      <button class="crop-btn" id="cropDarkBtn" onclick="applyCrop('dark')">🌙 Darken</button>
-    </div>
-    <div class="crop-row">
-      <button class="btn-primary" style="border-radius:12px;" onclick="confirmCrop()">✅ Apply</button>
-      <button style="flex:0.5;border:2px solid #e2ddd6;border-radius:12px;padding:13px;background:#fff;cursor:pointer;font-family:Space Grotesk,sans-serif;font-weight:700;" onclick="closeCrop()">Cancel</button>
-    </div>
-  </div>
-</div>
 
 <div class="toast" id="toast"></div>
 
@@ -389,44 +455,253 @@ async function init() {
   } catch(e) { toast('Shop load nahi hua'); }
 }
 
+// ═══════════════════════════════════════════════
+// A4 CANVAS EDITOR — drag/resize/rotate documents on an A4 page
+// ═══════════════════════════════════════════════
+const A4_RATIO = 210/297;
+let canvasItems = []; // { id, type:'front'|'back', kind:'image'|'pdf', sourceCanvas, x,y,w,h, rotation }
+let activeItemId = null;
+let dragState = null; // { mode:'move'|'resize'|'rotate', itemId, startX,startY, ... }
+
+function pxToPercent(px, total) { return (px / total) * 100; }
+
+async function fileToSourceCanvas(file) {
+  /* File (image ya PDF first page) ko ek offscreen canvas mein render karta hai,
+     jise hum baad mein A4 canvas ke item ke andar draw karte hain.
+     NOTE: Canvas mode mein "Page Range" concept nahi hota — yahan sirf
+     currently navigated page hi front item banta hai (single merged output). */
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext === 'pdf') {
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    state.pdfDoc = pdf;
+    state.totalPages = pdf.numPages;
+    state.currentPage = 1;
+
+    document.getElementById('totalPageNum').textContent = state.totalPages;
+    document.getElementById('pageCountBadge').textContent = state.totalPages;
+    // Canvas mode mein final output hamesha 1 page hai (merged A4), source PDF
+    // pages sirf navigation ke liye hain, billing isi liye 1 page count karti hai
+    document.getElementById('pageCountOpt').textContent = '1 page';
+    if (state.totalPages > 1) {
+      document.getElementById('pageNavWrap').style.display = 'block';
+      document.getElementById('nextPageBtn').disabled = false;
+    } else {
+      document.getElementById('pageNavWrap').style.display = 'none';
+    }
+    document.getElementById('pageRangeRow').style.display = 'none';
+
+    const page = await pdf.getPage(1);
+    const vp = page.getViewport({ scale: 1.5 });
+    const canvas = document.createElement('canvas');
+    canvas.width = vp.width; canvas.height = vp.height;
+    await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    return { kind: 'pdf', sourceCanvas: canvas };
+  } else {
+    state.totalPages = 1;
+    document.getElementById('pageCountOpt').textContent = '1 page';
+    document.getElementById('pageNavWrap').style.display = 'none';
+    const dataUrl = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.readAsDataURL(file);
+    });
+    const img = await new Promise((resolve) => {
+      const im = new Image();
+      im.onload = () => resolve(im);
+      im.src = dataUrl;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    return { kind: 'image', sourceCanvas: canvas };
+  }
+}
+
+function addCanvasItem(type, sourceCanvas, kind) {
+  /* Naya item A4 canvas mein add karo — default size/position calculate karke
+     document ka aspect ratio maintain karte hue jitna A4 mein fit ho sake bada rakho */
+  const a4 = document.getElementById('a4Canvas');
+  const a4W = a4.clientWidth, a4H = a4.clientHeight;
+
+  const srcRatio = sourceCanvas.width / sourceCanvas.height;
+  let w, h;
+  // Front: poori A4 width tak fit karo. Back: thoda chhota rakho taaki overlap na ho default mein.
+  const maxWPercent = type === 'front' ? 92 : 70;
+  w = (maxWPercent / 100) * a4W;
+  h = w / srcRatio;
+  if (h > a4H * 0.9) { h = a4H * 0.9; w = h * srcRatio; }
+
+  const x = (a4W - w) / 2;
+  const y = type === 'front' ? (a4H - h) / 2 - (type === 'back' ? 0 : 0) : a4H * 0.55;
+
+  const item = {
+    id: 'item_' + Date.now() + '_' + type,
+    type, kind, sourceCanvas,
+    x, y, w, h, rotation: 0
+  };
+  canvasItems.push(item);
+  renderCanvasItems();
+  setActiveItem(item.id);
+  return item;
+}
+
+function renderCanvasItems() {
+  const a4 = document.getElementById('a4Canvas');
+  a4.querySelectorAll('.canvas-item').forEach(el => el.remove());
+
+  canvasItems.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'canvas-item' + (item.id === activeItemId ? ' active' : '');
+    div.dataset.itemId = item.id;
+    div.style.left = item.x + 'px';
+    div.style.top = item.y + 'px';
+    div.style.width = item.w + 'px';
+    div.style.height = item.h + 'px';
+    div.style.transform = `rotate(${item.rotation}deg)`;
+
+    const label = document.createElement('div');
+    label.className = 'item-label';
+    label.textContent = item.type === 'front' ? '📄 Front' : '📄 Back';
+    div.appendChild(label);
+
+    const img = document.createElement('img');
+    img.src = item.sourceCanvas.toDataURL('image/jpeg', 0.92);
+    div.appendChild(img);
+
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'resize-handle';
+    div.appendChild(resizeHandle);
+
+    const rotateHandle = document.createElement('div');
+    rotateHandle.className = 'rotate-handle';
+    rotateHandle.textContent = '↻';
+    div.appendChild(rotateHandle);
+
+    const removeHandle = document.createElement('div');
+    removeHandle.className = 'remove-handle';
+    removeHandle.textContent = '✕';
+    div.appendChild(removeHandle);
+
+    div.addEventListener('pointerdown', (e) => onItemPointerDown(e, item.id, 'move'));
+    resizeHandle.addEventListener('pointerdown', (e) => { e.stopPropagation(); onItemPointerDown(e, item.id, 'resize'); });
+    rotateHandle.addEventListener('pointerdown', (e) => { e.stopPropagation(); onItemPointerDown(e, item.id, 'rotate'); });
+    removeHandle.addEventListener('pointerdown', (e) => { e.stopPropagation(); removeCanvasItem(item.id); });
+
+    a4.appendChild(div);
+  });
+
+  updateBackButtonVisibility();
+}
+
+function setActiveItem(itemId) {
+  activeItemId = itemId;
+  renderCanvasItems();
+}
+
+function removeCanvasItem(itemId) {
+  canvasItems = canvasItems.filter(i => i.id !== itemId);
+  if (activeItemId === itemId) activeItemId = null;
+  renderCanvasItems();
+}
+
+function updateBackButtonVisibility() {
+  const hasBack = canvasItems.some(i => i.type === 'back');
+  const btn = document.getElementById('addBackBtn');
+  if (btn) btn.style.display = hasBack ? 'none' : 'inline-block';
+}
+
+function onItemPointerDown(e, itemId, mode) {
+  e.preventDefault();
+  setActiveItem(itemId);
+  const item = canvasItems.find(i => i.id === itemId);
+  if (!item) return;
+
+  const a4 = document.getElementById('a4Canvas');
+  const rect = a4.getBoundingClientRect();
+
+  dragState = {
+    mode, itemId,
+    startClientX: e.clientX, startClientY: e.clientY,
+    startX: item.x, startY: item.y, startW: item.w, startH: item.h, startRotation: item.rotation,
+    a4Rect: rect
+  };
+
+  document.addEventListener('pointermove', onCanvasPointerMove);
+  document.addEventListener('pointerup', onCanvasPointerUp);
+}
+
+function onCanvasPointerMove(e) {
+  if (!dragState) return;
+  const item = canvasItems.find(i => i.id === dragState.itemId);
+  if (!item) return;
+
+  const dx = e.clientX - dragState.startClientX;
+  const dy = e.clientY - dragState.startClientY;
+
+  if (dragState.mode === 'move') {
+    item.x = dragState.startX + dx;
+    item.y = dragState.startY + dy;
+  } else if (dragState.mode === 'resize') {
+    const newW = Math.max(40, dragState.startW + dx);
+    const ratio = dragState.startW / dragState.startH;
+    item.w = newW;
+    item.h = newW / ratio;
+  } else if (dragState.mode === 'rotate') {
+    const cx = dragState.a4Rect.left + item.x + item.w / 2;
+    const cy = dragState.a4Rect.top + item.y + item.h / 2;
+    const angle = Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);
+    item.rotation = Math.round(angle + 90);
+  }
+
+  renderCanvasItems();
+}
+
+function onCanvasPointerUp() {
+  dragState = null;
+  document.removeEventListener('pointermove', onCanvasPointerMove);
+  document.removeEventListener('pointerup', onCanvasPointerUp);
+}
+
 async function handleFile(input) {
   const file = input.files[0];
   if (!file) return;
-  const ext = file.name.split('.').pop().toLowerCase();
-  document.getElementById('fileName').textContent = file.name;
-  show('secPreview'); hide('secUpload');
+  state.pendingFile = file;
+  hide('secUpload');
+  show('secModeSelect');
   setStep(2);
 
-  if (ext === 'pdf') await loadPDF(file);
-  else if (['jpg','jpeg','png'].includes(ext)) loadImg(file);
-  else loadGeneric(file.name);
-
-  toast('📤 File upload ho rahi hai...');
-  const fd = new FormData();
-  fd.append('file', file);
-  fd.append('shopId', shopId);
-  fd.append('copies', state.copies);
-  fd.append('colorMode', state.colorMode);
-  fd.append('totalPages', state.totalPages);
-  try {
-    const res = await fetch('/api/upload', { method:'POST', body:fd });
-    const data = await res.json();
-    if (data.success) {
-      state.jobId = data.jobId;
-      toast('✅ File ready!');
-    } else {
-      toast('❌ Upload failed: ' + data.error);
-    }
-  } catch(e) { toast('❌ Upload error'); }
+  const ext = file.name.split('.').pop().toLowerCase();
+  const canvasSupported = ['pdf','jpg','jpeg','png'].includes(ext);
+  document.getElementById('canvasModeOption').style.display = canvasSupported ? 'flex' : 'none';
+  document.getElementById('canvasModeUnavailable').classList.toggle('hidden', canvasSupported);
 }
 
-async function loadPDF(file) {
-  document.getElementById('previewLoading').style.display = 'block';
-  document.getElementById('preview-canvas').style.display = 'none';
-  const reader = new FileReader();
-  reader.onload = async (e) => {
+async function chooseMode(mode) {
+  const file = state.pendingFile;
+  if (!file) return;
+  state.printMode = mode;
+  hide('secModeSelect');
+
+  if (mode === 'direct') {
+    await startDirectMode(file);
+  } else {
+    await startCanvasMode(file);
+  }
+}
+
+// ─── DIRECT PRINT MODE — purana simple preview, Page Range support ───
+async function startDirectMode(file) {
+  document.getElementById('directFileName').textContent = file.name;
+  show('secDirectPreview');
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  document.getElementById('directPreviewLoading').style.display = 'block';
+
+  if (ext === 'pdf') {
+    const buf = await file.arrayBuffer();
     try {
-      const pdf = await pdfjsLib.getDocument({ data: e.target.result }).promise;
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
       state.pdfDoc = pdf;
       state.totalPages = pdf.numPages;
       state.currentPage = 1;
@@ -437,92 +712,218 @@ async function loadPDF(file) {
       document.getElementById('totalPageNum').textContent = state.totalPages;
       document.getElementById('pageCountBadge').textContent = state.totalPages;
       document.getElementById('pageCountOpt').textContent = state.totalPages + ' page' + (state.totalPages > 1 ? 's' : '');
+      document.getElementById('directTotalPageNum').textContent = state.totalPages;
+      document.getElementById('directPageCountBadge').textContent = state.totalPages;
 
       if (state.totalPages > 1) {
-        document.getElementById('pageNavWrap').style.display = 'block';
-        document.getElementById('nextPageBtn').disabled = false;
+        document.getElementById('directPageNavWrap').style.display = 'block';
+        document.getElementById('directNextPageBtn').disabled = false;
         document.getElementById('pageRangeRow').style.display = 'flex';
         setPageRangeMode('all');
       } else {
-        document.getElementById('pageNavWrap').style.display = 'none';
         document.getElementById('pageRangeRow').style.display = 'none';
       }
 
-      await renderPDFPage(1);
-      document.getElementById('previewLoading').style.display = 'none';
-      document.getElementById('preview-canvas').style.display = 'block';
-      checkQuality();
-      updatePrice();
-    } catch(err) { loadGeneric('document.pdf'); }
-  };
-  reader.readAsArrayBuffer(file);
+      await renderDirectPdfPage(1);
+    } catch(err) {
+      document.getElementById('directPreviewLoading').textContent = '📄 Preview available nahi, lekin print ho jayega';
+    }
+  } else if (['jpg','jpeg','png'].includes(ext)) {
+    state.totalPages = 1;
+    document.getElementById('pageCountOpt').textContent = '1 page';
+    const dataUrl = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.readAsDataURL(file);
+    });
+    const img = document.getElementById('direct-preview-img');
+    img.onload = () => {
+      document.getElementById('directPreviewLoading').style.display = 'none';
+      img.style.display = 'block';
+    };
+    img.src = dataUrl;
+  } else {
+    state.totalPages = 1;
+    document.getElementById('pageCountOpt').textContent = '1 page';
+    document.getElementById('directPreviewLoading').textContent = '📄 ' + file.name + ' — Print Ready';
+  }
+
+  toast('📤 File upload ho rahi hai...');
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('shopId', shopId);
+  fd.append('copies', state.copies);
+  fd.append('colorMode', state.colorMode);
+  fd.append('totalPages', state.totalPages);
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.success) {
+      state.jobId = data.jobId;
+      toast('✅ File ready!');
+    } else {
+      toast('❌ Upload failed: ' + data.error);
+    }
+  } catch(e) { toast('❌ Upload error'); }
 }
 
-async function renderPDFPage(pageNum) {
+async function renderDirectPdfPage(pageNum) {
   if (!state.pdfDoc) return;
   const page = await state.pdfDoc.getPage(pageNum);
   const vp = page.getViewport({ scale: 1.3 });
-  const canvas = document.getElementById('preview-canvas');
+  const canvas = document.getElementById('direct-preview-canvas');
   canvas.width = vp.width;
   canvas.height = vp.height;
   await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-  document.getElementById('currentPageNum').textContent = pageNum;
-  document.getElementById('prevPageBtn').disabled = pageNum <= 1;
-  document.getElementById('nextPageBtn').disabled = pageNum >= state.totalPages;
+  document.getElementById('directPreviewLoading').style.display = 'none';
+  canvas.style.display = 'block';
+  document.getElementById('directCurrentPageNum').textContent = pageNum;
+  document.getElementById('directPrevPageBtn').disabled = pageNum <= 1;
+  document.getElementById('directNextPageBtn').disabled = pageNum >= state.totalPages;
 }
 
-async function changePage(delta) {
+async function changeDirectPage(delta) {
   const newPage = state.currentPage + delta;
   if (newPage < 1 || newPage > state.totalPages) return;
   state.currentPage = newPage;
-  await renderPDFPage(newPage);
+  await renderDirectPdfPage(newPage);
 }
 
-function loadImg(file) {
-  state.totalPages = 1;
-  document.getElementById('pageCountOpt').textContent = '1 page';
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const img = document.getElementById('preview-img');
-    img.onload = () => {
-      document.getElementById('previewLoading').style.display = 'none';
-      img.style.display = 'block';
-      checkQuality();
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
+// ─── CANVAS EDIT MODE — A4 drag/resize/rotate, front+back ───
+async function startCanvasMode(file) {
+  show('secPreview');
+  document.getElementById('fileName').textContent = file.name;
+
+  toast('⏳ Document load ho raha hai...');
+  try {
+    const { kind, sourceCanvas } = await fileToSourceCanvas(file);
+    canvasItems = canvasItems.filter(i => i.type !== 'front'); // purana front hata do agar dobara upload kiya
+    addCanvasItem('front', sourceCanvas, kind);
+    state.frontFile = file;
+    checkQuality();
+  } catch(err) {
+    toast('❌ File load nahi hui');
+    return;
+  }
+
+  toast('📤 File upload ho rahi hai...');
+  await uploadCurrentFile();
 }
 
-function loadGeneric(name) {
-  state.totalPages = 1;
-  document.getElementById('pageCountOpt').textContent = '1 page';
-  const canvas = document.getElementById('preview-canvas');
-  canvas.width = 240; canvas.height = 320; canvas.style.display = 'block';
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#f8f7f5'; ctx.fillRect(0,0,240,320);
-  ctx.fillStyle = '#0a0a0f'; ctx.font = 'bold 13px sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText('📄 ' + name, 120, 155);
-  ctx.fillStyle = '#6b6870'; ctx.font = '11px sans-serif';
-  ctx.fillText('Print Ready', 120, 175);
-  document.getElementById('previewLoading').style.display = 'none';
-  checkQuality();
+function triggerBackUpload() {
+  document.getElementById('backFileInput').click();
 }
 
-function getActivePreviewElement() {
-  const canvas = document.getElementById('preview-canvas');
-  const img = document.getElementById('preview-img');
-  if (canvas.style.display !== 'none' && canvas.width > 0) return { el: canvas, w: canvas.width, h: canvas.height };
-  if (img.style.display !== 'none' && img.naturalWidth > 0) return { el: img, w: img.naturalWidth, h: img.naturalHeight };
-  return null;
+async function handleBackFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  toast('⏳ Back side load ho raha hai...');
+  try {
+    const { kind, sourceCanvas } = await fileToSourceCanvas(file);
+    canvasItems = canvasItems.filter(i => i.type !== 'back');
+    addCanvasItem('back', sourceCanvas, kind);
+    toast('✅ Back side add ho gaya!');
+  } catch(err) {
+    toast('❌ Back side load nahi hui');
+  }
+}
+
+function resetCanvasItems() {
+  const front = canvasItems.find(i => i.type === 'front');
+  const back = canvasItems.find(i => i.type === 'back');
+  canvasItems = [];
+  if (front) addCanvasItem('front', front.sourceCanvas, front.kind);
+  if (back) addCanvasItem('back', back.sourceCanvas, back.kind);
+  toast('↺ Position reset ho gaya');
+}
+
+async function renderFinalA4Canvas() {
+  /* Saare canvas items ko ek single A4-size image mein render karte hain —
+     yahi image upload/print hogi, jaisa customer ne screen pe arrange kiya tha */
+  const A4_W = 1240, A4_H = 1754; // ~150 DPI A4
+  const out = document.createElement('canvas');
+  out.width = A4_W; out.height = A4_H;
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, A4_W, A4_H);
+
+  const a4 = document.getElementById('a4Canvas');
+  const scaleX = A4_W / a4.clientWidth;
+  const scaleY = A4_H / a4.clientHeight;
+
+  for (const item of canvasItems) {
+    const cx = (item.x + item.w / 2) * scaleX;
+    const cy = (item.y + item.h / 2) * scaleY;
+    const w = item.w * scaleX;
+    const h = item.h * scaleY;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(item.rotation * Math.PI / 180);
+    ctx.drawImage(item.sourceCanvas, -w / 2, -h / 2, w, h);
+    ctx.restore();
+  }
+
+  return out;
+}
+
+async function uploadCurrentFile() {
+  try {
+    const finalCanvas = await renderFinalA4Canvas();
+    const blob = await new Promise(resolve => finalCanvas.toBlob(resolve, 'image/jpeg', 0.92));
+
+    const fd = new FormData();
+    fd.append('file', blob, 'document.jpg');
+    fd.append('shopId', shopId);
+    fd.append('copies', state.copies);
+    fd.append('colorMode', state.colorMode);
+    fd.append('totalPages', 1); // Canvas hamesha 1 hi final A4 page banata hai
+
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.success) {
+      state.jobId = data.jobId;
+      toast('✅ File ready!');
+    } else {
+      toast('❌ Upload failed: ' + data.error);
+    }
+  } catch(e) {
+    toast('❌ Upload error: ' + e.message);
+  }
+}
+
+async function changePage(delta) {
+  // Multi-page PDF mein sirf front document ka displayed page badalta hai (preview ke liye)
+  const newPage = state.currentPage + delta;
+  if (newPage < 1 || newPage > state.totalPages || !state.pdfDoc) return;
+  state.currentPage = newPage;
+
+  const page = await state.pdfDoc.getPage(newPage);
+  const vp = page.getViewport({ scale: 1.5 });
+  const canvas = document.createElement('canvas');
+  canvas.width = vp.width; canvas.height = vp.height;
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+
+  const frontItem = canvasItems.find(i => i.type === 'front');
+  if (frontItem) {
+    frontItem.sourceCanvas = canvas;
+    renderCanvasItems();
+  }
+
+  document.getElementById('currentPageNum').textContent = newPage;
+  document.getElementById('prevPageBtn').disabled = newPage <= 1;
+  document.getElementById('nextPageBtn').disabled = newPage >= state.totalPages;
+
+  // Naya page select hua to dobara upload bhi karo (taaki yahi page print ho)
+  await uploadCurrentFile();
 }
 
 function checkQuality() {
-  const active = getActivePreviewElement();
-  let ratio = 210/297;
-  if (active) ratio = active.w / active.h;
+  const frontItem = canvasItems.find(i => i.type === 'front');
+  let ratio = A4_RATIO;
+  if (frontItem) ratio = frontItem.sourceCanvas.width / frontItem.sourceCanvas.height;
 
-  const diff = Math.abs(ratio - 210/297);
+  const diff = Math.abs(ratio - A4_RATIO);
   const card = document.getElementById('qualityCard');
   card.className = 'quality';
   if (diff < 0.08) {
@@ -530,22 +931,28 @@ function checkQuality() {
     document.getElementById('qIcon').textContent = '✅';
     document.getElementById('qTitle').textContent = 'Document perfect hai!';
     document.getElementById('qDesc').textContent = 'A4 size mein sahi fit hoga.';
-  } else if (diff < 0.3) {
-    card.classList.add('warn');
-    document.getElementById('qIcon').textContent = '⚠️';
-    document.getElementById('qTitle').textContent = 'Thoda adjust hoga';
-    document.getElementById('qDesc').textContent = 'Auto-crop karo ya direct print karo — print A4 mein automatically fit hoga.';
   } else {
-    card.classList.add('bad');
-    document.getElementById('qIcon').textContent = '❌';
-    document.getElementById('qTitle').textContent = 'Chhota size document hai';
-    document.getElementById('qDesc').textContent = 'Koi tension nahi — print A4 page mein automatically bada/fit hoke aayega.';
+    card.classList.add('warn');
+    document.getElementById('qIcon').textContent = '✋';
+    document.getElementById('qTitle').textContent = 'Position adjust kar sakte ho';
+    document.getElementById('qDesc').textContent = 'Document ko drag/resize karke A4 page pe set karo jaise chahiye.';
   }
 }
 
-function goOptions() { hide('secPreview'); show('secOptions'); setStep(3); updatePrice(); }
+function goOptions() {
+  hide('secPreview');
+  hide('secDirectPreview');
+  show('secOptions');
+  setStep(3);
+  updatePrice();
+}
 
-function backToPreview() { hide('secOptions'); show('secPreview'); setStep(2); }
+function backToPreview() {
+  hide('secOptions');
+  if (state.printMode === 'direct') show('secDirectPreview');
+  else show('secPreview');
+  setStep(2);
+}
 
 function backToOptions() { hide('secPayment'); show('secOptions'); setStep(3); }
 
@@ -666,9 +1073,16 @@ function setCopies(d) {
   updatePrice();
 }
 
+function getEffectivePageCount() {
+  // Canvas mode mein final output hamesha 1 merged A4 page hai, billing isi
+  // hisab se hoti hai. Direct mode mein actual page range count use hoti hai.
+  if (state.printMode === 'canvas') return 1;
+  return state.printPageCount || state.totalPages;
+}
+
 function updatePrice() {
   const pricePerPage = state.colorMode==='bw' ? state.priceBW : state.priceColor;
-  const printPages = state.printPageCount || state.totalPages;
+  const printPages = getEffectivePageCount();
   const total = pricePerPage * printPages * state.copies;
   const type = state.colorMode==='bw' ? 'B&W' : 'Color';
   document.getElementById('sumType').textContent = type + ' Print';
@@ -680,7 +1094,7 @@ function updatePrice() {
 
 function getTotal() {
   const pricePerPage = state.colorMode==='bw' ? state.priceBW : state.priceColor;
-  const printPages = state.printPageCount || state.totalPages;
+  const printPages = getEffectivePageCount();
   return pricePerPage * printPages * state.copies;
 }
 
@@ -695,7 +1109,7 @@ async function payOnline() {
         jobId: state.jobId,
         colorMode: state.colorMode,
         copies: state.copies,
-        totalPages: state.printPageCount || state.totalPages,
+        totalPages: getEffectivePageCount(),
         selectedPages: state.selectedPages
       })
     });
@@ -753,7 +1167,7 @@ async function payCounter() {
         jobId: state.jobId,
         colorMode: state.colorMode,
         copies: state.copies,
-        totalPages: state.printPageCount || state.totalPages,
+        totalPages: getEffectivePageCount(),
         selectedPages: state.selectedPages
       })
     });
@@ -799,272 +1213,6 @@ function showSuccess(method, amount) {
   }
 }
 
-/* ===== CROP — Fixed: ab Auto A4 click karne pe preview gayab nahi hota ===== */
-let cropState = { sourceCanvas: null, rotation: 0, manualMode: false, rect: null, dragging: null };
-
-function openCrop() {
-  const active = getActivePreviewElement();
-  if (!active) { toast('❌ Preview abhi load nahi hua'); return; }
-
-  document.getElementById('cropOverlay').classList.add('show');
-  cropState.rotation = 0;
-  cropState.manualMode = false;
-  cropState.rect = null;
-  document.getElementById('cropManualBtn').classList.remove('on');
-  document.getElementById('cropHandles').style.display = 'none';
-
-  const srcCanvas = document.createElement('canvas');
-  srcCanvas.width = active.w;
-  srcCanvas.height = active.h;
-  srcCanvas.getContext('2d').drawImage(active.el, 0, 0, active.w, active.h);
-  cropState.sourceCanvas = srcCanvas;
-
-  drawCropPreview();
-}
-
-function drawCropPreview() {
-  if (!cropState.sourceCanvas) return;
-  const cc = document.getElementById('crop-canvas');
-  const ctx = cc.getContext('2d');
-  const src = cropState.sourceCanvas;
-
-  const maxW = 300;
-  const scale = maxW / src.width;
-  cc.width = maxW;
-  cc.height = Math.round(src.height * scale);
-
-  ctx.clearRect(0, 0, cc.width, cc.height);
-  ctx.drawImage(src, 0, 0, cc.width, cc.height);
-
-  if (cropState.manualMode) renderCropHandles();
-}
-
-function applyCrop(mode) {
-  if (!cropState.sourceCanvas) { toast('❌ Pehle preview load karo'); return; }
-
-  if (mode === 'manual') {
-    cropState.manualMode = !cropState.manualMode;
-    document.getElementById('cropManualBtn').classList.toggle('on', cropState.manualMode);
-    if (cropState.manualMode) {
-      const cc = document.getElementById('crop-canvas');
-      // Default rect — 10% margin chaaron taraf se
-      cropState.rect = { x: cc.width*0.1, y: cc.height*0.1, w: cc.width*0.8, h: cc.height*0.8 };
-      document.getElementById('cropHandles').style.display = 'block';
-      renderCropHandles();
-      toast('✋ Corners drag karke crop area set karo');
-    } else {
-      document.getElementById('cropHandles').style.display = 'none';
-      drawCropPreview();
-    }
-    return;
-  }
-
-  if (mode === 'auto') {
-    const src = cropState.sourceCanvas;
-    const a4Canvas = document.createElement('canvas');
-    const a4Ratio = 210/297;
-    a4Canvas.width = src.width;
-    a4Canvas.height = Math.round(src.width / a4Ratio);
-
-    const ctx = a4Canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, a4Canvas.width, a4Canvas.height);
-
-    const srcRatio = src.width / src.height;
-    const targetRatio = a4Canvas.width / a4Canvas.height;
-    let dw, dh, dx, dy;
-    if (srcRatio > targetRatio) {
-      dw = a4Canvas.width;
-      dh = a4Canvas.width / srcRatio;
-    } else {
-      dh = a4Canvas.height;
-      dw = a4Canvas.height * srcRatio;
-    }
-    dx = (a4Canvas.width - dw) / 2;
-    dy = (a4Canvas.height - dh) / 2;
-    ctx.drawImage(src, dx, dy, dw, dh);
-
-    cropState.sourceCanvas = a4Canvas;
-    cropState.rotation = 0;
-    cropState.manualMode = false;
-    document.getElementById('cropManualBtn').classList.remove('on');
-    document.getElementById('cropHandles').style.display = 'none';
-    drawCropPreview();
-    toast('🤖 Auto A4 applied! Preview safe hai.');
-  } else if (mode === 'rotate') {
-    const src = cropState.sourceCanvas;
-    const rotated = document.createElement('canvas');
-    rotated.width = src.height;
-    rotated.height = src.width;
-    const ctx = rotated.getContext('2d');
-    ctx.translate(rotated.width/2, rotated.height/2);
-    ctx.rotate(90 * Math.PI / 180);
-    ctx.drawImage(src, -src.width/2, -src.height/2);
-    cropState.sourceCanvas = rotated;
-    cropState.manualMode = false;
-    document.getElementById('cropManualBtn').classList.remove('on');
-    document.getElementById('cropHandles').style.display = 'none';
-    drawCropPreview();
-    toast('🔄 Rotate!');
-  } else if (mode === 'bright') {
-    const cc = document.getElementById('crop-canvas');
-    const ctx = cc.getContext('2d');
-    try {
-      const id = ctx.getImageData(0, 0, cc.width, cc.height);
-      const d = id.data;
-      for (let i=0;i<d.length;i+=4) { d[i]=Math.min(255,d[i]*1.2); d[i+1]=Math.min(255,d[i+1]*1.2); d[i+2]=Math.min(255,d[i+2]*1.2); }
-      ctx.putImageData(id, 0, 0);
-      const newSrc = document.createElement('canvas');
-      newSrc.width = cc.width; newSrc.height = cc.height;
-      newSrc.getContext('2d').putImageData(id, 0, 0);
-      cropState.sourceCanvas = newSrc;
-      toast('☀️ Brighter!');
-      if (cropState.manualMode) renderCropHandles();
-    } catch(e) { toast('⚠️ Brighten failed'); }
-  } else if (mode === 'dark') {
-    // Light/faded documents ko dark karne ke liye — ulta of brighten
-    const cc = document.getElementById('crop-canvas');
-    const ctx = cc.getContext('2d');
-    try {
-      const id = ctx.getImageData(0, 0, cc.width, cc.height);
-      const d = id.data;
-      for (let i=0;i<d.length;i+=4) { d[i]=Math.max(0,d[i]*0.75); d[i+1]=Math.max(0,d[i+1]*0.75); d[i+2]=Math.max(0,d[i+2]*0.75); }
-      ctx.putImageData(id, 0, 0);
-      const newSrc = document.createElement('canvas');
-      newSrc.width = cc.width; newSrc.height = cc.height;
-      newSrc.getContext('2d').putImageData(id, 0, 0);
-      cropState.sourceCanvas = newSrc;
-      toast('🌙 Darker!');
-      if (cropState.manualMode) renderCropHandles();
-    } catch(e) { toast('⚠️ Darken failed'); }
-  }
-}
-
-// Manual crop ke corner handles draw aur drag karne ka logic
-function renderCropHandles() {
-  const handlesDiv = document.getElementById('cropHandles');
-  const cc = document.getElementById('crop-canvas');
-  if (!cropState.rect) return;
-  handlesDiv.innerHTML = '';
-  handlesDiv.style.width = cc.width + 'px';
-  handlesDiv.style.height = cc.height + 'px';
-  handlesDiv.style.left = cc.offsetLeft + 'px';
-  handlesDiv.style.top = cc.offsetTop + 'px';
-
-  const r = cropState.rect;
-
-  // Dashed outline
-  const outline = document.createElement('div');
-  outline.className = 'crop-rect-outline';
-  outline.style.left = r.x + 'px';
-  outline.style.top = r.y + 'px';
-  outline.style.width = r.w + 'px';
-  outline.style.height = r.h + 'px';
-  handlesDiv.appendChild(outline);
-
-  // 4 corner handles
-  const corners = [
-    { id: 'tl', x: r.x, y: r.y },
-    { id: 'tr', x: r.x + r.w, y: r.y },
-    { id: 'bl', x: r.x, y: r.y + r.h },
-    { id: 'br', x: r.x + r.w, y: r.y + r.h }
-  ];
-  corners.forEach(c => {
-    const h = document.createElement('div');
-    h.className = 'crop-handle';
-    h.style.left = (c.x - 9) + 'px';
-    h.style.top = (c.y - 9) + 'px';
-    h.dataset.corner = c.id;
-    h.addEventListener('pointerdown', startDragHandle);
-    handlesDiv.appendChild(h);
-  });
-}
-
-function startDragHandle(e) {
-  e.preventDefault();
-  cropState.dragging = e.target.dataset.corner;
-  document.addEventListener('pointermove', dragHandleMove);
-  document.addEventListener('pointerup', stopDragHandle);
-}
-
-function dragHandleMove(e) {
-  if (!cropState.dragging || !cropState.rect) return;
-  const cc = document.getElementById('crop-canvas');
-  const rectBounds = cc.getBoundingClientRect();
-  let x = e.clientX - rectBounds.left;
-  let y = e.clientY - rectBounds.top;
-  x = Math.max(0, Math.min(cc.width, x));
-  y = Math.max(0, Math.min(cc.height, y));
-
-  const r = cropState.rect;
-  const corner = cropState.dragging;
-
-  if (corner === 'tl') { r.w += r.x - x; r.h += r.y - y; r.x = x; r.y = y; }
-  else if (corner === 'tr') { r.w = x - r.x; r.h += r.y - y; r.y = y; }
-  else if (corner === 'bl') { r.w += r.x - x; r.x = x; r.h = y - r.y; }
-  else if (corner === 'br') { r.w = x - r.x; r.h = y - r.y; }
-
-  // Minimum size enforce karo
-  if (r.w < 30) r.w = 30;
-  if (r.h < 30) r.h = 30;
-
-  renderCropHandles();
-}
-
-function stopDragHandle() {
-  cropState.dragging = null;
-  document.removeEventListener('pointermove', dragHandleMove);
-  document.removeEventListener('pointerup', stopDragHandle);
-}
-
-function confirmCrop() {
-  if (!cropState.sourceCanvas) { closeCrop(); return; }
-  const cc = document.getElementById('crop-canvas');
-
-  // Manual crop mode active ho aur rect set ho to usi area ko crop karo
-  if (cropState.manualMode && cropState.rect) {
-    const r = cropState.rect;
-    const scaleX = cropState.sourceCanvas.width / cc.width;
-    const scaleY = cropState.sourceCanvas.height / cc.height;
-
-    const cropped = document.createElement('canvas');
-    cropped.width = Math.round(r.w * scaleX);
-    cropped.height = Math.round(r.h * scaleY);
-    cropped.getContext('2d').drawImage(
-      cropState.sourceCanvas,
-      r.x * scaleX, r.y * scaleY, r.w * scaleX, r.h * scaleY,
-      0, 0, cropped.width, cropped.height
-    );
-
-    const pc = document.getElementById('preview-canvas');
-    pc.width = cropped.width;
-    pc.height = cropped.height;
-    pc.getContext('2d').drawImage(cropped, 0, 0);
-    pc.style.display = 'block';
-    document.getElementById('preview-img').style.display = 'none';
-  } else {
-    const pc = document.getElementById('preview-canvas');
-    pc.width = cc.width;
-    pc.height = cc.height;
-    pc.getContext('2d').drawImage(cc, 0, 0);
-    pc.style.display = 'block';
-    document.getElementById('preview-img').style.display = 'none';
-  }
-
-  closeCrop();
-  document.getElementById('qualityCard').className = 'quality good';
-  document.getElementById('qIcon').textContent = '✅';
-  document.getElementById('qTitle').textContent = 'Fix ho gaya!';
-  document.getElementById('qDesc').textContent = 'A4 ke liye ready hai.';
-  toast('✅ Applied!');
-}
-
-function closeCrop() {
-  document.getElementById('cropOverlay').classList.remove('show');
-  cropState.manualMode = false;
-  document.getElementById('cropManualBtn').classList.remove('on');
-  document.getElementById('cropHandles').style.display = 'none';
-}
 
 function setStep(n) {
   for (let i=1;i<=4;i++) {

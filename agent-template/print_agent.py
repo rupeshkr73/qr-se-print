@@ -1,6 +1,7 @@
 """
-QR Se Print - Local Agent v5.1
-Fix: Chhote size documents bhi A4 page mein properly fit/scale hote hain print karte waqt
+QR Se Print - Local Agent v6.0
+NEW: System Tray (background mein chalta hai, koi CMD window nahi)
+NEW: Auto-Update (naya version aane par khud download + restart)
 """
 
 import requests
@@ -9,32 +10,160 @@ import os
 import sys
 import tempfile
 import subprocess
+import threading
+import shutil
 from datetime import datetime
 from pathlib import Path
 
 # ============================================================
-SHOP_ID         = "AAPKA_SHOP_ID"   # Apna Shop ID daalo
-SERVER_URL      = "https://qr-se-print.onrender.com"
-CHECK_INTERVAL  = 5
-LOG_FILE        = "print_agent_log.txt"
-VERSION         = "5.1.0"
+# SHOP_ID_TEMPLATE: .py source mode mein yahan seedha Shop ID daala jaata hai
+# (server download-package banate waqt isko replace karta hai). .exe mode mein
+# yeh hamesha unconfigured marker hi rahega — asli Shop ID config file se aata hai.
+#
+# NOTE: UNCONFIGURED_MARKER ko is naam se isliye rakha hai (alag string) taaki
+# server.js ka text-replace operation sirf SHOP_ID_TEMPLATE ki line ko hi
+# touch kare, comparison check ko corrupt na kare.
+UNCONFIGURED_MARKER = "AAPKA" + "_SHOP_ID"
+SHOP_ID_TEMPLATE   = "AAPKA_SHOP_ID"
+SERVER_URL         = "https://qr-se-print.onrender.com"
+CHECK_INTERVAL     = 5          # Print jobs check karne ka interval (seconds)
+UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
+VERSION            = 6           # Integer version number — server ke agent_version se compare hota hai
+
+# Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
+# kyunki .exe install hone par Program Files mein likhna permission-denied
+# de sakta hai. Yeh dono mode (.py script aur .exe) ke liye safe hai.
+_APPDATA_DIR = os.path.join(os.environ.get('APPDATA', tempfile.gettempdir()), 'QRSePrint')
+os.makedirs(_APPDATA_DIR, exist_ok=True)
+LOG_FILE           = os.path.join(_APPDATA_DIR, "print_agent_log.txt")
+LOCAL_VERSION_FILE = os.path.join(_APPDATA_DIR, "agent_version.txt")
+SHOP_CONFIG_FILE   = os.path.join(_APPDATA_DIR, "shop_config.txt")
 # ============================================================
+
+# Tray icon ke liye global state — taaki tray menu se live status dikhaya ja sake
+agent_state = {
+    "status": "Starting...",
+    "printer": "Unknown",
+    "tray_icon": None,
+    "running": True
+}
 
 def log(msg, level="INFO"):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{timestamp}] [{level}] {msg}"
-    print(line)
+    try:
+        print(line)
+    except Exception:
+        pass  # .exe windowed mode mein console hi nahi hota, print() fail ho sakta hai
     try:
         with open(LOG_FILE, "a", encoding="utf-8") as f:
             f.write(line + "\n")
     except:
         pass
 
+def is_running_as_exe():
+    """
+    PyInstaller se bana .exe chal raha hai ya normal Python script?
+    .exe mode mein sab dependencies already bundled hoti hain.
+    """
+    return getattr(sys, 'frozen', False)
+
+def show_shop_id_prompt():
+    """
+    .exe ka first-run setup: ek chhota Tkinter window kholo jisme
+    customer apna Shop ID paste kar sake. Confirm hone par config
+    file mein save ho jaata hai, future runs mein yeh popup nahi aayega.
+
+    Agar Tkinter kisi reason se available na ho (rare), console input
+    fallback use karte hain (sirf agar console attached hai, warna fail).
+    """
+    try:
+        import tkinter as tk
+        from tkinter import messagebox
+    except ImportError:
+        log("⚠️  Tkinter nahi hai — console input try kar rahe hain", "WARN")
+        try:
+            return input("Apna Shop ID daalo: ").strip().upper()
+        except Exception:
+            log("❌ Shop ID nahi le paaye — Tkinter aur console dono available nahi", "ERROR")
+            return None
+
+    result = {"shop_id": None}
+
+    def on_submit():
+        value = entry.get().strip().upper()
+        if not value:
+            messagebox.showerror("Error", "Shop ID daalo!")
+            return
+        result["shop_id"] = value
+        root.destroy()
+
+    root = tk.Tk()
+    root.title("QR Se Print - Setup")
+    root.geometry("420x220")
+    root.resizable(False, False)
+    try:
+        root.attributes('-topmost', True)
+    except Exception:
+        pass
+
+    tk.Label(root, text="QR Se Print Setup", font=("Segoe UI", 16, "bold"), pady=10).pack()
+    tk.Label(root, text="Apna Shop ID paste karo\n(Dashboard pe register karne ke baad mila tha)",
+             font=("Segoe UI", 10), pady=5).pack()
+
+    entry = tk.Entry(root, font=("Segoe UI", 12), justify="center", width=28)
+    entry.pack(pady=10)
+    entry.focus()
+
+    tk.Button(root, text="Shuru Karo", font=("Segoe UI", 11, "bold"),
+              bg="#ff4d1c", fg="white", padx=20, pady=8, command=on_submit).pack(pady=10)
+
+    root.bind('<Return>', lambda e: on_submit())
+    root.mainloop()
+
+    return result["shop_id"]
+
+def resolve_shop_id():
+    """
+    Shop ID kahan se aaye, priority order:
+    1. SHOP_ID_TEMPLATE agar already replace hui hai (.py source download wala flow)
+    2. Saved config file (%APPDATA%/QRSePrint/shop_config.txt) — pehle se setup ho chuka hai
+    3. GUI popup se naya Shop ID poocho (sirf pehli baar, .exe mode mein)
+    """
+    if SHOP_ID_TEMPLATE != UNCONFIGURED_MARKER:
+        # .py source mode — Shop ID already baked hai is file mein
+        return SHOP_ID_TEMPLATE
+
+    if os.path.exists(SHOP_CONFIG_FILE):
+        try:
+            with open(SHOP_CONFIG_FILE, 'r', encoding='utf-8') as f:
+                saved_id = f.read().strip()
+                if saved_id:
+                    return saved_id
+        except Exception:
+            pass
+
+    # Pehli baar chal raha hai aur Shop ID kahin nahi mila — GUI se poocho
+    shop_id = show_shop_id_prompt()
+    if not shop_id:
+        # User ne window band kar di bina Shop ID daale — agent chal nahi sakta
+        sys.exit(1)
+
+    try:
+        with open(SHOP_CONFIG_FILE, 'w', encoding='utf-8') as f:
+            f.write(shop_id)
+    except Exception:
+        pass
+
+    return shop_id
+
+SHOP_ID = resolve_shop_id()
+
 def show_banner():
     print(f"""
 ╔══════════════════════════════════════════════╗
-║         QR Se Print - Local Agent v{VERSION}   ║
-║  ✅ Image→PDF  ✅ B&W/Color  ✅ Auto Fit-A4  ║
+║         QR Se Print - Local Agent v{VERSION}        ║
+║  ✅ System Tray  ✅ Auto-Update  ✅ Fit-A4   ║
 ╚══════════════════════════════════════════════╝
     """)
 
@@ -88,8 +217,14 @@ def download_file(url, ext):
 def convert_image_to_pdf(image_path):
     """
     JPG/PNG ko A4-size PDF page mein convert karo.
-    Chhota photo ho to A4 page ke center mein zoom karke fit karte hain
-    taaki print A4 jaisa bada aaye, chhota corner mein na rahe.
+
+    Do scenarios handle karte hain:
+    1. Image already A4 ratio mein hai (Canvas Editor se aaya — customer ne
+       khud A4 page pe drag/resize/position set kiya tha) — is case mein
+       hum SEEDHA wahi image PDF mein wrap karte hain, DOBARA zoom-fit nahi
+       karte, warna customer ki careful positioning distort ho jayegi.
+    2. Normal photo/scan hai (chhota ya alag ratio) — A4 page ke center
+       mein zoom karke fit karte hain jaisa pehle se ho raha tha.
     """
     try:
         from PIL import Image
@@ -111,39 +246,46 @@ def convert_image_to_pdf(image_path):
         dpi = 300
         a4_width_px = int(8.27 * dpi)   # 210mm
         a4_height_px = int(11.69 * dpi)  # 297mm
-
-        # Create a full white A4 canvas
-        a4_canvas = Image.new('RGB', (a4_width_px, a4_height_px), (255, 255, 255))
-
-        # Image ko A4 canvas ke andar MAXIMUM size mein fit karo (zoom karke)
-        # taaki chhota image bhi bada print ho, chhota corner mein na rahe
-        img_ratio = img.width / img.height
         a4_ratio = a4_width_px / a4_height_px
 
-        # 95% margin rakhte hain thoda safe area ke liye
-        target_w = int(a4_width_px * 0.95)
-        target_h = int(a4_height_px * 0.95)
+        img_ratio = img.width / img.height
+        ratio_diff = abs(img_ratio - a4_ratio)
 
-        if img_ratio > (target_w / target_h):
-            new_width = target_w
-            new_height = int(target_w / img_ratio)
+        # Agar image ka ratio A4 se bahut close hai (Canvas Editor se aaya hai),
+        # to seedha resize karke wrap karo — koi extra zoom/margin nahi
+        if ratio_diff < 0.01:
+            log("ℹ️  Image already A4-ratio mein hai (Canvas Editor output) — seedha use kar rahe hain")
+            a4_canvas = img.resize((a4_width_px, a4_height_px), Image.LANCZOS)
         else:
-            new_height = target_h
-            new_width = int(target_h * img_ratio)
+            # Create a full white A4 canvas
+            a4_canvas = Image.new('RGB', (a4_width_px, a4_height_px), (255, 255, 255))
 
-        # High quality upscale/downscale
-        resample_method = Image.LANCZOS
-        img_resized = img.resize((new_width, new_height), resample_method)
+            # Image ko A4 canvas ke andar MAXIMUM size mein fit karo (zoom karke)
+            # taaki chhota image bhi bada print ho, chhota corner mein na rahe
+            # 95% margin rakhte hain thoda safe area ke liye
+            target_w = int(a4_width_px * 0.95)
+            target_h = int(a4_height_px * 0.95)
 
-        # Center mein paste karo
-        paste_x = (a4_width_px - new_width) // 2
-        paste_y = (a4_height_px - new_height) // 2
-        a4_canvas.paste(img_resized, (paste_x, paste_y))
+            if img_ratio > (target_w / target_h):
+                new_width = target_w
+                new_height = int(target_w / img_ratio)
+            else:
+                new_height = target_h
+                new_width = int(target_h * img_ratio)
+
+            # High quality upscale/downscale
+            resample_method = Image.LANCZOS
+            img_resized = img.resize((new_width, new_height), resample_method)
+
+            # Center mein paste karo
+            paste_x = (a4_width_px - new_width) // 2
+            paste_y = (a4_height_px - new_height) // 2
+            a4_canvas.paste(img_resized, (paste_x, paste_y))
 
         # PDF save karo with correct DPI metadata
         pdf_path = image_path + '_converted.pdf'
         a4_canvas.save(pdf_path, 'PDF', resolution=dpi)
-        log(f"✅ A4 PDF ready: {pdf_path} ({new_width}x{new_height} fitted on {a4_width_px}x{a4_height_px})")
+        log(f"✅ A4 PDF ready: {pdf_path}")
         return pdf_path
 
     except ImportError:
@@ -441,6 +583,12 @@ def process_job(job):
         log(f"❌ Job {job_id} failed!", "ERROR")
 
 def check_dependencies():
+    if is_running_as_exe():
+        # .exe build mein sab kuch already bundled hai (PyInstaller ne pack kiya hai)
+        log("🔍 Dependencies check... (.exe mode — sab bundled hai)")
+        log("✅ Pillow, win32print, PyPDF2, PyCryptodome, pystray — sab ready (bundled)")
+        return
+
     log("🔍 Dependencies check...")
     try:
         from PIL import Image
@@ -475,38 +623,276 @@ def check_dependencies():
             log("✅ PyCryptodome install ho gaya!")
         except:
             log("❌ PyCryptodome install nahi hua — kuch PDFs page-extract fail ho sakte hain!", "ERROR")
+    try:
+        import pystray
+        log("✅ pystray (System Tray) ready")
+    except ImportError:
+        log("⚠️  pystray nahi hai! Installing...", "WARN")
+        os.system("pip install pystray --quiet")
+        try:
+            import pystray
+            log("✅ pystray install ho gaya!")
+        except:
+            log("⚠️  pystray install nahi hua — Tray mode kaam nahi karega, console mode use hoga", "WARN")
 
-def main():
-    show_banner()
-    check_dependencies()
+# ─── AUTO-UPDATE: Server se check karo naya version hai ya nahi ──────
+def get_remote_version():
+    """Server se latest agent version number fetch karo"""
+    try:
+        resp = requests.get(f"{SERVER_URL}/api/agent/version", timeout=15)
+        resp.raise_for_status()
+        return resp.json().get("version")
+    except Exception as e:
+        log(f"⚠️  Version check failed: {e}", "WARN")
+        return None
 
-    log(f"🚀 Agent start | Shop: {SHOP_ID}")
-    log(f"🌐 Server: {SERVER_URL}")
+def download_latest_agent():
+    """Naya print_agent.py code download karo server se"""
+    try:
+        resp = requests.get(f"{SERVER_URL}/api/agent/download-latest", timeout=30)
+        resp.raise_for_status()
+        return resp.text
+    except Exception as e:
+        log(f"❌ Naya agent download nahi hua: {e}", "ERROR")
+        return None
 
-    printer_ok, printer_name = check_printer()
-    if not printer_ok:
-        log("❌ Printer nahi mila!", "ERROR")
-        input("Enter dabao...")
-        sys.exit(1)
+def apply_update_and_restart(new_code=None):
+    """
+    Source (.py) mode mein: naya code current SHOP_ID/SERVER_URL ke saath
+    fill karke print_agent.py replace karte hain, phir restart.
 
-    log(f"✅ Printer: {printer_name}")
+    .exe mode mein: .py source replace karna kaam nahi karega (exe already
+    compiled hai), isliye iske jagah naya installer .exe download karke
+    chalate hain — woh khud purane ko replace karke restart karega.
+    """
+    if is_running_as_exe():
+        apply_exe_update_and_restart()
+        return
+
+    try:
+        # Naya code mein placeholder ko current Shop ID/Server URL se fill karo
+        new_code = new_code.replace('AAPKA_SHOP_ID', SHOP_ID)
+        new_code = new_code.replace(
+            'SERVER_URL         = "https://qr-se-print.onrender.com"',
+            f'SERVER_URL         = "{SERVER_URL}"'
+        )
+
+        current_file = os.path.abspath(__file__)
+        backup_file = current_file + ".backup"
+
+        # Purani file ka backup rakho (kuch gadbad ho jaye to wapas use kar sake)
+        shutil.copy2(current_file, backup_file)
+
+        with open(current_file, 'w', encoding='utf-8') as f:
+            f.write(new_code)
+
+        log("✅ Naya code install ho gaya! Agent restart ho raha hai...")
+
+        # Khud ko restart karo — naye Python process mein same script chalao.
+        # pythonw.exe force karte hain taaki restart ke baad bhi koi console
+        # window na khule (chahe yeh process pythonw ya python se shuru hua ho)
+        python_exe = sys.executable
+        pythonw_exe = python_exe.replace('python.exe', 'pythonw.exe')
+        if not os.path.exists(pythonw_exe):
+            pythonw_exe = python_exe  # fallback agar pythonw nahi mila
+
+        subprocess.Popen([pythonw_exe, current_file], cwd=os.path.dirname(current_file))
+
+        # Tray icon band karke is purane process ko exit karo
+        if agent_state["tray_icon"]:
+            agent_state["tray_icon"].stop()
+        os._exit(0)
+    except Exception as e:
+        log(f"❌ Update apply karne mein error: {e}", "ERROR")
+
+def apply_exe_update_and_restart():
+    """
+    .exe mode update: server se naya installer .exe download karo,
+    background mein silent-install chalao, aur current agent exit karo.
+    Installer khud purane exe ko replace karke naya tray instance start karega.
+    """
+    try:
+        log("⬇️  Naya installer download ho raha hai...")
+        resp = requests.get(f"{SERVER_URL}/api/agent/download-latest-exe", timeout=120, stream=True)
+        resp.raise_for_status()
+
+        temp_dir = tempfile.gettempdir()
+        installer_path = os.path.join(temp_dir, "QRSePrint-Update-Setup.exe")
+        with open(installer_path, 'wb') as f:
+            for chunk in resp.iter_content(chunk_size=8192):
+                f.write(chunk)
+
+        log(f"✅ Installer download ho gaya: {installer_path}")
+        log("🔄 Silent update install ho raha hai...")
+
+        # Installer ko silent mode mein chalao (Inno Setup convention: /VERYSILENT)
+        # Yeh khud purane exe ko replace karke naya tray instance start kar dega
+        subprocess.Popen([installer_path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"])
+
+        # Thoda wait karo taaki installer process pick up kar le, phir exit
+        time.sleep(2)
+        if agent_state["tray_icon"]:
+            agent_state["tray_icon"].stop()
+        os._exit(0)
+    except Exception as e:
+        log(f"❌ .exe update apply karne mein error: {e}", "ERROR")
+
+def update_checker_loop():
+    """Background thread — har UPDATE_CHECK_INTERVAL seconds mein naya version check karta hai"""
+    # Pehla check thoda delay se — taaki agent properly start ho jaye pehle
+    time.sleep(30)
+    while agent_state["running"]:
+        try:
+            remote_version = get_remote_version()
+            if remote_version is not None and remote_version > VERSION:
+                log(f"🔄 Naya version mila: v{remote_version} (abhi v{VERSION} chal raha hai)")
+                update_tray_status(f"Updating to v{remote_version}...")
+
+                if is_running_as_exe():
+                    # .exe mode — seedha naya installer download/run karo
+                    apply_update_and_restart()
+                else:
+                    # Source (.py) mode — purana flow: naya .py code download karke replace karo
+                    new_code = download_latest_agent()
+                    if new_code:
+                        apply_update_and_restart(new_code)
+                    else:
+                        log("⚠️  Update download fail hua, agle check mein phir try karenge", "WARN")
+        except Exception as e:
+            log(f"⚠️  Update checker error: {e}", "WARN")
+        time.sleep(UPDATE_CHECK_INTERVAL)
+
+# ─── SYSTEM TRAY ───────────────────────────────────────────────────
+def update_tray_status(status_text):
+    """Tray icon ka tooltip/status update karo"""
+    agent_state["status"] = status_text
+    if agent_state["tray_icon"]:
+        try:
+            agent_state["tray_icon"].title = f"QR Se Print — {status_text}"
+        except Exception:
+            pass
+
+def create_tray_icon_image():
+    """Simple printer-jaisa chhota icon banate hain (Pillow se draw karke)"""
+    from PIL import Image, ImageDraw
+    img = Image.new('RGB', (64, 64), color=(10, 10, 15))
+    draw = ImageDraw.Draw(img)
+    # Simple printer shape: body + paper
+    draw.rectangle([12, 24, 52, 44], fill=(255, 77, 28))   # printer body
+    draw.rectangle([20, 10, 44, 26], fill=(255, 255, 255)) # paper
+    draw.rectangle([16, 44, 48, 54], fill=(40, 40, 45))    # tray
+    return img
+
+def open_logs(icon=None, item=None):
+    """Log file ko Notepad mein kholo"""
+    try:
+        log_path = os.path.abspath(LOG_FILE)
+        if os.path.exists(log_path):
+            os.startfile(log_path)
+        else:
+            log("Log file abhi tak nahi bani")
+    except Exception as e:
+        log(f"Logs open karne mein error: {e}", "ERROR")
+
+def change_shop_id(icon=None, item=None):
+    """
+    Tray se 'Shop ID Change Karo' click karne par config file delete karo
+    aur agent ko restart karo — restart hote hi naya Shop ID popup khulega.
+    """
+    log("🔄 Shop ID change request — agent restart ho raha hai...")
+    try:
+        if os.path.exists(SHOP_CONFIG_FILE):
+            os.remove(SHOP_CONFIG_FILE)
+    except Exception as e:
+        log(f"Config delete error: {e}", "ERROR")
+
+    try:
+        if is_running_as_exe():
+            subprocess.Popen([sys.executable])
+        else:
+            python_exe = sys.executable
+            pythonw_exe = python_exe.replace('python.exe', 'pythonw.exe')
+            if not os.path.exists(pythonw_exe):
+                pythonw_exe = python_exe
+            subprocess.Popen([pythonw_exe, os.path.abspath(__file__)])
+    except Exception as e:
+        log(f"Restart error: {e}", "ERROR")
+
+    if agent_state["tray_icon"]:
+        agent_state["tray_icon"].stop()
+    os._exit(0)
+
+def quit_agent(icon=None, item=None):
+    """Tray se 'Exit' click karne par agent ko gracefully band karo"""
+    log("👋 Tray se Exit dabaya gaya — agent band ho raha hai...")
+    agent_state["running"] = False
+    if agent_state["tray_icon"]:
+        agent_state["tray_icon"].stop()
+    os._exit(0)
+
+def run_tray_icon():
+    """
+    System Tray icon start karo. Yeh function tray ke event-loop mein
+    block ho jaata hai — isliye print-checking loop ko alag thread mein chalate hain.
+    """
+    try:
+        import pystray
+        from pystray import MenuItem as Item
+
+        def status_label(item):
+            return f"Status: {agent_state['status']}"
+
+        def shop_label(item):
+            return f"Shop: {SHOP_ID}"
+
+        def printer_label(item):
+            return f"Printer: {agent_state['printer']}"
+
+        def version_label(item):
+            return f"Version: v{VERSION}"
+
+        menu = pystray.Menu(
+            Item(status_label, None, enabled=False),
+            Item(shop_label, None, enabled=False),
+            Item(printer_label, None, enabled=False),
+            Item(version_label, None, enabled=False),
+            pystray.Menu.SEPARATOR,
+            Item("📋 Logs Dekho", open_logs),
+            Item("🔄 Shop ID Change Karo", change_shop_id),
+            Item("❌ Exit", quit_agent),
+        )
+
+        icon_image = create_tray_icon_image()
+        icon = pystray.Icon("qr_se_print", icon_image, "QR Se Print — Starting...", menu)
+        agent_state["tray_icon"] = icon
+        icon.run()
+    except ImportError:
+        log("⚠️  pystray/Pillow nahi hai — tray mode disable, normal console mode mein chal raha hai", "WARN")
+        log("    Install karne ke liye: pip install pystray Pillow", "WARN")
+    except Exception as e:
+        log(f"❌ Tray icon start nahi hua: {e}", "ERROR")
+
+# ─── MAIN PRINT LOOP (background thread mein chalta hai jab tray active ho) ──
+def print_loop():
     log("=" * 50)
-    log(f"Har {CHECK_INTERVAL}s mein check ho raha hai...")
-    log("Ctrl+C se band karo")
+    log(f"Har {CHECK_INTERVAL}s mein print jobs check ho raha hai...")
     log("=" * 50)
+    update_tray_status("Running — waiting for jobs")
 
     errors = 0
     check_count = 0
 
-    while True:
+    while agent_state["running"]:
         try:
             jobs = get_pending_jobs()
             check_count += 1
             if jobs:
                 log(f"📬 {len(jobs)} naya job!")
+                update_tray_status(f"Printing {len(jobs)} job(s)...")
                 for job in jobs:
                     process_job(job)
                 errors = 0
+                update_tray_status("Running — waiting for jobs")
             else:
                 if check_count % 60 == 0:
                     log(f"👀 Waiting... ({check_count * CHECK_INTERVAL // 60} min)")
@@ -517,11 +903,55 @@ def main():
         except Exception as e:
             errors += 1
             log(f"❌ Error: {e}", "ERROR")
+            update_tray_status("Error — retrying")
             if errors > 10:
                 time.sleep(60)
                 errors = 0
             else:
                 time.sleep(CHECK_INTERVAL)
+
+def main():
+    show_banner()
+    check_dependencies()
+
+    log(f"🚀 Agent start | Shop: {SHOP_ID} | Version: v{VERSION}")
+    log(f"🌐 Server: {SERVER_URL}")
+
+    printer_ok, printer_name = check_printer()
+    if not printer_ok:
+        log("❌ Printer nahi mila!", "ERROR")
+        input("Enter dabao...")
+        sys.exit(1)
+
+    log(f"✅ Printer: {printer_name}")
+    agent_state["printer"] = printer_name
+
+    # Auto-update checker background thread mein chalao
+    update_thread = threading.Thread(target=update_checker_loop, daemon=True)
+    update_thread.start()
+    log(f"🔄 Auto-update checker active (har {UPDATE_CHECK_INTERVAL//60} min check karega)")
+
+    # Print loop bhi background thread mein chalao — taaki tray icon
+    # foreground mein chal sake (yeh OS requirement hai tray icons ke liye)
+    print_thread = threading.Thread(target=print_loop, daemon=True)
+    print_thread.start()
+
+    # Tray icon start karo (yeh block karega jab tak Exit na dabaya jaye)
+    try:
+        run_tray_icon()
+    except Exception:
+        pass
+
+    # Agar tray fail ho jaye (pystray missing), normal console mode mein chalte raho
+    if agent_state["tray_icon"] is None:
+        log("ℹ️  Console mode mein chal raha hai (Ctrl+C se band karo)")
+        log("=" * 50)
+        try:
+            while agent_state["running"]:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            log("\n👋 Band ho raha hai...")
+            agent_state["running"] = False
 
 if __name__ == "__main__":
     main()
