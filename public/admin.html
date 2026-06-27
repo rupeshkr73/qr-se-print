@@ -148,7 +148,40 @@ select{padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-fami
     <div class="card qr-section">
       <h2>📱 QR Code</h2>
       <img id="adminQrImg" src="">
-      <p style="font-size:11px;color:#6b6870;margin-top:10px;word-break:break-all;" id="adminQrUrl"></p>
+      <br>
+      <button onclick="downloadQrOnly()" style="background:none;border:1.5px solid #e2ddd6;border-radius:10px;padding:7px 14px;font-size:11px;font-weight:700;color:#0a0a0f;cursor:pointer;margin:10px 0;font-family:'Space Grotesk',sans-serif;">
+        🖼️ Sirf QR Code Download Karo
+      </button>
+      <p style="font-size:11px;color:#6b6870;margin-top:4px;word-break:break-all;" id="adminQrUrl"></p>
+
+      <button class="btn-save" style="background:linear-gradient(135deg,#00c853,#009624);margin-top:16px;" onclick="downloadEasyInstaller()">
+        ⬇️ Easy Installer Download Karo (.exe)
+      </button>
+      <p style="font-size:11px;color:#6b6870;margin-top:6px;text-align:center;">Recommended — Python ya SumatraPDF alag se install karne ki zaroorat nahi, sab bundled hai</p>
+
+      <button class="btn-save" style="background:#6b6870;margin-top:10px;font-size:12px;" onclick="downloadAgentPackage()">
+        📦 Advanced: Python ZIP Version Download Karo
+      </button>
+      <p style="font-size:10px;color:#9b9690;margin-top:4px;text-align:center;">Sirf technical users ke liye — agar Easy Installer kaam na kare</p>
+    </div>
+
+    <div class="card">
+      <h2>🔗 Important Software Links</h2>
+      <p style="font-size:12px;color:#6b6870;margin-bottom:14px;">Agar PC mein Python ya SumatraPDF nahi hai, ya install karte waqt error aaye, yahan se direct download karo:</p>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <a href="https://www.python.org/downloads/" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#f8f7f5;border-radius:12px;text-decoration:none;color:#0a0a0f;">
+          <span style="font-size:13px;font-weight:700;">🐍 Python (Required)</span>
+          <span style="font-size:11px;color:#1c6fff;font-weight:700;">Download →</span>
+        </a>
+        <a href="https://www.sumatrapdfreader.org/download-free-pdf-viewer" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#f8f7f5;border-radius:12px;text-decoration:none;color:#0a0a0f;">
+          <span style="font-size:13px;font-weight:700;">📄 SumatraPDF (Required)</span>
+          <span style="font-size:11px;color:#1c6fff;font-weight:700;">Download →</span>
+        </a>
+      </div>
+      <p style="font-size:11px;color:#6b6870;margin-top:14px;line-height:1.6;">
+        ⚠️ Python install karte waqt <strong>"Add to PATH"</strong> checkbox zaroor tick karo.<br>
+        SumatraPDF install karke seedha "Next, Next, Finish" karo — koi extra setting nahi chahiye.
+      </p>
     </div>
 
     <div class="card">
@@ -448,6 +481,33 @@ async function loadJobs() {
       tbody.appendChild(tr);
     });
   } catch(e) {}
+}
+
+function downloadQrOnly() {
+  if (!currentShop || !currentShop.qr_code) {
+    alert('QR Code load nahi hua, page refresh karo');
+    return;
+  }
+  const a = document.createElement('a');
+  a.href = currentShop.qr_code;
+  a.download = `QR-Code-${currentShop.id}.png`;
+  a.click();
+}
+
+function downloadEasyInstaller() {
+  if (!currentShop || !currentShop.id) {
+    alert('Shop ki details load nahi hui, page refresh karke try karo');
+    return;
+  }
+  window.location.href = `/api/download/easy-installer/${currentShop.id}`;
+}
+
+function downloadAgentPackage() {
+  if (!currentShop || !currentShop.id) {
+    alert('Shop ki details load nahi hui, page refresh karke try karo');
+    return;
+  }
+  window.location.href = `/api/download/agent-package/${currentShop.id}`;
 }
 
 async function saveSettings() {

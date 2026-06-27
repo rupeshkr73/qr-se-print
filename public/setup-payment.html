@@ -99,19 +99,28 @@ nav{background:#0a0a0f;padding:16px 24px}
     </div>
 
     <img id="qrImg" src="">
+    <br>
+    <button onclick="downloadQrOnly()" style="background:none;border:1.5px solid #e2ddd6;border-radius:10px;padding:8px 16px;font-size:12px;font-weight:700;color:#0a0a0f;cursor:pointer;margin-bottom:16px;font-family:'Space Grotesk',sans-serif;">
+      🖼️ Sirf QR Code Download Karo
+    </button>
 
-    <button class="download-btn" onclick="downloadPackage()">
-      ⬇️ Print Agent + QR Code Download Karo
+    <button class="download-btn" onclick="downloadEasyInstaller()">
+      ⬇️ Easy Installer Download Karo (.exe)
+    </button>
+    <p style="font-size:11px;color:#6b6870;margin-bottom:14px;text-align:center;">Recommended — Python ya SumatraPDF alag se install karne ki zaroorat nahi</p>
+
+    <button class="download-btn" style="background:#6b6870;font-size:13px;padding:12px;" onclick="downloadPackage()">
+      📦 Advanced: Python ZIP Version
     </button>
 
     <div class="steps-mini">
-      <h4>📋 Ab Yeh Karo:</h4>
+      <h4>📋 Easy Installer Ke Liye:</h4>
       <p>
-        1. ZIP extract karo<br>
-        2. QR-Code.png print karke shop ke bahar lagao<br>
-        3. INSTALL.bat → Run as Administrator<br>
-        4. RUN_AGENT.bat se agent start karo<br>
-        5. README.txt mein poori detail hai
+        1. Downloaded .exe file pe double-click karo<br>
+        2. "Next, Next, Install" karo<br>
+        3. Pehli baar khulte hi Shop ID poochega — daalo<br>
+        4. Tray mein icon dikhega (neeche right corner)<br>
+        5. QR-Code.png alag se download/print karo dashboard se
       </p>
     </div>
   </div>
@@ -210,6 +219,18 @@ function showSuccess(qrCode) {
   document.getElementById('successCard').style.display = 'block';
   document.getElementById('qrImg').src = qrCode;
   document.getElementById('successCard').scrollIntoView({ behavior: 'smooth' });
+}
+
+function downloadQrOnly() {
+  const img = document.getElementById('qrImg');
+  const a = document.createElement('a');
+  a.href = img.src;
+  a.download = `QR-Code-${shopId}.png`;
+  a.click();
+}
+
+function downloadEasyInstaller() {
+  window.location.href = `/api/download/easy-installer/${shopId}`;
 }
 
 function downloadPackage() {
