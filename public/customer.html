@@ -1066,9 +1066,14 @@ function applyPerspectiveCrop() {
   const item = canvasItems.find(i => i.id === activeItemId);
   if (!item || !perspCropState) return;
 
-  const img = document.getElementById('perspCropImg');
-  const scaleX = item.sourceCanvas.width / img.clientWidth;
-  const scaleY = item.sourceCanvas.height / img.clientHeight;
+  // IMPORTANT: scale calculate karne ke liye perspCropState.imgW/imgH use
+  // karte hain (jo handles position set karte waqt capture hua tha), NA ki
+  // img.clientWidth ko dobara measure karke — kyunki beech mein agar koi
+  // bhi layout reflow ho jaaye (scroll, panel toggle, etc), dobara measurement
+  // alag value de sakta hai jiski wajah se handles ki position aur scale
+  // factor mismatch ho jaate hain, result distorted/skewed aata hai.
+  const scaleX = item.sourceCanvas.width / perspCropState.imgW;
+  const scaleY = item.sourceCanvas.height / perspCropState.imgH;
   const s = perspCropState;
 
   // 4 corners ko original image-pixel scale mein convert karo
@@ -1123,26 +1128,30 @@ function drawPerspectiveWarp(ctx, sourceCanvas, corners, outW, outH) {
     bl: { x: 0, y: outH }, br: { x: outW, y: outH }
   };
 
-  function drawTriangle(srcP0, srcP1, srcP2, dstP0, dstP1, dstP2) {
+  function drawTriangle(src0, src1, src2, dst0, dst1, dst2) {
     ctx.save();
     // Clip to destination triangle
     ctx.beginPath();
-    ctx.moveTo(dstP0.x, dstP0.y);
-    ctx.lineTo(dstP1.x, dstP1.y);
-    ctx.lineTo(dstP2.x, dstP2.y);
+    ctx.moveTo(dst0.x, dst0.y);
+    ctx.lineTo(dst1.x, dst1.y);
+    ctx.lineTo(dst2.x, dst2.y);
     ctx.closePath();
     ctx.clip();
 
-    // Compute affine transform mapping src triangle -> dst triangle
-    const denom = (srcP1.x - srcP0.x) * (srcP2.y - srcP0.y) - (srcP2.x - srcP0.x) * (srcP1.y - srcP0.y);
+    // 3-point affine solve: dst = [[a,c],[b,d]] * src + [e,f]
+    // Yeh standard closed-form Cramer's-rule solution hai, verified
+    // numerically (pehle wali formula mein numerator galat tha, jiski
+    // wajah se result rotated/skewed nikal raha tha)
+    const denom = (src1.x - src0.x) * (src2.y - src0.y) - (src2.x - src0.x) * (src1.y - src0.y);
     if (Math.abs(denom) < 1e-6) { ctx.restore(); return; }
 
-    const a = ((dstP1.x - dstP0.x) * (srcP2.y - srcP0.y) - (dstP2.x - dstP0.x) * (srcP1.y - srcP0.y)) / denom;
-    const b = ((dstP1.y - dstP0.y) * (srcP2.y - srcP0.y) - (dstP2.y - dstP0.y) * (srcP1.y - srcP0.y)) / denom;
-    const c = ((dstP2.x - dstP0.x) * (srcP1.x - srcP0.x) - (dstP1.x - dstP0.x) * (srcP2.x - srcP0.x)) / denom;
-    const d = ((dstP2.y - dstP0.y) * (srcP1.x - srcP0.x) - (dstP1.y - dstP0.y) * (srcP2.x - srcP0.x)) / denom;
-    const e = dstP0.x - a * srcP0.x - c * srcP0.y;
-    const f = dstP0.y - b * srcP0.x - d * srcP0.y;
+    const a = (dst0.x*(src1.y-src2.y) + dst1.x*(src2.y-src0.y) + dst2.x*(src0.y-src1.y)) / denom;
+    const c = (dst0.x*(src2.x-src1.x) + dst1.x*(src0.x-src2.x) + dst2.x*(src1.x-src0.x)) / denom;
+    const e = (dst0.x*(src1.x*src2.y-src2.x*src1.y) + dst1.x*(src2.x*src0.y-src0.x*src2.y) + dst2.x*(src0.x*src1.y-src1.x*src0.y)) / denom;
+
+    const b = (dst0.y*(src1.y-src2.y) + dst1.y*(src2.y-src0.y) + dst2.y*(src0.y-src1.y)) / denom;
+    const d = (dst0.y*(src2.x-src1.x) + dst1.y*(src0.x-src2.x) + dst2.y*(src1.x-src0.x)) / denom;
+    const f = (dst0.y*(src1.x*src2.y-src2.x*src1.y) + dst1.y*(src2.x*src0.y-src0.x*src2.y) + dst2.y*(src0.x*src1.y-src1.x*src0.y)) / denom;
 
     ctx.transform(a, b, c, d, e, f);
     ctx.drawImage(sourceCanvas, 0, 0);
@@ -1536,9 +1545,10 @@ function renderDirectPerspHandles() {
 
 function applyDirectPerspCrop() {
   if (!state.directImageState || !directPerspCropState) return;
-  const img = document.getElementById('directPerspCropImg');
-  const scaleX = state.directImageState.workingCanvas.width / img.clientWidth;
-  const scaleY = state.directImageState.workingCanvas.height / img.clientHeight;
+  // IMPORTANT: same fix as ID-card mode — use cached imgW/imgH se calculate
+  // karo scale, dobara clientWidth measure mat karo (reflow se mismatch ho sakta hai)
+  const scaleX = state.directImageState.workingCanvas.width / directPerspCropState.imgW;
+  const scaleY = state.directImageState.workingCanvas.height / directPerspCropState.imgH;
   const s = directPerspCropState;
 
   const srcCorners = {
