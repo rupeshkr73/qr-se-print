@@ -271,7 +271,24 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
         <div class="edit-toolbar">
           <button class="edit-tool-btn" onclick="directAutoA4()">🤖 Auto A4</button>
           <button class="edit-tool-btn" onclick="toggleDirectCrop()" id="directCropBtn">✂️ Crop</button>
+          <button class="edit-tool-btn" onclick="toggleDirectPerspCrop()" id="directPerspCropBtn">📐 Background Crop</button>
           <button class="edit-tool-btn" onclick="toggleDirectAdjustPanel()" id="directAdjustBtn">🎨 Brightness/Contrast</button>
+        </div>
+
+        <div id="directPerspCropOverlay" class="crop-overlay-box hidden">
+          <p style="font-size:12px;color:#6b6870;margin-bottom:8px;">4 corners ko drag karke document ke bahar ka unwanted background hata do</p>
+          <div class="persp-crop-wrap" id="directPerspCropWrap">
+            <img id="directPerspCropImg">
+            <svg id="directPerspCropSvg" class="persp-crop-svg"><polygon id="directPerspCropPolygon" points=""></polygon></svg>
+            <div class="persp-handle" id="directPerspHandle-tl" data-corner="tl"></div>
+            <div class="persp-handle" id="directPerspHandle-tr" data-corner="tr"></div>
+            <div class="persp-handle" id="directPerspHandle-bl" data-corner="bl"></div>
+            <div class="persp-handle" id="directPerspHandle-br" data-corner="br"></div>
+          </div>
+          <div class="btn-row" style="margin-top:10px;">
+            <button class="btn" style="background:#f0ebe3;color:#0a0a0f;" onclick="cancelDirectPerspCrop()">Cancel</button>
+            <button class="btn btn-green" onclick="applyDirectPerspCrop()">✅ Apply</button>
+          </div>
         </div>
 
         <div id="directAdjustPanel" class="adjust-panel hidden">
@@ -298,6 +315,7 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
           <div class="simple-crop-wrap" id="simpleCropWrap">
             <img id="simpleCropImg">
             <div class="simple-crop-box" id="simpleCropBox">
+
               <div class="crop-handle" data-pos="nw"></div>
               <div class="crop-handle" data-pos="ne"></div>
               <div class="crop-handle" data-pos="sw"></div>
@@ -845,7 +863,14 @@ function setupPerspectiveDrag() {
     const handle = document.getElementById('perspHandle-' + corner);
     handle.onpointerdown = (e) => {
       e.preventDefault();
+      e.stopPropagation();
       perspDragCorner = corner;
+      // Pointer ko explicitly is handle pe "lock" karte hain — warna mobile
+      // pe jab finger fast move karta hai, events doosre element ko chale
+      // jaate hain aur handle "stuck" feel hota hai (sirf left wala move
+      // hota tha kyunki woh accidentally sahi element pe pointer capture
+      // paa raha tha, right wala nahi)
+      try { handle.setPointerCapture(e.pointerId); } catch(err) {}
       document.addEventListener('pointermove', onPerspectiveDragMove);
       document.addEventListener('pointerup', onPerspectiveDragUp);
     };
@@ -854,6 +879,7 @@ function setupPerspectiveDrag() {
 
 function onPerspectiveDragMove(e) {
   if (!perspDragCorner || !perspCropState) return;
+  e.preventDefault();
   const wrap = document.getElementById('perspCropWrap');
   const rect = wrap.getBoundingClientRect();
   let x = e.clientX - rect.left;
@@ -864,7 +890,11 @@ function onPerspectiveDragMove(e) {
   renderPerspectiveHandles();
 }
 
-function onPerspectiveDragUp() {
+function onPerspectiveDragUp(e) {
+  if (perspDragCorner) {
+    const handle = document.getElementById('perspHandle-' + perspDragCorner);
+    try { handle.releasePointerCapture(e.pointerId); } catch(err) {}
+  }
   perspDragCorner = null;
   document.removeEventListener('pointermove', onPerspectiveDragMove);
   document.removeEventListener('pointerup', onPerspectiveDragUp);
@@ -1279,10 +1309,144 @@ function toggleDirectCrop() {
   const btn = document.getElementById('directCropBtn');
   document.getElementById('directAdjustPanel').classList.add('hidden');
   document.getElementById('directAdjustBtn').classList.remove('active');
+  document.getElementById('directPerspCropOverlay').classList.add('hidden');
+  document.getElementById('directPerspCropBtn').classList.remove('active');
 
   overlay.classList.toggle('hidden');
   btn.classList.toggle('active', !overlay.classList.contains('hidden'));
   if (!overlay.classList.contains('hidden')) initSimpleCrop();
+}
+
+// ─── DIRECT MODE: Perspective Crop (4 independent corners) ───
+let directPerspCropState = null;
+let directPerspDragCorner = null;
+
+function toggleDirectPerspCrop() {
+  if (!state.directImageState) { toast('⚠️ Yeh sirf image files ke liye hai'); return; }
+  const overlay = document.getElementById('directPerspCropOverlay');
+  const btn = document.getElementById('directPerspCropBtn');
+  document.getElementById('directAdjustPanel').classList.add('hidden');
+  document.getElementById('directAdjustBtn').classList.remove('active');
+  document.getElementById('directCropOverlay').classList.add('hidden');
+  document.getElementById('directCropBtn').classList.remove('active');
+
+  overlay.classList.toggle('hidden');
+  btn.classList.toggle('active', !overlay.classList.contains('hidden'));
+  if (!overlay.classList.contains('hidden')) initDirectPerspCrop();
+}
+
+function initDirectPerspCrop() {
+  const img = document.getElementById('directPerspCropImg');
+  img.src = state.directImageState.workingCanvas.toDataURL('image/jpeg', 0.92);
+  img.onload = () => {
+    const w = img.clientWidth, h = img.clientHeight;
+    const m = 0.08;
+    directPerspCropState = {
+      tl: { x: w * m, y: h * m },
+      tr: { x: w * (1 - m), y: h * m },
+      bl: { x: w * m, y: h * (1 - m) },
+      br: { x: w * (1 - m), y: h * (1 - m) },
+      imgW: w, imgH: h
+    };
+    renderDirectPerspHandles();
+    setupDirectPerspDrag();
+  };
+}
+
+function renderDirectPerspHandles() {
+  const s = directPerspCropState;
+  if (!s) return;
+  document.getElementById('directPerspHandle-tl').style.left = s.tl.x + 'px';
+  document.getElementById('directPerspHandle-tl').style.top = s.tl.y + 'px';
+  document.getElementById('directPerspHandle-tr').style.left = s.tr.x + 'px';
+  document.getElementById('directPerspHandle-tr').style.top = s.tr.y + 'px';
+  document.getElementById('directPerspHandle-bl').style.left = s.bl.x + 'px';
+  document.getElementById('directPerspHandle-bl').style.top = s.bl.y + 'px';
+  document.getElementById('directPerspHandle-br').style.left = s.br.x + 'px';
+  document.getElementById('directPerspHandle-br').style.top = s.br.y + 'px';
+
+  const poly = document.getElementById('directPerspCropPolygon');
+  poly.setAttribute('points', `${s.tl.x},${s.tl.y} ${s.tr.x},${s.tr.y} ${s.br.x},${s.br.y} ${s.bl.x},${s.bl.y}`);
+}
+
+function setupDirectPerspDrag() {
+  ['tl','tr','bl','br'].forEach(corner => {
+    const handle = document.getElementById('directPerspHandle-' + corner);
+    handle.onpointerdown = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      directPerspDragCorner = corner;
+      try { handle.setPointerCapture(e.pointerId); } catch(err) {}
+      document.addEventListener('pointermove', onDirectPerspDragMove);
+      document.addEventListener('pointerup', onDirectPerspDragUp);
+    };
+  });
+}
+
+function onDirectPerspDragMove(e) {
+  if (!directPerspDragCorner || !directPerspCropState) return;
+  e.preventDefault();
+  const wrap = document.getElementById('directPerspCropWrap');
+  const rect = wrap.getBoundingClientRect();
+  let x = e.clientX - rect.left;
+  let y = e.clientY - rect.top;
+  x = Math.max(0, Math.min(directPerspCropState.imgW, x));
+  y = Math.max(0, Math.min(directPerspCropState.imgH, y));
+  directPerspCropState[directPerspDragCorner] = { x, y };
+  renderDirectPerspHandles();
+}
+
+function onDirectPerspDragUp(e) {
+  if (directPerspDragCorner) {
+    const handle = document.getElementById('directPerspHandle-' + directPerspDragCorner);
+    try { handle.releasePointerCapture(e.pointerId); } catch(err) {}
+  }
+  directPerspDragCorner = null;
+  document.removeEventListener('pointermove', onDirectPerspDragMove);
+  document.removeEventListener('pointerup', onDirectPerspDragUp);
+}
+
+function applyDirectPerspCrop() {
+  if (!state.directImageState || !directPerspCropState) return;
+  const img = document.getElementById('directPerspCropImg');
+  const scaleX = state.directImageState.workingCanvas.width / img.clientWidth;
+  const scaleY = state.directImageState.workingCanvas.height / img.clientHeight;
+  const s = directPerspCropState;
+
+  const srcCorners = {
+    tl: { x: s.tl.x * scaleX, y: s.tl.y * scaleY },
+    tr: { x: s.tr.x * scaleX, y: s.tr.y * scaleY },
+    bl: { x: s.bl.x * scaleX, y: s.bl.y * scaleY },
+    br: { x: s.br.x * scaleX, y: s.br.y * scaleY }
+  };
+
+  const outW = Math.round((dist(srcCorners.tl, srcCorners.tr) + dist(srcCorners.bl, srcCorners.br)) / 2);
+  const outH = Math.round((dist(srcCorners.tl, srcCorners.bl) + dist(srcCorners.tr, srcCorners.br)) / 2);
+
+  const out = document.createElement('canvas');
+  out.width = outW; out.height = outH;
+  const ctx = out.getContext('2d');
+  drawPerspectiveWarp(ctx, state.directImageState.workingCanvas, srcCorners, outW, outH);
+
+  state.directImageState.originalCanvas = out;
+  state.directImageState.workingCanvas = out;
+  state.directImageState.brightness = 0;
+  state.directImageState.contrast = 0;
+  state.directImageState.scale = 100;
+  document.getElementById('directBrightness').value = 0;
+  document.getElementById('directContrast').value = 0;
+  document.getElementById('directScale').value = 100;
+
+  refreshDirectPreviewImg();
+  document.getElementById('directPerspCropOverlay').classList.add('hidden');
+  document.getElementById('directPerspCropBtn').classList.remove('active');
+  toast('📐 Background crop ho gaya!');
+  reuploadDirectFile();
+}
+
+function cancelDirectPerspCrop() {
+  document.getElementById('directPerspCropOverlay').classList.add('hidden');
+  document.getElementById('directPerspCropBtn').classList.remove('active');
 }
 
 function initSimpleCrop() {
@@ -1306,7 +1470,7 @@ function setupSimpleCropDrag() {
   const box = document.getElementById('simpleCropBox');
   const wrap = document.getElementById('simpleCropWrap');
 
-  function startDrag(e, mode, pos) {
+  function startDrag(e, mode, pos, targetEl) {
     e.preventDefault(); e.stopPropagation();
     const wrapRect = wrap.getBoundingClientRect();
     simpleCropState = {
@@ -1314,15 +1478,17 @@ function setupSimpleCropDrag() {
       startX: e.clientX, startY: e.clientY,
       boxLeft: parseFloat(box.style.left), boxTop: parseFloat(box.style.top),
       boxW: parseFloat(box.style.width), boxH: parseFloat(box.style.height),
-      wrapW: wrapRect.width, wrapH: wrapRect.height
+      wrapW: wrapRect.width, wrapH: wrapRect.height,
+      capturedEl: targetEl, pointerId: e.pointerId
     };
+    try { targetEl.setPointerCapture(e.pointerId); } catch(err) {}
     document.addEventListener('pointermove', onSimpleCropMove);
     document.addEventListener('pointerup', onSimpleCropUp);
   }
 
-  box.onpointerdown = (e) => { if (e.target === box) startDrag(e, 'move'); };
+  box.onpointerdown = (e) => { if (e.target === box) startDrag(e, 'move', null, box); };
   box.querySelectorAll('.crop-handle').forEach(h => {
-    h.onpointerdown = (e) => startDrag(e, 'resize', h.dataset.pos);
+    h.onpointerdown = (e) => startDrag(e, 'resize', h.dataset.pos, h);
   });
 }
 
@@ -1351,7 +1517,10 @@ function onSimpleCropMove(e) {
   }
 }
 
-function onSimpleCropUp() {
+function onSimpleCropUp(e) {
+  if (simpleCropState && simpleCropState.capturedEl) {
+    try { simpleCropState.capturedEl.releasePointerCapture(simpleCropState.pointerId); } catch(err) {}
+  }
   simpleCropState = null;
   document.removeEventListener('pointermove', onSimpleCropMove);
   document.removeEventListener('pointerup', onSimpleCropUp);
