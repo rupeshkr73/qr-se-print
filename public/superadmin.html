@@ -95,6 +95,34 @@ input:focus{border-color:#1c6fff}
   <div class="body">
 
     <div class="card" style="margin-bottom:20px;">
+      <h2><span>📦 Easy Installer (.exe) URL</span></h2>
+      <p style="font-size:12px;color:#6b6870;margin-bottom:12px;">GitHub/Render file size limit avoid karne ke liye, naya .exe Cloudinary pe upload karo, phir uska URL yahan paste karo.</p>
+      <div style="display:flex;gap:10px;">
+        <input type="text" id="installerUrlInput" placeholder="https://res.cloudinary.com/.../QRSePrint-Setup.exe" style="flex:1;padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:13px;">
+        <button class="filter-tab" style="padding:11px 22px;background:#00c853;color:#fff;border-color:#00c853;font-size:13px;white-space:nowrap;" onclick="updateInstallerUrl()">💾 Save</button>
+      </div>
+      <p style="font-size:11px;color:#6b6870;margin-top:8px;" id="installerUrlUpdated"></p>
+      <div id="installerUrlMsg" style="font-size:12px;margin-top:6px;display:none;"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:20px;">
+      <h2><span>🔄 Print Agent Auto-Update</span></h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:#f8f7f5;border-radius:14px;padding:16px 20px;margin-bottom:14px;">
+        <div>
+          <div style="font-size:11px;color:#6b6870;font-weight:600;text-transform:uppercase;margin-bottom:4px;">Current Live Version</div>
+          <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;">v<span id="agentVersionDisplay">1</span></div>
+          <div style="font-size:11px;color:#6b6870;margin-top:4px;" id="agentVersionUpdated"></div>
+        </div>
+        <button class="filter-tab" style="padding:14px 24px;background:#1c6fff;color:#fff;border-color:#1c6fff;font-size:13px;" onclick="pushAgentUpdate()">🚀 Naya Update Push Karo</button>
+      </div>
+      <p style="font-size:11px;color:#6b6870;line-height:1.6;">
+        <strong>Pehle yeh karo:</strong> GitHub pe <code>agent-template/print_agent.py</code> file mein naya code daalo aur Render pe deploy karo.<br>
+        <strong>Phir:</strong> "Naya Update Push Karo" button dabao — sab customers ke PC apne aap (1 ghante ke andar, jab unka agent check karega) naya code download karke restart ho jayenge. Kisiko call/WhatsApp karne ki zaroorat nahi.
+      </p>
+      <div id="agentVersionMsg" style="font-size:12px;margin-top:8px;display:none;"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:20px;">
       <h2><span>💰 Setup Fee / Offer Price</span></h2>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
         <div>
@@ -202,10 +230,12 @@ async function doLogin() {
 
 async function loadPanel() {
   try {
-    const [overviewRes, shopsRes, feeRes] = await Promise.all([
+    const [overviewRes, shopsRes, feeRes, versionRes, installerUrlRes] = await Promise.all([
       fetch('/api/superadmin/overview', { headers: { 'Authorization': 'Bearer ' + authToken } }),
       fetch('/api/superadmin/shops', { headers: { 'Authorization': 'Bearer ' + authToken } }),
-      fetch('/api/superadmin/setup-fee', { headers: { 'Authorization': 'Bearer ' + authToken } })
+      fetch('/api/superadmin/setup-fee', { headers: { 'Authorization': 'Bearer ' + authToken } }),
+      fetch('/api/superadmin/agent-version', { headers: { 'Authorization': 'Bearer ' + authToken } }),
+      fetch('/api/superadmin/easy-installer-url', { headers: { 'Authorization': 'Bearer ' + authToken } })
     ]);
 
     if (!overviewRes.ok || !shopsRes.ok) {
@@ -234,9 +264,86 @@ async function loadPanel() {
       updatePreview();
     }
 
+    if (versionRes.ok) {
+      const versionData = await versionRes.json();
+      document.getElementById('agentVersionDisplay').textContent = versionData.version;
+      if (versionData.updatedAt) {
+        const d = new Date(versionData.updatedAt);
+        document.getElementById('agentVersionUpdated').textContent = 'Last update: ' + d.toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) + ' ' + d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+      }
+    }
+
+    if (installerUrlRes.ok) {
+      const installerData = await installerUrlRes.json();
+      document.getElementById('installerUrlInput').value = installerData.url || '';
+      if (installerData.updatedAt) {
+        const d = new Date(installerData.updatedAt);
+        document.getElementById('installerUrlUpdated').textContent = 'Last updated: ' + d.toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) + ' ' + d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
+      }
+    }
+
     renderShops();
   } catch(e) {
     console.error(e);
+  }
+}
+
+async function updateInstallerUrl() {
+  const url = document.getElementById('installerUrlInput').value.trim();
+  const msgEl = document.getElementById('installerUrlMsg');
+  msgEl.style.display = 'none';
+
+  try {
+    const res = await fetch('/api/superadmin/easy-installer-url', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+      body: JSON.stringify({ url })
+    });
+    const data = await res.json();
+    if (data.success) {
+      msgEl.textContent = '✅ Installer URL save ho gaya! Sab download links ab isi URL pe redirect karenge.';
+      msgEl.style.color = '#00c853';
+      msgEl.style.display = 'block';
+    } else {
+      msgEl.textContent = '❌ ' + data.error;
+      msgEl.style.color = '#ff4d1c';
+      msgEl.style.display = 'block';
+    }
+  } catch(e) {
+    msgEl.textContent = '❌ Network error';
+    msgEl.style.color = '#ff4d1c';
+    msgEl.style.display = 'block';
+  }
+}
+
+async function pushAgentUpdate() {
+  const msgEl = document.getElementById('agentVersionMsg');
+  msgEl.style.display = 'none';
+
+  if (!confirm('Pakka? Yeh sab customers ke Print Agent ko naya code download karne ke liye trigger karega. Pehle confirm karo GitHub/Render pe naya agent-template/print_agent.py deploy ho chuka hai.')) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/superadmin/agent-version/bump', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    const data = await res.json();
+    if (data.success) {
+      document.getElementById('agentVersionDisplay').textContent = data.version;
+      msgEl.textContent = `✅ Version v${data.version} push ho gaya! Sab customers ke PC 1 ghante ke andar auto-update ho jayenge.`;
+      msgEl.style.color = '#00c853';
+      msgEl.style.display = 'block';
+    } else {
+      msgEl.textContent = '❌ ' + data.error;
+      msgEl.style.color = '#ff4d1c';
+      msgEl.style.display = 'block';
+    }
+  } catch(e) {
+    msgEl.textContent = '❌ Network error';
+    msgEl.style.color = '#ff4d1c';
+    msgEl.style.display = 'block';
   }
 }
 
