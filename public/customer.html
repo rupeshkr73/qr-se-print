@@ -1108,9 +1108,14 @@ function applyPerspectiveCrop() {
   item.sourceCanvas = out;
   item.brightness = 0;
   item.contrast = 0;
+  // IMPORTANT FIX: Perspective Crop khud hi document ko seedha kar deta
+  // hai (warp ke through). Agar item ka rotation pehle se kuch degree pe
+  // set tha (rotate handle se), to woh PURANA rotation crop ke baad bhi
+  // display ke time apply ho jaata — jisse already-seedha image dobara
+  // tedhi dikh jaati thi. Isliye rotation reset karna ZAROORI hai.
+  item.rotation = 0;
 
   // Item ka displayed size bhi update karo naye aspect ratio ke hisaab se
-  const a4 = document.getElementById('a4Canvas');
   const newRatio = outW / outH;
   item.h = item.w / newRatio;
 
