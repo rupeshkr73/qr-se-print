@@ -57,6 +57,40 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 .canvas-item.active .remove-handle{display:flex}
 
 .btn-back-add{padding:10px 18px;border-radius:10px;border:1.5px solid #1c6fff;background:#f0f4ff;color:#1c6fff;font-size:13px;font-weight:700;cursor:pointer;font-family:'Space Grotesk',sans-serif;transition:all 0.2s}
+.btn-back-add.active{background:#1c6fff;color:#fff}
+
+/* Edit toolbar (Direct mode) */
+.edit-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;justify-content:center}
+.edit-tool-btn{padding:9px 14px;border-radius:10px;border:1.5px solid #e2ddd6;background:#fff;color:#0a0a0f;font-size:12px;font-weight:700;cursor:pointer;font-family:'Space Grotesk',sans-serif;transition:all 0.2s}
+.edit-tool-btn:hover{border-color:#ff4d1c}
+.edit-tool-btn.active{background:#ff4d1c;color:#fff;border-color:#ff4d1c}
+
+/* Brightness/Contrast/Scale sliders panel */
+.adjust-panel{background:#f8f7f5;border-radius:12px;padding:14px;margin-top:12px}
+.adjust-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.adjust-row:last-of-type{margin-bottom:0}
+.adjust-row label{font-size:12px;font-weight:700;width:120px;flex-shrink:0}
+.adjust-row input[type="range"]{flex:1;accent-color:#ff4d1c}
+.adjust-row span{font-size:11px;color:#6b6870;width:34px;text-align:right;flex-shrink:0}
+
+/* Simple rectangular crop (Direct mode) */
+.crop-overlay-box{background:#f8f7f5;border-radius:12px;padding:14px;margin-top:12px}
+.simple-crop-wrap{position:relative;display:inline-block;max-width:100%;margin:0 auto;display:flex;justify-content:center}
+.simple-crop-wrap img{max-width:100%;max-height:280px;display:block;border-radius:6px}
+.simple-crop-box{position:absolute;border:2px dashed #ff4d1c;background:rgba(255,77,28,0.08);cursor:move}
+.crop-handle{position:absolute;width:14px;height:14px;background:#ff4d1c;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3)}
+.crop-handle[data-pos="nw"]{top:-7px;left:-7px;cursor:nwse-resize}
+.crop-handle[data-pos="ne"]{top:-7px;right:-7px;cursor:nesw-resize}
+.crop-handle[data-pos="sw"]{bottom:-7px;left:-7px;cursor:nesw-resize}
+.crop-handle[data-pos="se"]{bottom:-7px;right:-7px;cursor:nwse-resize}
+
+/* Perspective crop (ID Card mode) - 4 independent corner handles */
+.persp-crop-wrap{position:relative;display:flex;justify-content:center;touch-action:none}
+.persp-crop-wrap img{max-width:100%;max-height:320px;display:block;border-radius:6px;pointer-events:none}
+.persp-crop-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
+.persp-crop-svg polygon{fill:rgba(255,77,28,0.15);stroke:#ff4d1c;stroke-width:2}
+.persp-handle{position:absolute;width:18px;height:18px;background:#ff4d1c;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,0.3);cursor:grab;touch-action:none;transform:translate(-50%,-50%)}
+
 
 .mode-option{display:flex;align-items:center;gap:14px;padding:16px;border:1.5px solid #e2ddd6;border-radius:14px;cursor:pointer;margin-bottom:12px;transition:all 0.2s}
 .mode-option:hover{border-color:#ff4d1c;background:#fff8f5}
@@ -108,6 +142,11 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 .pay-btn-sub{font-size:10px;font-weight:400;opacity:0.8}
 .pay-note{text-align:center;font-size:11px;color:rgba(255,255,255,0.4);margin-top:10px}
 .success-screen{display:none;background:#fff;border-radius:24px;padding:36px 20px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.08)}
+
+.thank-you-emoji{font-size:64px;margin-bottom:4px;display:inline-block;animation:thankYouBounce 1.2s ease-in-out infinite}
+.thank-you-text{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#ff4d1c;margin-bottom:16px;animation:thankYouPop 0.5s cubic-bezier(0.175,0.885,0.32,1.275)}
+@keyframes thankYouBounce{0%,100%{transform:translateY(0) rotate(0deg)}25%{transform:translateY(-12px) rotate(-8deg)}50%{transform:translateY(0) rotate(0deg)}75%{transform:translateY(-8px) rotate(8deg)}}
+@keyframes thankYouPop{0%{transform:scale(0);opacity:0}60%{transform:scale(1.15);opacity:1}100%{transform:scale(1)}}
 .sicon{width:76px;height:76px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:38px;margin:0 auto 18px;animation:pop 0.5s cubic-bezier(0.175,0.885,0.32,1.275)}
 @keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
 .sicon.online{background:linear-gradient(135deg,#00c853,#69f0ae)}
@@ -228,9 +267,52 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
           </div>
           <div class="page-badge">📄 <span id="directPageCountBadge">1</span> pages detected</div>
         </div>
+
+        <div class="edit-toolbar">
+          <button class="edit-tool-btn" onclick="directAutoA4()">🤖 Auto A4</button>
+          <button class="edit-tool-btn" onclick="toggleDirectCrop()" id="directCropBtn">✂️ Crop</button>
+          <button class="edit-tool-btn" onclick="toggleDirectAdjustPanel()" id="directAdjustBtn">🎨 Brightness/Contrast</button>
+        </div>
+
+        <div id="directAdjustPanel" class="adjust-panel hidden">
+          <div class="adjust-row">
+            <label>☀️ Brightness</label>
+            <input type="range" id="directBrightness" min="-100" max="100" value="0" oninput="applyDirectAdjustments()" onchange="reuploadDirectFile()">
+            <span id="directBrightnessVal">0</span>
+          </div>
+          <div class="adjust-row">
+            <label>🎨 Contrast</label>
+            <input type="range" id="directContrast" min="-100" max="100" value="0" oninput="applyDirectAdjustments()" onchange="reuploadDirectFile()">
+            <span id="directContrastVal">0</span>
+          </div>
+          <div class="adjust-row">
+            <label>📏 Scale</label>
+            <input type="range" id="directScale" min="50" max="150" value="100" oninput="applyDirectAdjustments()" onchange="reuploadDirectFile()">
+            <span id="directScaleVal">100%</span>
+          </div>
+          <button class="edit-tool-btn" style="width:100%;margin-top:8px;background:#f0ebe3;" onclick="resetDirectAdjustments()">↺ Reset</button>
+        </div>
+
+        <div id="directCropOverlay" class="crop-overlay-box hidden">
+          <p style="font-size:12px;color:#6b6870;margin-bottom:8px;">Crop area ko drag karke set karo</p>
+          <div class="simple-crop-wrap" id="simpleCropWrap">
+            <img id="simpleCropImg">
+            <div class="simple-crop-box" id="simpleCropBox">
+              <div class="crop-handle" data-pos="nw"></div>
+              <div class="crop-handle" data-pos="ne"></div>
+              <div class="crop-handle" data-pos="sw"></div>
+              <div class="crop-handle" data-pos="se"></div>
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top:10px;">
+            <button class="btn" style="background:#f0ebe3;color:#0a0a0f;" onclick="cancelDirectCrop()">Cancel</button>
+            <button class="btn btn-green" onclick="applyDirectCrop()">✅ Apply Crop</button>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="btn-row" style="grid-template-columns:1fr;">
+    <div class="btn-row">
+      <button class="btn" style="background:#f0ebe3;color:#0a0a0f;" onclick="backToModeSelect()">← Back</button>
       <button class="btn btn-green" onclick="goOptions()">✅ Aage Bado</button>
     </div>
   </div>
@@ -260,8 +342,41 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
           <button class="btn-back-add" id="addBackBtn" onclick="triggerBackUpload()">➕ Back Side Add Karo</button>
           <input type="file" id="backFileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="handleBackFile(this)">
         </div>
-        <div style="margin-top:10px;text-align:center;">
+        <div style="margin-top:10px;text-align:center;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
           <button class="btn-back-add" id="resetCanvasBtn" onclick="resetCanvasItems()" style="background:#fff0ed;color:#ff4d1c;border-color:#ffb3a0;">↺ Reset Position</button>
+          <button class="btn-back-add" onclick="togglePerspectiveCrop()" id="perspCropBtn">📐 Background Crop</button>
+          <button class="btn-back-add" onclick="toggleCanvasAdjustPanel()" id="canvasAdjustBtn">🎨 Brightness/Contrast</button>
+        </div>
+
+        <div id="canvasAdjustPanel" class="adjust-panel hidden">
+          <p style="font-size:11px;color:#6b6870;margin-bottom:8px;">Active item (jis pe orange border hai) ke liye adjust karo</p>
+          <div class="adjust-row">
+            <label>☀️ Brightness</label>
+            <input type="range" id="canvasBrightness" min="-100" max="100" value="0" oninput="applyCanvasItemAdjustments()" onchange="uploadCurrentFile()">
+            <span id="canvasBrightnessVal">0</span>
+          </div>
+          <div class="adjust-row">
+            <label>🎨 Contrast</label>
+            <input type="range" id="canvasContrast" min="-100" max="100" value="0" oninput="applyCanvasItemAdjustments()" onchange="uploadCurrentFile()">
+            <span id="canvasContrastVal">0</span>
+          </div>
+          <button class="edit-tool-btn" style="width:100%;margin-top:8px;background:#f0ebe3;" onclick="resetCanvasItemAdjustments()">↺ Reset</button>
+        </div>
+
+        <div id="perspCropOverlay" class="crop-overlay-box hidden">
+          <p style="font-size:12px;color:#6b6870;margin-bottom:8px;">4 corners ko drag karke document ke bahar ka unwanted background hata do (Photoshop Perspective Crop jaisa)</p>
+          <div class="persp-crop-wrap" id="perspCropWrap">
+            <img id="perspCropImg">
+            <svg id="perspCropSvg" class="persp-crop-svg"><polygon id="perspCropPolygon" points=""></polygon></svg>
+            <div class="persp-handle" id="perspHandle-tl" data-corner="tl"></div>
+            <div class="persp-handle" id="perspHandle-tr" data-corner="tr"></div>
+            <div class="persp-handle" id="perspHandle-bl" data-corner="bl"></div>
+            <div class="persp-handle" id="perspHandle-br" data-corner="br"></div>
+          </div>
+          <div class="btn-row" style="margin-top:10px;">
+            <button class="btn" style="background:#f0ebe3;color:#0a0a0f;" onclick="cancelPerspectiveCrop()">Cancel</button>
+            <button class="btn btn-green" onclick="applyPerspectiveCrop()">✅ Apply</button>
+          </div>
         </div>
       </div>
     </div>
@@ -272,7 +387,8 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
         <div class="q-desc" id="qDesc">Print ke liye ready hai.</div>
       </div>
     </div>
-    <div class="btn-row" style="grid-template-columns:1fr;">
+    <div class="btn-row">
+      <button class="btn" style="background:#f0ebe3;color:#0a0a0f;" onclick="backToModeSelect()">← Back</button>
       <button class="btn btn-green" onclick="goOptions()">✅ Aage Bado</button>
     </div>
   </div>
@@ -364,6 +480,8 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
   </div>
 
   <div class="success-screen" id="secSuccess">
+    <div class="thank-you-emoji" id="thankYouEmoji">🎉</div>
+    <h2 class="thank-you-text">Thank You!</h2>
     <div class="sicon" id="successIcon">✓</div>
     <h2 id="successTitle">Print Shuru!</h2>
     <div class="order-id" id="orderId">ORDER #...</div>
@@ -537,7 +655,10 @@ function addCanvasItem(type, sourceCanvas, kind) {
 
   const item = {
     id: 'item_' + Date.now() + '_' + type,
-    type, kind, sourceCanvas,
+    type, kind,
+    sourceCanvas,         // current displayed canvas (after brightness/contrast/crop)
+    originalCanvas: sourceCanvas, // unedited base, brightness/contrast reset hone par yahan se re-apply hota hai
+    brightness: 0, contrast: 0,
     x, y, w, h, rotation: 0
   };
   canvasItems.push(item);
@@ -597,6 +718,253 @@ function renderCanvasItems() {
 function setActiveItem(itemId) {
   activeItemId = itemId;
   renderCanvasItems();
+}
+
+// ─── CANVAS MODE: Brightness/Contrast on active item ───
+function toggleCanvasAdjustPanel() {
+  if (!activeItemId) { toast('⚠️ Pehle Front ya Back document pe click karo'); return; }
+  const panel = document.getElementById('canvasAdjustPanel');
+  const btn = document.getElementById('canvasAdjustBtn');
+  document.getElementById('perspCropOverlay').classList.add('hidden');
+  document.getElementById('perspCropBtn').classList.remove('active');
+
+  panel.classList.toggle('hidden');
+  btn.classList.toggle('active', !panel.classList.contains('hidden'));
+  if (!panel.classList.contains('hidden')) {
+    const item = canvasItems.find(i => i.id === activeItemId);
+    document.getElementById('canvasBrightness').value = item ? item.brightness : 0;
+    document.getElementById('canvasContrast').value = item ? item.contrast : 0;
+    document.getElementById('canvasBrightnessVal').textContent = item ? item.brightness : 0;
+    document.getElementById('canvasContrastVal').textContent = item ? item.contrast : 0;
+  }
+}
+
+function applyCanvasItemAdjustments() {
+  const item = canvasItems.find(i => i.id === activeItemId);
+  if (!item) return;
+  const b = parseInt(document.getElementById('canvasBrightness').value);
+  const c = parseInt(document.getElementById('canvasContrast').value);
+  document.getElementById('canvasBrightnessVal').textContent = b;
+  document.getElementById('canvasContrastVal').textContent = c;
+  item.brightness = b;
+  item.contrast = c;
+
+  const src = item.originalCanvas;
+  const out = document.createElement('canvas');
+  out.width = src.width; out.height = src.height;
+  const ctx = out.getContext('2d');
+  ctx.drawImage(src, 0, 0);
+
+  const id = ctx.getImageData(0, 0, out.width, out.height);
+  const d = id.data;
+  const brightAmt = b * 2.55;
+  const contrastFactor = (259 * (c + 255)) / (255 * (259 - c));
+  for (let i = 0; i < d.length; i += 4) {
+    for (let ch = 0; ch < 3; ch++) {
+      let v = d[i+ch] + brightAmt;
+      v = contrastFactor * (v - 128) + 128;
+      d[i+ch] = Math.max(0, Math.min(255, v));
+    }
+  }
+  ctx.putImageData(id, 0, 0);
+
+  item.sourceCanvas = out;
+  renderCanvasItems();
+  setActiveItem(item.id); // re-render se active class hat jaata hai, dobara set karo
+}
+
+function resetCanvasItemAdjustments() {
+  const item = canvasItems.find(i => i.id === activeItemId);
+  if (!item) return;
+  document.getElementById('canvasBrightness').value = 0;
+  document.getElementById('canvasContrast').value = 0;
+  item.sourceCanvas = item.originalCanvas;
+  item.brightness = 0;
+  item.contrast = 0;
+  renderCanvasItems();
+  setActiveItem(item.id);
+  toast('↺ Reset ho gaya');
+  uploadCurrentFile();
+}
+
+// ─── CANVAS MODE: Perspective Crop (4 independent corners — Photoshop-style) ───
+let perspCropState = null;
+let perspDragCorner = null;
+
+function togglePerspectiveCrop() {
+  if (!activeItemId) { toast('⚠️ Pehle Front ya Back document pe click karo'); return; }
+  const overlay = document.getElementById('perspCropOverlay');
+  const btn = document.getElementById('perspCropBtn');
+  document.getElementById('canvasAdjustPanel').classList.add('hidden');
+  document.getElementById('canvasAdjustBtn').classList.remove('active');
+
+  overlay.classList.toggle('hidden');
+  btn.classList.toggle('active', !overlay.classList.contains('hidden'));
+  if (!overlay.classList.contains('hidden')) initPerspectiveCrop();
+}
+
+function initPerspectiveCrop() {
+  const item = canvasItems.find(i => i.id === activeItemId);
+  if (!item) return;
+  const img = document.getElementById('perspCropImg');
+  img.src = item.sourceCanvas.toDataURL('image/jpeg', 0.92);
+  img.onload = () => {
+    const w = img.clientWidth, h = img.clientHeight;
+    // Default corners: 8% margin se thoda andar (taaki unwanted background nazar aaye crop karne ke liye)
+    const m = 0.08;
+    perspCropState = {
+      tl: { x: w * m, y: h * m },
+      tr: { x: w * (1 - m), y: h * m },
+      bl: { x: w * m, y: h * (1 - m) },
+      br: { x: w * (1 - m), y: h * (1 - m) },
+      imgW: w, imgH: h
+    };
+    renderPerspectiveHandles();
+    setupPerspectiveDrag();
+  };
+}
+
+function renderPerspectiveHandles() {
+  const s = perspCropState;
+  if (!s) return;
+  document.getElementById('perspHandle-tl').style.left = s.tl.x + 'px';
+  document.getElementById('perspHandle-tl').style.top = s.tl.y + 'px';
+  document.getElementById('perspHandle-tr').style.left = s.tr.x + 'px';
+  document.getElementById('perspHandle-tr').style.top = s.tr.y + 'px';
+  document.getElementById('perspHandle-bl').style.left = s.bl.x + 'px';
+  document.getElementById('perspHandle-bl').style.top = s.bl.y + 'px';
+  document.getElementById('perspHandle-br').style.left = s.br.x + 'px';
+  document.getElementById('perspHandle-br').style.top = s.br.y + 'px';
+
+  const poly = document.getElementById('perspCropPolygon');
+  poly.setAttribute('points', `${s.tl.x},${s.tl.y} ${s.tr.x},${s.tr.y} ${s.br.x},${s.br.y} ${s.bl.x},${s.bl.y}`);
+}
+
+function setupPerspectiveDrag() {
+  ['tl','tr','bl','br'].forEach(corner => {
+    const handle = document.getElementById('perspHandle-' + corner);
+    handle.onpointerdown = (e) => {
+      e.preventDefault();
+      perspDragCorner = corner;
+      document.addEventListener('pointermove', onPerspectiveDragMove);
+      document.addEventListener('pointerup', onPerspectiveDragUp);
+    };
+  });
+}
+
+function onPerspectiveDragMove(e) {
+  if (!perspDragCorner || !perspCropState) return;
+  const wrap = document.getElementById('perspCropWrap');
+  const rect = wrap.getBoundingClientRect();
+  let x = e.clientX - rect.left;
+  let y = e.clientY - rect.top;
+  x = Math.max(0, Math.min(perspCropState.imgW, x));
+  y = Math.max(0, Math.min(perspCropState.imgH, y));
+  perspCropState[perspDragCorner] = { x, y };
+  renderPerspectiveHandles();
+}
+
+function onPerspectiveDragUp() {
+  perspDragCorner = null;
+  document.removeEventListener('pointermove', onPerspectiveDragMove);
+  document.removeEventListener('pointerup', onPerspectiveDragUp);
+}
+
+function applyPerspectiveCrop() {
+  const item = canvasItems.find(i => i.id === activeItemId);
+  if (!item || !perspCropState) return;
+
+  const img = document.getElementById('perspCropImg');
+  const scaleX = item.sourceCanvas.width / img.clientWidth;
+  const scaleY = item.sourceCanvas.height / img.clientHeight;
+  const s = perspCropState;
+
+  // 4 corners ko original image-pixel scale mein convert karo
+  const srcCorners = {
+    tl: { x: s.tl.x * scaleX, y: s.tl.y * scaleY },
+    tr: { x: s.tr.x * scaleX, y: s.tr.y * scaleY },
+    bl: { x: s.bl.x * scaleX, y: s.bl.y * scaleY },
+    br: { x: s.br.x * scaleX, y: s.br.y * scaleY }
+  };
+
+  // Output size: top edge aur left edge ki average length use karte hain
+  const outW = Math.round((dist(srcCorners.tl, srcCorners.tr) + dist(srcCorners.bl, srcCorners.br)) / 2);
+  const outH = Math.round((dist(srcCorners.tl, srcCorners.bl) + dist(srcCorners.tr, srcCorners.br)) / 2);
+
+  const out = document.createElement('canvas');
+  out.width = outW; out.height = outH;
+  const ctx = out.getContext('2d');
+
+  // Perspective transform: 4-point source quad ko rectangle mein map karte hain
+  // (triangulation-based warp — do triangles mein split karke affine transform)
+  drawPerspectiveWarp(ctx, item.sourceCanvas, srcCorners, outW, outH);
+
+  item.originalCanvas = out;
+  item.sourceCanvas = out;
+  item.brightness = 0;
+  item.contrast = 0;
+
+  // Item ka displayed size bhi update karo naye aspect ratio ke hisaab se
+  const a4 = document.getElementById('a4Canvas');
+  const newRatio = outW / outH;
+  item.h = item.w / newRatio;
+
+  renderCanvasItems();
+  setActiveItem(item.id);
+  document.getElementById('perspCropOverlay').classList.add('hidden');
+  document.getElementById('perspCropBtn').classList.remove('active');
+  toast('📐 Background crop ho gaya!');
+  uploadCurrentFile();
+}
+
+function dist(p1, p2) {
+  return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
+}
+
+function drawPerspectiveWarp(ctx, sourceCanvas, corners, outW, outH) {
+  // 4-point quad ko 2 triangles mein todke, har triangle ko affine-transform
+  // se target rectangle ke corresponding triangle mein draw karte hain.
+  // Yeh Photoshop Perspective Crop jaisa hi result deta hai bina kisi
+  // external library ke (sirf Canvas 2D transform matrix use karke).
+  const dst = {
+    tl: { x: 0, y: 0 }, tr: { x: outW, y: 0 },
+    bl: { x: 0, y: outH }, br: { x: outW, y: outH }
+  };
+
+  function drawTriangle(srcP0, srcP1, srcP2, dstP0, dstP1, dstP2) {
+    ctx.save();
+    // Clip to destination triangle
+    ctx.beginPath();
+    ctx.moveTo(dstP0.x, dstP0.y);
+    ctx.lineTo(dstP1.x, dstP1.y);
+    ctx.lineTo(dstP2.x, dstP2.y);
+    ctx.closePath();
+    ctx.clip();
+
+    // Compute affine transform mapping src triangle -> dst triangle
+    const denom = (srcP1.x - srcP0.x) * (srcP2.y - srcP0.y) - (srcP2.x - srcP0.x) * (srcP1.y - srcP0.y);
+    if (Math.abs(denom) < 1e-6) { ctx.restore(); return; }
+
+    const a = ((dstP1.x - dstP0.x) * (srcP2.y - srcP0.y) - (dstP2.x - dstP0.x) * (srcP1.y - srcP0.y)) / denom;
+    const b = ((dstP1.y - dstP0.y) * (srcP2.y - srcP0.y) - (dstP2.y - dstP0.y) * (srcP1.y - srcP0.y)) / denom;
+    const c = ((dstP2.x - dstP0.x) * (srcP1.x - srcP0.x) - (dstP1.x - dstP0.x) * (srcP2.x - srcP0.x)) / denom;
+    const d = ((dstP2.y - dstP0.y) * (srcP1.x - srcP0.x) - (dstP1.y - dstP0.y) * (srcP2.x - srcP0.x)) / denom;
+    const e = dstP0.x - a * srcP0.x - c * srcP0.y;
+    const f = dstP0.y - b * srcP0.x - d * srcP0.y;
+
+    ctx.transform(a, b, c, d, e, f);
+    ctx.drawImage(sourceCanvas, 0, 0);
+    ctx.restore();
+  }
+
+  // Quad ko 2 triangles mein split: (tl,tr,bl) aur (tr,br,bl)
+  drawTriangle(corners.tl, corners.tr, corners.bl, dst.tl, dst.tr, dst.bl);
+  drawTriangle(corners.tr, corners.br, corners.bl, dst.tr, dst.br, dst.bl);
+}
+
+function cancelPerspectiveCrop() {
+  document.getElementById('perspCropOverlay').classList.add('hidden');
+  document.getElementById('perspCropBtn').classList.remove('active');
 }
 
 function removeCanvasItem(itemId) {
@@ -697,6 +1065,8 @@ async function startDirectMode(file) {
 
   const ext = file.name.split('.').pop().toLowerCase();
   document.getElementById('directPreviewLoading').style.display = 'block';
+  state.directIsImage = ['jpg','jpeg','png'].includes(ext);
+  document.querySelector('.edit-toolbar').style.display = state.directIsImage ? 'flex' : 'none';
 
   if (ext === 'pdf') {
     const buf = await file.arrayBuffer();
@@ -728,7 +1098,7 @@ async function startDirectMode(file) {
     } catch(err) {
       document.getElementById('directPreviewLoading').textContent = '📄 Preview available nahi, lekin print ho jayega';
     }
-  } else if (['jpg','jpeg','png'].includes(ext)) {
+  } else if (state.directIsImage) {
     state.totalPages = 1;
     document.getElementById('pageCountOpt').textContent = '1 page';
     const dataUrl = await new Promise((resolve) => {
@@ -736,6 +1106,18 @@ async function startDirectMode(file) {
       reader.onload = (e) => resolve(e.target.result);
       reader.readAsDataURL(file);
     });
+    const sourceImg = await new Promise((resolve) => {
+      const im = new Image();
+      im.onload = () => resolve(im);
+      im.src = dataUrl;
+    });
+    // Original source canvas mein store karo — sab edits isi se reset/re-apply honge
+    const srcCanvas = document.createElement('canvas');
+    srcCanvas.width = sourceImg.naturalWidth;
+    srcCanvas.height = sourceImg.naturalHeight;
+    srcCanvas.getContext('2d').drawImage(sourceImg, 0, 0);
+    state.directImageState = { originalCanvas: srcCanvas, workingCanvas: srcCanvas, brightness: 0, contrast: 0, scale: 100 };
+
     const img = document.getElementById('direct-preview-img');
     img.onload = () => {
       document.getElementById('directPreviewLoading').style.display = 'none';
@@ -749,8 +1131,27 @@ async function startDirectMode(file) {
   }
 
   toast('📤 File upload ho rahi hai...');
+  await uploadDirectFile(file);
+}
+
+async function reuploadDirectFile() {
+  // Edit (brightness/contrast/scale/crop/auto-a4) ke baad dobara upload
+  // karte hain taaki server pe sahi (edited) version pahunche
+  if (!state.pendingFile) return;
+  toast('📤 Update ho raha hai...');
+  await uploadDirectFile(state.pendingFile);
+}
+
+async function uploadDirectFile(file) {
   const fd = new FormData();
-  fd.append('file', file);
+  // Agar image hai aur edit ho chuki hai, working canvas se blob banao,
+  // warna original file seedha bhejo (PDF/DOCX ke liye)
+  if (state.directIsImage && state.directImageState) {
+    const blob = await new Promise(resolve => state.directImageState.workingCanvas.toBlob(resolve, 'image/jpeg', 0.92));
+    fd.append('file', blob, file.name.replace(/\.[^.]+$/, '') + '.jpg');
+  } else {
+    fd.append('file', file);
+  }
   fd.append('shopId', shopId);
   fd.append('copies', state.copies);
   fd.append('colorMode', state.colorMode);
@@ -765,6 +1166,231 @@ async function startDirectMode(file) {
       toast('❌ Upload failed: ' + data.error);
     }
   } catch(e) { toast('❌ Upload error'); }
+}
+
+// ─── DIRECT MODE EDIT TOOLS: Auto A4, Brightness/Contrast/Scale, Simple Crop ───
+function directAutoA4() {
+  if (!state.directImageState) { toast('⚠️ Yeh sirf image files ke liye hai'); return; }
+  // "Auto A4" yahan matlab: image ko A4 ratio (210:297) ke canvas mein
+  // white background ke saath center-fit kar dete hain
+  const src = state.directImageState.originalCanvas;
+  const a4Ratio = 210/297;
+  const out = document.createElement('canvas');
+  const targetW = 1240, targetH = 1754;
+  out.width = targetW; out.height = targetH;
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, targetW, targetH);
+
+  const srcRatio = src.width / src.height;
+  let dw, dh;
+  if (srcRatio > a4Ratio) { dw = targetW * 0.95; dh = dw / srcRatio; }
+  else { dh = targetH * 0.95; dw = dh * srcRatio; }
+  const dx = (targetW - dw) / 2, dy = (targetH - dh) / 2;
+  ctx.drawImage(src, dx, dy, dw, dh);
+
+  state.directImageState.originalCanvas = out;
+  state.directImageState.workingCanvas = out;
+  state.directImageState.brightness = 0;
+  state.directImageState.contrast = 0;
+  state.directImageState.scale = 100;
+  document.getElementById('directBrightness').value = 0;
+  document.getElementById('directContrast').value = 0;
+  document.getElementById('directScale').value = 100;
+  refreshDirectPreviewImg();
+  toast('🤖 A4 mein fit ho gaya!');
+  reuploadDirectFile();
+}
+
+function refreshDirectPreviewImg() {
+  const img = document.getElementById('direct-preview-img');
+  img.src = state.directImageState.workingCanvas.toDataURL('image/jpeg', 0.92);
+  img.style.display = 'block';
+  document.getElementById('direct-preview-canvas').style.display = 'none';
+}
+
+function toggleDirectAdjustPanel() {
+  const panel = document.getElementById('directAdjustPanel');
+  const btn = document.getElementById('directAdjustBtn');
+  document.getElementById('directCropOverlay').classList.add('hidden');
+  document.getElementById('directCropBtn').classList.remove('active');
+  panel.classList.toggle('hidden');
+  btn.classList.toggle('active', !panel.classList.contains('hidden'));
+}
+
+function applyDirectAdjustments() {
+  if (!state.directImageState) return;
+  const b = parseInt(document.getElementById('directBrightness').value);
+  const c = parseInt(document.getElementById('directContrast').value);
+  const s = parseInt(document.getElementById('directScale').value);
+  document.getElementById('directBrightnessVal').textContent = b;
+  document.getElementById('directContrastVal').textContent = c;
+  document.getElementById('directScaleVal').textContent = s + '%';
+
+  state.directImageState.brightness = b;
+  state.directImageState.contrast = c;
+  state.directImageState.scale = s;
+
+  const src = state.directImageState.originalCanvas;
+  const out = document.createElement('canvas');
+  const scaleFactor = s / 100;
+  out.width = src.width;
+  out.height = src.height;
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, out.width, out.height);
+
+  // Scale: center se zoom in/out
+  const sw = src.width * scaleFactor, sh = src.height * scaleFactor;
+  const sx = (out.width - sw) / 2, sy = (out.height - sh) / 2;
+  ctx.drawImage(src, sx, sy, sw, sh);
+
+  // Brightness + Contrast pixel-level apply karo
+  const id = ctx.getImageData(0, 0, out.width, out.height);
+  const d = id.data;
+  const brightAmt = b * 2.55; // -100..100 -> -255..255
+  const contrastFactor = (259 * (c + 255)) / (255 * (259 - c));
+  for (let i = 0; i < d.length; i += 4) {
+    for (let ch = 0; ch < 3; ch++) {
+      let v = d[i+ch] + brightAmt;
+      v = contrastFactor * (v - 128) + 128;
+      d[i+ch] = Math.max(0, Math.min(255, v));
+    }
+  }
+  ctx.putImageData(id, 0, 0);
+
+  state.directImageState.workingCanvas = out;
+  refreshDirectPreviewImg();
+}
+
+function resetDirectAdjustments() {
+  document.getElementById('directBrightness').value = 0;
+  document.getElementById('directContrast').value = 0;
+  document.getElementById('directScale').value = 100;
+  applyDirectAdjustments();
+  toast('↺ Reset ho gaya');
+  reuploadDirectFile();
+}
+
+let simpleCropState = null;
+function toggleDirectCrop() {
+  if (!state.directImageState) { toast('⚠️ Yeh sirf image files ke liye hai'); return; }
+  const overlay = document.getElementById('directCropOverlay');
+  const btn = document.getElementById('directCropBtn');
+  document.getElementById('directAdjustPanel').classList.add('hidden');
+  document.getElementById('directAdjustBtn').classList.remove('active');
+
+  overlay.classList.toggle('hidden');
+  btn.classList.toggle('active', !overlay.classList.contains('hidden'));
+  if (!overlay.classList.contains('hidden')) initSimpleCrop();
+}
+
+function initSimpleCrop() {
+  const img = document.getElementById('simpleCropImg');
+  img.src = state.directImageState.workingCanvas.toDataURL('image/jpeg', 0.92);
+  img.onload = () => {
+    const wrap = document.getElementById('simpleCropWrap');
+    const box = document.getElementById('simpleCropBox');
+    const w = img.clientWidth, h = img.clientHeight;
+    // Default crop box: 80% center
+    const cw = w * 0.8, ch = h * 0.8;
+    box.style.left = ((w - cw) / 2) + 'px';
+    box.style.top = ((h - ch) / 2) + 'px';
+    box.style.width = cw + 'px';
+    box.style.height = ch + 'px';
+    setupSimpleCropDrag();
+  };
+}
+
+function setupSimpleCropDrag() {
+  const box = document.getElementById('simpleCropBox');
+  const wrap = document.getElementById('simpleCropWrap');
+
+  function startDrag(e, mode, pos) {
+    e.preventDefault(); e.stopPropagation();
+    const wrapRect = wrap.getBoundingClientRect();
+    simpleCropState = {
+      mode, pos,
+      startX: e.clientX, startY: e.clientY,
+      boxLeft: parseFloat(box.style.left), boxTop: parseFloat(box.style.top),
+      boxW: parseFloat(box.style.width), boxH: parseFloat(box.style.height),
+      wrapW: wrapRect.width, wrapH: wrapRect.height
+    };
+    document.addEventListener('pointermove', onSimpleCropMove);
+    document.addEventListener('pointerup', onSimpleCropUp);
+  }
+
+  box.onpointerdown = (e) => { if (e.target === box) startDrag(e, 'move'); };
+  box.querySelectorAll('.crop-handle').forEach(h => {
+    h.onpointerdown = (e) => startDrag(e, 'resize', h.dataset.pos);
+  });
+}
+
+function onSimpleCropMove(e) {
+  if (!simpleCropState) return;
+  const box = document.getElementById('simpleCropBox');
+  const dx = e.clientX - simpleCropState.startX;
+  const dy = e.clientY - simpleCropState.startY;
+  const s = simpleCropState;
+
+  if (s.mode === 'move') {
+    let newLeft = Math.max(0, Math.min(s.wrapW - s.boxW, s.boxLeft + dx));
+    let newTop = Math.max(0, Math.min(s.wrapH - s.boxH, s.boxTop + dy));
+    box.style.left = newLeft + 'px';
+    box.style.top = newTop + 'px';
+  } else if (s.mode === 'resize') {
+    let { boxLeft, boxTop, boxW, boxH } = s;
+    if (s.pos === 'se') { boxW += dx; boxH += dy; }
+    else if (s.pos === 'sw') { boxLeft += dx; boxW -= dx; boxH += dy; }
+    else if (s.pos === 'ne') { boxTop += dy; boxW += dx; boxH -= dy; }
+    else if (s.pos === 'nw') { boxLeft += dx; boxTop += dy; boxW -= dx; boxH -= dy; }
+    if (boxW > 30 && boxH > 30) {
+      box.style.left = boxLeft + 'px'; box.style.top = boxTop + 'px';
+      box.style.width = boxW + 'px'; box.style.height = boxH + 'px';
+    }
+  }
+}
+
+function onSimpleCropUp() {
+  simpleCropState = null;
+  document.removeEventListener('pointermove', onSimpleCropMove);
+  document.removeEventListener('pointerup', onSimpleCropUp);
+}
+
+function applyDirectCrop() {
+  const img = document.getElementById('simpleCropImg');
+  const box = document.getElementById('simpleCropBox');
+  const scaleX = state.directImageState.workingCanvas.width / img.clientWidth;
+  const scaleY = state.directImageState.workingCanvas.height / img.clientHeight;
+
+  const cropX = parseFloat(box.style.left) * scaleX;
+  const cropY = parseFloat(box.style.top) * scaleY;
+  const cropW = parseFloat(box.style.width) * scaleX;
+  const cropH = parseFloat(box.style.height) * scaleY;
+
+  const out = document.createElement('canvas');
+  out.width = cropW; out.height = cropH;
+  out.getContext('2d').drawImage(state.directImageState.workingCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+  state.directImageState.originalCanvas = out;
+  state.directImageState.workingCanvas = out;
+  state.directImageState.brightness = 0;
+  state.directImageState.contrast = 0;
+  state.directImageState.scale = 100;
+  document.getElementById('directBrightness').value = 0;
+  document.getElementById('directContrast').value = 0;
+  document.getElementById('directScale').value = 100;
+
+  refreshDirectPreviewImg();
+  document.getElementById('directCropOverlay').classList.add('hidden');
+  document.getElementById('directCropBtn').classList.remove('active');
+  toast('✂️ Crop ho gaya!');
+  reuploadDirectFile();
+}
+
+function cancelDirectCrop() {
+  document.getElementById('directCropOverlay').classList.add('hidden');
+  document.getElementById('directCropBtn').classList.remove('active');
 }
 
 async function renderDirectPdfPage(pageNum) {
@@ -951,6 +1577,13 @@ function backToPreview() {
   hide('secOptions');
   if (state.printMode === 'direct') show('secDirectPreview');
   else show('secPreview');
+  setStep(2);
+}
+
+function backToModeSelect() {
+  hide('secDirectPreview');
+  hide('secPreview');
+  show('secModeSelect');
   setStep(2);
 }
 
