@@ -16,24 +16,38 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || 'https://qr-se-print.onrender.com';
 
-const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || 'drnswjs1q';
-const CLD_API_KEY = process.env.CLOUDINARY_API_KEY || '224393314967214';
-const CLD_API_SECRET = process.env.CLOUDINARY_API_SECRET || 'dnTnlUZI4e-yJJOBN0K_oLZW6Y0';
+const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || '';
+const CLD_API_KEY = process.env.CLOUDINARY_API_KEY || '';
+const CLD_API_SECRET = process.env.CLOUDINARY_API_SECRET || '';
 
 // (Global RAZORPAY_KEY_ID/SECRET removed — each shop now stores its own gateway credentials)
 
-const JWT_SECRET = process.env.JWT_SECRET || 'qrseprint_default_secret_change_in_production_xk29';
+// JWT_SECRET hamesha environment variable se aana chahiye production mein.
+// Agar set nahi hai to random secret generate karte hain runtime pe (sirf is
+// process ke chalte rehne tak valid — restart pe sab logged out ho jayenge).
+// Yeh hardcoded secret se kahin zyada safe hai.
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.JWT_SECRET) {
+  console.warn('⚠️  JWT_SECRET environment variable set nahi hai! Random secret generate kiya gaya — Render restart hone par sab logged out ho jayenge. Render mein JWT_SECRET add karo.');
+}
 
 // Setup Fee collect karne ke liye system owner (Rupesh) ki Razorpay keys.
 // Yeh per-shop gateway keys se ALAG hai — yeh sirf ₹499 registration fee ke liye hai.
 const SETUP_FEE_AMOUNT = parseInt(process.env.SETUP_FEE_AMOUNT || '499');
 const SETUP_ACTUAL_PRICE = parseInt(process.env.SETUP_ACTUAL_PRICE || '999');
-const OWNER_RAZORPAY_KEY_ID = process.env.OWNER_RAZORPAY_KEY_ID || 'rzp_live_T2bp3UTHAKTfOV';
-const OWNER_RAZORPAY_KEY_SECRET = process.env.OWNER_RAZORPAY_KEY_SECRET || 'Fw64wrlkbOIWq5FqJfnVYApz';
+const OWNER_RAZORPAY_KEY_ID = process.env.OWNER_RAZORPAY_KEY_ID || '';
+const OWNER_RAZORPAY_KEY_SECRET = process.env.OWNER_RAZORPAY_KEY_SECRET || '';
 
 // Super Admin login (Rupesh ka khud ka panel — sabhi shops dekhne ke liye)
-const SUPER_ADMIN_ID = process.env.SUPER_ADMIN_ID || 'rupeshkr73';
-const SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || 'Rupesh@2608';
+const SUPER_ADMIN_ID = process.env.SUPER_ADMIN_ID || '';
+const SUPER_ADMIN_PASSWORD = process.env.SUPER_ADMIN_PASSWORD || '';
+
+if (!OWNER_RAZORPAY_KEY_ID || !OWNER_RAZORPAY_KEY_SECRET) {
+  console.warn('⚠️  OWNER_RAZORPAY_KEY_ID/SECRET set nahi hai — Setup Fee payment kaam nahi karega jab tak Render mein add na karo.');
+}
+if (!SUPER_ADMIN_ID || !SUPER_ADMIN_PASSWORD) {
+  console.warn('⚠️  SUPER_ADMIN_ID/PASSWORD set nahi hai — Super Admin login kaam nahi karega jab tak Render mein add na karo.');
+}
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -103,6 +117,9 @@ const PRINTER_MODELS = [
 ];
 
 async function uploadToCloudinary(fileBuffer, fileType) {
+  if (!CLOUD_NAME || !CLD_API_KEY || !CLD_API_SECRET) {
+    return Promise.reject(new Error('Cloudinary configured nahi hai — Render environment variables check karo (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET)'));
+  }
   return new Promise((resolve, reject) => {
     const timestamp = Math.round(Date.now() / 1000);
     const publicId = 'qrprint_' + uuidv4().substring(0,8);
@@ -257,6 +274,15 @@ async function initDB() {
       VALUES ('setup_actual_price', $1)
       ON CONFLICT (key) DO NOTHING
     `, [SETUP_ACTUAL_PRICE.toString()]);
+
+    // Agent version seed karo — agar pehle se set nahi hai. Yeh version number
+    // har baar badhana hoga jab print_agent.py ka naya code daalo, taaki
+    // sab customers ke PC pe Auto-Update trigger ho jaye.
+    await pool.query(`
+      INSERT INTO system_settings (key, value)
+      VALUES ('agent_version', '1')
+      ON CONFLICT (key) DO NOTHING
+    `);
 
     console.log('Database ready!');
   } catch(err) { console.error('DB error:', err.message); }
@@ -973,6 +999,45 @@ app.post('/api/payment/counter', async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════
+// AGENT AUTO-UPDATE — Print Agent khud check karta hai naya version hai ya nahi
+// ═══════════════════════════════════════════════
+
+app.get('/api/agent/version', async (req, res) => {
+  try {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key='agent_version'");
+    const version = r.rows.length ? parseInt(r.rows[0].value) : 1;
+    res.json({ version });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Agent yeh endpoint se naya code download karta hai (Shop ID/Server URL khud
+// agent fill karega apni current values se, hum sirf raw template bhejte hain)
+app.get('/api/agent/download-latest', async (req, res) => {
+  try {
+    const agentCode = fs.readFileSync(path.join(__dirname, 'agent-template', 'print_agent.py'), 'utf8');
+    res.setHeader('Content-Type', 'text/plain');
+    res.send(agentCode);
+  } catch(err) {
+    res.status(500).json({ error: 'Agent code load nahi hua: ' + err.message });
+  }
+});
+
+// .exe mode agents ke liye — naya installer .exe seedha bhejte hain (silent
+// install ke liye, .py code download karne ka koi matlab nahi exe mode mein
+// kyunki compiled binary ko replace nahi kar sakte source se)
+app.get('/api/agent/download-latest-exe', async (req, res) => {
+  try {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key='easy_installer_url'");
+    if (!r.rows.length || !r.rows[0].value) {
+      return res.status(404).send('Naya installer .exe abhi upload nahi hua hai server pe');
+    }
+    res.redirect(r.rows[0].value);
+  } catch(err) {
+    res.status(500).send('Installer load nahi hua: ' + err.message);
+  }
+});
+
 app.get('/api/jobs/pending/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
@@ -1017,6 +1082,28 @@ app.get('/api/jobs/status/:jobId', async (req, res) => {
 
 // ─── Setup ke baad Print Agent Package Download ───
 // Sirf paid (setup_paid=true) shops ke liye kaam karta hai
+// ─── EASY INSTALLER (.exe) — Non-technical shop owners ke liye ───
+// Yeh single .exe deta hai jisme Python + SumatraPDF + Agent sab bundled hain.
+// Shop ID ko exe ke saath ek chhoti config file (shop_config.txt) mein bhejte
+// hain jise installer khud padh ke print_agent ko configure kar dega.
+app.get('/api/download/easy-installer/:shopId', async (req, res) => {
+  try {
+    const shopId = req.params.shopId;
+    const r = await pool.query('SELECT id, setup_paid FROM shops WHERE id=$1', [shopId]);
+    if (!r.rows.length) return res.status(404).send('Shop not found');
+    if (!r.rows[0].setup_paid) return res.status(403).send('Setup fee pehle complete karo');
+
+    const urlResult = await pool.query("SELECT value FROM system_settings WHERE key='easy_installer_url'");
+    if (!urlResult.rows.length || !urlResult.rows[0].value) {
+      return res.status(404).send('Easy Installer abhi available nahi hai. ZIP wala (Python+INSTALL.bat) version use karo neeche se, ya thodi der baad try karo.');
+    }
+
+    res.redirect(urlResult.rows[0].value);
+  } catch(err) {
+    res.status(500).send('Installer download error: ' + err.message);
+  }
+});
+
 app.get('/api/download/agent-package/:shopId', async (req, res) => {
   try {
     const shopId = req.params.shopId;
@@ -1030,8 +1117,8 @@ app.get('/api/download/agent-package/:shopId', async (req, res) => {
     let agentCode = fs.readFileSync(path.join(__dirname, 'agent-template', 'print_agent.py'), 'utf8');
     agentCode = agentCode.replace('AAPKA_SHOP_ID', shopId);
     agentCode = agentCode.replace(
-      'SERVER_URL      = "https://qr-se-print.onrender.com"',
-      `SERVER_URL      = "${BASE_URL}"`
+      'SERVER_URL         = "https://qr-se-print.onrender.com"',
+      `SERVER_URL         = "${BASE_URL}"`
     );
 
     const installBat = fs.readFileSync(path.join(__dirname, 'agent-template', 'INSTALL.bat'), 'utf8');
@@ -1067,9 +1154,11 @@ STEP 2 - PRINT AGENT INSTALL KARO
 STEP 3 - AGENT START KARO
 --------------------------
 1. Same folder mein "RUN_AGENT.bat" double-click karo
-2. Ek black window khulegi jisme likha hoga:
-   "Agent start | Shop: ${shopId}"
-3. Yeh window HAMESHA KHULI RAKHO jab tak shop khuli hai
+2. Koi black window nahi khulegi — agent System Tray mein chalega!
+3. Neeche right corner (clock ke pass) ek chhota printer icon dikhega
+   (Agar nahi dikh raha, "^" arrow pe click karke hidden icons check karo)
+4. Icon pe right-click karke status, printer, version dekh sakte ho
+5. Agent background mein chalta rahega — laptop band hone tak
 
 STEP 4 - TEST KARO
 -------------------
@@ -1079,13 +1168,24 @@ STEP 4 - TEST KARO
 4. Printer se print nikal aayega!
 
 ========================================
+AUTO-UPDATE
+========================================
+Agent khud check karta rehta hai naya version aaya hai ya nahi
+(har 1 ghante mein). Naya update aane par khud download karke
+apne aap restart ho jaata hai — aapko kuch nahi karna padta!
+
+========================================
 IMPORTANT
 ========================================
 - Printer ko PC se connect karo aur "Set as Default Printer" karo
   (Windows Settings > Bluetooth & devices > Printers & scanners)
-- Agent ki black window band mat karo
+- Agent System Tray mein chalta rehta hai — koi window band karne
+  ki tension nahi, bas PC/laptop on rehna chahiye
 - PC restart hone par phir se RUN_AGENT.bat chalana padega
-  (ya INSTALL.bat ke time "Startup mein add karo" Yes select karo)
+  (ya INSTALL.bat ke time "Startup mein add karo" Yes select karo —
+  tab PC on hote hi agent automatically Tray mein chal jayega)
+- Agent ko poori tarah band karne ke liye Tray icon pe right-click
+  karke "Exit" choose karo
 
 Koi problem aaye to apna Shop ID (${shopId}) ready rakhna.
 
@@ -1142,6 +1242,9 @@ function verifySuperAdmin(req, res, next) {
 
 app.post('/api/superadmin/login', async (req, res) => {
   try {
+    if (!SUPER_ADMIN_ID || !SUPER_ADMIN_PASSWORD) {
+      return res.status(500).json({ error: 'Super Admin abhi configure nahi hua hai. Render environment variables check karo.' });
+    }
     const { adminId, password } = req.body;
     if (adminId !== SUPER_ADMIN_ID || password !== SUPER_ADMIN_PASSWORD) {
       return res.status(401).json({ error: 'ID ya Password galat hai' });
@@ -1235,6 +1338,65 @@ app.put('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
 
     console.log(`Setup pricing updated by super admin: Actual ₹${newActualPrice}, Offer ₹${newOfferPrice}`);
     res.json({ success: true, offerPrice: newOfferPrice, actualPrice: newActualPrice });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Agent Version Management — Super Admin yahan se naya update push karta hai ───
+app.get('/api/superadmin/agent-version', verifySuperAdmin, async (req, res) => {
+  try {
+    const r = await pool.query("SELECT value, updated_at FROM system_settings WHERE key='agent_version'");
+    const version = r.rows.length ? parseInt(r.rows[0].value) : 1;
+    const updatedAt = r.rows.length ? r.rows[0].updated_at : null;
+    res.json({ version, updatedAt });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/superadmin/agent-version/bump', verifySuperAdmin, async (req, res) => {
+  try {
+    // Current version uthao aur +1 karo — koi manual number type karne ki zaroorat nahi,
+    // taaki galti se koi purana/galat version number na daal de
+    const r = await pool.query("SELECT value FROM system_settings WHERE key='agent_version'");
+    const currentVersion = r.rows.length ? parseInt(r.rows[0].value) : 1;
+    const newVersion = currentVersion + 1;
+
+    await pool.query(
+      `INSERT INTO system_settings (key, value, updated_at) VALUES ('agent_version', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
+      [newVersion.toString()]
+    );
+
+    console.log(`Agent version bumped to v${newVersion} by super admin — sab customers ke PC 1 ghante mein update ho jayenge`);
+    res.json({ success: true, version: newVersion });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Easy Installer (.exe) URL Management — Cloudinary pe hosted ───
+// GitHub/Render dono ki file-size limits avoid karne ke liye, naya .exe
+// build hone par usko Cloudinary pe manually upload karke yahan se URL
+// set/update kiya jaata hai. Code change/redeploy ki zaroorat nahi.
+app.get('/api/superadmin/easy-installer-url', verifySuperAdmin, async (req, res) => {
+  try {
+    const r = await pool.query("SELECT value, updated_at FROM system_settings WHERE key='easy_installer_url'");
+    res.json({
+      url: r.rows.length ? r.rows[0].value : '',
+      updatedAt: r.rows.length ? r.rows[0].updated_at : null
+    });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/superadmin/easy-installer-url', verifySuperAdmin, async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url || !url.trim().startsWith('http')) {
+      return res.status(400).json({ error: 'Valid URL daalo (https:// se shuru honi chahiye)' });
+    }
+    await pool.query(
+      `INSERT INTO system_settings (key, value, updated_at) VALUES ('easy_installer_url', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
+      [url.trim()]
+    );
+    console.log(`Easy Installer URL updated by super admin: ${url.trim()}`);
+    res.json({ success: true, url: url.trim() });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
