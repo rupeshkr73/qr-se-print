@@ -873,17 +873,27 @@ function initPerspectiveCrop() {
   const img = document.getElementById('perspCropImg');
   img.src = item.sourceCanvas.toDataURL('image/jpeg', 0.92);
   img.onload = () => {
-    const w = img.clientWidth, h = img.clientHeight;
-    const m = 0.08;
-    perspCropState = {
-      tl: { x: w * m, y: h * m },
-      tr: { x: w * (1 - m), y: h * m },
-      bl: { x: w * m, y: h * (1 - m) },
-      br: { x: w * (1 - m), y: h * (1 - m) },
-      imgW: w, imgH: h
-    };
-    renderPerspectiveHandles();
-    setupPerspectiveDrag('perspHandle-', 'perspCropWrap', perspCropState, renderPerspectiveHandles, 'perspCropPolygon');
+    // Layout settle hone ka wait karte hain (double rAF) — taaki img.clientWidth/
+    // clientHeight ACCURATE ho. Pehle bug yeh tha: onload turant fire hota hai
+    // lekin browser ne abhi naya layout calculate nahi kiya hota, isliye
+    // clientWidth purani/galat (chhoti) value de raha tha — jiski wajah se
+    // right-side corners ek chhote, galat boundary se aage move nahi ho
+    // paa rahe the.
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const w = img.clientWidth, h = img.clientHeight;
+        const m = 0.08;
+        perspCropState = {
+          tl: { x: w * m, y: h * m },
+          tr: { x: w * (1 - m), y: h * m },
+          bl: { x: w * m, y: h * (1 - m) },
+          br: { x: w * (1 - m), y: h * (1 - m) },
+          imgW: w, imgH: h
+        };
+        renderPerspectiveHandles();
+        setupPerspectiveDrag('perspHandle-', 'perspCropWrap', perspCropState, renderPerspectiveHandles, 'perspCropPolygon');
+      });
+    });
   };
 }
 
@@ -929,11 +939,18 @@ function setupPerspectiveDrag(handlePrefix, wrapId, cropState, renderFn, polygon
     let dragging = false;
 
     function getRelativePos(clientX, clientY) {
+      // IMPORTANT FIX: rect.width/height LIVE measure karte hain har move pe,
+      // cropState.imgW/imgH (jo init ke time capture hua tha) use NAHI karte
+      // clamp ke liye. Pehle wala bug yehi tha — agar image load ke turant
+      // baad layout settle hone se pehle imgW capture ho gaya tha (chhota
+      // value), to right corners us purani chhoti width se aage kabhi
+      // move nahi ho pa rahe the, jabki left corners (jinki min-limit 0
+      // hai, jo kabhi badalta nahi) hamesha free rehte the.
       const rect = wrap.getBoundingClientRect();
       let x = clientX - rect.left;
       let y = clientY - rect.top;
-      x = Math.max(0, Math.min(cropState.imgW, x));
-      y = Math.max(0, Math.min(cropState.imgH, y));
+      x = Math.max(0, Math.min(rect.width, x));
+      y = Math.max(0, Math.min(rect.height, y));
       return { x, y };
     }
 
@@ -1425,17 +1442,21 @@ function initDirectPerspCrop() {
   const img = document.getElementById('directPerspCropImg');
   img.src = state.directImageState.workingCanvas.toDataURL('image/jpeg', 0.92);
   img.onload = () => {
-    const w = img.clientWidth, h = img.clientHeight;
-    const m = 0.08;
-    directPerspCropState = {
-      tl: { x: w * m, y: h * m },
-      tr: { x: w * (1 - m), y: h * m },
-      bl: { x: w * m, y: h * (1 - m) },
-      br: { x: w * (1 - m), y: h * (1 - m) },
-      imgW: w, imgH: h
-    };
-    renderDirectPerspHandles();
-    setupPerspectiveDrag('directPerspHandle-', 'directPerspCropWrap', directPerspCropState, renderDirectPerspHandles, 'directPerspCropPolygon');
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const w = img.clientWidth, h = img.clientHeight;
+        const m = 0.08;
+        directPerspCropState = {
+          tl: { x: w * m, y: h * m },
+          tr: { x: w * (1 - m), y: h * m },
+          bl: { x: w * m, y: h * (1 - m) },
+          br: { x: w * (1 - m), y: h * (1 - m) },
+          imgW: w, imgH: h
+        };
+        renderDirectPerspHandles();
+        setupPerspectiveDrag('directPerspHandle-', 'directPerspCropWrap', directPerspCropState, renderDirectPerspHandles, 'directPerspCropPolygon');
+      });
+    });
   };
 }
 
