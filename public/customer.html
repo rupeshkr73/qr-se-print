@@ -121,6 +121,15 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 .btn-green{background:linear-gradient(135deg,#00c853,#009624);color:#fff}
 .btn:hover{transform:translateY(-1px)}
 .opt-card{background:#fff;border-radius:20px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:14px}
+
+.final-preview-wrap{background:#f8f7f5;border-radius:12px;padding:16px;text-align:center;margin-bottom:14px}
+.final-preview-wrap img{max-width:100%;max-height:340px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12)}
+.final-summary{background:#f8f7f5;border-radius:12px;padding:14px 16px}
+.final-summary-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;font-size:13px;color:#444}
+.final-summary-row strong{color:#0a0a0f;font-weight:700}
+.final-summary-row.total{border-top:1.5px dashed #e2ddd6;margin-top:6px;padding-top:12px;font-size:15px}
+.final-summary-row.total strong{color:#ff4d1c;font-size:18px;font-family:'Syne',sans-serif}
+
 .opt-card h3{font-size:16px;font-weight:700;margin-bottom:14px}
 .opt-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f0ebe3}
 .opt-row:last-of-type{border:none}
@@ -204,9 +213,10 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 
   <div class="steps">
     <div class="step active" id="s1"><div class="dot">1</div><div class="step-lbl">Upload</div></div>
-    <div class="step" id="s2"><div class="dot">2</div><div class="step-lbl">Preview</div></div>
+    <div class="step" id="s2"><div class="dot">2</div><div class="step-lbl">Edit</div></div>
     <div class="step" id="s3"><div class="dot">3</div><div class="step-lbl">Options</div></div>
-    <div class="step" id="s4"><div class="dot">4</div><div class="step-lbl">Pay</div></div>
+    <div class="step" id="s4"><div class="dot">4</div><div class="step-lbl">Final</div></div>
+    <div class="step" id="s5"><div class="dot">5</div><div class="step-lbl">Pay</div></div>
   </div>
 
   <div id="secUpload">
@@ -462,8 +472,44 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
       </div>
       <div class="btn-row">
         <button class="btn" style="background:#f0ebe3;color:#0a0a0f;" onclick="backToPreview()">← Back</button>
-        <button class="btn-primary" style="margin-top:0;" onclick="goPayment()">Payment Pe Jao →</button>
+        <button class="btn-primary" style="margin-top:0;" onclick="goFinalPreview()">Print Preview Dekho →</button>
       </div>
+    </div>
+  </div>
+
+  <div id="secFinalPreview" class="hidden">
+    <div class="card">
+      <div class="card-head">
+        <h3>👀 Final Print Preview</h3>
+      </div>
+      <div class="card-body">
+        <p style="font-size:12px;color:#6b6870;margin-bottom:10px;">Yeh exactly waisa hi print hoga jaisa neeche dikh raha hai</p>
+        <div class="final-preview-wrap">
+          <img id="finalPreviewImg" alt="Print preview">
+        </div>
+        <div class="final-summary">
+          <div class="final-summary-row">
+            <span>Print Type</span>
+            <strong id="finalSumType">B&W</strong>
+          </div>
+          <div class="final-summary-row">
+            <span>Copies</span>
+            <strong id="finalSumCopies">1</strong>
+          </div>
+          <div class="final-summary-row">
+            <span>Pages</span>
+            <strong id="finalSumPages">1</strong>
+          </div>
+          <div class="final-summary-row total">
+            <span>Total Amount</span>
+            <strong id="finalSumAmount">₹5</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" style="background:#f0ebe3;color:#0a0a0f;" onclick="backToOptionsFromFinal()">← Edit Karo</button>
+      <button class="btn btn-green" onclick="goPayment()">✅ Sahi Hai, Payment Karo</button>
     </div>
   </div>
 
@@ -1742,6 +1788,53 @@ function goOptions() {
   updatePrice();
 }
 
+async function goFinalPreview() {
+  if (!state.jobId) { toast('❌ Pehle file upload karo!'); return; }
+  hide('secOptions');
+  show('secFinalPreview');
+  setStep(4);
+
+  // Preview image taiyar karo — mode ke hisaab se source alag hai
+  const previewImg = document.getElementById('finalPreviewImg');
+  try {
+    if (state.printMode === 'canvas') {
+      const finalCanvas = await renderFinalA4Canvas();
+      previewImg.src = finalCanvas.toDataURL('image/jpeg', 0.9);
+    } else if (state.directIsImage && state.directImageState) {
+      previewImg.src = state.directImageState.workingCanvas.toDataURL('image/jpeg', 0.9);
+    } else {
+      // PDF/DOCX jaisi files ke liye — current rendered page (agar PDF preview available hai) dikhao
+      const directCanvas = document.getElementById('direct-preview-canvas');
+      const directImgEl = document.getElementById('direct-preview-img');
+      if (directCanvas.style.display !== 'none' && directCanvas.width > 0) {
+        previewImg.src = directCanvas.toDataURL('image/jpeg', 0.9);
+      } else if (directImgEl.style.display !== 'none' && directImgEl.src) {
+        previewImg.src = directImgEl.src;
+      } else {
+        previewImg.src = '';
+        previewImg.alt = '📄 Preview is file type ke liye available nahi, lekin print sahi se hoga';
+      }
+    }
+  } catch(e) {
+    previewImg.alt = '📄 Preview load nahi hui, lekin print sahi se hoga';
+  }
+
+  // Summary fill karo
+  const pricePerPage = state.colorMode === 'bw' ? state.priceBW : state.priceColor;
+  const printPages = getEffectivePageCount();
+  const total = pricePerPage * printPages * state.copies;
+  document.getElementById('finalSumType').textContent = state.colorMode === 'bw' ? '⬛ Black & White' : '🌈 Color';
+  document.getElementById('finalSumCopies').textContent = state.copies;
+  document.getElementById('finalSumPages').textContent = printPages;
+  document.getElementById('finalSumAmount').textContent = '₹' + total;
+}
+
+function backToOptionsFromFinal() {
+  hide('secFinalPreview');
+  show('secOptions');
+  setStep(3);
+}
+
 function backToPreview() {
   hide('secOptions');
   if (state.printMode === 'direct') show('secDirectPreview');
@@ -1756,7 +1849,7 @@ function backToModeSelect() {
   setStep(2);
 }
 
-function backToOptions() { hide('secPayment'); show('secOptions'); setStep(3); }
+function backToOptions() { hide('secPayment'); show('secFinalPreview'); setStep(4); }
 
 function setPageRangeMode(mode) {
   state.pageRangeMode = mode;
@@ -1828,7 +1921,7 @@ function updatePageRangeFromInput() {
 
 function goPayment() {
   if (!state.jobId) { toast('❌ Pehle file upload karo!'); return; }
-  hide('secOptions'); show('secPayment'); setStep(4); updatePrice();
+  hide('secFinalPreview'); show('secPayment'); setStep(5); updatePrice();
   const note = document.getElementById('razorpayNote');
   const onlineBtn = document.getElementById('onlineBtn');
   const counterBtn = document.querySelector('.pay-counter-btn');
@@ -1988,7 +2081,7 @@ function showSuccess(method, amount) {
   hide('secPayment');
   const successScreen = document.getElementById('secSuccess');
   successScreen.style.display = 'block';
-  setStep(4);
+  setStep(5);
 
   document.getElementById('orderId').textContent = 'ORDER #' + state.jobId;
   document.getElementById('finalAmount').textContent = '₹' + amount;
@@ -2017,7 +2110,7 @@ function showSuccess(method, amount) {
 
 
 function setStep(n) {
-  for (let i=1;i<=4;i++) {
+  for (let i=1;i<=5;i++) {
     const s = document.getElementById('s'+i);
     s.className = 'step' + (i<n?' done':i===n?' active':'');
     s.querySelector('.dot').textContent = i<n?'✓':i;
