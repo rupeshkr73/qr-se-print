@@ -2,347 +2,368 @@
 <html lang="hi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QR Se Print</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;-webkit-tap-highlight-color:transparent}
-.wrap{max-width:480px;margin:0 auto;padding:16px}
-
-/* ── Shop header ── */
-.shop-header{background:#0a0a0f;border-radius:18px;padding:18px;color:#fff;display:flex;align-items:center;gap:14px;margin-bottom:16px}
-.shop-icon{width:52px;height:52px;border-radius:14px;background:#ff4d1c;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
-.shop-info{flex:1;min-width:0}
-.shop-info h2{font-family:'Syne',sans-serif;font-size:17px;font-weight:800;margin-bottom:2px}
-.shop-info p{font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:6px}
-.price-badges{display:flex;gap:6px;flex-wrap:wrap}
-.price-badge{background:rgba(255,255,255,0.1);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700}
-.price-badge.color{background:#ff4d1c}
-
-/* ── Steps indicator ── */
-.steps{display:flex;margin-bottom:18px}
-.step{flex:1;text-align:center;position:relative}
-.step .dot{width:28px;height:28px;border-radius:50%;background:#e2ddd6;color:#9b968d;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;margin:0 auto 4px;transition:all 0.2s}
+body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
+.wrap{max-width:480px;margin:0 auto;padding:20px 16px 60px}
+.shop-card{background:#0a0a0f;color:#fff;border-radius:20px;padding:20px;margin-bottom:20px;display:flex;gap:14px;align-items:center}
+.shop-icon{width:52px;height:52px;background:#ff4d1c;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.shop-name{font-family:'Syne',sans-serif;font-size:18px;font-weight:700}
+.shop-addr{color:rgba(255,255,255,0.5);font-size:12px;margin-top:3px}
+.price-row{display:flex;gap:8px;margin-top:10px}
+.pbadge{padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700}
+.pbw{background:rgba(255,255,255,0.1)}
+.pclr{background:#ff4d1c}
+.steps{display:flex;margin-bottom:20px;position:relative}
+.steps::before{content:'';position:absolute;top:13px;left:14px;right:14px;height:2px;background:#e2ddd6}
+.step{flex:1;text-align:center;position:relative;z-index:1}
+.dot{width:26px;height:26px;border-radius:50%;background:#e2ddd6;color:#6b6870;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 5px;transition:all 0.3s}
 .step.active .dot{background:#ff4d1c;color:#fff}
 .step.done .dot{background:#00c853;color:#fff}
 .step-lbl{font-size:10px;color:#6b6870;font-weight:600}
 .step.active .step-lbl{color:#ff4d1c}
+.upload-zone{border:2.5px dashed #e2ddd6;border-radius:20px;padding:44px 20px;text-align:center;cursor:pointer;background:#fff;position:relative;transition:all 0.2s}
+.upload-zone:hover{border-color:#1c6fff;background:#f0f4ff}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.upload-icon{font-size:44px;margin-bottom:12px}
+.upload-zone h3{font-size:16px;font-weight:700;margin-bottom:6px}
+.upload-zone p{font-size:13px;color:#6b6870}
+.ftypes{display:flex;justify-content:center;gap:6px;margin-top:12px}
+.ft{padding:3px 9px;background:#f5f0e8;border-radius:6px;font-size:11px;font-weight:700;color:#6b6870}
+.card{background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.07);margin-bottom:14px}
+.card-head{padding:14px 18px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #f0ebe3}
+.card-head h3{font-size:15px;font-weight:700}
+.card-body{padding:16px 18px}
+.preview-wrap{background:#f8f7f5;border-radius:12px;padding:12px;text-align:center;min-height:180px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px}
 
-/* ── Generic card ── */
-.card{background:#fff;border-radius:18px;padding:18px;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:14px}
-.card h3{font-family:'Syne',sans-serif;font-size:16px;font-weight:800;margin-bottom:10px}
-.hidden{display:none !important}
-
-/* ── Upload zone ── */
-.upload-zone{background:#fff;border:2.5px dashed #d9d2c5;border-radius:20px;padding:48px 20px;text-align:center;cursor:pointer;position:relative;transition:all 0.2s}
-.upload-zone:active{border-color:#ff4d1c;background:#fff8f5}
-.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer}
-.upload-icon{font-size:46px;margin-bottom:10px}
-.upload-zone h3{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;margin-bottom:4px}
-.upload-zone p{font-size:13px;color:#6b6870;margin-bottom:14px}
-.ftypes{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
-.ft{background:#f0ebe3;color:#6b6870;font-size:10px;font-weight:700;padding:4px 10px;border-radius:8px}
-
-/* ── A4 Canvas Editor ── */
-.a4-canvas-wrap{background:#e8e6e1;border-radius:14px;padding:18px;display:flex;justify-content:center;overflow:hidden}
+/* A4 Canvas Editor — drag/resize/rotate document items on an A4-ratio page */
+.a4-canvas-wrap{background:#e8e6e1;border-radius:12px;padding:16px;display:flex;justify-content:center;overflow:hidden}
 .a4-canvas{position:relative;width:280px;height:396px;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,0.15);border-radius:4px;overflow:hidden;touch-action:none}
-.canvas-doc{position:absolute;cursor:move;touch-action:none;user-select:none;border:2px solid transparent;box-sizing:border-box}
-.canvas-doc.active{border-color:#ff4d1c}
-.canvas-doc img{width:100%;height:100%;display:block;pointer-events:none;object-fit:contain}
-.resize-handle{position:absolute;width:22px;height:22px;background:#ff4d1c;border:3px solid #fff;border-radius:50%;bottom:-11px;right:-11px;cursor:nwse-resize;display:none;box-shadow:0 2px 6px rgba(0,0,0,0.35);touch-action:none}
-.canvas-doc.active .resize-handle{display:block}
+.canvas-item{position:absolute;cursor:move;touch-action:none;user-select:none;border:2px dashed transparent;box-sizing:border-box}
+.canvas-item.active{border-color:#ff4d1c}
+.canvas-item img,.canvas-item canvas{width:100%;height:100%;display:block;pointer-events:none;object-fit:contain}
+.canvas-item .item-label{position:absolute;top:-22px;left:0;font-size:10px;font-weight:700;background:#0a0a0f;color:#fff;padding:2px 8px;border-radius:6px;opacity:0;transition:opacity 0.15s;white-space:nowrap}
+.canvas-item.active .item-label{opacity:1}
+.resize-handle{position:absolute;width:16px;height:16px;background:#ff4d1c;border:2px solid #fff;border-radius:50%;bottom:-8px;right:-8px;cursor:nwse-resize;display:none;box-shadow:0 1px 4px rgba(0,0,0,0.3)}
+.canvas-item.active .resize-handle{display:block}
+.rotate-handle{position:absolute;width:22px;height:22px;background:#1c6fff;border:2px solid #fff;border-radius:50%;top:-12px;left:50%;transform:translateX(-50%);cursor:grab;display:none;box-shadow:0 1px 4px rgba(0,0,0,0.3);font-size:11px;align-items:center;justify-content:center;color:#fff;line-height:1;}
+.canvas-item.active .rotate-handle{display:flex}
+.remove-handle{position:absolute;width:18px;height:18px;background:#ff4d1c;border:2px solid #fff;border-radius:50%;top:-9px;right:-9px;cursor:pointer;display:none;box-shadow:0 1px 4px rgba(0,0,0,0.3);align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;line-height:1;}
+.canvas-item.active .remove-handle{display:flex}
 
-/* ── Edit toolbar ── */
-.edit-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;justify-content:center}
-.edit-btn{padding:10px 14px;border-radius:10px;border:1.5px solid #e2ddd6;background:#fff;color:#0a0a0f;font-size:12px;font-weight:700;cursor:pointer;font-family:'Space Grotesk',sans-serif;transition:all 0.2s;display:flex;align-items:center;gap:5px}
-.edit-btn:active{transform:scale(0.96)}
-.edit-btn.active{background:#ff4d1c;color:#fff;border-color:#ff4d1c}
-.edit-btn.green{background:#00c853;color:#fff;border-color:#00c853}
+.btn-back-add{padding:10px 18px;border-radius:10px;border:1.5px solid #1c6fff;background:#f0f4ff;color:#1c6fff;font-size:13px;font-weight:700;cursor:pointer;font-family:'Space Grotesk',sans-serif;transition:all 0.2s}
 
-/* ── Adjust panel (Brightness/Contrast) ── */
-.adjust-panel{background:#f8f7f5;border-radius:14px;padding:16px;margin-top:12px}
-.adjust-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-.adjust-row:last-of-type{margin-bottom:0}
-.adjust-row label{font-size:12px;font-weight:700;width:90px;flex-shrink:0}
-.adjust-row input[type="range"]{flex:1;accent-color:#ff4d1c;height:6px}
-.adjust-row span{font-size:11px;color:#6b6870;width:36px;text-align:right;flex-shrink:0}
-
-/* ── Simple Crop overlay ── */
-.crop-panel{background:#f8f7f5;border-radius:14px;padding:14px;margin-top:12px}
-.crop-panel p{font-size:12px;color:#6b6870;margin-bottom:10px;text-align:center}
-.simple-crop-wrap{position:relative;display:flex;justify-content:center;touch-action:none}
-.simple-crop-wrap img{max-width:100%;max-height:300px;display:block;border-radius:6px}
-.simple-crop-box{position:absolute;border:2px dashed #ff4d1c;background:rgba(255,77,28,0.08);cursor:move;touch-action:none}
-.crop-handle{position:absolute;width:18px;height:18px;background:#ff4d1c;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.35);touch-action:none}
-.crop-handle[data-pos="nw"]{top:-9px;left:-9px;cursor:nwse-resize}
-.crop-handle[data-pos="ne"]{top:-9px;right:-9px;cursor:nesw-resize}
-.crop-handle[data-pos="sw"]{bottom:-9px;left:-9px;cursor:nesw-resize}
-.crop-handle[data-pos="se"]{bottom:-9px;right:-9px;cursor:nwse-resize}
-
-/* ── Pages list ── */
-.pages-list{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 8px;margin-top:14px}
-.page-thumb{position:relative;flex-shrink:0;width:64px;height:90px;border-radius:8px;overflow:hidden;border:2.5px solid #e2ddd6;cursor:pointer;background:#fff}
-.page-thumb.active{border-color:#ff4d1c}
-.page-thumb img{width:100%;height:100%;object-fit:cover}
-.page-thumb .pg-num{position:absolute;top:2px;left:2px;background:#0a0a0f;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:5px}
-.page-thumb .pg-del{position:absolute;top:2px;right:2px;width:18px;height:18px;background:#ff4d1c;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
-.add-page-btn{flex-shrink:0;width:64px;height:90px;border-radius:8px;border:2px dashed #d9d2c5;display:flex;align-items:center;justify-content:center;font-size:24px;color:#9b968d;cursor:pointer;background:#fff}
-
-/* ── Buttons ── */
-.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
-.btn{padding:15px;border-radius:14px;border:none;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;cursor:pointer;text-align:center;transition:all 0.15s}
-.btn:active{transform:scale(0.97)}
-.btn-full{grid-column:1/-1}
-.btn-grey{background:#f0ebe3;color:#0a0a0f}
-.btn-green{background:#00c853;color:#fff}
-.btn-red{background:#ff4d1c;color:#fff}
-.btn-primary{background:#ff4d1c;color:#fff;width:100%;padding:16px;border-radius:14px;border:none;font-family:'Syne',sans-serif;font-weight:800;font-size:15px;cursor:pointer;margin-top:14px}
-.btn-primary:disabled{background:#c9c4ba;cursor:not-allowed}
-
-/* ── Final preview ── */
-.final-preview-wrap{background:#f8f7f5;border-radius:14px;padding:16px;text-align:center;margin-bottom:14px}
-.final-preview-wrap img{max-width:100%;max-height:340px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12)}
-.page-range-box{background:#f8f7f5;border-radius:14px;padding:14px;margin-bottom:14px}
-.page-range-box label{font-size:12px;font-weight:700;display:block;margin-bottom:8px}
-.range-toggle{display:flex;gap:8px;margin-bottom:10px}
-.tog-btn{flex:1;padding:9px;border-radius:9px;border:1.5px solid #e2ddd6;background:#fff;font-size:12px;font-weight:700;cursor:pointer}
+.mode-option{display:flex;align-items:center;gap:14px;padding:16px;border:1.5px solid #e2ddd6;border-radius:14px;cursor:pointer;margin-bottom:12px;transition:all 0.2s}
+.mode-option:hover{border-color:#ff4d1c;background:#fff8f5}
+.mode-option:last-child{margin-bottom:0}
+.mode-icon{font-size:30px;flex-shrink:0}
+.mode-text{flex:1;display:flex;flex-direction:column;gap:3px}
+.mode-text strong{font-size:14px;font-weight:700}
+.mode-text span{font-size:12px;color:#6b6870;line-height:1.4}
+.mode-arrow{font-size:18px;color:#ff4d1c;flex-shrink:0}
+.btn-back-add:hover{background:#1c6fff;color:#fff}
+#preview-canvas,#preview-img{max-width:100%;max-height:240px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.1)}
+.page-nav{display:flex;align-items:center;gap:12px;margin-top:8px}
+.page-nav-btn{width:32px;height:32px;border-radius:50%;border:1.5px solid #e2ddd6;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;font-weight:700;transition:all 0.2s}
+.page-nav-btn:hover{background:#0a0a0f;color:#fff;border-color:#0a0a0f}
+.page-nav-btn:disabled{opacity:0.3;cursor:not-allowed}
+.page-info{font-size:13px;font-weight:600;color:#6b6870}
+.page-badge{display:inline-flex;align-items:center;gap:6px;background:#0a0a0f;color:#fff;border-radius:10px;padding:5px 12px;font-size:12px;font-weight:700;margin-top:6px}
+.quality{border-radius:14px;padding:14px;display:flex;gap:12px;align-items:flex-start;margin-bottom:12px}
+.quality.good{background:#e8f9ef;border:1.5px solid #a3e6bc}
+.quality.warn{background:#fff8e8;border:1.5px solid #ffd97a}
+.quality.bad{background:#fff0ed;border:1.5px solid #ffb3a0}
+.q-icon{font-size:24px;flex-shrink:0}
+.q-title{font-size:14px;font-weight:700;margin-bottom:3px}
+.q-desc{font-size:12px;color:#6b6870;line-height:1.5}
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.btn{padding:13px;border-radius:12px;border:none;cursor:pointer;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;gap:7px;transition:all 0.2s}
+.btn-blue{background:linear-gradient(135deg,#1c6fff,#0047cc);color:#fff}
+.btn-green{background:linear-gradient(135deg,#00c853,#009624);color:#fff}
+.btn:hover{transform:translateY(-1px)}
+.opt-card{background:#fff;border-radius:20px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:14px}
+.opt-card h3{font-size:16px;font-weight:700;margin-bottom:14px}
+.opt-row{display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid #f0ebe3}
+.opt-row:last-of-type{border:none}
+.opt-lbl{font-size:14px;font-weight:600}
+.opt-sub{font-size:11px;color:#6b6870;margin-top:2px}
+.tog{display:flex;gap:5px}
+.tog-btn{padding:6px 14px;border-radius:8px;border:1.5px solid #e2ddd6;background:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:'Space Grotesk',sans-serif;transition:all 0.15s}
 .tog-btn.on{background:#0a0a0f;color:#fff;border-color:#0a0a0f}
-.range-input{width:100%;padding:11px;border-radius:9px;border:1.5px solid #e2ddd6;font-size:13px;font-family:'Space Grotesk',sans-serif}
-.range-hint{font-size:10px;color:#6b6870;margin-top:6px}
-
-/* ── Options screen ── */
-.opt-toggle{display:flex;gap:10px;margin-bottom:14px}
-.opt-card{flex:1;border:2px solid #e2ddd6;border-radius:14px;padding:16px;text-align:center;cursor:pointer;transition:all 0.2s}
-.opt-card.sel{border-color:#ff4d1c;background:#fff8f5}
-.opt-card .ic{font-size:26px;margin-bottom:6px}
-.opt-card .lbl{font-size:13px;font-weight:700}
-.opt-card .pr{font-size:11px;color:#6b6870;margin-top:2px}
-.copies-row{display:flex;align-items:center;justify-content:space-between;background:#f8f7f5;border-radius:14px;padding:14px 16px;margin-bottom:14px}
-.copies-row .lbl{font-size:13px;font-weight:700}
-.copies-ctrl{display:flex;align-items:center;gap:14px}
-.copies-ctrl button{width:34px;height:34px;border-radius:50%;border:1.5px solid #e2ddd6;background:#fff;font-size:18px;font-weight:700;cursor:pointer}
-.copies-ctrl span{font-size:16px;font-weight:800;min-width:24px;text-align:center}
-.price-summary{background:#0a0a0f;border-radius:14px;padding:18px;color:#fff;margin-bottom:14px}
-.price-row{display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,0.7);margin-bottom:6px}
-.price-total{display:flex;justify-content:space-between;align-items:center;border-top:1px dashed rgba(255,255,255,0.2);margin-top:10px;padding-top:10px}
-.price-total span{font-size:14px;font-weight:700}
-.price-total strong{font-family:'Syne',sans-serif;font-size:24px;color:#ff4d1c}
-
-/* ── Success screen ── */
-.success-screen{display:none;background:#fff;border-radius:20px;padding:36px 20px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.08)}
-.thank-you-emoji{font-size:60px;display:inline-block;animation:bounce 1.2s ease-in-out infinite}
-.thank-you-text{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:#ff4d1c;margin:4px 0 16px}
-@keyframes bounce{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-10px) rotate(-8deg)}50%{transform:translateY(0)}75%{transform:translateY(-6px) rotate(8deg)}}
-.sicon{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 14px;color:#fff}
-.sicon.online{background:#00c853}
-.sicon.counter{background:#ff4d1c}
-.success-screen h2{font-family:'Syne',sans-serif;font-size:20px;margin-bottom:6px}
-.order-id{font-size:12px;color:#6b6870;background:#f5f0e8;display:inline-block;padding:6px 14px;border-radius:8px;margin-bottom:16px}
-.collect-box{border-radius:14px;padding:16px;margin-bottom:16px;text-align:left}
-.collect-box.online{background:#e8f9ef}
-.collect-box.counter{background:#fff5f0}
-.collect-box h3{font-size:14px;margin-bottom:4px}
-.collect-box p{font-size:12px;color:#555;line-height:1.5}
-.amount-box{display:flex;justify-content:space-between;align-items:center;background:#f5f0e8;border-radius:12px;padding:14px 16px;margin-bottom:6px}
-.amount-box span{font-size:12px;color:#6b6870}
-.amount-box strong{font-family:'Syne',sans-serif;font-size:22px}
-
-/* ── Payment screen ── */
-.pay-btn{width:100%;padding:18px;border-radius:14px;border:none;font-family:'Syne',sans-serif;font-size:16px;font-weight:800;cursor:pointer;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px}
-.pay-online-btn{background:linear-gradient(135deg,#00c853,#00a844);color:#fff}
-.pay-counter-btn{background:linear-gradient(135deg,#ff4d1c,#e03d0e);color:#fff}
-.pay-note{font-size:12px;color:#6b6870;text-align:center;margin-bottom:14px}
-
-.footer{text-align:center;margin-top:24px;padding-top:16px}
+.price-card{background:#0a0a0f;border-radius:20px;padding:20px;color:#fff;margin-bottom:14px}
+.price-card h3{font-family:'Syne',sans-serif;font-size:17px;margin-bottom:14px}
+.price-line{display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,0.55);margin-bottom:8px}
+.price-line.total{color:#fff;font-weight:700;font-size:20px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.12);margin-top:8px}
+.pay-btns{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.pay-online-btn{background:linear-gradient(135deg,#00c853,#009624);color:#fff;border:none;border-radius:14px;padding:16px 10px;font-family:'Syne',sans-serif;font-size:15px;font-weight:800;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:4px}
+.pay-online-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,200,83,0.35)}
+.pay-online-btn:disabled{background:#666;cursor:not-allowed;transform:none}
+.pay-counter-btn{background:linear-gradient(135deg,#ff4d1c,#cc3300);color:#fff;border:none;border-radius:14px;padding:16px 10px;font-family:'Syne',sans-serif;font-size:15px;font-weight:800;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:4px}
+.pay-counter-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(255,77,28,0.35)}
+.pay-btn-sub{font-size:10px;font-weight:400;opacity:0.8}
+.pay-note{text-align:center;font-size:11px;color:rgba(255,255,255,0.4);margin-top:10px}
+.success-screen{display:none;background:#fff;border-radius:24px;padding:36px 20px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.08)}
+.sicon{width:76px;height:76px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:38px;margin:0 auto 18px;animation:pop 0.5s cubic-bezier(0.175,0.885,0.32,1.275)}
+@keyframes pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
+.sicon.online{background:linear-gradient(135deg,#00c853,#69f0ae)}
+.sicon.counter{background:linear-gradient(135deg,#ff4d1c,#ff8c00)}
+.success-screen h2{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;margin-bottom:6px}
+.order-id{display:inline-block;margin:10px 0 16px;padding:7px 18px;background:#f5f0e8;border-radius:10px;font-size:12px;font-weight:700;color:#6b6870;letter-spacing:1px}
+.collect-box{padding:20px;border-radius:16px;margin-bottom:14px}
+.collect-box.online{background:#e8f9ef;border:2px solid #00c853}
+.collect-box.counter{background:#fff8e8;border:2px solid #ff8c00}
+.collect-box h3{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;margin-bottom:8px}
+.collect-box.online h3{color:#00c853}
+.collect-box.counter h3{color:#ff4d1c}
+.collect-box p{font-size:13px;line-height:1.6;color:#555}
+.amount-box{background:#0a0a0f;border-radius:14px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;color:#fff}
+.amount-box span{font-size:13px;color:rgba(255,255,255,0.5)}
+.amount-box strong{font-family:'Syne',sans-serif;font-size:26px;font-weight:800;color:#ff4d1c}
+.btn-primary{background:#ff4d1c;color:#fff;width:100%;border:none;border-radius:12px;padding:14px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;cursor:pointer;margin-top:14px;transition:all 0.2s}
+.btn-primary:hover{background:#e03d0e}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;align-items:center;justify-content:center;padding:16px}
+.overlay.show{display:flex}
+.crop-modal{background:#fff;border-radius:20px;padding:22px;max-width:440px;width:100%;max-height:90vh;overflow-y:auto}
+.crop-modal h3{font-family:'Syne',sans-serif;font-size:17px;margin-bottom:4px}
+.crop-modal p{font-size:12px;color:#6b6870;margin-bottom:14px}
+.crop-canvas-wrap{background:#f0f0f0;border-radius:12px;padding:10px;text-align:center;margin-bottom:12px;min-height:120px;display:flex;align-items:center;justify-content:center}
+#crop-canvas{max-width:100%;border-radius:8px;display:block}
+.crop-acts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.crop-btn{flex:1;padding:9px;border-radius:10px;border:1.5px solid #e2ddd6;background:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:'Space Grotesk',sans-serif}
+.crop-btn.on{background:#0a0a0f;color:#fff;border-color:#0a0a0f}
+.crop-handle{position:absolute;width:18px;height:18px;background:#ff4d1c;border:2px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.3);cursor:grab;touch-action:none}
+.crop-handle:active{cursor:grabbing}
+.crop-rect-outline{position:absolute;border:2px dashed #ff4d1c;pointer-events:none;background:rgba(255,77,28,0.08)}
+.crop-row{display:flex;gap:10px}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#0a0a0f;color:#fff;padding:12px 22px;border-radius:12px;font-size:13px;font-weight:600;z-index:300;transition:transform 0.3s cubic-bezier(0.175,0.885,0.32,1.275);white-space:nowrap}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.hidden{display:none}
+.footer{text-align:center;margin-top:28px;padding-top:18px}
 .footer p{font-size:11px;color:#9b968d;line-height:1.6;margin-bottom:8px}
-.footer-insta{display:inline-flex;align-items:center;justify-content:center;color:#ff4d1c;text-decoration:none}
-
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#0a0a0f;color:#fff;padding:12px 22px;border-radius:30px;font-size:13px;font-weight:700;opacity:0;transition:all 0.3s;z-index:999;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,0.3)}
-.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-
-.page-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:8px}
-.page-nav-btn{width:34px;height:34px;border-radius:50%;border:1.5px solid #e2ddd6;background:#fff;font-size:16px;cursor:pointer}
-.page-nav-btn:disabled{opacity:0.3}
-.page-info{font-size:12px;font-weight:700;color:#6b6870}
+.footer-insta{display:inline-flex;align-items:center;justify-content:center;color:#ff4d1c;text-decoration:none;transition:opacity 0.2s}
+.footer-insta:hover{opacity:0.7}
 </style>
 </head>
 <body>
 <div class="wrap">
-
-  <div class="shop-header">
+  <div class="shop-card">
     <div class="shop-icon">🖨️</div>
-    <div class="shop-info">
-      <h2 id="shopName">Loading...</h2>
-      <p id="shopAddr"></p>
-      <div class="price-badges">
-        <span class="price-badge" id="priceBWBadge">B&W: ₹-/page</span>
-        <span class="price-badge color" id="priceColorBadge">Color: ₹-/page</span>
+    <div>
+      <div class="shop-name" id="shopName">Loading...</div>
+      <div class="shop-addr" id="shopAddr">📍 ...</div>
+      <div class="price-row">
+        <span class="pbadge pbw" id="priceBWBadge">B&W: ₹5/page</span>
+        <span class="pbadge pclr" id="priceColorBadge">Color: ₹10/page</span>
       </div>
     </div>
   </div>
 
   <div class="steps">
     <div class="step active" id="s1"><div class="dot">1</div><div class="step-lbl">Upload</div></div>
-    <div class="step" id="s2"><div class="dot">2</div><div class="step-lbl">Edit</div></div>
-    <div class="step" id="s3"><div class="dot">3</div><div class="step-lbl">Preview</div></div>
+    <div class="step" id="s2"><div class="dot">2</div><div class="step-lbl">Preview</div></div>
+    <div class="step" id="s3"><div class="dot">3</div><div class="step-lbl">Options</div></div>
     <div class="step" id="s4"><div class="dot">4</div><div class="step-lbl">Pay</div></div>
   </div>
 
-  <!-- STEP 1: Upload -->
   <div id="secUpload">
     <div class="upload-zone" id="uploadZone">
-      <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFileUpload(this)">
+      <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFile(this)">
       <div class="upload-icon">📄</div>
       <h3>Document Upload Karo</h3>
-      <p>PDF, JPG, PNG — sab supported</p>
+      <p>PDF, JPG, PNG, Word — sab supported</p>
       <div class="ftypes">
-        <span class="ft">PDF</span><span class="ft">JPG</span><span class="ft">PNG</span>
+        <span class="ft">PDF</span><span class="ft">JPG</span><span class="ft">PNG</span><span class="ft">DOCX</span>
       </div>
     </div>
   </div>
 
-  <!-- STEP 2: A4 Canvas Editor -->
-  <div id="secEditor" class="hidden">
+  <div id="secModeSelect" class="hidden">
     <div class="card">
-      <h3>📋 Document Adjust Karo</h3>
-      <p style="font-size:12px;color:#6b6870;margin-bottom:10px;">Drag karke move karo, corner se size badlo/chhota karo</p>
-      <div class="a4-canvas-wrap">
-        <div class="a4-canvas" id="a4Canvas"></div>
-      </div>
-
-      <div class="edit-toolbar">
-        <button class="edit-btn" onclick="toolAutoA4()">🤖 Auto A4 Fit</button>
-        <button class="edit-btn" id="cropBtn" onclick="toolToggleCrop()">✂️ Simple Crop</button>
-        <button class="edit-btn" id="adjustBtn" onclick="toolToggleAdjust()">🎨 Brightness/Contrast</button>
-      </div>
-
-      <div id="adjustPanel" class="adjust-panel hidden">
-        <div class="adjust-row">
-          <label>☀️ Brightness</label>
-          <input type="range" id="adjBrightness" min="-100" max="100" value="0" oninput="applyAdjustments()">
-          <span id="adjBrightnessVal">0</span>
+      <div class="card-head"><h3>📋 Kaise Print Karna Hai?</h3></div>
+      <div class="card-body">
+        <div class="mode-option" onclick="chooseMode('direct')">
+          <div class="mode-icon">📄</div>
+          <div class="mode-text">
+            <strong>Direct Print Karo</strong>
+            <span>Normal document — jaisa hai waisa hi print hoga (resume, notes, reports)</span>
+          </div>
+          <div class="mode-arrow">→</div>
         </div>
-        <div class="adjust-row">
-          <label>🎨 Contrast</label>
-          <input type="range" id="adjContrast" min="-100" max="100" value="0" oninput="applyAdjustments()">
-          <span id="adjContrastVal">0</span>
+        <div class="mode-option" id="canvasModeOption" onclick="chooseMode('canvas')">
+          <div class="mode-icon">🪪</div>
+          <div class="mode-text">
+            <strong>ID Card / Canvas Edit Karo</strong>
+            <span>Aadhaar, PAN, Voter ID jaisे documents — A4 pe size/position khud set karo, front+back dono</span>
+          </div>
+          <div class="mode-arrow">→</div>
         </div>
-        <button class="edit-btn" style="width:100%;justify-content:center;background:#f0ebe3;" onclick="resetAdjustments()">↺ Reset</button>
+        <p id="canvasModeUnavailable" class="hidden" style="font-size:11px;color:#6b6870;text-align:center;margin-top:4px;">ℹ️ Canvas Edit sirf PDF/Image (JPG, PNG) files ke liye available hai — Word documents ke liye sirf Direct Print karo</p>
       </div>
+    </div>
+  </div>
+  </div>
 
-      <div id="cropPanel" class="crop-panel hidden">
-        <p>Crop area ko drag/resize karke set karo</p>
-        <div class="simple-crop-wrap" id="cropWrap">
-          <img id="cropImg">
-          <div class="simple-crop-box" id="cropBox">
-            <div class="crop-handle" data-pos="nw"></div>
-            <div class="crop-handle" data-pos="ne"></div>
-            <div class="crop-handle" data-pos="sw"></div>
-            <div class="crop-handle" data-pos="se"></div>
+  <div id="secDirectPreview" class="hidden">
+    <div class="card">
+      <div class="card-head">
+        <h3>📋 Document Preview</h3>
+        <span id="directFileName" style="font-size:11px;color:#6b6870;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      </div>
+      <div class="card-body">
+        <div class="preview-wrap" id="directPreviewWrap">
+          <div id="directPreviewLoading">⏳ Loading preview...</div>
+          <canvas id="direct-preview-canvas" style="display:none;max-width:100%;max-height:280px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.1);"></canvas>
+          <img id="direct-preview-img" style="display:none;max-width:100%;max-height:280px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.1);">
+        </div>
+        <div id="directPageNavWrap" style="text-align:center;margin-top:8px;display:none;">
+          <div class="page-nav">
+            <button class="page-nav-btn" id="directPrevPageBtn" onclick="changeDirectPage(-1)" disabled>‹</button>
+            <span class="page-info">Page <span id="directCurrentPageNum">1</span> of <span id="directTotalPageNum">1</span></span>
+            <button class="page-nav-btn" id="directNextPageBtn" onclick="changeDirectPage(1)">›</button>
+          </div>
+          <div class="page-badge">📄 <span id="directPageCountBadge">1</span> pages detected</div>
+        </div>
+      </div>
+    </div>
+    <div class="btn-row" style="grid-template-columns:1fr;">
+      <button class="btn btn-green" onclick="goOptions()">✅ Aage Bado</button>
+    </div>
+  </div>
+
+  <div id="secPreview" class="hidden">
+    <div class="card">
+      <div class="card-head">
+        <h3>📋 Document Adjust Karo</h3>
+        <span id="fileName" style="font-size:11px;color:#6b6870;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      </div>
+      <div class="card-body">
+        <p style="font-size:12px;color:#6b6870;margin-bottom:10px;">Document ko drag karke move karo, corner se resize karo, ↻ se seedha karo</p>
+        <div class="a4-canvas-wrap">
+          <div class="a4-canvas" id="a4Canvas">
+            <!-- Front aur Back items yahan JS se add honge -->
           </div>
         </div>
-        <div class="btn-row">
-          <button class="btn btn-grey" onclick="toolCancelCrop()">Cancel</button>
-          <button class="btn btn-green" onclick="toolApplyCrop()">✅ Apply Crop</button>
+        <div id="pageNavWrap" style="text-align:center;margin-top:8px;display:none;">
+          <div class="page-nav">
+            <button class="page-nav-btn" id="prevPageBtn" onclick="changePage(-1)" disabled>‹</button>
+            <span class="page-info">Page <span id="currentPageNum">1</span> of <span id="totalPageNum">1</span></span>
+            <button class="page-nav-btn" id="nextPageBtn" onclick="changePage(1)">›</button>
+          </div>
+          <div class="page-badge">📄 <span id="pageCountBadge">1</span> pages detected</div>
+        </div>
+        <div style="margin-top:14px;text-align:center;">
+          <button class="btn-back-add" id="addBackBtn" onclick="triggerBackUpload()">➕ Back Side Add Karo</button>
+          <input type="file" id="backFileInput" accept=".pdf,.jpg,.jpeg,.png" style="display:none;" onchange="handleBackFile(this)">
+        </div>
+        <div style="margin-top:10px;text-align:center;">
+          <button class="btn-back-add" id="resetCanvasBtn" onclick="resetCanvasItems()" style="background:#fff0ed;color:#ff4d1c;border-color:#ffb3a0;">↺ Reset Position</button>
         </div>
       </div>
-
-      <div class="pages-list" id="pagesList"></div>
     </div>
-
-    <div class="btn-row">
-      <button class="btn btn-grey" onclick="backToUpload()">← Back</button>
-      <button class="btn btn-green" onclick="goToPreview()">✅ Thik Hai, Aage Bado</button>
+    <div class="quality good" id="qualityCard">
+      <div class="q-icon" id="qIcon">✅</div>
+      <div>
+        <div class="q-title" id="qTitle">Document theek hai!</div>
+        <div class="q-desc" id="qDesc">Print ke liye ready hai.</div>
+      </div>
+    </div>
+    <div class="btn-row" style="grid-template-columns:1fr;">
+      <button class="btn btn-green" onclick="goOptions()">✅ Aage Bado</button>
     </div>
   </div>
 
-  <!-- STEP 3: Print Preview + Page Range -->
-  <div id="secPreviewStep" class="hidden">
-    <div class="card">
-      <h3>👀 Print Preview</h3>
-      <div class="final-preview-wrap">
-        <img id="finalPreviewImg" alt="preview">
-      </div>
-      <div class="page-nav" id="previewPageNav" style="display:none;">
-        <button class="page-nav-btn" id="prevPgBtn" onclick="changePreviewPage(-1)">‹</button>
-        <span class="page-info">Page <span id="curPgNum">1</span> / <span id="totalPgNum">1</span></span>
-        <button class="page-nav-btn" id="nextPgBtn" onclick="changePreviewPage(1)">›</button>
-      </div>
-    </div>
-
-    <div class="page-range-box" id="pageRangeBox" style="display:none;">
-      <label>📄 Kaunse Pages Print Karne Hain?</label>
-      <div class="range-toggle">
-        <button class="tog-btn on" id="rangeAllBtn" onclick="setPageRangeMode('all')">Sab Pages</button>
-        <button class="tog-btn" id="rangeCustomBtn" onclick="setPageRangeMode('custom')">Specific Pages</button>
-      </div>
-      <input type="text" class="range-input hidden" id="rangeInput" placeholder="jaise: 1,3,5-7" oninput="updateRangeFromInput()">
-      <div class="range-hint">Total <span id="rangeTotalPages">1</span> pages hain</div>
-    </div>
-
-    <div class="btn-row">
-      <button class="btn btn-grey" onclick="backToEditor()">← Back</button>
-      <button class="btn btn-green" onclick="goToOptions()">✅ Aage Bado</button>
-    </div>
-  </div>
-
-  <!-- STEP 4a: Options (B&W/Color, Copies, Price) -->
   <div id="secOptions" class="hidden">
-    <div class="card">
+    <div class="opt-card">
       <h3>⚙️ Print Options</h3>
-      <div class="opt-toggle">
-        <div class="opt-card sel" id="optBW" onclick="setColorMode('bw')">
-          <div class="ic">⬛</div>
-          <div class="lbl">Black & White</div>
-          <div class="pr" id="optBWPrice">₹-/page</div>
+      <div class="opt-row">
+        <div>
+          <div class="opt-lbl">Print Type</div>
+          <div class="opt-sub">Default: Black & White</div>
         </div>
-        <div class="opt-card" id="optColor" onclick="setColorMode('color')">
-          <div class="ic">🌈</div>
-          <div class="lbl">Color</div>
-          <div class="pr" id="optColorPrice">₹-/page</div>
+        <div class="tog">
+          <button class="tog-btn on" id="btnBW" onclick="setColor('bw')">⬛ B&W</button>
+          <button class="tog-btn" id="btnColor" onclick="setColor('color')">🌈 Color</button>
         </div>
       </div>
-      <div class="copies-row">
-        <span class="lbl">📑 Copies</span>
-        <div class="copies-ctrl">
-          <button onclick="changeCopies(-1)">−</button>
-          <span id="copiesNum">1</span>
-          <button onclick="changeCopies(1)">+</button>
+      <div class="opt-row">
+        <div>
+          <div class="opt-lbl">Copies</div>
+          <div class="opt-sub">Kitni copies chahiye</div>
+        </div>
+        <div class="tog">
+          <button class="tog-btn" onclick="setCopies(-1)">−</button>
+          <button class="tog-btn on" id="copiesDisplay" style="min-width:36px;">1</button>
+          <button class="tog-btn" onclick="setCopies(1)">+</button>
         </div>
       </div>
-      <div class="price-summary">
-        <div class="price-row"><span id="sumType">B&W Print</span><span id="sumPerPage">₹0/page</span></div>
-        <div class="price-row"><span id="sumPages">1 page × 1 copy</span><span id="sumPagesAmt">₹0</span></div>
-        <div class="price-total"><span>Total</span><strong id="sumTotal">₹0</strong></div>
+      <div class="opt-row">
+        <div>
+          <div class="opt-lbl">Pages</div>
+          <div class="opt-sub">Document mein</div>
+        </div>
+        <div style="font-size:14px;font-weight:700;color:#ff4d1c;" id="pageCountOpt">1 page</div>
       </div>
-    </div>
-    <div class="btn-row">
-      <button class="btn btn-grey" onclick="backToPreviewStep()">← Back</button>
-      <button class="btn btn-green" onclick="goToPayment()">💳 Payment Pe Jao</button>
+      <div class="opt-row" id="pageRangeRow" style="display:none;flex-direction:column;align-items:flex-start;gap:10px;">
+        <div style="width:100%;display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div class="opt-lbl">Print Kaunse Pages?</div>
+            <div class="opt-sub">Sabhi pages ya specific pages</div>
+          </div>
+          <div class="tog">
+            <button class="tog-btn on" id="rangeAllBtn" onclick="setPageRangeMode('all')">All Pages</button>
+            <button class="tog-btn" id="rangeCustomBtn" onclick="setPageRangeMode('custom')">Specific</button>
+          </div>
+        </div>
+        <div id="pageRangeInputWrap" style="display:none;width:100%;">
+          <input type="text" id="pageRangeInput" placeholder="jaise: 5 ya 1,3,5 ya 2-7" oninput="updatePageRangeFromInput()"
+            style="width:100%;padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-family:'Space Grotesk',sans-serif;font-size:14px;outline:none;">
+          <div id="pageRangeError" style="font-size:11px;color:#ff4d1c;margin-top:6px;display:none;"></div>
+          <div id="pageRangePreview" style="font-size:11px;color:#6b6870;margin-top:6px;"></div>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" style="background:#f0ebe3;color:#0a0a0f;" onclick="backToPreview()">← Back</button>
+        <button class="btn-primary" style="margin-top:0;" onclick="goPayment()">Payment Pe Jao →</button>
+      </div>
     </div>
   </div>
 
-  <!-- STEP 4b: Payment -->
   <div id="secPayment" class="hidden">
-    <div class="card">
-      <h3>💳 Payment Karo</h3>
-      <button class="pay-btn pay-online-btn" id="onlineBtn" onclick="payOnline()">💳 Online Pay Karo</button>
-      <button class="pay-btn pay-counter-btn" id="counterBtn" onclick="payCounter()">💵 Pay at Counter (Cash)</button>
-      <div class="pay-note" id="payNote">Loading...</div>
-    </div>
-    <div class="btn-row">
-      <button class="btn btn-full btn-grey" onclick="backToOptions()">← Back</button>
+    <div class="price-card">
+      <h3>💰 Bill Summary</h3>
+      <div class="price-line">
+        <span id="sumType">B&W Print</span>
+        <span id="sumPerPage">₹5/page</span>
+      </div>
+      <div class="price-line">
+        <span id="sumPages">1 page × 1 copy</span>
+        <span id="sumPagesAmt">₹5</span>
+      </div>
+      <div class="price-line total">
+        <span>Total</span>
+        <span id="sumTotal">₹5</span>
+      </div>
+      <div class="pay-btns">
+        <button class="pay-online-btn" id="onlineBtn" onclick="payOnline()">
+          💳 Pay Online
+          <span class="pay-btn-sub">UPI / Card / Net Banking</span>
+        </button>
+        <button class="pay-counter-btn" onclick="payCounter()">
+          💵 Pay at Counter
+          <span class="pay-btn-sub">Cash dena hoga</span>
+        </button>
+      </div>
+      <div class="pay-note" id="razorpayNote">Online payment loading...</div>
+      <button class="btn" style="background:#f0ebe3;color:#0a0a0f;width:100%;margin-top:14px;" onclick="backToOptions()">← Back</button>
     </div>
   </div>
 
-  <!-- SUCCESS -->
   <div class="success-screen" id="secSuccess">
-    <div class="thank-you-emoji">🎉</div>
-    <h2 class="thank-you-text">Thank You!</h2>
     <div class="sicon" id="successIcon">✓</div>
     <h2 id="successTitle">Print Shuru!</h2>
     <div class="order-id" id="orderId">ORDER #...</div>
@@ -367,53 +388,31 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
       </svg>
     </a>
   </div>
-
 </div>
+
 
 <div class="toast" id="toast"></div>
 
 <script>
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-const shopId = location.pathname.split('/').pop();
 
-// ═══════════════════════════════════════════════
-// STATE
-// ═══════════════════════════════════════════════
+const shopId = location.pathname.split('/').pop();
 let state = {
-  priceBW: 5, priceColor: 10,
-  colorMode: 'bw', copies: 1,
+  colorMode: 'bw',
+  copies: 1,
   jobId: null,
-  shopPaymentMode: 'both', shopGateway: '', razorpayKeyId: '',
-  onlineAllowed: false, counterAllowed: true,
-  pageRangeMode: 'all', selectedPages: []
+  priceBW: 5,
+  priceColor: 10,
+  totalPages: 1,
+  razorpayEnabled: false,
+  razorpayKeyId: null,
+  pdfDoc: null,
+  currentPage: 1,
+  pageRangeMode: 'all',
+  selectedPages: [],
+  printPageCount: 1
 };
 
-// pages: array of { id, sourceCanvas (original, unedited), workingCanvas (current,
-// after crop/brightness/contrast), x, y, w, h, brightness, contrast }
-let pages = [];
-let activePageId = null;
-let currentPreviewPageIdx = 0;
-
-function toast(msg) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.classList.add('show');
-  clearTimeout(t._timer);
-  t._timer = setTimeout(() => t.classList.remove('show'), 2200);
-}
-function show(id) { document.getElementById(id).classList.remove('hidden'); }
-function hide(id) { document.getElementById(id).classList.add('hidden'); }
-function setStep(n) {
-  for (let i=1;i<=4;i++) {
-    const s = document.getElementById('s'+i);
-    s.className = 'step' + (i<n?' done':i===n?' active':'');
-    s.querySelector('.dot').textContent = i<n?'✓':i;
-  }
-}
-
-// ═══════════════════════════════════════════════
-// INIT — load shop info
-// ═══════════════════════════════════════════════
 async function init() {
   try {
     const shopRes = await fetch(`/api/shop/${shopId}`);
@@ -436,586 +435,449 @@ async function init() {
     }
 
     const shop = await shopRes.json();
+
     document.getElementById('shopName').textContent = shop.name;
     document.getElementById('shopAddr').textContent = '📍 ' + (shop.address || '');
     document.getElementById('priceBWBadge').textContent = `B&W: ₹${shop.price_bw}/page`;
     document.getElementById('priceColorBadge').textContent = `Color: ₹${shop.price_color}/page`;
-    document.getElementById('optBWPrice').textContent = `₹${shop.price_bw}/page`;
-    document.getElementById('optColorPrice').textContent = `₹${shop.price_color}/page`;
     state.priceBW = shop.price_bw;
     state.priceColor = shop.price_color;
     state.shopPaymentMode = shop.payment_mode || 'both';
     state.shopGateway = shop.payment_gateway || '';
     state.razorpayKeyId = shop.razorpay_key_id || '';
+
+    // "both" ya "online_only" mein online payment ka option dikhega, lekin sirf
+    // tab kaam karega jab shop ne actually gateway setup kiya ho
     state.onlineAllowed = (state.shopPaymentMode === 'both' || state.shopPaymentMode === 'online_only') && !!state.shopGateway;
     state.counterAllowed = (state.shopPaymentMode === 'both' || state.shopPaymentMode === 'counter_only');
+
+    updatePrice();
   } catch(e) { toast('Shop load nahi hua'); }
 }
-init();
 
 // ═══════════════════════════════════════════════
-// FILE UPLOAD — converts PDF/image into one or more "pages"
+// A4 CANVAS EDITOR — drag/resize/rotate documents on an A4 page
 // ═══════════════════════════════════════════════
-async function handleFileUpload(input) {
-  const file = input.files[0];
-  if (!file) return;
-  input.value = ''; // allow re-selecting the same file later (Add Page)
+const A4_RATIO = 210/297;
+let canvasItems = []; // { id, type:'front'|'back', kind:'image'|'pdf', sourceCanvas, x,y,w,h, rotation }
+let activeItemId = null;
+let dragState = null; // { mode:'move'|'resize'|'rotate', itemId, startX,startY, ... }
 
+function pxToPercent(px, total) { return (px / total) * 100; }
+
+async function fileToSourceCanvas(file) {
+  /* File (image ya PDF first page) ko ek offscreen canvas mein render karta hai,
+     jise hum baad mein A4 canvas ke item ke andar draw karte hain.
+     NOTE: Canvas mode mein "Page Range" concept nahi hota — yahan sirf
+     currently navigated page hi front item banta hai (single merged output). */
   const ext = file.name.split('.').pop().toLowerCase();
-  toast('⏳ Document load ho raha hai...');
+  if (ext === 'pdf') {
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    state.pdfDoc = pdf;
+    state.totalPages = pdf.numPages;
+    state.currentPage = 1;
 
-  try {
-    if (ext === 'pdf') {
-      await loadPdfAsPages(file);
+    document.getElementById('totalPageNum').textContent = state.totalPages;
+    document.getElementById('pageCountBadge').textContent = state.totalPages;
+    // Canvas mode mein final output hamesha 1 page hai (merged A4), source PDF
+    // pages sirf navigation ke liye hain, billing isi liye 1 page count karti hai
+    document.getElementById('pageCountOpt').textContent = '1 page';
+    if (state.totalPages > 1) {
+      document.getElementById('pageNavWrap').style.display = 'block';
+      document.getElementById('nextPageBtn').disabled = false;
     } else {
-      await loadImageAsPage(file);
+      document.getElementById('pageNavWrap').style.display = 'none';
     }
-  } catch(e) {
-    toast('❌ File load nahi hui: ' + e.message);
-    return;
-  }
+    document.getElementById('pageRangeRow').style.display = 'none';
 
-  if (document.getElementById('secUpload').classList.contains('hidden') === false) {
-    hide('secUpload');
-    show('secEditor');
-    setStep(2);
-  }
-  renderPagesList();
-}
-
-async function loadImageAsPage(file) {
-  const dataUrl = await new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => resolve(e.target.result);
-    reader.readAsDataURL(file);
-  });
-  const img = await new Promise((resolve) => {
-    const im = new Image();
-    im.onload = () => resolve(im);
-    im.src = dataUrl;
-  });
-  const srcCanvas = document.createElement('canvas');
-  srcCanvas.width = img.naturalWidth;
-  srcCanvas.height = img.naturalHeight;
-  srcCanvas.getContext('2d').drawImage(img, 0, 0);
-  addPage(srcCanvas);
-}
-
-async function loadPdfAsPages(file) {
-  const buf = await file.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const vp = page.getViewport({ scale: 2 });
+    const page = await pdf.getPage(1);
+    const vp = page.getViewport({ scale: 1.5 });
     const canvas = document.createElement('canvas');
-    canvas.width = vp.width;
-    canvas.height = vp.height;
+    canvas.width = vp.width; canvas.height = vp.height;
     await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-    addPage(canvas);
+    return { kind: 'pdf', sourceCanvas: canvas };
+  } else {
+    state.totalPages = 1;
+    document.getElementById('pageCountOpt').textContent = '1 page';
+    document.getElementById('pageNavWrap').style.display = 'none';
+    const dataUrl = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.readAsDataURL(file);
+    });
+    const img = await new Promise((resolve) => {
+      const im = new Image();
+      im.onload = () => resolve(im);
+      im.src = dataUrl;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth; canvas.height = img.naturalHeight;
+    canvas.getContext('2d').drawImage(img, 0, 0);
+    return { kind: 'image', sourceCanvas: canvas };
   }
 }
 
-function addPage(sourceCanvas) {
+function addCanvasItem(type, sourceCanvas, kind) {
+  /* Naya item A4 canvas mein add karo — default size/position calculate karke
+     document ka aspect ratio maintain karte hue jitna A4 mein fit ho sake bada rakho */
   const a4 = document.getElementById('a4Canvas');
   const a4W = a4.clientWidth, a4H = a4.clientHeight;
 
   const srcRatio = sourceCanvas.width / sourceCanvas.height;
-  let w = a4W * 0.92;
-  let h = w / srcRatio;
-  if (h > a4H * 0.92) { h = a4H * 0.92; w = h * srcRatio; }
+  let w, h;
+  // Front: poori A4 width tak fit karo. Back: thoda chhota rakho taaki overlap na ho default mein.
+  const maxWPercent = type === 'front' ? 92 : 70;
+  w = (maxWPercent / 100) * a4W;
+  h = w / srcRatio;
+  if (h > a4H * 0.9) { h = a4H * 0.9; w = h * srcRatio; }
 
-  const pageObj = {
-    id: 'page_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
-    sourceCanvas, workingCanvas: sourceCanvas,
-    brightness: 0, contrast: 0,
-    x: (a4W - w) / 2, y: (a4H - h) / 2, w, h
+  const x = (a4W - w) / 2;
+  const y = type === 'front' ? (a4H - h) / 2 - (type === 'back' ? 0 : 0) : a4H * 0.55;
+
+  const item = {
+    id: 'item_' + Date.now() + '_' + type,
+    type, kind, sourceCanvas,
+    x, y, w, h, rotation: 0
   };
-  pages.push(pageObj);
-  setActivePage(pageObj.id);
-  renderCanvasDoc();
+  canvasItems.push(item);
+  renderCanvasItems();
+  setActiveItem(item.id);
+  return item;
 }
 
-function triggerAddPage() {
-  document.getElementById('fileInput').click();
-}
-
-// ═══════════════════════════════════════════════
-// A4 CANVAS — render active page, drag/resize
-// ═══════════════════════════════════════════════
-function setActivePage(id) {
-  activePageId = id;
-  renderCanvasDoc();
-  renderPagesList();
-}
-
-function getActivePage() {
-  return pages.find(p => p.id === activePageId);
-}
-
-function renderCanvasDoc() {
+function renderCanvasItems() {
   const a4 = document.getElementById('a4Canvas');
-  a4.innerHTML = '';
-  const page = getActivePage();
-  if (!page) return;
+  a4.querySelectorAll('.canvas-item').forEach(el => el.remove());
 
-  const div = document.createElement('div');
-  div.className = 'canvas-doc active';
-  div.style.left = page.x + 'px';
-  div.style.top = page.y + 'px';
-  div.style.width = page.w + 'px';
-  div.style.height = page.h + 'px';
+  canvasItems.forEach(item => {
+    const div = document.createElement('div');
+    div.className = 'canvas-item' + (item.id === activeItemId ? ' active' : '');
+    div.dataset.itemId = item.id;
+    div.style.left = item.x + 'px';
+    div.style.top = item.y + 'px';
+    div.style.width = item.w + 'px';
+    div.style.height = item.h + 'px';
+    div.style.transform = `rotate(${item.rotation}deg)`;
 
-  const img = document.createElement('img');
-  img.src = page.workingCanvas.toDataURL('image/jpeg', 0.92);
-  div.appendChild(img);
-
-  const handle = document.createElement('div');
-  handle.className = 'resize-handle';
-  div.appendChild(handle);
-
-  div.addEventListener('pointerdown', (e) => onDocPointerDown(e, 'move'));
-  handle.addEventListener('pointerdown', (e) => { e.stopPropagation(); onDocPointerDown(e, 'resize'); });
-
-  a4.appendChild(div);
-}
-
-let dragState = null;
-function onDocPointerDown(e, mode) {
-  e.preventDefault();
-  const page = getActivePage();
-  if (!page) return;
-  dragState = {
-    mode, startX: e.clientX, startY: e.clientY,
-    startPX: page.x, startPY: page.y, startW: page.w, startH: page.h
-  };
-  document.addEventListener('pointermove', onDocPointerMove);
-  document.addEventListener('pointerup', onDocPointerUp);
-}
-function onDocPointerMove(e) {
-  if (!dragState) return;
-  const page = getActivePage();
-  if (!page) return;
-  const dx = e.clientX - dragState.startX;
-  const dy = e.clientY - dragState.startY;
-
-  if (dragState.mode === 'move') {
-    page.x = dragState.startPX + dx;
-    page.y = dragState.startPY + dy;
-  } else {
-    const newW = Math.max(40, dragState.startW + dx);
-    const ratio = dragState.startW / dragState.startH;
-    page.w = newW;
-    page.h = newW / ratio;
-  }
-  renderCanvasDoc();
-}
-function onDocPointerUp() {
-  dragState = null;
-  document.removeEventListener('pointermove', onDocPointerMove);
-  document.removeEventListener('pointerup', onDocPointerUp);
-}
-
-// ═══════════════════════════════════════════════
-// PAGES LIST (thumbnails strip)
-// ═══════════════════════════════════════════════
-function renderPagesList() {
-  const list = document.getElementById('pagesList');
-  list.innerHTML = '';
-  pages.forEach((page, idx) => {
-    const thumb = document.createElement('div');
-    thumb.className = 'page-thumb' + (page.id === activePageId ? ' active' : '');
-    thumb.onclick = () => setActivePage(page.id);
+    const label = document.createElement('div');
+    label.className = 'item-label';
+    label.textContent = item.type === 'front' ? '📄 Front' : '📄 Back';
+    div.appendChild(label);
 
     const img = document.createElement('img');
-    img.src = page.workingCanvas.toDataURL('image/jpeg', 0.7);
-    thumb.appendChild(img);
+    img.src = item.sourceCanvas.toDataURL('image/jpeg', 0.92);
+    div.appendChild(img);
 
-    const num = document.createElement('div');
-    num.className = 'pg-num';
-    num.textContent = idx + 1;
-    thumb.appendChild(num);
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'resize-handle';
+    div.appendChild(resizeHandle);
 
-    if (pages.length > 1) {
-      const del = document.createElement('div');
-      del.className = 'pg-del';
-      del.textContent = '✕';
-      del.onclick = (e) => { e.stopPropagation(); deletePage(page.id); };
-      thumb.appendChild(del);
-    }
+    const rotateHandle = document.createElement('div');
+    rotateHandle.className = 'rotate-handle';
+    rotateHandle.textContent = '↻';
+    div.appendChild(rotateHandle);
 
-    list.appendChild(thumb);
+    const removeHandle = document.createElement('div');
+    removeHandle.className = 'remove-handle';
+    removeHandle.textContent = '✕';
+    div.appendChild(removeHandle);
+
+    div.addEventListener('pointerdown', (e) => onItemPointerDown(e, item.id, 'move'));
+    resizeHandle.addEventListener('pointerdown', (e) => { e.stopPropagation(); onItemPointerDown(e, item.id, 'resize'); });
+    rotateHandle.addEventListener('pointerdown', (e) => { e.stopPropagation(); onItemPointerDown(e, item.id, 'rotate'); });
+    removeHandle.addEventListener('pointerdown', (e) => { e.stopPropagation(); removeCanvasItem(item.id); });
+
+    a4.appendChild(div);
   });
 
-  const addBtn = document.createElement('div');
-  addBtn.className = 'add-page-btn';
-  addBtn.textContent = '+';
-  addBtn.onclick = triggerAddPage;
-  list.appendChild(addBtn);
+  updateBackButtonVisibility();
 }
 
-function deletePage(id) {
-  pages = pages.filter(p => p.id !== id);
-  if (activePageId === id) {
-    activePageId = pages.length ? pages[0].id : null;
-  }
-  renderCanvasDoc();
-  renderPagesList();
-  toast('🗑️ Page hata diya');
+function setActiveItem(itemId) {
+  activeItemId = itemId;
+  renderCanvasItems();
 }
 
-// ═══════════════════════════════════════════════
-// TOOL: Auto A4 Fit
-// ═══════════════════════════════════════════════
-function toolAutoA4() {
-  const page = getActivePage();
-  if (!page) { toast('⚠️ Pehle koi page select karo'); return; }
+function removeCanvasItem(itemId) {
+  canvasItems = canvasItems.filter(i => i.id !== itemId);
+  if (activeItemId === itemId) activeItemId = null;
+  renderCanvasItems();
+}
+
+function updateBackButtonVisibility() {
+  const hasBack = canvasItems.some(i => i.type === 'back');
+  const btn = document.getElementById('addBackBtn');
+  if (btn) btn.style.display = hasBack ? 'none' : 'inline-block';
+}
+
+function onItemPointerDown(e, itemId, mode) {
+  e.preventDefault();
+  setActiveItem(itemId);
+  const item = canvasItems.find(i => i.id === itemId);
+  if (!item) return;
+
   const a4 = document.getElementById('a4Canvas');
-  const a4W = a4.clientWidth, a4H = a4.clientHeight;
-  const ratio = page.workingCanvas.width / page.workingCanvas.height;
+  const rect = a4.getBoundingClientRect();
 
-  let w = a4W * 0.92, h = w / ratio;
-  if (h > a4H * 0.92) { h = a4H * 0.92; w = h * ratio; }
-  page.x = (a4W - w) / 2;
-  page.y = (a4H - h) / 2;
-  page.w = w; page.h = h;
-  renderCanvasDoc();
-  toast('🤖 A4 mein fit ho gaya!');
-}
-
-// ═══════════════════════════════════════════════
-// TOOL: Brightness / Contrast
-// ═══════════════════════════════════════════════
-function toolToggleAdjust() {
-  const page = getActivePage();
-  if (!page) { toast('⚠️ Pehle koi page select karo'); return; }
-  hide('cropPanel');
-  document.getElementById('cropBtn').classList.remove('active');
-
-  const panel = document.getElementById('adjustPanel');
-  const btn = document.getElementById('adjustBtn');
-  panel.classList.toggle('hidden');
-  btn.classList.toggle('active', !panel.classList.contains('hidden'));
-  if (!panel.classList.contains('hidden')) {
-    document.getElementById('adjBrightness').value = page.brightness;
-    document.getElementById('adjContrast').value = page.contrast;
-    document.getElementById('adjBrightnessVal').textContent = page.brightness;
-    document.getElementById('adjContrastVal').textContent = page.contrast;
-  }
-}
-
-function applyAdjustments() {
-  const page = getActivePage();
-  if (!page) return;
-  const b = parseInt(document.getElementById('adjBrightness').value);
-  const c = parseInt(document.getElementById('adjContrast').value);
-  document.getElementById('adjBrightnessVal').textContent = b;
-  document.getElementById('adjContrastVal').textContent = c;
-  page.brightness = b; page.contrast = c;
-
-  const src = page.sourceCanvas;
-  const out = document.createElement('canvas');
-  out.width = src.width; out.height = src.height;
-  const ctx = out.getContext('2d');
-  ctx.drawImage(src, 0, 0);
-
-  const id = ctx.getImageData(0, 0, out.width, out.height);
-  const d = id.data;
-  const brightAmt = b * 2.55;
-  const contrastFactor = (259 * (c + 255)) / (255 * (259 - c));
-  for (let i = 0; i < d.length; i += 4) {
-    for (let ch = 0; ch < 3; ch++) {
-      let v = d[i+ch] + brightAmt;
-      v = contrastFactor * (v - 128) + 128;
-      d[i+ch] = Math.max(0, Math.min(255, v));
-    }
-  }
-  ctx.putImageData(id, 0, 0);
-  page.workingCanvas = out;
-  renderCanvasDoc();
-  renderPagesList();
-}
-
-function resetAdjustments() {
-  const page = getActivePage();
-  if (!page) return;
-  document.getElementById('adjBrightness').value = 0;
-  document.getElementById('adjContrast').value = 0;
-  page.brightness = 0; page.contrast = 0;
-  page.workingCanvas = page.sourceCanvas;
-  renderCanvasDoc();
-  renderPagesList();
-  toast('↺ Reset ho gaya');
-}
-
-// ═══════════════════════════════════════════════
-// TOOL: Simple Crop (rectangular, drag-resize box)
-// ═══════════════════════════════════════════════
-let cropDragState = null;
-
-function toolToggleCrop() {
-  const page = getActivePage();
-  if (!page) { toast('⚠️ Pehle koi page select karo'); return; }
-  hide('adjustPanel');
-  document.getElementById('adjustBtn').classList.remove('active');
-
-  const panel = document.getElementById('cropPanel');
-  const btn = document.getElementById('cropBtn');
-  panel.classList.toggle('hidden');
-  btn.classList.toggle('active', !panel.classList.contains('hidden'));
-  if (!panel.classList.contains('hidden')) initCropUI();
-}
-
-function initCropUI() {
-  const page = getActivePage();
-  const img = document.getElementById('cropImg');
-  img.src = page.workingCanvas.toDataURL('image/jpeg', 0.92);
-  img.onload = () => {
-    const wrap = document.getElementById('cropWrap');
-    const box = document.getElementById('cropBox');
-    const w = img.clientWidth, h = img.clientHeight;
-    const cw = w * 0.8, ch = h * 0.8;
-    box.style.left = ((w - cw) / 2) + 'px';
-    box.style.top = ((h - ch) / 2) + 'px';
-    box.style.width = cw + 'px';
-    box.style.height = ch + 'px';
-    setupCropDrag();
+  dragState = {
+    mode, itemId,
+    startClientX: e.clientX, startClientY: e.clientY,
+    startX: item.x, startY: item.y, startW: item.w, startH: item.h, startRotation: item.rotation,
+    a4Rect: rect
   };
+
+  document.addEventListener('pointermove', onCanvasPointerMove);
+  document.addEventListener('pointerup', onCanvasPointerUp);
 }
 
-function setupCropDrag() {
-  const box = document.getElementById('cropBox');
-  const wrap = document.getElementById('cropWrap');
+function onCanvasPointerMove(e) {
+  if (!dragState) return;
+  const item = canvasItems.find(i => i.id === dragState.itemId);
+  if (!item) return;
 
-  function startDrag(e, mode, pos) {
-    e.preventDefault(); e.stopPropagation();
-    const wrapRect = wrap.getBoundingClientRect();
-    cropDragState = {
-      mode, pos,
-      startX: e.clientX, startY: e.clientY,
-      boxLeft: parseFloat(box.style.left), boxTop: parseFloat(box.style.top),
-      boxW: parseFloat(box.style.width), boxH: parseFloat(box.style.height),
-      wrapW: wrapRect.width, wrapH: wrapRect.height
-    };
-    document.addEventListener('pointermove', onCropDragMove);
-    document.addEventListener('pointerup', onCropDragUp);
+  const dx = e.clientX - dragState.startClientX;
+  const dy = e.clientY - dragState.startClientY;
+
+  if (dragState.mode === 'move') {
+    item.x = dragState.startX + dx;
+    item.y = dragState.startY + dy;
+  } else if (dragState.mode === 'resize') {
+    const newW = Math.max(40, dragState.startW + dx);
+    const ratio = dragState.startW / dragState.startH;
+    item.w = newW;
+    item.h = newW / ratio;
+  } else if (dragState.mode === 'rotate') {
+    const cx = dragState.a4Rect.left + item.x + item.w / 2;
+    const cy = dragState.a4Rect.top + item.y + item.h / 2;
+    const angle = Math.atan2(e.clientY - cy, e.clientX - cx) * (180 / Math.PI);
+    item.rotation = Math.round(angle + 90);
   }
-  box.onpointerdown = (e) => { if (e.target === box) startDrag(e, 'move'); };
-  box.querySelectorAll('.crop-handle').forEach(h => {
-    h.onpointerdown = (e) => startDrag(e, 'resize', h.dataset.pos);
-  });
+
+  renderCanvasItems();
 }
 
-function onCropDragMove(e) {
-  if (!cropDragState) return;
-  const box = document.getElementById('cropBox');
-  const dx = e.clientX - cropDragState.startX;
-  const dy = e.clientY - cropDragState.startY;
-  const s = cropDragState;
-
-  if (s.mode === 'move') {
-    let newLeft = Math.max(0, Math.min(s.wrapW - s.boxW, s.boxLeft + dx));
-    let newTop = Math.max(0, Math.min(s.wrapH - s.boxH, s.boxTop + dy));
-    box.style.left = newLeft + 'px';
-    box.style.top = newTop + 'px';
-  } else {
-    let { boxLeft, boxTop, boxW, boxH } = s;
-    if (s.pos === 'se') { boxW += dx; boxH += dy; }
-    else if (s.pos === 'sw') { boxLeft += dx; boxW -= dx; boxH += dy; }
-    else if (s.pos === 'ne') { boxTop += dy; boxW += dx; boxH -= dy; }
-    else if (s.pos === 'nw') { boxLeft += dx; boxTop += dy; boxW -= dx; boxH -= dy; }
-    if (boxW > 30 && boxH > 30) {
-      box.style.left = boxLeft + 'px'; box.style.top = boxTop + 'px';
-      box.style.width = boxW + 'px'; box.style.height = boxH + 'px';
-    }
-  }
-}
-function onCropDragUp() {
-  cropDragState = null;
-  document.removeEventListener('pointermove', onCropDragMove);
-  document.removeEventListener('pointerup', onCropDragUp);
+function onCanvasPointerUp() {
+  dragState = null;
+  document.removeEventListener('pointermove', onCanvasPointerMove);
+  document.removeEventListener('pointerup', onCanvasPointerUp);
 }
 
-function toolApplyCrop() {
-  const page = getActivePage();
-  if (!page) return;
-  const img = document.getElementById('cropImg');
-  const box = document.getElementById('cropBox');
-  const scaleX = page.workingCanvas.width / img.clientWidth;
-  const scaleY = page.workingCanvas.height / img.clientHeight;
-
-  const cropX = parseFloat(box.style.left) * scaleX;
-  const cropY = parseFloat(box.style.top) * scaleY;
-  const cropW = parseFloat(box.style.width) * scaleX;
-  const cropH = parseFloat(box.style.height) * scaleY;
-
-  const out = document.createElement('canvas');
-  out.width = cropW; out.height = cropH;
-  out.getContext('2d').drawImage(page.workingCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-
-  page.sourceCanvas = out;
-  page.workingCanvas = out;
-  page.brightness = 0; page.contrast = 0;
-
-  // Display size ko naye crop ke ratio ke hisaab se A4 canvas mein fit karo
-  const a4 = document.getElementById('a4Canvas');
-  const a4W = a4.clientWidth, a4H = a4.clientHeight;
-  const newRatio = cropW / cropH;
-  let newW = page.w, newH = newW / newRatio;
-  if (newH > a4H * 0.92) { newH = a4H * 0.92; newW = newH * newRatio; }
-  if (newW > a4W * 0.92) { newW = a4W * 0.92; newH = newW / newRatio; }
-  page.x = page.x + (page.w - newW) / 2;
-  page.y = page.y + (page.h - newH) / 2;
-  page.w = newW; page.h = newH;
-  page.x = Math.max(0, Math.min(a4W - page.w, page.x));
-  page.y = Math.max(0, Math.min(a4H - page.h, page.y));
-
-  renderCanvasDoc();
-  renderPagesList();
-  hide('cropPanel');
-  document.getElementById('cropBtn').classList.remove('active');
-  toast('✂️ Crop ho gaya!');
-}
-
-function toolCancelCrop() {
-  hide('cropPanel');
-  document.getElementById('cropBtn').classList.remove('active');
-}
-
-// ═══════════════════════════════════════════════
-// NAVIGATION between steps
-// ═══════════════════════════════════════════════
-function backToUpload() {
-  if (!confirm('Wapas jaane se abhi tak ke saare pages hat jaayenge. Confirm karo?')) return;
-  pages = [];
-  activePageId = null;
-  hide('secEditor');
-  show('secUpload');
-  setStep(1);
-}
-
-async function goToPreview() {
-  if (!pages.length) { toast('⚠️ Koi document upload karo pehle'); return; }
-  hide('secEditor');
-  show('secPreviewStep');
-  setStep(3);
-
-  currentPreviewPageIdx = 0;
-  if (pages.length > 1) {
-    document.getElementById('previewPageNav').style.display = 'flex';
-    document.getElementById('pageRangeBox').style.display = 'block';
-    document.getElementById('totalPgNum').textContent = pages.length;
-    document.getElementById('rangeTotalPages').textContent = pages.length;
-    setPageRangeMode('all');
-  } else {
-    document.getElementById('previewPageNav').style.display = 'none';
-    document.getElementById('pageRangeBox').style.display = 'none';
-    state.selectedPages = [1];
-  }
-  renderPreviewImage();
-  toast('⏳ Upload ho raha hai...');
-  await uploadAllPages();
-}
-
-function renderPreviewImage() {
-  const page = pages[currentPreviewPageIdx];
-  if (!page) return;
-  document.getElementById('finalPreviewImg').src = page.workingCanvas.toDataURL('image/jpeg', 0.9);
-  document.getElementById('curPgNum').textContent = currentPreviewPageIdx + 1;
-  document.getElementById('prevPgBtn').disabled = currentPreviewPageIdx <= 0;
-  document.getElementById('nextPgBtn').disabled = currentPreviewPageIdx >= pages.length - 1;
-}
-function changePreviewPage(delta) {
-  const newIdx = currentPreviewPageIdx + delta;
-  if (newIdx < 0 || newIdx >= pages.length) return;
-  currentPreviewPageIdx = newIdx;
-  renderPreviewImage();
-}
-
-function backToEditor() {
-  hide('secPreviewStep');
-  show('secEditor');
+async function handleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  state.pendingFile = file;
+  hide('secUpload');
+  show('secModeSelect');
   setStep(2);
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  const canvasSupported = ['pdf','jpg','jpeg','png'].includes(ext);
+  document.getElementById('canvasModeOption').style.display = canvasSupported ? 'flex' : 'none';
+  document.getElementById('canvasModeUnavailable').classList.toggle('hidden', canvasSupported);
 }
 
-function setPageRangeMode(mode) {
-  state.pageRangeMode = mode;
-  document.getElementById('rangeAllBtn').classList.toggle('on', mode === 'all');
-  document.getElementById('rangeCustomBtn').classList.toggle('on', mode === 'custom');
-  document.getElementById('rangeInput').classList.toggle('hidden', mode === 'all');
-  if (mode === 'all') {
-    state.selectedPages = Array.from({length: pages.length}, (_, i) => i + 1);
+async function chooseMode(mode) {
+  const file = state.pendingFile;
+  if (!file) return;
+  state.printMode = mode;
+  hide('secModeSelect');
+
+  if (mode === 'direct') {
+    await startDirectMode(file);
   } else {
-    document.getElementById('rangeInput').focus();
+    await startCanvasMode(file);
   }
 }
 
-function parsePageRangeString(str, maxPages) {
-  const result = new Set();
-  str.split(',').forEach(part => {
-    part = part.trim();
-    if (!part) return;
-    if (part.includes('-')) {
-      const [a, b] = part.split('-').map(n => parseInt(n.trim()));
-      if (!isNaN(a) && !isNaN(b)) {
-        for (let i = Math.min(a,b); i <= Math.max(a,b); i++) {
-          if (i >= 1 && i <= maxPages) result.add(i);
-        }
+// ─── DIRECT PRINT MODE — purana simple preview, Page Range support ───
+async function startDirectMode(file) {
+  document.getElementById('directFileName').textContent = file.name;
+  show('secDirectPreview');
+
+  const ext = file.name.split('.').pop().toLowerCase();
+  document.getElementById('directPreviewLoading').style.display = 'block';
+
+  if (ext === 'pdf') {
+    const buf = await file.arrayBuffer();
+    try {
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      state.pdfDoc = pdf;
+      state.totalPages = pdf.numPages;
+      state.currentPage = 1;
+      state.printPageCount = pdf.numPages;
+      state.pageRangeMode = 'all';
+      state.selectedPages = Array.from({length: pdf.numPages}, (_, i) => i + 1);
+
+      document.getElementById('totalPageNum').textContent = state.totalPages;
+      document.getElementById('pageCountBadge').textContent = state.totalPages;
+      document.getElementById('pageCountOpt').textContent = state.totalPages + ' page' + (state.totalPages > 1 ? 's' : '');
+      document.getElementById('directTotalPageNum').textContent = state.totalPages;
+      document.getElementById('directPageCountBadge').textContent = state.totalPages;
+
+      if (state.totalPages > 1) {
+        document.getElementById('directPageNavWrap').style.display = 'block';
+        document.getElementById('directNextPageBtn').disabled = false;
+        document.getElementById('pageRangeRow').style.display = 'flex';
+        setPageRangeMode('all');
+      } else {
+        document.getElementById('pageRangeRow').style.display = 'none';
       }
-    } else {
-      const n = parseInt(part);
-      if (!isNaN(n) && n >= 1 && n <= maxPages) result.add(n);
+
+      await renderDirectPdfPage(1);
+    } catch(err) {
+      document.getElementById('directPreviewLoading').textContent = '📄 Preview available nahi, lekin print ho jayega';
     }
-  });
-  return Array.from(result).sort((a,b) => a-b);
-}
-
-function updateRangeFromInput() {
-  const str = document.getElementById('rangeInput').value;
-  state.selectedPages = parsePageRangeString(str, pages.length);
-}
-
-// ═══════════════════════════════════════════════
-// UPLOAD — merge all pages into ONE file and send to server
-// ═══════════════════════════════════════════════
-async function buildOutputFile() {
-  // Agar sirf 1 page hai, JPG bhejte hain (simplest, sabse fast).
-  // Agar multiple pages hain, jsPDF se ek multi-page PDF banate hain
-  // taaki print agent ko sab pages mil jayein, aur Page Range feature
-  // bhi sahi se kaam kare.
-  if (pages.length === 1) {
-    const blob = await new Promise(resolve => pages[0].workingCanvas.toBlob(resolve, 'image/jpeg', 0.92));
-    return { blob, fileName: 'document.jpg' };
+  } else if (['jpg','jpeg','png'].includes(ext)) {
+    state.totalPages = 1;
+    document.getElementById('pageCountOpt').textContent = '1 page';
+    const dataUrl = await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target.result);
+      reader.readAsDataURL(file);
+    });
+    const img = document.getElementById('direct-preview-img');
+    img.onload = () => {
+      document.getElementById('directPreviewLoading').style.display = 'none';
+      img.style.display = 'block';
+    };
+    img.src = dataUrl;
+  } else {
+    state.totalPages = 1;
+    document.getElementById('pageCountOpt').textContent = '1 page';
+    document.getElementById('directPreviewLoading').textContent = '📄 ' + file.name + ' — Print Ready';
   }
 
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
-  const pageW = pdf.internal.pageSize.getWidth();
-  const pageH = pdf.internal.pageSize.getHeight();
-
-  pages.forEach((page, idx) => {
-    if (idx > 0) pdf.addPage();
-    const canvas = page.workingCanvas;
-    const ratio = canvas.width / canvas.height;
-    let w = pageW * 0.95, h = w / ratio;
-    if (h > pageH * 0.95) { h = pageH * 0.95; w = h * ratio; }
-    const x = (pageW - w) / 2, y = (pageH - h) / 2;
-    const imgData = canvas.toDataURL('image/jpeg', 0.92);
-    pdf.addImage(imgData, 'JPEG', x, y, w, h);
-  });
-
-  const blob = pdf.output('blob');
-  return { blob, fileName: 'document.pdf' };
+  toast('📤 File upload ho rahi hai...');
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('shopId', shopId);
+  fd.append('copies', state.copies);
+  fd.append('colorMode', state.colorMode);
+  fd.append('totalPages', state.totalPages);
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.success) {
+      state.jobId = data.jobId;
+      toast('✅ File ready!');
+    } else {
+      toast('❌ Upload failed: ' + data.error);
+    }
+  } catch(e) { toast('❌ Upload error'); }
 }
 
-async function uploadAllPages() {
+async function renderDirectPdfPage(pageNum) {
+  if (!state.pdfDoc) return;
+  const page = await state.pdfDoc.getPage(pageNum);
+  const vp = page.getViewport({ scale: 1.3 });
+  const canvas = document.getElementById('direct-preview-canvas');
+  canvas.width = vp.width;
+  canvas.height = vp.height;
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+  document.getElementById('directPreviewLoading').style.display = 'none';
+  canvas.style.display = 'block';
+  document.getElementById('directCurrentPageNum').textContent = pageNum;
+  document.getElementById('directPrevPageBtn').disabled = pageNum <= 1;
+  document.getElementById('directNextPageBtn').disabled = pageNum >= state.totalPages;
+}
+
+async function changeDirectPage(delta) {
+  const newPage = state.currentPage + delta;
+  if (newPage < 1 || newPage > state.totalPages) return;
+  state.currentPage = newPage;
+  await renderDirectPdfPage(newPage);
+}
+
+// ─── CANVAS EDIT MODE — A4 drag/resize/rotate, front+back ───
+async function startCanvasMode(file) {
+  show('secPreview');
+  document.getElementById('fileName').textContent = file.name;
+
+  toast('⏳ Document load ho raha hai...');
   try {
-    const { blob, fileName } = await buildOutputFile();
+    const { kind, sourceCanvas } = await fileToSourceCanvas(file);
+    canvasItems = canvasItems.filter(i => i.type !== 'front'); // purana front hata do agar dobara upload kiya
+    addCanvasItem('front', sourceCanvas, kind);
+    state.frontFile = file;
+    checkQuality();
+  } catch(err) {
+    toast('❌ File load nahi hui');
+    return;
+  }
+
+  toast('📤 File upload ho rahi hai...');
+  await uploadCurrentFile();
+}
+
+function triggerBackUpload() {
+  document.getElementById('backFileInput').click();
+}
+
+async function handleBackFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  toast('⏳ Back side load ho raha hai...');
+  try {
+    const { kind, sourceCanvas } = await fileToSourceCanvas(file);
+    canvasItems = canvasItems.filter(i => i.type !== 'back');
+    addCanvasItem('back', sourceCanvas, kind);
+    toast('✅ Back side add ho gaya!');
+  } catch(err) {
+    toast('❌ Back side load nahi hui');
+  }
+}
+
+function resetCanvasItems() {
+  const front = canvasItems.find(i => i.type === 'front');
+  const back = canvasItems.find(i => i.type === 'back');
+  canvasItems = [];
+  if (front) addCanvasItem('front', front.sourceCanvas, front.kind);
+  if (back) addCanvasItem('back', back.sourceCanvas, back.kind);
+  toast('↺ Position reset ho gaya');
+}
+
+async function renderFinalA4Canvas() {
+  /* Saare canvas items ko ek single A4-size image mein render karte hain —
+     yahi image upload/print hogi, jaisa customer ne screen pe arrange kiya tha */
+  const A4_W = 1240, A4_H = 1754; // ~150 DPI A4
+  const out = document.createElement('canvas');
+  out.width = A4_W; out.height = A4_H;
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, A4_W, A4_H);
+
+  const a4 = document.getElementById('a4Canvas');
+  const scaleX = A4_W / a4.clientWidth;
+  const scaleY = A4_H / a4.clientHeight;
+
+  for (const item of canvasItems) {
+    const cx = (item.x + item.w / 2) * scaleX;
+    const cy = (item.y + item.h / 2) * scaleY;
+    const w = item.w * scaleX;
+    const h = item.h * scaleY;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(item.rotation * Math.PI / 180);
+    ctx.drawImage(item.sourceCanvas, -w / 2, -h / 2, w, h);
+    ctx.restore();
+  }
+
+  return out;
+}
+
+async function uploadCurrentFile() {
+  try {
+    const finalCanvas = await renderFinalA4Canvas();
+    const blob = await new Promise(resolve => finalCanvas.toBlob(resolve, 'image/jpeg', 0.92));
+
     const fd = new FormData();
-    fd.append('file', blob, fileName);
+    fd.append('file', blob, 'document.jpg');
     fd.append('shopId', shopId);
     fd.append('copies', state.copies);
     fd.append('colorMode', state.colorMode);
-    fd.append('totalPages', pages.length);
+    fd.append('totalPages', 1); // Canvas hamesha 1 hi final A4 page banata hai
 
     const res = await fetch('/api/upload', { method: 'POST', body: fd });
     const data = await res.json();
@@ -1030,66 +892,144 @@ async function uploadAllPages() {
   }
 }
 
-// ═══════════════════════════════════════════════
-// OPTIONS — B&W/Color, Copies, Price
-// ═══════════════════════════════════════════════
-function goToOptions() {
-  hide('secPreviewStep');
-  show('secOptions');
-  setStep(4);
-  updatePriceSummary();
+async function changePage(delta) {
+  // Multi-page PDF mein sirf front document ka displayed page badalta hai (preview ke liye)
+  const newPage = state.currentPage + delta;
+  if (newPage < 1 || newPage > state.totalPages || !state.pdfDoc) return;
+  state.currentPage = newPage;
+
+  const page = await state.pdfDoc.getPage(newPage);
+  const vp = page.getViewport({ scale: 1.5 });
+  const canvas = document.createElement('canvas');
+  canvas.width = vp.width; canvas.height = vp.height;
+  await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+
+  const frontItem = canvasItems.find(i => i.type === 'front');
+  if (frontItem) {
+    frontItem.sourceCanvas = canvas;
+    renderCanvasItems();
+  }
+
+  document.getElementById('currentPageNum').textContent = newPage;
+  document.getElementById('prevPageBtn').disabled = newPage <= 1;
+  document.getElementById('nextPageBtn').disabled = newPage >= state.totalPages;
+
+  // Naya page select hua to dobara upload bhi karo (taaki yahi page print ho)
+  await uploadCurrentFile();
 }
-function backToOptions() {
-  hide('secPayment');
-  show('secOptions');
+
+function checkQuality() {
+  const frontItem = canvasItems.find(i => i.type === 'front');
+  let ratio = A4_RATIO;
+  if (frontItem) ratio = frontItem.sourceCanvas.width / frontItem.sourceCanvas.height;
+
+  const diff = Math.abs(ratio - A4_RATIO);
+  const card = document.getElementById('qualityCard');
+  card.className = 'quality';
+  if (diff < 0.08) {
+    card.classList.add('good');
+    document.getElementById('qIcon').textContent = '✅';
+    document.getElementById('qTitle').textContent = 'Document perfect hai!';
+    document.getElementById('qDesc').textContent = 'A4 size mein sahi fit hoga.';
+  } else {
+    card.classList.add('warn');
+    document.getElementById('qIcon').textContent = '✋';
+    document.getElementById('qTitle').textContent = 'Position adjust kar sakte ho';
+    document.getElementById('qDesc').textContent = 'Document ko drag/resize karke A4 page pe set karo jaise chahiye.';
+  }
 }
-function backToPreviewStep() {
-  hide('secOptions');
-  show('secPreviewStep');
+
+function goOptions() {
+  hide('secPreview');
+  hide('secDirectPreview');
+  show('secOptions');
   setStep(3);
+  updatePrice();
 }
 
-function setColorMode(mode) {
-  state.colorMode = mode;
-  document.getElementById('optBW').classList.toggle('sel', mode === 'bw');
-  document.getElementById('optColor').classList.toggle('sel', mode === 'color');
-  updatePriceSummary();
-}
-function changeCopies(delta) {
-  state.copies = Math.max(1, Math.min(50, state.copies + delta));
-  document.getElementById('copiesNum').textContent = state.copies;
-  updatePriceSummary();
-}
-
-function getEffectivePageCount() {
-  return (state.selectedPages && state.selectedPages.length) ? state.selectedPages.length : pages.length;
-}
-function getTotal() {
-  const pricePerPage = state.colorMode === 'bw' ? state.priceBW : state.priceColor;
-  return pricePerPage * getEffectivePageCount() * state.copies;
-}
-function updatePriceSummary() {
-  const pricePerPage = state.colorMode === 'bw' ? state.priceBW : state.priceColor;
-  const printPages = getEffectivePageCount();
-  const total = pricePerPage * printPages * state.copies;
-  document.getElementById('sumType').textContent = (state.colorMode === 'bw' ? 'B&W' : 'Color') + ' Print';
-  document.getElementById('sumPerPage').textContent = '₹' + pricePerPage + '/page';
-  document.getElementById('sumPages').textContent = printPages + ' page' + (printPages>1?'s':'') + ' × ' + state.copies + ' cop' + (state.copies>1?'ies':'y');
-  document.getElementById('sumPagesAmt').textContent = '₹' + total;
-  document.getElementById('sumTotal').textContent = '₹' + total;
-}
-
-// ═══════════════════════════════════════════════
-// PAYMENT
-// ═══════════════════════════════════════════════
-function goToPayment() {
-  if (!state.jobId) { toast('❌ Pehle file upload karo!'); return; }
+function backToPreview() {
   hide('secOptions');
-  show('secPayment');
+  if (state.printMode === 'direct') show('secDirectPreview');
+  else show('secPreview');
+  setStep(2);
+}
 
-  const note = document.getElementById('payNote');
+function backToOptions() { hide('secPayment'); show('secOptions'); setStep(3); }
+
+function setPageRangeMode(mode) {
+  state.pageRangeMode = mode;
+  document.getElementById('rangeAllBtn').className = 'tog-btn' + (mode==='all'?' on':'');
+  document.getElementById('rangeCustomBtn').className = 'tog-btn' + (mode==='custom'?' on':'');
+  const inputWrap = document.getElementById('pageRangeInputWrap');
+  if (mode === 'all') {
+    inputWrap.style.display = 'none';
+    state.selectedPages = Array.from({length: state.totalPages}, (_, i) => i + 1);
+    state.printPageCount = state.totalPages;
+    document.getElementById('pageRangePreview').textContent = '';
+    document.getElementById('pageRangeError').style.display = 'none';
+  } else {
+    inputWrap.style.display = 'block';
+    document.getElementById('pageRangeInput').focus();
+    updatePageRangeFromInput();
+  }
+  updatePrice();
+}
+
+function parsePageRange(input, maxPages) {
+  // "5" ya "1,3,5" ya "2-7" ya combination "1,3-5,8" support karo
+  const pages = new Set();
+  const parts = input.split(',').map(p => p.trim()).filter(p => p.length);
+  for (const part of parts) {
+    if (part.includes('-')) {
+      const [a, b] = part.split('-').map(n => parseInt(n.trim()));
+      if (isNaN(a) || isNaN(b) || a < 1 || b > maxPages || a > b) {
+        return { error: `"${part}" galat range hai (1-${maxPages} ke beech mein likho)` };
+      }
+      for (let i = a; i <= b; i++) pages.add(i);
+    } else {
+      const n = parseInt(part);
+      if (isNaN(n) || n < 1 || n > maxPages) {
+        return { error: `Page "${part}" sahi nahi hai (1-${maxPages} ke beech mein likho)` };
+      }
+      pages.add(n);
+    }
+  }
+  if (pages.size === 0) return { error: 'Kam se kam ek page number likho' };
+  return { pages: Array.from(pages).sort((a,b) => a-b) };
+}
+
+function updatePageRangeFromInput() {
+  const input = document.getElementById('pageRangeInput').value.trim();
+  const errorEl = document.getElementById('pageRangeError');
+  const previewEl = document.getElementById('pageRangePreview');
+
+  if (!input) {
+    errorEl.style.display = 'none';
+    previewEl.textContent = '';
+    return;
+  }
+
+  const result = parsePageRange(input, state.totalPages);
+  if (result.error) {
+    errorEl.textContent = '❌ ' + result.error;
+    errorEl.style.display = 'block';
+    previewEl.textContent = '';
+    return;
+  }
+
+  errorEl.style.display = 'none';
+  state.selectedPages = result.pages;
+  state.printPageCount = result.pages.length;
+  previewEl.textContent = `✅ Print hoga: Page ${result.pages.join(', ')} (total ${result.pages.length} page${result.pages.length>1?'s':''})`;
+  updatePrice();
+}
+
+function goPayment() {
+  if (!state.jobId) { toast('❌ Pehle file upload karo!'); return; }
+  hide('secOptions'); show('secPayment'); setStep(4); updatePrice();
+  const note = document.getElementById('razorpayNote');
   const onlineBtn = document.getElementById('onlineBtn');
-  const counterBtn = document.getElementById('counterBtn');
+  const counterBtn = document.querySelector('.pay-counter-btn');
 
   onlineBtn.style.display = state.onlineAllowed ? 'flex' : 'none';
   counterBtn.style.display = state.counterAllowed ? 'flex' : 'none';
@@ -1103,18 +1043,59 @@ function goToPayment() {
       note.textContent = '⚠️ Online payment abhi setup nahi hua hai, shop owner se contact karo';
       onlineBtn.style.display = 'flex';
       onlineBtn.disabled = true;
-      onlineBtn.style.opacity = '0.5';
+      onlineBtn.style.background = '#666';
     }
   } else {
+    // both
     if (state.onlineAllowed) {
       note.textContent = '✅ Online ya Counter — jo chahiye chuno';
+      onlineBtn.disabled = false;
+      onlineBtn.style.background = '';
     } else {
       note.textContent = '⚠️ Online payment abhi available nahi — Counter pe pay karo';
       onlineBtn.style.display = 'flex';
       onlineBtn.disabled = true;
-      onlineBtn.style.opacity = '0.5';
+      onlineBtn.style.background = '#666';
     }
   }
+}
+
+function setColor(mode) {
+  state.colorMode = mode;
+  document.getElementById('btnBW').className = 'tog-btn' + (mode==='bw'?' on':'');
+  document.getElementById('btnColor').className = 'tog-btn' + (mode==='color'?' on':'');
+  updatePrice();
+}
+
+function setCopies(d) {
+  state.copies = Math.max(1, Math.min(20, state.copies+d));
+  document.getElementById('copiesDisplay').textContent = state.copies;
+  updatePrice();
+}
+
+function getEffectivePageCount() {
+  // Canvas mode mein final output hamesha 1 merged A4 page hai, billing isi
+  // hisab se hoti hai. Direct mode mein actual page range count use hoti hai.
+  if (state.printMode === 'canvas') return 1;
+  return state.printPageCount || state.totalPages;
+}
+
+function updatePrice() {
+  const pricePerPage = state.colorMode==='bw' ? state.priceBW : state.priceColor;
+  const printPages = getEffectivePageCount();
+  const total = pricePerPage * printPages * state.copies;
+  const type = state.colorMode==='bw' ? 'B&W' : 'Color';
+  document.getElementById('sumType').textContent = type + ' Print';
+  document.getElementById('sumPerPage').textContent = '₹' + pricePerPage + '/page';
+  document.getElementById('sumPages').textContent = printPages + ' page × ' + state.copies + ' cop' + (state.copies>1?'ies':'y');
+  document.getElementById('sumPagesAmt').textContent = '₹' + total;
+  document.getElementById('sumTotal').textContent = '₹' + total;
+}
+
+function getTotal() {
+  const pricePerPage = state.colorMode==='bw' ? state.priceBW : state.priceColor;
+  const printPages = getEffectivePageCount();
+  return pricePerPage * printPages * state.copies;
 }
 
 async function payOnline() {
@@ -1141,7 +1122,7 @@ async function payOnline() {
         amount: data.amount,
         currency: 'INR',
         name: 'QR Se Print',
-        description: `Print Job - ${getEffectivePageCount()} pages`,
+        description: `Print Job - ${state.totalPages} pages`,
         order_id: data.orderId,
         handler: async function(response) {
           const verifyRes = await fetch('/api/payment/razorpay/verify', {
@@ -1168,6 +1149,7 @@ async function payOnline() {
       rzp.on('payment.failed', () => toast('❌ Payment failed! Try again.'));
       rzp.open();
     } else if (data.gateway === 'phonepe') {
+      // PhonePe redirect-based flow — customer ko PhonePe page pe le jaate hain
       window.location.href = data.paymentUrl;
     }
   } catch(e) {
@@ -1230,6 +1212,38 @@ function showSuccess(method, amount) {
     document.getElementById('amountLabel').textContent = 'Counter Pe Dena Hai';
   }
 }
+
+
+function setStep(n) {
+  for (let i=1;i<=4;i++) {
+    const s = document.getElementById('s'+i);
+    s.className = 'step' + (i<n?' done':i===n?' active':'');
+    s.querySelector('.dot').textContent = i<n?'✓':i;
+  }
+}
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden'); }
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+const uz = document.getElementById('uploadZone');
+uz.addEventListener('dragover', e => { e.preventDefault(); uz.style.borderColor = '#1c6fff'; });
+uz.addEventListener('dragleave', () => { uz.style.borderColor = '#e2ddd6'; });
+uz.addEventListener('drop', e => {
+  e.preventDefault(); uz.style.borderColor = '#e2ddd6';
+  if (e.dataTransfer.files[0]) {
+    const inp = document.getElementById('fileInput');
+    const dt = new DataTransfer();
+    dt.items.add(e.dataTransfer.files[0]);
+    inp.files = dt.files;
+    handleFile(inp);
+  }
+});
+
+init();
 </script>
 </body>
 </html>
