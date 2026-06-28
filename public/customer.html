@@ -1116,9 +1116,39 @@ function applyPerspectiveCrop() {
   // tedhi dikh jaati thi. Isliye rotation reset karna ZAROORI hai.
   item.rotation = 0;
 
-  // Item ka displayed size bhi update karo naye aspect ratio ke hisaab se
+  // CRITICAL FIX: Item ka displayed size A4 canvas ke andar FIT hona chahiye.
+  // Pehle ka code sirf "item.h = item.w / newRatio" karta tha — agar crop
+  // ka result lamba-patla (tall & narrow) nikla (jo ID card ke liye common
+  // hai), to calculated height A4 canvas (396px) se kahin zyada ho jaati
+  // thi (jaise 700px). Kyunki .a4-canvas pe "overflow:hidden" hai, item ka
+  // neeche ka bada hissa SCREEN SE BAHAR CLIP ho jaata tha — customer ko
+  // sirf upar ka chhota portion (white background) dikhta tha, jisse lagta
+  // tha "crop nahi hua". Asal mein crop sahi tha, sirf DISPLAY box bahut
+  // bada ban gaya tha. Ab hum A4 canvas ke andar maximum fit calculate
+  // karte hain (jaise object-fit:contain), aur item ko center mein bhi
+  // rakhte hain taaki woh hamesha fully visible rahe.
+  const a4 = document.getElementById('a4Canvas');
+  const a4W = a4.clientWidth, a4H = a4.clientHeight;
   const newRatio = outW / outH;
-  item.h = item.w / newRatio;
+
+  let newW = item.w;
+  let newH = newW / newRatio;
+  if (newH > a4H * 0.95) {
+    newH = a4H * 0.95;
+    newW = newH * newRatio;
+  }
+  if (newW > a4W * 0.95) {
+    newW = a4W * 0.95;
+    newH = newW / newRatio;
+  }
+  // Center mein rakho taaki resize ke baad bhi A4 canvas ke andar hi rahe
+  item.x = item.x + (item.w - newW) / 2;
+  item.y = item.y + (item.h - newH) / 2;
+  item.w = newW;
+  item.h = newH;
+  // Safety clamp: kabhi bhi A4 canvas se bahar na jaaye
+  item.x = Math.max(0, Math.min(a4W - item.w, item.x));
+  item.y = Math.max(0, Math.min(a4H - item.h, item.y));
 
   renderCanvasItems();
   setActiveItem(item.id);
