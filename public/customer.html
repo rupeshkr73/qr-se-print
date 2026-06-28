@@ -90,6 +90,14 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
 .persp-crop-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1}
 .persp-crop-svg polygon{fill:rgba(255,77,28,0.15);stroke:#ff4d1c;stroke-width:2}
 .persp-handle{position:absolute;width:28px;height:28px;background:#ff4d1c;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.4);cursor:grab;touch-action:none;transform:translate(-50%,-50%);z-index:10}
+
+.persp-live-preview-wrap{background:#f8f7f5;border-radius:12px;padding:12px;display:flex;justify-content:center}
+.persp-live-preview-wrap canvas{max-width:100%;max-height:240px;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,0.15);background:#fff}
+
+.persp-zoom{position:absolute;width:80px;height:80px;border-radius:50%;border:3px solid #ff4d1c;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,0.4);overflow:hidden;display:none;z-index:20;pointer-events:none;top:-95px;left:50%;transform:translateX(-50%);background-repeat:no-repeat}
+.persp-handle.dragging .persp-zoom{display:block}
+.persp-zoom::after{content:'';position:absolute;top:50%;left:50%;width:1px;height:14px;background:#ff4d1c;transform:translate(-50%,-50%)}
+.persp-zoom::before{content:'';position:absolute;top:50%;left:50%;width:14px;height:1px;background:#ff4d1c;transform:translate(-50%,-50%)}
 .persp-handle:active{cursor:grabbing;background:#e03d0e}
 
 
@@ -329,10 +337,14 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
           <div class="persp-crop-wrap" id="directPerspCropWrap">
             <img id="directPerspCropImg">
             <svg id="directPerspCropSvg" class="persp-crop-svg"><polygon id="directPerspCropPolygon" points=""></polygon></svg>
-            <div class="persp-handle" id="directPerspHandle-tl" data-corner="tl"></div>
-            <div class="persp-handle" id="directPerspHandle-tr" data-corner="tr"></div>
-            <div class="persp-handle" id="directPerspHandle-bl" data-corner="bl"></div>
-            <div class="persp-handle" id="directPerspHandle-br" data-corner="br"></div>
+            <div class="persp-handle" id="directPerspHandle-tl" data-corner="tl"><div class="persp-zoom" id="directPerspZoom-tl"></div></div>
+            <div class="persp-handle" id="directPerspHandle-tr" data-corner="tr"><div class="persp-zoom" id="directPerspZoom-tr"></div></div>
+            <div class="persp-handle" id="directPerspHandle-bl" data-corner="bl"><div class="persp-zoom" id="directPerspZoom-bl"></div></div>
+            <div class="persp-handle" id="directPerspHandle-br" data-corner="br"><div class="persp-zoom" id="directPerspZoom-br"></div></div>
+          </div>
+          <p style="font-size:11px;color:#6b6870;margin:10px 0 4px;text-align:center;">👀 Live Preview — yeh result aayega</p>
+          <div class="persp-live-preview-wrap">
+            <canvas id="directPerspLivePreview"></canvas>
           </div>
           <div class="btn-row" style="margin-top:10px;">
             <button class="btn" style="background:#f0ebe3;color:#0a0a0f;" onclick="cancelDirectPerspCrop()">Cancel</button>
@@ -435,10 +447,14 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
           <div class="persp-crop-wrap" id="perspCropWrap">
             <img id="perspCropImg">
             <svg id="perspCropSvg" class="persp-crop-svg"><polygon id="perspCropPolygon" points=""></polygon></svg>
-            <div class="persp-handle" id="perspHandle-tl" data-corner="tl"></div>
-            <div class="persp-handle" id="perspHandle-tr" data-corner="tr"></div>
-            <div class="persp-handle" id="perspHandle-bl" data-corner="bl"></div>
-            <div class="persp-handle" id="perspHandle-br" data-corner="br"></div>
+            <div class="persp-handle" id="perspHandle-tl" data-corner="tl"><div class="persp-zoom" id="perspZoom-tl"></div></div>
+            <div class="persp-handle" id="perspHandle-tr" data-corner="tr"><div class="persp-zoom" id="perspZoom-tr"></div></div>
+            <div class="persp-handle" id="perspHandle-bl" data-corner="bl"><div class="persp-zoom" id="perspZoom-bl"></div></div>
+            <div class="persp-handle" id="perspHandle-br" data-corner="br"><div class="persp-zoom" id="perspZoom-br"></div></div>
+          </div>
+          <p style="font-size:11px;color:#6b6870;margin:10px 0 4px;text-align:center;">👀 Live Preview — yeh result A4 pe aayega</p>
+          <div class="persp-live-preview-wrap">
+            <canvas id="perspLivePreview"></canvas>
           </div>
           <div class="btn-row" style="margin-top:10px;">
             <button class="btn" style="background:#f0ebe3;color:#0a0a0f;" onclick="cancelPerspectiveCrop()">Cancel</button>
@@ -930,14 +946,22 @@ function initPerspectiveCrop() {
   const item = canvasItems.find(i => i.id === activeItemId);
   if (!item) return;
   const img = document.getElementById('perspCropImg');
-  img.src = item.sourceCanvas.toDataURL('image/jpeg', 0.92);
-  img.onload = () => {
-    // Layout settle hone ka wait karte hain (double rAF) — taaki img.clientWidth/
-    // clientHeight ACCURATE ho. Pehle bug yeh tha: onload turant fire hota hai
-    // lekin browser ne abhi naya layout calculate nahi kiya hota, isliye
-    // clientWidth purani/galat (chhoti) value de raha tha — jiski wajah se
-    // right-side corners ek chhote, galat boundary se aage move nahi ho
-    // paa rahe the.
+  const newSrc = item.sourceCanvas.toDataURL('image/jpeg', 0.92);
+
+  // CRITICAL FIX: img.onload sirf TAB fire hota hai jab src naya set hota hai.
+  // Agar crop tool dusri baar khola jaaye (jaise Cancel karke phir se Background
+  // Crop dabaya), aur dataURL same nikla (kyunki image edit nahi hui beech mein),
+  // to browser onload trigger NAHI karta — purana perspCropState (stale corners,
+  // purani imgW/imgH) reh jaata hai jabki naya/same image display ho raha hota
+  // hai. User naye corners drag karta hai, lekin woh PURANE coordinate system
+  // mein store hote hain — jab Apply hota hai, scaleX/scaleY galat hisaab se
+  // nikalte hain, aur COMPLETELY WRONG REGION crop ho jaata hai (jaisa
+  // screenshots mein dikha — bilkul alag content nikal aaya).
+  //
+  // FIX: hum explicit "setupCropAfterLoad" function banate hain jo HAMESHA
+  // chalta hai — chahe onload fire ho ya na ho. Agar image already complete
+  // hai (cached/same-src case), to hum seedha turant setup kar dete hain.
+  function setupCropAfterLoad() {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const w = img.clientWidth, h = img.clientHeight;
@@ -950,10 +974,22 @@ function initPerspectiveCrop() {
           imgW: w, imgH: h
         };
         renderPerspectiveHandles();
-        setupPerspectiveDrag('perspHandle-', 'perspCropWrap', perspCropState, renderPerspectiveHandles, 'perspCropPolygon');
+        setupPerspectiveDrag('perspHandle-', 'perspCropWrap', perspCropState, renderPerspectiveHandles, 'perspCropPolygon', img, 'perspLivePreview');
       });
     });
-  };
+  }
+
+  img.onload = setupCropAfterLoad;
+  img.src = newSrc;
+  // Agar image already complete hai (onload nahi fire hoga kyunki src same tha,
+  // ya browser ne already cache se instantly load kar diya is tick mein), to
+  // explicitly khud call karo — yeh check thoda delay se karte hain taaki
+  // agar onload abhi-abhi fire hua ho to double-setup na ho
+  setTimeout(() => {
+    if (img.complete && img.naturalWidth > 0) {
+      setupCropAfterLoad();
+    }
+  }, 50);
 }
 
 function renderPerspectiveHandles() {
@@ -986,7 +1022,7 @@ function renderPerspectiveHandles() {
  * Events API par depend nahi karte, jiska browser/OS-specific behavior
  * inconsistent nikla.
  */
-function setupPerspectiveDrag(handlePrefix, wrapId, cropState, renderFn, polygonId) {
+function setupPerspectiveDrag(handlePrefix, wrapId, cropState, renderFn, polygonId, liveImg, livePreviewCanvasId) {
   const wrap = document.getElementById(wrapId);
 
   ['tl', 'tr', 'bl', 'br'].forEach(corner => {
@@ -1013,9 +1049,24 @@ function setupPerspectiveDrag(handlePrefix, wrapId, cropState, renderFn, polygon
       return { x, y };
     }
 
+    function updateMagnifier(clientX, clientY) {
+      const zoomEl = document.getElementById(handlePrefix.replace('Handle-', 'Zoom-') + corner);
+      if (!zoomEl || !liveImg) return;
+      const rect = wrap.getBoundingClientRect();
+      const px = clientX - rect.left, py = clientY - rect.top;
+      const zoomFactor = 2.5;
+      const bgX = -(px * zoomFactor - 40);
+      const bgY = -(py * zoomFactor - 40);
+      zoomEl.style.backgroundImage = `url(${liveImg.src})`;
+      zoomEl.style.backgroundSize = `${rect.width * zoomFactor}px ${rect.height * zoomFactor}px`;
+      zoomEl.style.backgroundPosition = `${bgX}px ${bgY}px`;
+    }
+
     function moveCorner(clientX, clientY) {
       cropState[corner] = getRelativePos(clientX, clientY);
       renderFn();
+      updateMagnifier(clientX, clientY);
+      if (livePreviewCanvasId) updateLivePreview(liveImg, cropState, livePreviewCanvasId);
     }
 
     // ── Mouse events ──
@@ -1023,6 +1074,7 @@ function setupPerspectiveDrag(handlePrefix, wrapId, cropState, renderFn, polygon
       e.preventDefault();
       e.stopPropagation();
       dragging = true;
+      freshHandle.classList.add('dragging');
       document.body.style.userSelect = 'none';
     });
 
@@ -1034,6 +1086,7 @@ function setupPerspectiveDrag(handlePrefix, wrapId, cropState, renderFn, polygon
     document.addEventListener('mouseup', () => {
       if (dragging) {
         dragging = false;
+        freshHandle.classList.remove('dragging');
         document.body.style.userSelect = '';
       }
     });
@@ -1043,6 +1096,7 @@ function setupPerspectiveDrag(handlePrefix, wrapId, cropState, renderFn, polygon
       e.preventDefault();
       e.stopPropagation();
       dragging = true;
+      freshHandle.classList.add('dragging');
     }, { passive: false });
 
     freshHandle.addEventListener('touchmove', (e) => {
@@ -1055,13 +1109,55 @@ function setupPerspectiveDrag(handlePrefix, wrapId, cropState, renderFn, polygon
     freshHandle.addEventListener('touchend', (e) => {
       e.preventDefault();
       dragging = false;
+      freshHandle.classList.remove('dragging');
     }, { passive: false });
 
     freshHandle.addEventListener('touchcancel', () => {
       dragging = false;
+      freshHandle.classList.remove('dragging');
     });
   });
+
+  // Pehli baar bhi live preview dikhao (corners set hote hi, drag se pehle)
+  if (livePreviewCanvasId) updateLivePreview(liveImg, cropState, livePreviewCanvasId);
 }
+
+function updateLivePreview(imgEl, cropState, canvasId) {
+  // Live preview: corners ke current position se turant ek chhota preview
+  // banate hain — yahi homography function jo Apply pe use hota hai, taaki
+  // customer dekh sake exactly kya result aayega, bina Apply click kiye.
+  try {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const scaleX = imgEl.naturalWidth / cropState.imgW;
+    const scaleY = imgEl.naturalHeight / cropState.imgH;
+    const srcCorners = {
+      tl: { x: cropState.tl.x * scaleX, y: cropState.tl.y * scaleY },
+      tr: { x: cropState.tr.x * scaleX, y: cropState.tr.y * scaleY },
+      bl: { x: cropState.bl.x * scaleX, y: cropState.bl.y * scaleY },
+      br: { x: cropState.br.x * scaleX, y: cropState.br.y * scaleY }
+    };
+    let outW = Math.round((dist(srcCorners.tl, srcCorners.tr) + dist(srcCorners.bl, srcCorners.br)) / 2);
+    let outH = Math.round((dist(srcCorners.tl, srcCorners.bl) + dist(srcCorners.tr, srcCorners.br)) / 2);
+    // Preview ke liye chhota size kaafi hai (fast rendering, sirf visual feedback)
+    const PREVIEW_MAX = 300;
+    if (outW > PREVIEW_MAX || outH > PREVIEW_MAX) {
+      const sc = PREVIEW_MAX / Math.max(outW, outH);
+      outW = Math.round(outW * sc); outH = Math.round(outH * sc);
+    }
+    if (outW < 10 || outH < 10) return;
+    canvas.width = outW; canvas.height = outH;
+    const ctx = canvas.getContext('2d');
+
+    // Source image ko temp canvas mein draw karo taaki drawPerspectiveWarp use kar sakein
+    const tempSrc = document.createElement('canvas');
+    tempSrc.width = imgEl.naturalWidth; tempSrc.height = imgEl.naturalHeight;
+    tempSrc.getContext('2d').drawImage(imgEl, 0, 0);
+
+    drawPerspectiveWarp(ctx, tempSrc, srcCorners, outW, outH);
+  } catch(e) { /* live preview best-effort hai, fail silently */ }
+}
+
 
 function applyPerspectiveCrop() {
   const item = canvasItems.find(i => i.id === activeItemId);
@@ -1629,8 +1725,9 @@ function toggleDirectPerspCrop() {
 
 function initDirectPerspCrop() {
   const img = document.getElementById('directPerspCropImg');
-  img.src = state.directImageState.workingCanvas.toDataURL('image/jpeg', 0.92);
-  img.onload = () => {
+  const newSrc = state.directImageState.workingCanvas.toDataURL('image/jpeg', 0.92);
+
+  function setupCropAfterLoad() {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const w = img.clientWidth, h = img.clientHeight;
@@ -1643,10 +1740,18 @@ function initDirectPerspCrop() {
           imgW: w, imgH: h
         };
         renderDirectPerspHandles();
-        setupPerspectiveDrag('directPerspHandle-', 'directPerspCropWrap', directPerspCropState, renderDirectPerspHandles, 'directPerspCropPolygon');
+        setupPerspectiveDrag('directPerspHandle-', 'directPerspCropWrap', directPerspCropState, renderDirectPerspHandles, 'directPerspCropPolygon', img, 'directPerspLivePreview');
       });
     });
-  };
+  }
+
+  img.onload = setupCropAfterLoad;
+  img.src = newSrc;
+  setTimeout(() => {
+    if (img.complete && img.naturalWidth > 0) {
+      setupCropAfterLoad();
+    }
+  }, 50);
 }
 
 function renderDirectPerspHandles() {
