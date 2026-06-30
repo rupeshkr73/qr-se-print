@@ -375,6 +375,15 @@ let pages = [];
 let activePageIdx = 0;
 let currentPreviewPageIdx = 0;
 
+// A4 canvas ka CSS dimension FIXED hai (.a4-canvas{width:280px;height:396px}),
+// isliye hamesha hardcode karte hain — kabhi bhi a4.clientWidth/clientHeight
+// directly measure NAHI karte. Yeh isliye zaroori hai kyunki agar koi
+// function tab call ho jab secEditor "hidden" ho (display:none), to
+// clientWidth/clientHeight 0 milta hai — jisse layout calculations
+// Infinity/NaN ban jaate aur cheezein silently fail ho jaati (blank preview
+// jaisa bug isi wajah se aaya tha).
+const A4_DISPLAY_W = 280, A4_DISPLAY_H = 396;
+
 function toast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -520,8 +529,7 @@ async function loadPdfAsPages(file) {
 }
 
 function createItemFromCanvas(sourceCanvas, isSecondaryItem) {
-  const a4 = document.getElementById('a4Canvas');
-  const a4W = a4.clientWidth, a4H = a4.clientHeight;
+  const a4W = A4_DISPLAY_W, a4H = A4_DISPLAY_H;
   const srcRatio = sourceCanvas.width / sourceCanvas.height;
 
   const maxWPercent = isSecondaryItem ? 0.65 : 0.92;
@@ -745,8 +753,7 @@ function changeEditorPage(delta) {
 function toolAutoA4() {
   const item = getActiveItem();
   if (!item) { toast('⚠️ Pehle koi document select karo'); return; }
-  const a4 = document.getElementById('a4Canvas');
-  const a4W = a4.clientWidth, a4H = a4.clientHeight;
+  const a4W = A4_DISPLAY_W, a4H = A4_DISPLAY_H;
   const ratio = item.workingCanvas.width / item.workingCanvas.height;
 
   let w = a4W * 0.92, h = w / ratio;
@@ -832,7 +839,14 @@ function backToUpload() {
 }
 
 // Page ke andar saare items (front+back, etc.) ko ek SINGLE A4-size
-// canvas mein merge karte hain — yahi final print/preview image hai
+// canvas mein merge karte hain — yahi final print/preview image hai.
+// CRITICAL BUG fix: goToPreview() pehle secEditor ko "hide" karta hai
+// (display:none), USKE BAAD renderPreviewImage() -> renderMergedPageCanvas()
+// chalता hai. Hidden element ka clientWidth/clientHeight hamesha 0 hota
+// hai — jisse scaleX/scaleY Infinity/NaN ban jaate the, aur drawImage()
+// silently fail ho jaata, poori preview BLANK WHITE reh jaati thi (jaisa
+// screenshot mein dikha). Fix: A4_DISPLAY_W/H (fixed constants, top of
+// file) use karte hain, kabhi bhi clientWidth measure nahi karte yahan.
 function renderMergedPageCanvas(page) {
   const A4_W = 1240, A4_H = 1754; // ~150 DPI A4
   const out = document.createElement('canvas');
@@ -841,9 +855,8 @@ function renderMergedPageCanvas(page) {
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, A4_W, A4_H);
 
-  const a4 = document.getElementById('a4Canvas');
-  const scaleX = A4_W / a4.clientWidth;
-  const scaleY = A4_H / a4.clientHeight;
+  const scaleX = A4_W / A4_DISPLAY_W;
+  const scaleY = A4_H / A4_DISPLAY_H;
 
   page.items.forEach(item => {
     ctx.drawImage(item.workingCanvas, item.x * scaleX, item.y * scaleY, item.w * scaleX, item.h * scaleY);
