@@ -55,6 +55,16 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
 .canvas-doc img{width:100%;height:100%;display:block;pointer-events:none;object-fit:contain}
 .resize-handle{position:absolute;width:22px;height:22px;background:#ff4d1c;border:3px solid #fff;border-radius:50%;bottom:-11px;right:-11px;cursor:nwse-resize;display:none;box-shadow:0 2px 6px rgba(0,0,0,0.35);touch-action:none}
 .canvas-doc.active .resize-handle{display:block}
+.remove-item-handle{position:absolute;width:22px;height:22px;background:#ff4d1c;border:3px solid #fff;border-radius:50%;top:-11px;right:-11px;display:none;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.35);cursor:pointer}
+.canvas-doc.active .remove-item-handle{display:flex}
+
+.page-indicator-row{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:10px}
+.page-indicator{font-size:12px;font-weight:700;color:#6b6870;text-align:center}
+.page-nav-btn{width:30px;height:30px;border-radius:50%;border:1.5px solid #e2ddd6;background:#fff;font-size:15px;cursor:pointer;flex-shrink:0}
+.page-nav-btn:disabled{opacity:0.3;cursor:not-allowed}
+.page-nav-btn.hidden-btn{visibility:hidden}
+
+.add-doc-btn{width:100%;padding:11px;border-radius:10px;border:1.5px dashed #1c6fff;background:#f0f4ff;color:#1c6fff;font-size:13px;font-weight:700;cursor:pointer;font-family:'Space Grotesk',sans-serif;margin-top:12px}
 
 /* ── Edit toolbar ── */
 .edit-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;justify-content:center}
@@ -70,27 +80,6 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
 .adjust-row label{font-size:12px;font-weight:700;width:90px;flex-shrink:0}
 .adjust-row input[type="range"]{flex:1;accent-color:#ff4d1c;height:6px}
 .adjust-row span{font-size:11px;color:#6b6870;width:36px;text-align:right;flex-shrink:0}
-
-/* ── Simple Crop overlay ── */
-.crop-panel{background:#f8f7f5;border-radius:14px;padding:14px;margin-top:12px}
-.crop-panel p{font-size:12px;color:#6b6870;margin-bottom:10px;text-align:center}
-.simple-crop-wrap{position:relative;display:flex;justify-content:center;touch-action:none}
-.simple-crop-wrap img{max-width:100%;max-height:300px;display:block;border-radius:6px}
-.simple-crop-box{position:absolute;border:2px dashed #ff4d1c;background:rgba(255,77,28,0.08);cursor:move;touch-action:none}
-.crop-handle{position:absolute;width:18px;height:18px;background:#ff4d1c;border:3px solid #fff;border-radius:50%;box-shadow:0 2px 6px rgba(0,0,0,0.35);touch-action:none}
-.crop-handle[data-pos="nw"]{top:-9px;left:-9px;cursor:nwse-resize}
-.crop-handle[data-pos="ne"]{top:-9px;right:-9px;cursor:nesw-resize}
-.crop-handle[data-pos="sw"]{bottom:-9px;left:-9px;cursor:nesw-resize}
-.crop-handle[data-pos="se"]{bottom:-9px;right:-9px;cursor:nwse-resize}
-
-/* ── Pages list ── */
-.pages-list{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 8px;margin-top:14px}
-.page-thumb{position:relative;flex-shrink:0;width:64px;height:90px;border-radius:8px;overflow:hidden;border:2.5px solid #e2ddd6;cursor:pointer;background:#fff}
-.page-thumb.active{border-color:#ff4d1c}
-.page-thumb img{width:100%;height:100%;object-fit:cover}
-.page-thumb .pg-num{position:absolute;top:2px;left:2px;background:#0a0a0f;color:#fff;font-size:9px;font-weight:700;padding:1px 5px;border-radius:5px}
-.page-thumb .pg-del{position:absolute;top:2px;right:2px;width:18px;height:18px;background:#ff4d1c;color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
-.add-page-btn{flex-shrink:0;width:64px;height:90px;border-radius:8px;border:2px dashed #d9d2c5;display:flex;align-items:center;justify-content:center;font-size:24px;color:#9b968d;cursor:pointer;background:#fff}
 
 /* ── Buttons ── */
 .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
@@ -214,9 +203,17 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
         <div class="a4-canvas" id="a4Canvas"></div>
       </div>
 
+      <div class="page-indicator-row">
+        <button class="page-nav-btn hidden-btn" id="editorPrevBtn" onclick="changeEditorPage(-1)">‹</button>
+        <p class="page-indicator" id="pageIndicator">Showing Page 1 of 1 Pages</p>
+        <button class="page-nav-btn hidden-btn" id="editorNextBtn" onclick="changeEditorPage(1)">›</button>
+      </div>
+
+      <button class="add-doc-btn" onclick="triggerAddDocument()">➕ Add Document (Back Side, etc.)</button>
+      <input type="file" id="addDocInput" accept=".jpg,.jpeg,.png,.pdf" class="hidden" onchange="handleAddDocument(this)">
+
       <div class="edit-toolbar">
         <button class="edit-btn" onclick="toolAutoA4()">🤖 Auto A4 Fit</button>
-        <button class="edit-btn" id="cropBtn" onclick="toolToggleCrop()">✂️ Simple Crop</button>
         <button class="edit-btn" id="adjustBtn" onclick="toolToggleAdjust()">🎨 Brightness/Contrast</button>
       </div>
 
@@ -233,25 +230,6 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
         </div>
         <button class="edit-btn" style="width:100%;justify-content:center;background:#f0ebe3;" onclick="resetAdjustments()">↺ Reset</button>
       </div>
-
-      <div id="cropPanel" class="crop-panel hidden">
-        <p>Crop area ko drag/resize karke set karo</p>
-        <div class="simple-crop-wrap" id="cropWrap">
-          <img id="cropImg">
-          <div class="simple-crop-box" id="cropBox">
-            <div class="crop-handle" data-pos="nw"></div>
-            <div class="crop-handle" data-pos="ne"></div>
-            <div class="crop-handle" data-pos="sw"></div>
-            <div class="crop-handle" data-pos="se"></div>
-          </div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-grey" onclick="toolCancelCrop()">Cancel</button>
-          <button class="btn btn-green" onclick="toolApplyCrop()">✅ Apply Crop</button>
-        </div>
-      </div>
-
-      <div class="pages-list" id="pagesList"></div>
     </div>
 
     <div class="btn-row">
@@ -388,10 +366,13 @@ let state = {
   pageRangeMode: 'all', selectedPages: []
 };
 
-// pages: array of { id, sourceCanvas (original, unedited), workingCanvas (current,
-// after crop/brightness/contrast), x, y, w, h, brightness, contrast }
+// pages: array of A4 sheets. Har page ke andar EK YA ZYADA "items" ho sakte
+// hain (jaise Aadhaar Front + Back same A4 page pe). Har item independently
+// drag/resize/edit hota hai.
+// page = { id, items: [item, ...], activeItemId }
+// item = { id, sourceCanvas (original), workingCanvas (edited), x, y, w, h, brightness, contrast }
 let pages = [];
-let activePageId = null;
+let activePageIdx = 0;
 let currentPreviewPageIdx = 0;
 
 function toast(msg) {
@@ -459,14 +440,11 @@ init();
 async function handleFileUpload(input) {
   const file = input.files[0];
   if (!file) return;
-  input.value = ''; // allow re-selecting the same file later (Add Page)
+  input.value = ''; // allow re-selecting the same file later
 
-  // IMPORTANT FIX: secEditor ko PEHLE show karo, addPage() ke pehle —
-  // warna a4Canvas abhi tak "display:none" hota hai jab addPage() uska
-  // clientWidth/clientHeight measure karta hai, jo 0 return karta hai.
-  // Isi wajah se document upload ke turant baad invisible (0 size) rehta
-  // tha, jab tak Auto A4 (jo editor show hone ke BAAD chalta hai) na
-  // dabaya jaaye.
+  // secEditor PEHLE show karo, item add hone se pehle — warna a4Canvas
+  // abhi tak "display:none" hota hai jab clientWidth/clientHeight measure
+  // hoga (jo 0 milta hai display:none par)
   const isFirstUpload = !document.getElementById('secUpload').classList.contains('hidden');
   if (isFirstUpload) {
     hide('secUpload');
@@ -481,17 +459,18 @@ async function handleFileUpload(input) {
     if (ext === 'pdf') {
       await loadPdfAsPages(file);
     } else {
-      await loadImageAsPage(file);
+      const srcCanvas = await fileToCanvas(file);
+      addPage([srcCanvas]); // naya page, ek hi item ke saath
     }
   } catch(e) {
     toast('❌ File load nahi hui: ' + e.message);
     return;
   }
 
-  renderPagesList();
+  renderEditor();
 }
 
-async function loadImageAsPage(file) {
+async function fileToCanvas(file) {
   const dataUrl = await new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (e) => resolve(e.target.result);
@@ -502,22 +481,19 @@ async function loadImageAsPage(file) {
     im.onload = () => resolve(im);
     im.src = dataUrl;
   });
-  const srcCanvas = document.createElement('canvas');
-  srcCanvas.width = img.naturalWidth;
-  srcCanvas.height = img.naturalHeight;
-  srcCanvas.getContext('2d').drawImage(img, 0, 0);
-  addPage(srcCanvas);
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  canvas.getContext('2d').drawImage(img, 0, 0);
+  return canvas;
 }
 
 async function loadPdfAsPages(file) {
   const buf = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
 
-  // FIX: scale 2 se bahut zyada memory use hoti thi (15 pages ka matlab
-  // 15 high-res canvases ek saath RAM mein, jo mobile browser pe silently
-  // crash/freeze kara deta tha — isiliye "upload hi nahi ho raha" jaisa
-  // lagta tha). Scale 1.5 print-quality ke liye kaafi hai aur safe hai.
   const RENDER_SCALE = pdf.numPages > 8 ? 1.3 : 1.5;
+  let loadedCount = 0;
 
   for (let i = 1; i <= pdf.numPages; i++) {
     toast(`⏳ Page ${i} / ${pdf.numPages} load ho raha hai...`);
@@ -528,9 +504,8 @@ async function loadPdfAsPages(file) {
       canvas.width = vp.width;
       canvas.height = vp.height;
       await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-      addPage(canvas, true); // skipUIRender — list/canvas sirf end mein ek baar render hoga
-      // Browser ko thoda saans lene do har page ke baad (UI freeze na ho,
-      // aur memory garbage-collect hone ka mauka mile bade PDFs mein)
+      addPage([canvas], true);
+      loadedCount++;
       await new Promise(resolve => setTimeout(resolve, 30));
     } catch(pageErr) {
       console.error(`Page ${i} render error:`, pageErr);
@@ -538,41 +513,44 @@ async function loadPdfAsPages(file) {
     }
   }
 
-  if (pages.length === 0) {
+  if (loadedCount === 0) {
     throw new Error('Koi bhi page load nahi hui — PDF corrupt ho sakta hai');
   }
-  // Ab ek hi baar full render karte hain (poori list + active canvas)
-  renderCanvasDoc();
-  renderPagesList();
-  toast(`✅ ${pages.length} pages load ho gaye!`);
+  toast(`✅ ${loadedCount} pages load ho gaye!`);
 }
 
-function addPage(sourceCanvas, skipUIRender) {
+function createItemFromCanvas(sourceCanvas, isSecondaryItem) {
   const a4 = document.getElementById('a4Canvas');
   const a4W = a4.clientWidth, a4H = a4.clientHeight;
-
   const srcRatio = sourceCanvas.width / sourceCanvas.height;
-  let w = a4W * 0.92;
-  let h = w / srcRatio;
-  if (h > a4H * 0.92) { h = a4H * 0.92; w = h * srcRatio; }
 
-  const pageObj = {
-    id: 'page_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+  const maxWPercent = isSecondaryItem ? 0.65 : 0.92;
+  let w = a4W * maxWPercent;
+  let h = w / srcRatio;
+  if (h > a4H * 0.9) { h = a4H * 0.9; w = h * srcRatio; }
+
+  return {
+    id: 'item_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
     sourceCanvas, workingCanvas: sourceCanvas,
     brightness: 0, contrast: 0,
-    x: (a4W - w) / 2, y: (a4H - h) / 2, w, h
+    x: isSecondaryItem ? a4W * 0.3 : (a4W - w) / 2,
+    y: isSecondaryItem ? a4H * 0.35 : (a4H - h) / 2,
+    w, h
+  };
+}
+
+function addPage(sourceCanvases, skipUIRender) {
+  const items = sourceCanvases.map((c, idx) => createItemFromCanvas(c, idx > 0));
+  const pageObj = {
+    id: 'page_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+    items,
+    activeItemId: items[0].id
   };
   pages.push(pageObj);
-  activePageId = pageObj.id;
+  activePageIdx = pages.length - 1;
 
-  // PERFORMANCE FIX: batch loading (multi-page PDF) ke time har page ke
-  // baad poori thumbnails list + canvas re-render karna BAHUT slow tha
-  // (15 pages = 120 redundant toDataURL calls). Ab batch loading khatam
-  // hone ke BAAD ek hi baar render karte hain — caller explicitly
-  // skipUIRender=true pass karta hai loop ke andar.
   if (!skipUIRender) {
-    renderCanvasDoc();
-    renderPagesList();
+    renderEditor();
   }
 }
 
@@ -580,180 +558,235 @@ function triggerAddPage() {
   document.getElementById('fileInput').click();
 }
 
+function triggerAddDocument() {
+  document.getElementById('addDocInput').click();
+}
+
+async function handleAddDocument(input) {
+  const file = input.files[0];
+  if (!file) return;
+  input.value = '';
+
+  const page = getActivePageObj();
+  if (!page) { toast('⚠️ Pehle koi document upload karo'); return; }
+
+  toast('⏳ Document load ho raha hai...');
+  try {
+    const ext = file.name.split('.').pop().toLowerCase();
+    let canvas;
+    if (ext === 'pdf') {
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      const pdfPage = await pdf.getPage(1);
+      const vp = pdfPage.getViewport({ scale: 1.5 });
+      canvas = document.createElement('canvas');
+      canvas.width = vp.width; canvas.height = vp.height;
+      await pdfPage.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+    } else {
+      canvas = await fileToCanvas(file);
+    }
+
+    const newItem = createItemFromCanvas(canvas, true);
+    page.items.push(newItem);
+    page.activeItemId = newItem.id;
+    renderEditor();
+    toast('✅ Document add ho gaya!');
+  } catch(e) {
+    toast('❌ Document load nahi hua: ' + e.message);
+  }
+}
+
 // ═══════════════════════════════════════════════
 // A4 CANVAS — render active page, drag/resize
 // ═══════════════════════════════════════════════
-function setActivePage(id) {
-  activePageId = id;
-  renderCanvasDoc();
-  renderPagesList();
+function getActivePageObj() {
+  return pages[activePageIdx] || null;
+}
+function getActiveItem() {
+  const page = getActivePageObj();
+  if (!page) return null;
+  return page.items.find(i => i.id === page.activeItemId) || page.items[0] || null;
+}
+function setActiveItem(itemId) {
+  const page = getActivePageObj();
+  if (!page) return;
+  page.activeItemId = itemId;
+  renderEditor();
 }
 
-function getActivePage() {
-  return pages.find(p => p.id === activePageId);
+function renderEditor() {
+  renderCanvasItems();
+  renderPageIndicator();
 }
 
-function renderCanvasDoc() {
+function renderCanvasItems() {
   const a4 = document.getElementById('a4Canvas');
   a4.innerHTML = '';
-  const page = getActivePage();
+  const page = getActivePageObj();
   if (!page) return;
 
-  const div = document.createElement('div');
-  div.className = 'canvas-doc active';
-  div.style.left = page.x + 'px';
-  div.style.top = page.y + 'px';
-  div.style.width = page.w + 'px';
-  div.style.height = page.h + 'px';
+  page.items.forEach(item => {
+    const isActive = item.id === page.activeItemId;
+    const div = document.createElement('div');
+    div.className = 'canvas-doc' + (isActive ? ' active' : '');
+    div.style.left = item.x + 'px';
+    div.style.top = item.y + 'px';
+    div.style.width = item.w + 'px';
+    div.style.height = item.h + 'px';
+    div.style.zIndex = isActive ? 5 : 1;
 
-  const img = document.createElement('img');
-  img.src = page.workingCanvas.toDataURL('image/jpeg', 0.92);
-  div.appendChild(img);
+    const img = document.createElement('img');
+    img.src = item.workingCanvas.toDataURL('image/jpeg', 0.92);
+    div.appendChild(img);
 
-  const handle = document.createElement('div');
-  handle.className = 'resize-handle';
-  div.appendChild(handle);
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'resize-handle';
+    div.appendChild(resizeHandle);
 
-  div.addEventListener('pointerdown', (e) => onDocPointerDown(e, 'move'));
-  handle.addEventListener('pointerdown', (e) => { e.stopPropagation(); onDocPointerDown(e, 'resize'); });
+    if (page.items.length > 1) {
+      const removeHandle = document.createElement('div');
+      removeHandle.className = 'remove-item-handle';
+      removeHandle.textContent = '\u2715';
+      removeHandle.onclick = (e) => { e.stopPropagation(); removeItem(item.id); };
+      div.appendChild(removeHandle);
+    }
 
-  a4.appendChild(div);
+    div.addEventListener('pointerdown', (e) => {
+      if (e.target === resizeHandle) return;
+      setActiveItem(item.id);
+      onItemPointerDown(e, item.id, 'move');
+    });
+    resizeHandle.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      setActiveItem(item.id);
+      onItemPointerDown(e, item.id, 'resize');
+    });
+
+    a4.appendChild(div);
+  });
+}
+
+function removeItem(itemId) {
+  const page = getActivePageObj();
+  if (!page || page.items.length <= 1) return;
+  page.items = page.items.filter(i => i.id !== itemId);
+  if (page.activeItemId === itemId) {
+    page.activeItemId = page.items[0].id;
+  }
+  renderEditor();
+  toast('\uD83D\uDDD1\uFE0F Document hata diya');
 }
 
 let dragState = null;
-function onDocPointerDown(e, mode) {
+function onItemPointerDown(e, itemId, mode) {
   e.preventDefault();
-  const page = getActivePage();
-  if (!page) return;
+  const page = getActivePageObj();
+  const item = page.items.find(i => i.id === itemId);
+  if (!item) return;
   dragState = {
-    mode, startX: e.clientX, startY: e.clientY,
-    startPX: page.x, startPY: page.y, startW: page.w, startH: page.h
+    itemId, mode, startX: e.clientX, startY: e.clientY,
+    startPX: item.x, startPY: item.y, startW: item.w, startH: item.h
   };
-  document.addEventListener('pointermove', onDocPointerMove);
-  document.addEventListener('pointerup', onDocPointerUp);
+  document.addEventListener('pointermove', onItemPointerMove);
+  document.addEventListener('pointerup', onItemPointerUp);
 }
-function onDocPointerMove(e) {
+function onItemPointerMove(e) {
   if (!dragState) return;
-  const page = getActivePage();
+  const page = getActivePageObj();
   if (!page) return;
+  const item = page.items.find(i => i.id === dragState.itemId);
+  if (!item) return;
   const dx = e.clientX - dragState.startX;
   const dy = e.clientY - dragState.startY;
 
   if (dragState.mode === 'move') {
-    page.x = dragState.startPX + dx;
-    page.y = dragState.startPY + dy;
+    item.x = dragState.startPX + dx;
+    item.y = dragState.startPY + dy;
   } else {
     const newW = Math.max(40, dragState.startW + dx);
     const ratio = dragState.startW / dragState.startH;
-    page.w = newW;
-    page.h = newW / ratio;
+    item.w = newW;
+    item.h = newW / ratio;
   }
-  renderCanvasDoc();
+  renderCanvasItems();
 }
-function onDocPointerUp() {
+function onItemPointerUp() {
   dragState = null;
-  document.removeEventListener('pointermove', onDocPointerMove);
-  document.removeEventListener('pointerup', onDocPointerUp);
+  document.removeEventListener('pointermove', onItemPointerMove);
+  document.removeEventListener('pointerup', onItemPointerUp);
 }
 
-// ═══════════════════════════════════════════════
-// PAGES LIST (thumbnails strip)
-// ═══════════════════════════════════════════════
-function renderPagesList() {
-  const list = document.getElementById('pagesList');
-  list.innerHTML = '';
-  pages.forEach((page, idx) => {
-    const thumb = document.createElement('div');
-    thumb.className = 'page-thumb' + (page.id === activePageId ? ' active' : '');
-    thumb.onclick = () => setActivePage(page.id);
+// ══════════════════════════════════════════════════
+// PAGE NAVIGATION (multi-page PDFs ke liye)
+// ══════════════════════════════════════════════════
+function renderPageIndicator() {
+  const indicator = document.getElementById('pageIndicator');
+  indicator.textContent = `Showing Page ${activePageIdx + 1} of ${pages.length} Pages`;
 
-    const img = document.createElement('img');
-    img.src = page.workingCanvas.toDataURL('image/jpeg', 0.7);
-    thumb.appendChild(img);
-
-    const num = document.createElement('div');
-    num.className = 'pg-num';
-    num.textContent = idx + 1;
-    thumb.appendChild(num);
-
-    if (pages.length > 1) {
-      const del = document.createElement('div');
-      del.className = 'pg-del';
-      del.textContent = '✕';
-      del.onclick = (e) => { e.stopPropagation(); deletePage(page.id); };
-      thumb.appendChild(del);
-    }
-
-    list.appendChild(thumb);
-  });
-
-  const addBtn = document.createElement('div');
-  addBtn.className = 'add-page-btn';
-  addBtn.textContent = '+';
-  addBtn.onclick = triggerAddPage;
-  list.appendChild(addBtn);
+  const prevBtn = document.getElementById('editorPrevBtn');
+  const nextBtn = document.getElementById('editorNextBtn');
+  const showNav = pages.length > 1;
+  prevBtn.classList.toggle('hidden-btn', !showNav);
+  nextBtn.classList.toggle('hidden-btn', !showNav);
+  prevBtn.disabled = activePageIdx <= 0;
+  nextBtn.disabled = activePageIdx >= pages.length - 1;
 }
 
-function deletePage(id) {
-  pages = pages.filter(p => p.id !== id);
-  if (activePageId === id) {
-    activePageId = pages.length ? pages[0].id : null;
-  }
-  renderCanvasDoc();
-  renderPagesList();
-  toast('🗑️ Page hata diya');
+function changeEditorPage(delta) {
+  const newIdx = activePageIdx + delta;
+  if (newIdx < 0 || newIdx >= pages.length) return;
+  activePageIdx = newIdx;
+  renderEditor();
 }
 
 // ═══════════════════════════════════════════════
 // TOOL: Auto A4 Fit
 // ═══════════════════════════════════════════════
 function toolAutoA4() {
-  const page = getActivePage();
-  if (!page) { toast('⚠️ Pehle koi page select karo'); return; }
+  const item = getActiveItem();
+  if (!item) { toast('⚠️ Pehle koi document select karo'); return; }
   const a4 = document.getElementById('a4Canvas');
   const a4W = a4.clientWidth, a4H = a4.clientHeight;
-  const ratio = page.workingCanvas.width / page.workingCanvas.height;
+  const ratio = item.workingCanvas.width / item.workingCanvas.height;
 
   let w = a4W * 0.92, h = w / ratio;
   if (h > a4H * 0.92) { h = a4H * 0.92; w = h * ratio; }
-  page.x = (a4W - w) / 2;
-  page.y = (a4H - h) / 2;
-  page.w = w; page.h = h;
-  renderCanvasDoc();
+  item.x = (a4W - w) / 2;
+  item.y = (a4H - h) / 2;
+  item.w = w; item.h = h;
+  renderCanvasItems();
   toast('🤖 A4 mein fit ho gaya!');
 }
 
-// ═══════════════════════════════════════════════
+// ══════════════════════════════════════════════════
 // TOOL: Brightness / Contrast
-// ═══════════════════════════════════════════════
+// ══════════════════════════════════════════════════
 function toolToggleAdjust() {
-  const page = getActivePage();
-  if (!page) { toast('⚠️ Pehle koi page select karo'); return; }
-  hide('cropPanel');
-  document.getElementById('cropBtn').classList.remove('active');
+  const item = getActiveItem();
+  if (!item) { toast('⚠️ Pehle koi document select karo'); return; }
 
   const panel = document.getElementById('adjustPanel');
   const btn = document.getElementById('adjustBtn');
   panel.classList.toggle('hidden');
   btn.classList.toggle('active', !panel.classList.contains('hidden'));
   if (!panel.classList.contains('hidden')) {
-    document.getElementById('adjBrightness').value = page.brightness;
-    document.getElementById('adjContrast').value = page.contrast;
-    document.getElementById('adjBrightnessVal').textContent = page.brightness;
-    document.getElementById('adjContrastVal').textContent = page.contrast;
+    document.getElementById('adjBrightness').value = item.brightness;
+    document.getElementById('adjContrast').value = item.contrast;
+    document.getElementById('adjBrightnessVal').textContent = item.brightness;
+    document.getElementById('adjContrastVal').textContent = item.contrast;
   }
 }
 
 function applyAdjustments() {
-  const page = getActivePage();
-  if (!page) return;
+  const item = getActiveItem();
+  if (!item) return;
   const b = parseInt(document.getElementById('adjBrightness').value);
   const c = parseInt(document.getElementById('adjContrast').value);
   document.getElementById('adjBrightnessVal').textContent = b;
   document.getElementById('adjContrastVal').textContent = c;
-  page.brightness = b; page.contrast = c;
+  item.brightness = b; item.contrast = c;
 
-  const src = page.sourceCanvas;
+  const src = item.sourceCanvas;
   const out = document.createElement('canvas');
   out.width = src.width; out.height = src.height;
   const ctx = out.getContext('2d');
@@ -771,210 +804,19 @@ function applyAdjustments() {
     }
   }
   ctx.putImageData(id, 0, 0);
-  page.workingCanvas = out;
-  renderCanvasDoc();
-  renderPagesList();
+  item.workingCanvas = out;
+  renderCanvasItems();
 }
 
 function resetAdjustments() {
-  const page = getActivePage();
-  if (!page) return;
+  const item = getActiveItem();
+  if (!item) return;
   document.getElementById('adjBrightness').value = 0;
   document.getElementById('adjContrast').value = 0;
-  page.brightness = 0; page.contrast = 0;
-  page.workingCanvas = page.sourceCanvas;
-  renderCanvasDoc();
-  renderPagesList();
+  item.brightness = 0; item.contrast = 0;
+  item.workingCanvas = item.sourceCanvas;
+  renderCanvasItems();
   toast('↺ Reset ho gaya');
-}
-
-// ═══════════════════════════════════════════════
-// TOOL: Simple Crop (rectangular, drag-resize box)
-// ═══════════════════════════════════════════════
-let cropDragState = null;
-
-function toolToggleCrop() {
-  const page = getActivePage();
-  if (!page) { toast('⚠️ Pehle koi page select karo'); return; }
-  hide('adjustPanel');
-  document.getElementById('adjustBtn').classList.remove('active');
-
-  const panel = document.getElementById('cropPanel');
-  const btn = document.getElementById('cropBtn');
-  panel.classList.toggle('hidden');
-  btn.classList.toggle('active', !panel.classList.contains('hidden'));
-  if (!panel.classList.contains('hidden')) initCropUI();
-}
-
-function initCropUI() {
-  const page = getActivePage();
-  const img = document.getElementById('cropImg');
-  const newSrc = page.workingCanvas.toDataURL('image/jpeg', 0.92);
-
-  // FIX: img.onload sirf TAB fire hota hai jab src NAYI value pe set ho.
-  // Agar crop tool dusri baar khola jaaye same page ke liye (jaise Cancel
-  // karke phir try kiya), aur image edit nahi hui beech mein, dataURL same
-  // nikalta hai — onload trigger NAHI hota, crop box position kabhi set
-  // nahi hota, jisse crop tool "kaam nahi karta" jaisa lagta hai.
-  function setupBox() {
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const wrap = document.getElementById('cropWrap');
-        const box = document.getElementById('cropBox');
-        const w = img.clientWidth, h = img.clientHeight;
-        if (w === 0 || h === 0) return; // safety: agar abhi bhi 0 hai, skip karo
-        const cw = w * 0.8, ch = h * 0.8;
-        box.style.left = ((w - cw) / 2) + 'px';
-        box.style.top = ((h - ch) / 2) + 'px';
-        box.style.width = cw + 'px';
-        box.style.height = ch + 'px';
-        setupCropDrag();
-      });
-    });
-  }
-
-  img.onload = setupBox;
-  img.src = newSrc;
-  setTimeout(() => {
-    if (img.complete && img.naturalWidth > 0) setupBox();
-  }, 50);
-}
-
-function setupCropDrag() {
-  const wrap = document.getElementById('cropWrap');
-  let oldBox = document.getElementById('cropBox');
-
-  // Fresh clone karte hain taaki purane listeners accumulate na hon
-  // (har baar crop tool khulne pe yeh function dobara chalta hai)
-  const box = oldBox.cloneNode(true);
-  oldBox.parentNode.replaceChild(box, oldBox);
-  box.id = 'cropBox';
-
-  function getBoxState() {
-    return {
-      boxLeft: parseFloat(box.style.left), boxTop: parseFloat(box.style.top),
-      boxW: parseFloat(box.style.width), boxH: parseFloat(box.style.height)
-    };
-  }
-
-  function startDragGeneric(startClientX, startClientY, mode, pos) {
-    const wrapRect = wrap.getBoundingClientRect();
-    const bs = getBoxState();
-    cropDragState = {
-      mode, pos,
-      startX: startClientX, startY: startClientY,
-      boxLeft: bs.boxLeft, boxTop: bs.boxTop, boxW: bs.boxW, boxH: bs.boxH,
-      wrapW: wrapRect.width, wrapH: wrapRect.height
-    };
-  }
-
-  function attachDragHandlers(el, mode, pos) {
-    el.addEventListener('mousedown', (e) => {
-      e.preventDefault(); e.stopPropagation();
-      startDragGeneric(e.clientX, e.clientY, mode, pos);
-    });
-    el.addEventListener('touchstart', (e) => {
-      e.preventDefault(); e.stopPropagation();
-      const t = e.touches[0];
-      startDragGeneric(t.clientX, t.clientY, mode, pos);
-    }, { passive: false });
-  }
-
-  attachDragHandlers(box, 'move');
-  box.querySelectorAll('.crop-handle').forEach(h => {
-    attachDragHandlers(h, 'resize', h.dataset.pos);
-  });
-}
-
-// Global move/up listeners — sirf EK BAAR attach karte hain (page load pe,
-// neeche file ke end mein call hota hai), taaki setupCropDrag() dobara
-// chalne se listeners accumulate na hon (memory leak avoid karne ke liye)
-function initGlobalCropListeners() {
-  document.addEventListener('mousemove', (e) => { if (cropDragState) onCropDragMove(e.clientX, e.clientY); });
-  document.addEventListener('mouseup', () => { if (cropDragState) onCropDragUp(); });
-  document.addEventListener('touchmove', (e) => {
-    if (!cropDragState) return;
-    e.preventDefault();
-    const t = e.touches[0];
-    onCropDragMove(t.clientX, t.clientY);
-  }, { passive: false });
-  document.addEventListener('touchend', () => { if (cropDragState) onCropDragUp(); });
-  document.addEventListener('touchcancel', () => { if (cropDragState) onCropDragUp(); });
-}
-initGlobalCropListeners();
-
-function onCropDragMove(clientX, clientY) {
-  if (!cropDragState) return;
-  const box = document.getElementById('cropBox');
-  const dx = clientX - cropDragState.startX;
-  const dy = clientY - cropDragState.startY;
-  const s = cropDragState;
-
-  if (s.mode === 'move') {
-    let newLeft = Math.max(0, Math.min(s.wrapW - s.boxW, s.boxLeft + dx));
-    let newTop = Math.max(0, Math.min(s.wrapH - s.boxH, s.boxTop + dy));
-    box.style.left = newLeft + 'px';
-    box.style.top = newTop + 'px';
-  } else {
-    let { boxLeft, boxTop, boxW, boxH } = s;
-    if (s.pos === 'se') { boxW += dx; boxH += dy; }
-    else if (s.pos === 'sw') { boxLeft += dx; boxW -= dx; boxH += dy; }
-    else if (s.pos === 'ne') { boxTop += dy; boxW += dx; boxH -= dy; }
-    else if (s.pos === 'nw') { boxLeft += dx; boxTop += dy; boxW -= dx; boxH -= dy; }
-    if (boxW > 30 && boxH > 30) {
-      box.style.left = boxLeft + 'px'; box.style.top = boxTop + 'px';
-      box.style.width = boxW + 'px'; box.style.height = boxH + 'px';
-    }
-  }
-}
-function onCropDragUp() {
-  cropDragState = null;
-}
-
-function toolApplyCrop() {
-  const page = getActivePage();
-  if (!page) return;
-  const img = document.getElementById('cropImg');
-  const box = document.getElementById('cropBox');
-  const scaleX = page.workingCanvas.width / img.clientWidth;
-  const scaleY = page.workingCanvas.height / img.clientHeight;
-
-  const cropX = parseFloat(box.style.left) * scaleX;
-  const cropY = parseFloat(box.style.top) * scaleY;
-  const cropW = parseFloat(box.style.width) * scaleX;
-  const cropH = parseFloat(box.style.height) * scaleY;
-
-  const out = document.createElement('canvas');
-  out.width = cropW; out.height = cropH;
-  out.getContext('2d').drawImage(page.workingCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
-
-  page.sourceCanvas = out;
-  page.workingCanvas = out;
-  page.brightness = 0; page.contrast = 0;
-
-  // Display size ko naye crop ke ratio ke hisaab se A4 canvas mein fit karo
-  const a4 = document.getElementById('a4Canvas');
-  const a4W = a4.clientWidth, a4H = a4.clientHeight;
-  const newRatio = cropW / cropH;
-  let newW = page.w, newH = newW / newRatio;
-  if (newH > a4H * 0.92) { newH = a4H * 0.92; newW = newH * newRatio; }
-  if (newW > a4W * 0.92) { newW = a4W * 0.92; newH = newW / newRatio; }
-  page.x = page.x + (page.w - newW) / 2;
-  page.y = page.y + (page.h - newH) / 2;
-  page.w = newW; page.h = newH;
-  page.x = Math.max(0, Math.min(a4W - page.w, page.x));
-  page.y = Math.max(0, Math.min(a4H - page.h, page.y));
-
-  renderCanvasDoc();
-  renderPagesList();
-  hide('cropPanel');
-  document.getElementById('cropBtn').classList.remove('active');
-  toast('✂️ Crop ho gaya!');
-}
-
-function toolCancelCrop() {
-  hide('cropPanel');
-  document.getElementById('cropBtn').classList.remove('active');
 }
 
 // ═══════════════════════════════════════════════
@@ -983,10 +825,30 @@ function toolCancelCrop() {
 function backToUpload() {
   if (!confirm('Wapas jaane se abhi tak ke saare pages hat jaayenge. Confirm karo?')) return;
   pages = [];
-  activePageId = null;
+  activePageIdx = 0;
   hide('secEditor');
   show('secUpload');
   setStep(1);
+}
+
+// Page ke andar saare items (front+back, etc.) ko ek SINGLE A4-size
+// canvas mein merge karte hain — yahi final print/preview image hai
+function renderMergedPageCanvas(page) {
+  const A4_W = 1240, A4_H = 1754; // ~150 DPI A4
+  const out = document.createElement('canvas');
+  out.width = A4_W; out.height = A4_H;
+  const ctx = out.getContext('2d');
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, A4_W, A4_H);
+
+  const a4 = document.getElementById('a4Canvas');
+  const scaleX = A4_W / a4.clientWidth;
+  const scaleY = A4_H / a4.clientHeight;
+
+  page.items.forEach(item => {
+    ctx.drawImage(item.workingCanvas, item.x * scaleX, item.y * scaleY, item.w * scaleX, item.h * scaleY);
+  });
+  return out;
 }
 
 async function goToPreview() {
@@ -1015,7 +877,8 @@ async function goToPreview() {
 function renderPreviewImage() {
   const page = pages[currentPreviewPageIdx];
   if (!page) return;
-  document.getElementById('finalPreviewImg').src = page.workingCanvas.toDataURL('image/jpeg', 0.9);
+  const merged = renderMergedPageCanvas(page);
+  document.getElementById('finalPreviewImg').src = merged.toDataURL('image/jpeg', 0.9);
   document.getElementById('curPgNum').textContent = currentPreviewPageIdx + 1;
   document.getElementById('prevPgBtn').disabled = currentPreviewPageIdx <= 0;
   document.getElementById('nextPgBtn').disabled = currentPreviewPageIdx >= pages.length - 1;
@@ -1079,7 +942,8 @@ async function buildOutputFile() {
   // taaki print agent ko sab pages mil jayein, aur Page Range feature
   // bhi sahi se kaam kare.
   if (pages.length === 1) {
-    const blob = await new Promise(resolve => pages[0].workingCanvas.toBlob(resolve, 'image/jpeg', 0.92));
+    const merged = renderMergedPageCanvas(pages[0]);
+    const blob = await new Promise(resolve => merged.toBlob(resolve, 'image/jpeg', 0.92));
     return { blob, fileName: 'document.jpg' };
   }
 
@@ -1090,13 +954,9 @@ async function buildOutputFile() {
 
   pages.forEach((page, idx) => {
     if (idx > 0) pdf.addPage();
-    const canvas = page.workingCanvas;
-    const ratio = canvas.width / canvas.height;
-    let w = pageW * 0.95, h = w / ratio;
-    if (h > pageH * 0.95) { h = pageH * 0.95; w = h * ratio; }
-    const x = (pageW - w) / 2, y = (pageH - h) / 2;
+    const canvas = renderMergedPageCanvas(page);
     const imgData = canvas.toDataURL('image/jpeg', 0.92);
-    pdf.addImage(imgData, 'JPEG', x, y, w, h);
+    pdf.addImage(imgData, 'JPEG', 0, 0, pageW, pageH);
   });
 
   const blob = pdf.output('blob');
