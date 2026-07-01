@@ -249,6 +249,8 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS setup_payment_id VARCHAR(200) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS setup_order_id VARCHAR(200) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS setup_amount INTEGER DEFAULT 0;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS printer_name_bw VARCHAR(300) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS printer_name_color VARCHAR(300) DEFAULT '';
     `);
 
     // GRANDFATHER MIGRATION: Purani shops jo setup-fee feature se PEHLE bani thi,
@@ -557,7 +559,7 @@ app.get('/api/shop/:shopId/stats', async (req, res) => {
 app.get('/api/admin/profile', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT id,name,address,phone,printer_model,price_bw,price_color,payment_mode,qr_code,created_at,
+      `SELECT id,name,address,phone,printer_model,printer_name_bw,printer_name_color,price_bw,price_color,payment_mode,qr_code,created_at,
               payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
               CASE WHEN phonepe_salt_key != '' THEN true ELSE false END as has_phonepe_salt
@@ -571,7 +573,7 @@ app.get('/api/admin/profile', verifyToken, async (req, res) => {
 app.put('/api/admin/settings', verifyToken, async (req, res) => {
   try {
     const {
-      name, address, phone, printer_model, price_bw, price_color, payment_mode,
+      name, address, phone, printer_model, printer_name_bw, printer_name_color, price_bw, price_color, payment_mode,
       payment_gateway, razorpay_key_id, razorpay_key_secret,
       phonepe_merchant_id, phonepe_salt_key, phonepe_salt_index
     } = req.body;
@@ -616,14 +618,17 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
         razorpay_key_secret=$10,
         phonepe_merchant_id=$11,
         phonepe_salt_key=$12,
-        phonepe_salt_index=$13
-      WHERE id=$14`,
+        phonepe_salt_index=$13,
+        printer_name_bw=COALESCE($14,printer_name_bw),
+        printer_name_color=COALESCE($15,printer_name_color)
+      WHERE id=$16`,
       [name, address, phone, printer_model, price_bw, price_color, finalPaymentMode,
        finalGateway, razorpay_key_id||'', finalRzpSecret||'', phonepe_merchant_id||'', finalPpSalt||'', phonepe_salt_index||'1',
+       printer_name_bw, printer_name_color,
        req.shopId]
     );
 
-    const r = await pool.query('SELECT id,name,address,phone,printer_model,price_bw,price_color,payment_mode,payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index FROM shops WHERE id=$1', [req.shopId]);
+    const r = await pool.query('SELECT id,name,address,phone,printer_model,printer_name_bw,printer_name_color,price_bw,price_color,payment_mode,payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index FROM shops WHERE id=$1', [req.shopId]);
     res.json({ success: true, shop: r.rows[0] });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
@@ -1011,6 +1016,31 @@ app.get('/api/agent/version', async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// Agent apni system pe installed printers ki list yahan bhejta hai (har
+// startup pe aur har 30 min mein) — taaki dashboard mein owner ko dropdown
+// se sahi printer naam dikh sakein, bina manually type kiye (typo-proof).
+app.post('/api/agent/printers/:shopId', async (req, res) => {
+  try {
+    const { printers } = req.body;
+    if (!Array.isArray(printers)) return res.status(400).json({ error: 'printers array chahiye' });
+    await pool.query(
+      `INSERT INTO system_settings (key, value) VALUES ($1, $2)
+       ON CONFLICT (key) DO UPDATE SET value=$2, updated_at=NOW()`,
+      [`printers_${req.params.shopId}`, JSON.stringify(printers)]
+    );
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Dashboard yeh endpoint se agent ki reported printer list fetch karta hai
+app.get('/api/admin/printers', verifyToken, async (req, res) => {
+  try {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key=$1", [`printers_${req.shopId}`]);
+    const printers = r.rows.length ? JSON.parse(r.rows[0].value) : [];
+    res.json({ printers });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 // Agent yeh endpoint se naya code download karta hai (Shop ID/Server URL khud
 // agent fill karega apni current values se, hum sirf raw template bhejte hain)
 app.get('/api/agent/download-latest', async (req, res) => {
@@ -1041,7 +1071,8 @@ app.get('/api/agent/download-latest-exe', async (req, res) => {
 app.get('/api/jobs/pending/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT j.id,j.file_name,j.file_url,j.file_public_id,j.file_type,j.copies,j.color_mode,j.total_pages,j.selected_pages,j.amount 
+      `SELECT j.id,j.file_name,j.file_url,j.file_public_id,j.file_type,j.copies,j.color_mode,j.total_pages,j.selected_pages,j.amount,
+              s.printer_name_bw, s.printer_name_color
        FROM print_jobs j JOIN shops s ON j.shop_id=s.id
        WHERE j.shop_id=$1 AND j.status=$2 AND j.payment_status=$3 AND s.setup_paid=true 
        ORDER BY j.created_at ASC LIMIT 5`,
