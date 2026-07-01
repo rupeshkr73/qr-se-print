@@ -15,6 +15,20 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
+# SAFETY FIX: Jab Windows Startup se .exe automatically chalता hai (PC
+# restart ke baad), default working directory C:\Windows\System32 hoti
+# hai — agent ka apna installation folder NAHI. Agar kahin bhi relative
+# path use ho (ya future mein use ho), yeh galat jagah resolve hoga.
+# Yahan explicitly apne exe/script ke folder mein switch karte hain.
+try:
+    if getattr(sys, 'frozen', False):
+        _app_dir = os.path.dirname(sys.executable)
+    else:
+        _app_dir = os.path.dirname(os.path.abspath(__file__))
+    os.chdir(_app_dir)
+except Exception:
+    pass  # agar yeh fail ho bhi jaaye, baaki sab APPDATA-based paths use karte hain to safe hai
+
 # ============================================================
 # SHOP_ID_TEMPLATE: .py source mode mein yahan seedha Shop ID daala jaata hai
 # (server download-package banate waqt isko replace karta hai). .exe mode mein
@@ -193,6 +207,35 @@ def check_printer():
     except Exception as e:
         log(f"❌ Printer error: {e}", "ERROR")
         return False, None
+
+def list_all_printers():
+    """System pe installed sab printers ki list — Dashboard dropdown ke liye"""
+    try:
+        import win32print
+        printers = win32print.EnumPrinters(
+            win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS
+        )
+        return [p[2] for p in printers]  # index 2 = printer name
+    except ImportError:
+        return []
+    except Exception as e:
+        log(f"⚠️  Printer list error: {e}", "WARN")
+        return []
+
+def report_printers_to_server():
+    """Apni printer list server ko bhejo, taaki Dashboard dropdown mein dikhe"""
+    try:
+        printers = list_all_printers()
+        if not printers:
+            return
+        requests.post(
+            f"{SERVER_URL}/api/agent/printers/{SHOP_ID}",
+            json={"printers": printers},
+            timeout=15
+        )
+        log(f"📋 Printer list server ko bheji: {printers}")
+    except Exception as e:
+        log(f"⚠️  Printer list report fail: {e}", "WARN")
 
 def download_file(url, ext):
     """Cloudinary se file download karo"""
@@ -378,14 +421,45 @@ def extract_selected_pages(pdf_path, selected_pages_str):
         log(f"⚠️  SAFETY: Print ROK rahe hain taaki galat (zyada) pages print na ho", "WARN")
         return None
 
+def get_bundled_resource_path(filename):
+    """
+    PyInstaller --add-binary se bundle kiye gaye files (jaise SumatraPDF.exe)
+    runtime par ek temporary extraction folder mein hote hain — uska path
+    sys._MEIPASS mein milta hai (sirf .exe mode mein available hota hai).
+    .py script mode mein yeh attribute exist hi nahi karta.
+    """
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, filename)
+    return None
+
 # ─── Problem 5: B&W / Color Print + Fit-to-A4 ────────────────────────
-def print_pdf_sumatra(filepath, copies=1, color_mode="bw"):
+def print_pdf_sumatra(filepath, copies=1, color_mode="bw", printer_name=None):
     """
     SumatraPDF se print — B&W/Color setting ke saath
     'fit' flag use karte hain taaki chhota PDF/page bhi A4 paper
     ke hisaab se properly scale ho jaye, corner mein chhota na rahe.
+
+    printer_name: agar diya gaya hai, usi SPECIFIC printer pe print hoga
+    (system default ko IGNORE karke) — taaki B&W aur Color jobs alag-alag
+    physical printers pe route ho sakein (jaise HP M1005 sirf B&W ke liye,
+    Canon G2010 sirf Color ke liye). Agar None/empty hai, purana default-
+    printer wala behavior chalega (backward compatible).
     """
-    sumatra_paths = [
+    sumatra_paths = []
+
+    # CRITICAL FIX: .exe build mein SumatraPDF.exe PyInstaller se BUNDLE
+    # kiya gaya tha (--add-binary), lekin yahan kabhi check hi nahi ho raha
+    # tha — sirf system-installed paths check ho rahe the. Isi wajah se
+    # print agent ko bundled SumatraPDF kabhi mil hi nahi raha tha; agar
+    # system pe pehle se SumatraPDF install tha (purane .py-based INSTALL.bat
+    # se) to print chal jaata, warna (jaisa fresh installs ya restart ke
+    # baad clean state mein) print fail ho jaata — "tray mein dikhता hai
+    # lekin print nahi nikalta" exactly yehi symptom hai.
+    bundled = get_bundled_resource_path('SumatraPDF.exe')
+    if bundled:
+        sumatra_paths.append(bundled)
+
+    sumatra_paths += [
         r"C:\Program Files\SumatraPDF\SumatraPDF.exe",
         r"C:\Program Files (x86)\SumatraPDF\SumatraPDF.exe",
         os.path.expanduser(r"~\AppData\Local\SumatraPDF\SumatraPDF.exe"),
@@ -400,41 +474,89 @@ def print_pdf_sumatra(filepath, copies=1, color_mode="bw"):
         print_settings = f"copies={copies},fit"
         log(f"🖨️  Color + Fit-to-Page print karenge")
 
+    use_specific_printer = bool(printer_name and printer_name.strip())
+    if use_specific_printer:
+        log(f"🎯 Specific printer route: '{printer_name}' ({color_mode.upper()} ke liye configured)")
+    else:
+        log(f"ℹ️  Koi specific printer set nahi hai {color_mode.upper()} ke liye — system Default Printer use hoga")
+
+    log(f"SumatraPDF paths to try: {sumatra_paths}")
     for sumatra in sumatra_paths:
-        if os.path.exists(sumatra):
-            cmd = [
-                sumatra,
-                "-print-to-default",
-                "-silent",
-                "-print-settings", print_settings,
-                filepath
-            ]
+        try:
+            path_exists = os.path.exists(sumatra)
+        except Exception as pathErr:
+            log(f"⚠️  Path check error for {sumatra}: {pathErr}", "WARN")
+            continue
+        if not path_exists:
+            log(f"   ❌ Not found: {sumatra}")
+            continue
+        log(f"   ✅ Found: {sumatra}, trying print...")
+        try:
+            if use_specific_printer:
+                # -print-to specific printer ko target karta hai, default
+                # printer ko bypass karke — yahi is feature ki core hai
+                cmd = [
+                    sumatra,
+                    "-print-to", printer_name,
+                    "-silent",
+                    "-print-settings", print_settings,
+                    filepath
+                ]
+            else:
+                cmd = [
+                    sumatra,
+                    "-print-to-default",
+                    "-silent",
+                    "-print-settings", print_settings,
+                    filepath
+                ]
             log(f"CMD: {' '.join(cmd)}")
             result = subprocess.run(cmd, timeout=120, capture_output=True)
             if result.returncode == 0:
-                log(f"✅ SumatraPDF print success! ({color_mode.upper()}, fit-to-page)")
+                log(f"✅ SumatraPDF print success! ({color_mode.upper()}, fit-to-page, printer={printer_name or 'default'})")
                 return True
             else:
                 err = result.stderr.decode(errors='ignore') if result.stderr else ''
-                log(f"⚠️  SumatraPDF error: {err}", "WARN")
+                log(f"⚠️  SumatraPDF error (return code {result.returncode}): {err}", "WARN")
+                # Agar specific printer name galat/disconnected ho, default
+                # printer pe fallback try karte hain (taaki print bilkul
+                # ruk na jaaye — kam se kam kahin to nikal jaaye)
+                if use_specific_printer:
+                    log(f"⚠️  '{printer_name}' pe print fail hua, default printer try kar rahe hain...", "WARN")
+                    try:
+                        fallback_cmd = [sumatra, "-print-to-default", "-silent", "-print-settings", print_settings, filepath]
+                        fb_result = subprocess.run(fallback_cmd, timeout=120, capture_output=True)
+                        if fb_result.returncode == 0:
+                            log(f"✅ Default printer se print ho gaya (fallback)")
+                            return True
+                    except Exception:
+                        pass
+        except Exception as runErr:
+            log(f"⚠️  SumatraPDF subprocess error: {runErr}", "WARN")
 
     # Fallback
     log("⚠️  SumatraPDF nahi mila, Windows shell se try kar raha hai...", "WARN")
     try:
         os.startfile(filepath, "print")
         time.sleep(5)
-        log("✅ Windows shell se print hua (fit/B&W setting apply nahi hogi)")
+        log("✅ Windows shell se print hua (fit/B&W setting aur specific printer apply nahi hogi)")
         return True
     except Exception as e:
         log(f"❌ Print failed: {e}", "ERROR")
         return False
 
-def print_word(filepath, copies=1, color_mode="bw"):
+def print_word(filepath, copies=1, color_mode="bw", printer_name=None):
     """Word document print"""
     try:
         import win32com.client
         word = win32com.client.Dispatch("Word.Application")
         word.Visible = False
+        if printer_name and printer_name.strip():
+            try:
+                word.ActivePrinter = printer_name
+                log(f"🎯 Word ActivePrinter set: {printer_name}")
+            except Exception as ape:
+                log(f"⚠️  ActivePrinter set nahi ho paaya, default use hoga: {ape}", "WARN")
         doc = word.Documents.Open(os.path.abspath(filepath))
         doc.PrintOut(Copies=copies)
         time.sleep(5)
@@ -451,7 +573,7 @@ def print_word(filepath, copies=1, color_mode="bw"):
             log(f"❌ Word print failed: {e}", "ERROR")
             return False
 
-def print_file(filepath, copies=1, color_mode="bw", selected_pages=""):
+def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_name=None):
     """Main print function — sab file types handle karta hai"""
     ext = Path(filepath).suffix.lower()
     log(f"🖨️  Printing: {os.path.basename(filepath)}")
@@ -481,12 +603,12 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages=""):
                     return False
                 print_path = extracted_pdf
         elif ext in ['.doc', '.docx']:
-            return print_word(filepath, copies, color_mode)
+            return print_word(filepath, copies, color_mode, printer_name)
         else:
             print_path = filepath
 
         # PDF print karo with fit-to-page (image bhi ab already A4-fitted PDF hai)
-        success = print_pdf_sumatra(print_path, copies, color_mode)
+        success = print_pdf_sumatra(print_path, copies, color_mode, printer_name)
         return success
 
     finally:
@@ -541,12 +663,23 @@ def process_job(job):
     amount  = job.get("amount", 0)
     selected_pages = job.get("selected_pages", "")
 
+    # Shop ne agar specific B&W/Color printer set kiya hai (Super Admin/
+    # Dashboard se), to job ke color_mode ke hisaab se sahi printer select
+    # karte hain — system default printer ko IGNORE karke. Agar set nahi
+    # hai (khali string), to None pass hoga aur purana default-printer
+    # wala behavior chalega (backward compatible, kuch nahi tootega).
+    printer_name_bw = job.get("printer_name_bw", "") or None
+    printer_name_color = job.get("printer_name_color", "") or None
+    target_printer = printer_name_bw if color == "bw" else printer_name_color
+
     log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     log(f"📄 Job: {job_id}")
     log(f"   File: {fname}")
     log(f"   Pages: {pages} | Copies: {copies} | {color.upper()} | ₹{amount}")
     if selected_pages:
         log(f"   Specific Pages Requested: {selected_pages}")
+    if target_printer:
+        log(f"   🎯 Target Printer ({color.upper()}): {target_printer}")
 
     if not url:
         log("❌ File URL nahi!", "ERROR")
@@ -565,7 +698,7 @@ def process_job(job):
         mark_failed(job_id, "Empty file")
         return
 
-    success = print_file(filepath, copies, color, selected_pages)
+    success = print_file(filepath, copies, color, selected_pages, target_printer)
 
     try:
         time.sleep(3)
@@ -917,14 +1050,53 @@ def main():
     log(f"🚀 Agent start | Shop: {SHOP_ID} | Version: v{VERSION}")
     log(f"🌐 Server: {SERVER_URL}")
 
+    # CRITICAL FIX: Pehle yahan printer na milne par input("Enter dabao...")
+    # call hota tha — yeh .exe ke WINDOWED mode mein (jahan koi console/STDIN
+    # hi nahi hota, kyunki yeh background tray app hai) crash ya silent hang
+    # kar deta tha. Yeh exact situation PC restart ke turant baad hoti hai:
+    # Windows Startup se agent turant launch hota hai, lekin printer driver/
+    # USB/network printer abhi initialize nahi hua hota — check_printer()
+    # fail ho jaata, aur poora process crash ho jaata bina kisi visible
+    # error ke. Isi wajah se "kabhi-kabhi tray se gayab ho jaata hai" wala
+    # symptom aata tha.
+    #
+    # FIX: ab hum RETRY karte hain (printer thodi der mein ready ho sakta
+    # hai), aur agar baar-baar fail bhi ho, to PROCESS CRASH NAHI karte —
+    # tray icon phir bhi chalta rehta hai, aur background mein printer
+    # detection retry hota rehta hai (print_loop ke through).
     printer_ok, printer_name = check_printer()
-    if not printer_ok:
-        log("❌ Printer nahi mila!", "ERROR")
-        input("Enter dabao...")
-        sys.exit(1)
+    retry_count = 0
+    while not printer_ok and retry_count < 6:
+        retry_count += 1
+        log(f"⏳ Printer abhi ready nahi hai, {retry_count}/6 retry mein 10 sec wait kar rahe hain...", "WARN")
+        time.sleep(10)
+        printer_ok, printer_name = check_printer()
 
-    log(f"✅ Printer: {printer_name}")
+    if not printer_ok:
+        log("⚠️  Printer abhi bhi nahi mila — tray icon phir bhi chalu rakhte hain, "
+            "background mein print_loop printer ko dobara try karta rahega", "WARN")
+        printer_name = "Not Detected"
+    else:
+        log(f"✅ Printer: {printer_name}")
+
     agent_state["printer"] = printer_name
+
+    # Printer list server ko report karo (startup pe) — Dashboard mein
+    # dropdown se B&W/Color printer select karne ke liye zaroori hai
+    try:
+        report_printers_to_server()
+    except Exception:
+        pass
+
+    def printer_report_loop():
+        while agent_state["running"]:
+            time.sleep(1800)  # 30 minute
+            try:
+                report_printers_to_server()
+            except Exception:
+                pass
+    printer_report_thread = threading.Thread(target=printer_report_loop, daemon=True)
+    printer_report_thread.start()
 
     # Auto-update checker background thread mein chalao
     update_thread = threading.Thread(target=update_checker_loop, daemon=True)
@@ -939,8 +1111,8 @@ def main():
     # Tray icon start karo (yeh block karega jab tak Exit na dabaya jaye)
     try:
         run_tray_icon()
-    except Exception:
-        pass
+    except Exception as trayErr:
+        log(f"⚠️  Tray icon error: {trayErr}", "WARN")
 
     # Agar tray fail ho jaye (pystray missing), normal console mode mein chalte raho
     if agent_state["tray_icon"] is None:
@@ -954,4 +1126,17 @@ def main():
             agent_state["running"] = False
 
 if __name__ == "__main__":
-    main()
+    # CRITICAL FIX: poora main() ab try/except mein wrapped hai. Pehle agar
+    # kahin bhi koi unexpected exception aati (kisi bhi function se), poora
+    # process SILENTLY CRASH ho jaata — tray se gayab ho jaata bina kisi
+    # trace ke. Ab har crash LOG_FILE mein likha jaata hai, taaki Tray menu
+    # ke "📋 Logs Dekho" se customer/owner asal wajah dekh sake.
+    try:
+        main()
+    except Exception as fatalErr:
+        try:
+            log(f"💥 FATAL CRASH: {fatalErr}", "ERROR")
+            import traceback
+            log(traceback.format_exc(), "ERROR")
+        except Exception:
+            pass  # agar logging bhi fail ho jaaye, kam se kam process clean exit kare
