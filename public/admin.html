@@ -65,6 +65,16 @@ select{padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-fami
 .gateway-fields{display:none}
 .gateway-fields.show{display:block}
 .gateway-note{font-size:11px;color:#6b6870;margin-top:6px;line-height:1.5}
+
+.rzp-guide-box{background:#f0f4ff;border:1.5px solid #b3d1ff;border-radius:14px;margin-bottom:14px;overflow:hidden}
+.rzp-guide-header{padding:13px 16px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-size:13px;font-weight:700;color:#1c6fff;user-select:none}
+.rzp-guide-body{display:none;padding:0 16px 16px;}
+.rzp-guide-body.show{display:block}
+.rzp-steps{padding-left:20px;margin-bottom:14px;}
+.rzp-steps li{font-size:12.5px;color:#333;margin-bottom:9px;line-height:1.5}
+.rzp-open-btn{display:inline-flex;align-items:center;gap:6px;background:#1c6fff;color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;text-decoration:none;margin-bottom:10px}
+.rzp-open-btn:hover{background:#0050e0}
+.rzp-note-warn{font-size:11px;color:#a35a00;background:#fff8e8;border-radius:8px;padding:8px 10px;line-height:1.5;margin-top:4px;}
 .key-status{font-size:11px;color:#00c853;font-weight:700;margin-top:4px}
 
 .custom-printer-wrap{margin-top:10px;display:none}
@@ -195,6 +205,25 @@ select{padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-fami
             <input id="customPrinterInputAdmin" placeholder="Apna printer model type karo">
           </div>
         </div>
+        <div class="form-group full">
+          <label>⬛ B&W Print Kis Printer Se Nikले? <span style="font-weight:400;color:#6b6870;">(jaise HP M1005)</span></label>
+          <select id="setPrinterBW">
+            <option value="">System Default Printer (auto)</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>🌈 Color Print Kis Printer Se Nikले? <span style="font-weight:400;color:#6b6870;">(jaise Canon G2010)</span></label>
+          <select id="setPrinterColor">
+            <option value="">System Default Printer (auto)</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <p style="font-size:12px;color:#6b6870;margin:-8px 0 0;">
+            ℹ️ Yeh list aapke PC pe chal rahe Print Agent se aati hai. Agar list khaali hai ya naya printer
+            nahi dikh raha, agent ko ek baar restart karo ya kuch der wait karo (agent har 30 min mein update karta hai).
+            "System Default Printer" select karne ka matlab — Windows mein jo bhi default set hai, wahi use hoga.
+          </p>
+        </div>
         <div class="form-group"><label>Address</label><input id="setAddr"></div>
         <div class="form-group"><label>Phone</label><input id="setPhone"></div>
         <div class="form-group"><label>B&W Price</label>
@@ -228,6 +257,26 @@ select{padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-fami
           <div class="gateway-tab" id="adminTabPhonepe" onclick="selectGatewayAdmin('phonepe')">PhonePe</div>
         </div>
         <div class="gateway-fields show" id="adminFieldsRazorpay">
+          <div class="rzp-guide-box">
+            <div class="rzp-guide-header" onclick="toggleRzpGuideAdmin()">
+              <span>📖 Keys Kaise Milegi? (Step-by-Step)</span>
+              <span id="rzpGuideArrowAdmin">▼</span>
+            </div>
+            <div class="rzp-guide-body" id="rzpGuideBodyAdmin">
+              <ol class="rzp-steps">
+                <li>Niche button se Razorpay Dashboard kholo (agar account nahi hai, "Sign Up" karo)</li>
+                <li>Dashboard khulne par left menu mein <strong>"Account & Settings"</strong> pe click karo</li>
+                <li>Usme <strong>"API Keys"</strong> option dhundo aur click karo</li>
+                <li>Upar right corner mein <strong>"Live Mode"</strong> select karo</li>
+                <li><strong>"Generate Key"</strong> button dabao</li>
+                <li>Mobile pe OTP aayega, daal do</li>
+                <li>Ek popup khulega jisme <strong>Key Id</strong> aur <strong>Key Secret</strong> dikhega — <u>turant copy kar lo, Key Secret dobara nahi dikhega!</u></li>
+                <li>Dono yahan paste kar do neeche</li>
+              </ol>
+              <a href="https://dashboard.razorpay.com" target="_blank" rel="noopener" class="rzp-open-btn">🔗 Razorpay Dashboard Kholo</a>
+              <p class="rzp-note-warn">⚠️ Pehli baar Live keys banane se pehle Razorpay aapki shop/business details verify kar sakta hai (1-3 din lag sakte hain). Tab tak "Sirf Counter Payment" mode use kar sakte ho.</p>
+            </div>
+          </div>
           <div class="form-grid">
             <div class="form-group full"><label>Razorpay Key ID</label><input id="adminRzpKeyId" placeholder="rzp_live_xxxxxxxxxx"></div>
             <div class="form-group full"><label>Razorpay Key Secret</label><input type="password" id="adminRzpKeySecret" placeholder="Naya secret daalo ya khali chodo agar change nahi karna"></div>
@@ -235,6 +284,22 @@ select{padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-fami
           <div class="key-status" id="rzpKeyStatus"></div>
         </div>
         <div class="gateway-fields" id="adminFieldsPhonepe">
+          <div class="rzp-guide-box">
+            <div class="rzp-guide-header" onclick="togglePpGuideAdmin()">
+              <span>📖 Keys Kaise Milegi? (Step-by-Step)</span>
+              <span id="ppGuideArrowAdmin">▼</span>
+            </div>
+            <div class="rzp-guide-body" id="ppGuideBodyAdmin">
+              <ol class="rzp-steps">
+                <li>Niche button se PhonePe Business Dashboard kholo</li>
+                <li>Apne business account se login karo</li>
+                <li>Left menu mein <strong>"Developer Settings"</strong> ya <strong>"API & Webhooks"</strong> dhundo</li>
+                <li><strong>Merchant ID</strong> aur <strong>Salt Key</strong> wahan milegi</li>
+                <li>Dono yahan paste kar do neeche</li>
+              </ol>
+              <a href="https://business.phonepe.com" target="_blank" rel="noopener" class="rzp-open-btn">🔗 PhonePe Business Kholo</a>
+            </div>
+          </div>
           <div class="form-grid">
             <div class="form-group full"><label>PhonePe Merchant ID</label><input id="adminPpMerchantId" placeholder="MERCHANTUAT"></div>
             <div class="form-group full"><label>PhonePe Salt Key</label><input type="password" id="adminPpSaltKey" placeholder="Naya salt key daalo ya khali chodo"></div>
@@ -398,6 +463,7 @@ async function loadAdminPanel() {
     document.getElementById('adminQrUrl').textContent = location.origin + '/print/' + shop.id;
 
     await loadPrinterModelsAdmin(shop.printer_model);
+    await loadColorPrinterDropdowns(shop.printer_name_bw, shop.printer_name_color);
     loadStats(shop.id);
     loadJobs();
   } catch(e) {
@@ -430,6 +496,52 @@ async function loadPrinterModelsAdmin(currentModel) {
   } catch(e) {}
 }
 
+async function loadColorPrinterDropdowns(currentBW, currentColor) {
+  const bwSelect = document.getElementById('setPrinterBW');
+  const colorSelect = document.getElementById('setPrinterColor');
+  try {
+    const res = await fetch('/api/admin/printers', { headers: { 'Authorization': 'Bearer ' + authToken } });
+    const data = await res.json();
+    const printers = data.printers || [];
+
+    [bwSelect, colorSelect].forEach((select, idx) => {
+      const currentValue = idx === 0 ? currentBW : currentColor;
+      // "System Default Printer" wala option already HTML mein hai, baaki options yahan add karte hain
+      printers.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        select.appendChild(opt);
+      });
+      // Agar saved value list mein hai to wahi select karo, warna agar koi
+      // custom value thi jo list mein nahi hai (purana printer disconnect
+      // ho gaya ho), use bhi ek option ke roop mein dikhao taaki data loss na ho
+      if (currentValue) {
+        const exists = Array.from(select.options).some(o => o.value === currentValue);
+        if (!exists) {
+          const opt = document.createElement('option');
+          opt.value = currentValue;
+          opt.textContent = currentValue + ' (offline/not detected abhi)';
+          select.appendChild(opt);
+        }
+        select.value = currentValue;
+      }
+    });
+  } catch(e) {
+    // Agar fetch fail ho, sirf "System Default" option rehne do, koi crash nahi
+    if (currentBW) {
+      const opt = document.createElement('option');
+      opt.value = currentBW; opt.textContent = currentBW;
+      bwSelect.appendChild(opt); bwSelect.value = currentBW;
+    }
+    if (currentColor) {
+      const opt = document.createElement('option');
+      opt.value = currentColor; opt.textContent = currentColor;
+      colorSelect.appendChild(opt); colorSelect.value = currentColor;
+    }
+  }
+}
+
 function checkOtherPrinterAdmin() {
   const select = document.getElementById('setPrinter');
   const wrap = document.getElementById('customPrinterWrapAdmin');
@@ -442,6 +554,20 @@ function onAdminPaymentModeChange(mode) {
   document.getElementById('setOptCounter').classList.toggle('selected', mode === 'counter_only');
 
   document.getElementById('gatewaySectionAdmin').style.display = (mode === 'both' || mode === 'online_only') ? 'block' : 'none';
+}
+
+function toggleRzpGuideAdmin() {
+  const body = document.getElementById('rzpGuideBodyAdmin');
+  const arrow = document.getElementById('rzpGuideArrowAdmin');
+  body.classList.toggle('show');
+  arrow.textContent = body.classList.contains('show') ? '▲' : '▼';
+}
+
+function togglePpGuideAdmin() {
+  const body = document.getElementById('ppGuideBodyAdmin');
+  const arrow = document.getElementById('ppGuideArrowAdmin');
+  body.classList.toggle('show');
+  arrow.textContent = body.classList.contains('show') ? '▲' : '▼';
 }
 
 function selectGatewayAdmin(gw) {
@@ -527,6 +653,8 @@ async function saveSettings() {
     address: document.getElementById('setAddr').value,
     phone: document.getElementById('setPhone').value,
     printer_model: printerModel,
+    printer_name_bw: document.getElementById('setPrinterBW').value,
+    printer_name_color: document.getElementById('setPrinterColor').value,
     price_bw: parseInt(document.getElementById('setPriceBW').value),
     price_color: parseInt(document.getElementById('setPriceColor').value),
     payment_mode: paymentMode
