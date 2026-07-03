@@ -81,6 +81,19 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
 .adjust-row input[type="range"]{flex:1;accent-color:#ff4d1c;height:6px}
 .adjust-row span{font-size:11px;color:#6b6870;width:36px;text-align:right;flex-shrink:0}
 
+/* ── Perspective Crop overlay ── */
+.crop-overlay{position:fixed;inset:0;background:#0a0a0f;z-index:1000;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+.crop-header{padding:14px 16px 10px;color:#fff}
+.crop-header .crop-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:800}
+.crop-header .crop-sub{font-size:11px;color:rgba(255,255,255,0.55);margin-top:2px}
+.crop-stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none;padding:8px}
+#cropCanvas{display:block;touch-action:none}
+.crop-toolbar{display:flex;gap:10px;padding:12px 14px calc(14px + env(safe-area-inset-bottom));background:#16161d}
+.crop-btn{flex:1;padding:14px 8px;border-radius:12px;border:none;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;cursor:pointer}
+.crop-btn.grey{background:#2a2a33;color:#c9cdd8}
+.crop-btn.primary{background:#ff4d1c;color:#fff}
+.crop-btn:active{transform:scale(0.96)}
+
 /* ── Buttons ── */
 .btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
 .btn{padding:15px;border-radius:14px;border:none;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;cursor:pointer;text-align:center;transition:all 0.15s}
@@ -215,6 +228,7 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
       <div class="edit-toolbar">
         <button class="edit-btn" onclick="toolAutoA4()">🤖 Auto A4 Fit</button>
         <button class="edit-btn" id="adjustBtn" onclick="toolToggleAdjust()">🎨 Brightness/Contrast</button>
+        <button class="edit-btn" onclick="toolPerspectiveCrop()">📐 Perspective Crop</button>
       </div>
 
       <div id="adjustPanel" class="adjust-panel hidden">
@@ -348,6 +362,22 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
 
 </div>
 
+<!-- Perspective Crop full-screen overlay -->
+<div class="crop-overlay hidden" id="cropOverlay">
+  <div class="crop-header">
+    <div class="crop-title">📐 Perspective Crop</div>
+    <div class="crop-sub">4 corners ko document ke corners par drag karo — tirchha photo bhi seedha ho jayega</div>
+  </div>
+  <div class="crop-stage" id="cropStage">
+    <canvas id="cropCanvas"></canvas>
+  </div>
+  <div class="crop-toolbar">
+    <button class="crop-btn grey" onclick="cropCancel()">✕ Cancel</button>
+    <button class="crop-btn grey" onclick="cropFullPhoto()">↺ Full Photo</button>
+    <button class="crop-btn primary" onclick="cropApply()">✂️ Crop</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -370,7 +400,11 @@ let state = {
 // hain (jaise Aadhaar Front + Back same A4 page pe). Har item independently
 // drag/resize/edit hota hai.
 // page = { id, items: [item, ...], activeItemId }
-// item = { id, sourceCanvas (original), workingCanvas (edited), x, y, w, h, brightness, contrast }
+// item = { id, originalCanvas (kabhi change nahi hota), sourceCanvas (crop ke baad),
+//          workingCanvas (brightness/contrast ke baad), x, y, w, h,
+//          brightness, contrast, cropPoints (normalized 0-1, re-edit ke liye) }
+// Chain: originalCanvas --perspective crop--> sourceCanvas --brightness/contrast--> workingCanvas
+// Isliye crop aur adjustments ek dusre ko kabhi overwrite nahi karte.
 let pages = [];
 let activePageIdx = 0;
 let currentPreviewPageIdx = 0;
@@ -539,8 +573,9 @@ function createItemFromCanvas(sourceCanvas, isSecondaryItem) {
 
   return {
     id: 'item_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+    originalCanvas: sourceCanvas,
     sourceCanvas, workingCanvas: sourceCanvas,
-    brightness: 0, contrast: 0,
+    brightness: 0, contrast: 0, cropPoints: null,
     x: isSecondaryItem ? a4W * 0.3 : (a4W - w) / 2,
     y: isSecondaryItem ? a4H * 0.35 : (a4H - h) / 2,
     w, h
@@ -792,8 +827,18 @@ function applyAdjustments() {
   document.getElementById('adjBrightnessVal').textContent = b;
   document.getElementById('adjContrastVal').textContent = c;
   item.brightness = b; item.contrast = c;
+  renderWorking(item);
+  renderCanvasItems();
+}
 
+// sourceCanvas (cropped ya original) par brightness/contrast apply karke
+// workingCanvas banata hai. Crop apply hone ke baad bhi yahi chalta hai
+// taaki existing brightness/contrast settings crop ke upar preserve rahein.
+function renderWorking(item) {
   const src = item.sourceCanvas;
+  const b = item.brightness, c = item.contrast;
+  if (b === 0 && c === 0) { item.workingCanvas = src; return; }
+
   const out = document.createElement('canvas');
   out.width = src.width; out.height = src.height;
   const ctx = out.getContext('2d');
@@ -812,7 +857,6 @@ function applyAdjustments() {
   }
   ctx.putImageData(id, 0, 0);
   item.workingCanvas = out;
-  renderCanvasItems();
 }
 
 function resetAdjustments() {
@@ -824,6 +868,327 @@ function resetAdjustments() {
   item.workingCanvas = item.sourceCanvas;
   renderCanvasItems();
   toast('↺ Reset ho gaya');
+}
+
+// ══════════════════════════════════════════════════
+// TOOL: Perspective Crop (Photoshop-style, 4-point)
+// Hamesha originalCanvas se crop hota hai — non-destructive.
+// Dobara kholne par pichle points wapas milte hain (cropPoints).
+// ══════════════════════════════════════════════════
+const CROP_MAX_SRC = 2400;   // isse bade photos warp se pehle downscale — warna low-end phone freeze
+const CROP_HANDLE_R = 13, CROP_HIT_R = 34, CROP_LOUPE_R = 52, CROP_LOUPE_ZOOM = 2.5;
+
+let crop = null; // active crop session state
+
+function toolPerspectiveCrop() {
+  const item = getActiveItem();
+  if (!item) { toast('⚠️ Pehle koi document select karo'); return; }
+
+  const orig = item.originalCanvas;
+  let src = orig;
+  const longest = Math.max(orig.width, orig.height);
+  if (longest > CROP_MAX_SRC) {
+    const s = CROP_MAX_SRC / longest;
+    src = document.createElement('canvas');
+    src.width = Math.round(orig.width * s);
+    src.height = Math.round(orig.height * s);
+    src.getContext('2d').drawImage(orig, 0, 0, src.width, src.height);
+  }
+
+  let pts;
+  if (item.cropPoints) {
+    pts = item.cropPoints.map(p => ({ x: p.x * src.width, y: p.y * src.height }));
+  } else {
+    const ix = src.width * 0.12, iy = src.height * 0.12;
+    pts = [{x:ix,y:iy},{x:src.width-ix,y:iy},{x:src.width-ix,y:src.height-iy},{x:ix,y:src.height-iy}];
+  }
+
+  crop = {
+    item, src, pts, dragIdx: -1, raf: 0, lastPointer: null,
+    dpr: Math.min(window.devicePixelRatio || 1, 2)
+  };
+  show('cropOverlay');
+  document.body.style.overflow = 'hidden';
+  cropLayout();
+  cropDraw();
+}
+
+function cropLayout() {
+  if (!crop) return;
+  const stage = document.getElementById('cropStage');
+  const cv = document.getElementById('cropCanvas');
+  const sw = Math.max(50, stage.clientWidth - 16), sh = Math.max(50, stage.clientHeight - 16);
+  const scale = Math.min(sw / crop.src.width, sh / crop.src.height);
+  const vw = Math.max(1, Math.round(crop.src.width * scale));
+  const vh = Math.max(1, Math.round(crop.src.height * scale));
+  cv.style.width = vw + 'px'; cv.style.height = vh + 'px';
+  cv.width = vw * crop.dpr; cv.height = vh * crop.dpr;
+  crop.scale = scale;
+  // Fitted image ek baar offscreen render — har drag frame me sirf yeh
+  // cheap drawImage hota hai, poora source dobara scale nahi hota.
+  // Yahi smooth 60fps drag ka raaz hai.
+  crop.bmp = document.createElement('canvas');
+  crop.bmp.width = cv.width; crop.bmp.height = cv.height;
+  crop.bmp.getContext('2d').drawImage(crop.src, 0, 0, cv.width, cv.height);
+}
+
+window.addEventListener('resize', () => {
+  if (crop && !document.getElementById('cropOverlay').classList.contains('hidden')) {
+    cropLayout(); cropDraw();
+  }
+});
+
+function cropDraw(loupeAt) {
+  if (!crop) return;
+  const cv = document.getElementById('cropCanvas');
+  const ctx = cv.getContext('2d');
+  const k = crop.scale * crop.dpr;
+  const v = crop.pts.map(p => ({ x: p.x * k, y: p.y * k }));
+
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.drawImage(crop.bmp, 0, 0);
+
+  // bahar ka area dark mask
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, cv.width, cv.height);
+  ctx.moveTo(v[0].x, v[0].y);
+  for (let i = 3; i >= 0; i--) ctx.lineTo(v[i].x, v[i].y);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fill('evenodd');
+  ctx.restore();
+
+  // quad outline + grid line (Photoshop jaisa feel)
+  ctx.beginPath();
+  ctx.moveTo(v[0].x, v[0].y);
+  for (let i = 1; i < 4; i++) ctx.lineTo(v[i].x, v[i].y);
+  ctx.closePath();
+  ctx.strokeStyle = '#ff4d1c';
+  ctx.lineWidth = 2 * crop.dpr;
+  ctx.stroke();
+
+  // handles
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.arc(v[i].x, v[i].y, CROP_HANDLE_R * crop.dpr, 0, Math.PI * 2);
+    ctx.fillStyle = i === crop.dragIdx ? '#ff4d1c' : 'rgba(255,77,28,0.4)';
+    ctx.fill();
+    ctx.lineWidth = 2.5 * crop.dpr;
+    ctx.strokeStyle = '#fff';
+    ctx.stroke();
+  }
+
+  // loupe (magnifier) — dragging ke time corner ka zoomed view, warna
+  // finger ke neeche exact corner dikhta hi nahi ("cropping bilkul wahi
+  // point" requirement isi se solve hoti hai)
+  if (loupeAt && crop.dragIdx >= 0) {
+    const p = crop.pts[crop.dragIdx];
+    const r = CROP_LOUPE_R * crop.dpr;
+    const lx = (loupeAt.x < cv.width / 2) ? cv.width - r - 10 * crop.dpr : r + 10 * crop.dpr;
+    const ly = r + 10 * crop.dpr;
+    const srcR = r / (k * CROP_LOUPE_ZOOM);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(lx, ly, r, 0, Math.PI * 2); ctx.clip();
+    ctx.fillStyle = '#000'; ctx.fillRect(lx - r, ly - r, r * 2, r * 2);
+    ctx.drawImage(crop.src, p.x - srcR, p.y - srcR, srcR * 2, srcR * 2, lx - r, ly - r, r * 2, r * 2);
+    ctx.strokeStyle = '#ff4d1c'; ctx.lineWidth = 1.5 * crop.dpr;
+    ctx.beginPath();
+    ctx.moveTo(lx - r, ly); ctx.lineTo(lx + r, ly);
+    ctx.moveTo(lx, ly - r); ctx.lineTo(lx, ly + r);
+    ctx.stroke();
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(lx, ly, r, 0, Math.PI * 2);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * crop.dpr; ctx.stroke();
+  }
+}
+
+function cropEventPos(e) {
+  const cv = document.getElementById('cropCanvas');
+  const rect = cv.getBoundingClientRect();
+  return { x: (e.clientX - rect.left) * crop.dpr, y: (e.clientY - rect.top) * crop.dpr };
+}
+
+document.getElementById('cropCanvas').addEventListener('pointerdown', (e) => {
+  if (!crop) return;
+  e.preventDefault();
+  const p = cropEventPos(e);
+  const k = crop.scale * crop.dpr;
+  let best = -1, bestD = (CROP_HIT_R * crop.dpr) ** 2;
+  crop.pts.forEach((pt, i) => {
+    const d = (pt.x * k - p.x) ** 2 + (pt.y * k - p.y) ** 2;
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  if (best >= 0) {
+    crop.dragIdx = best;
+    e.target.setPointerCapture(e.pointerId);
+    cropDraw(p);
+  }
+});
+
+document.getElementById('cropCanvas').addEventListener('pointermove', (e) => {
+  if (!crop || crop.dragIdx < 0) return;
+  e.preventDefault();
+  crop.lastPointer = cropEventPos(e);
+  // rAF throttle — pointermove events frame-rate se zyada fire hote hain,
+  // bina throttle ke low-end phones par drag laggy ho jata hai
+  if (!crop.raf) {
+    crop.raf = requestAnimationFrame(() => {
+      if (!crop) return;
+      crop.raf = 0;
+      const p = crop.lastPointer;
+      const k = crop.scale * crop.dpr;
+      crop.pts[crop.dragIdx] = {
+        x: Math.max(0, Math.min(crop.src.width, p.x / k)),
+        y: Math.max(0, Math.min(crop.src.height, p.y / k))
+      };
+      cropDraw(p);
+    });
+  }
+});
+
+function cropEndDrag() {
+  if (crop && crop.dragIdx >= 0) { crop.dragIdx = -1; cropDraw(); }
+}
+document.getElementById('cropCanvas').addEventListener('pointerup', cropEndDrag);
+document.getElementById('cropCanvas').addEventListener('pointercancel', cropEndDrag);
+
+function cropClose() {
+  hide('cropOverlay');
+  document.body.style.overflow = '';
+  crop = null;
+}
+function cropCancel() { cropClose(); }
+
+// Crop hatao — original photo full wapas
+function cropFullPhoto() {
+  if (!crop) return;
+  const item = crop.item;
+  item.sourceCanvas = item.originalCanvas;
+  item.cropPoints = null;
+  const ratio = item.sourceCanvas.width / item.sourceCanvas.height;
+  item.h = item.w / ratio;
+  if (item.h > A4_DISPLAY_H * 0.92) { item.h = A4_DISPLAY_H * 0.92; item.w = item.h * ratio; }
+  renderWorking(item);
+  cropClose();
+  renderCanvasItems();
+  toast('↺ Full photo wapas aa gaya');
+}
+
+function cropApply() {
+  if (!crop) return;
+  if (!isConvexQuad(crop.pts)) {
+    toast('⚠️ Points cross ho gaye hain — corners theek se set karo');
+    return;
+  }
+  toast('⏳ Crop ho raha hai...');
+  const { item, src, pts } = crop;
+  // do rAF — pehle toast paint ho jaye, phir heavy warp chale
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const warped = perspectiveWarp(src, pts);
+    item.cropPoints = pts.map(p => ({ x: p.x / src.width, y: p.y / src.height }));
+    item.sourceCanvas = warped;
+    // A4 par item ka aspect ratio naye crop ke hisaab se update
+    const ratio = warped.width / warped.height;
+    item.h = item.w / ratio;
+    if (item.h > A4_DISPLAY_H * 0.92) { item.h = A4_DISPLAY_H * 0.92; item.w = item.h * ratio; }
+    renderWorking(item); // brightness/contrast crop ke upar dobara apply
+    cropClose();
+    renderCanvasItems();
+    toast('✂️ Crop ho gaya!');
+  }));
+}
+
+// Self-intersecting quad (points cross) par homography garbage output deti
+// hai — pehle hi rok do
+function isConvexQuad(p) {
+  let sign = 0;
+  for (let i = 0; i < 4; i++) {
+    const a = p[i], b = p[(i + 1) % 4], c = p[(i + 2) % 4];
+    const cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+    if (cross !== 0) {
+      const s = Math.sign(cross);
+      if (sign === 0) sign = s;
+      else if (s !== sign) return false;
+    }
+  }
+  return true;
+}
+
+// Homography solve: output-rect ke corners ko source quad par map karne
+// wala 3x3 matrix (8 unknowns, Gaussian elimination). Photoshop ka
+// perspective crop bhi yahi math use karta hai.
+function computeHomography(srcPts, dstPts) {
+  const A = [], b = [];
+  for (let i = 0; i < 4; i++) {
+    const { x, y } = srcPts[i], { x: X, y: Y } = dstPts[i];
+    A.push([x, y, 1, 0, 0, 0, -X * x, -X * y]); b.push(X);
+    A.push([0, 0, 0, x, y, 1, -Y * x, -Y * y]); b.push(Y);
+  }
+  for (let c = 0; c < 8; c++) {
+    let piv = c;
+    for (let r = c + 1; r < 8; r++) if (Math.abs(A[r][c]) > Math.abs(A[piv][c])) piv = r;
+    [A[c], A[piv]] = [A[piv], A[c]]; [b[c], b[piv]] = [b[piv], b[c]];
+    for (let r = 0; r < 8; r++) {
+      if (r === c) continue;
+      const f = A[r][c] / A[c][c];
+      for (let k = c; k < 8; k++) A[r][k] -= f * A[c][k];
+      b[r] -= f * b[c];
+    }
+  }
+  const h = b.map((v, i) => v / A[i][i]);
+  return [h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], 1];
+}
+
+// Inverse mapping + bilinear sampling: har output pixel ke liye source me
+// exact sub-pixel position nikaal ke smooth sample karta hai — isi se
+// "bilkul wahi point tak crop" milta hai, koi jagged edges nahi.
+function perspectiveWarp(source, quad) {
+  const [tl, tr, br, bl] = quad;
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const W = Math.max(8, Math.round(Math.max(dist(tl, tr), dist(bl, br))));
+  const Hh = Math.max(8, Math.round(Math.max(dist(tl, bl), dist(tr, br))));
+
+  const H = computeHomography(
+    [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: Hh }, { x: 0, y: Hh }],
+    [tl, tr, br, bl]
+  );
+
+  const sctx = source.getContext('2d');
+  const sdata = sctx.getImageData(0, 0, source.width, source.height).data;
+  const sw = source.width, sh = source.height;
+
+  const out = document.createElement('canvas');
+  out.width = W; out.height = Hh;
+  const octx = out.getContext('2d');
+  const odata = octx.createImageData(W, Hh);
+  const o = odata.data;
+
+  let idx = 0;
+  for (let y = 0; y < Hh; y++) {
+    for (let x = 0; x < W; x++) {
+      const d = H[6] * x + H[7] * y + 1;
+      const sx = (H[0] * x + H[1] * y + H[2]) / d;
+      const sy = (H[3] * x + H[4] * y + H[5]) / d;
+      if (sx >= 0 && sy >= 0 && sx < sw - 1 && sy < sh - 1) {
+        const x0 = sx | 0, y0 = sy | 0;
+        const fx = sx - x0, fy = sy - y0;
+        const i00 = (y0 * sw + x0) * 4, i10 = i00 + 4;
+        const i01 = i00 + sw * 4, i11 = i01 + 4;
+        for (let ch = 0; ch < 3; ch++) {
+          o[idx + ch] =
+            sdata[i00 + ch] * (1 - fx) * (1 - fy) + sdata[i10 + ch] * fx * (1 - fy) +
+            sdata[i01 + ch] * (1 - fx) * fy + sdata[i11 + ch] * fx * fy;
+        }
+        o[idx + 3] = 255;
+      } else {
+        o[idx] = o[idx + 1] = o[idx + 2] = 255; o[idx + 3] = 255;
+      }
+      idx += 4;
+    }
+  }
+  octx.putImageData(odata, 0, 0);
+  return out;
 }
 
 // ═══════════════════════════════════════════════
