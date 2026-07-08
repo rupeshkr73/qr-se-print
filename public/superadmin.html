@@ -7,44 +7,44 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh}
-nav{background:#0a0a0f;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
-.logo{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:#fff}
-.logo span{color:#ff4d1c}
+body{font-family:'Inter',sans-serif;background:#f4f5f8;min-height:100vh}
+nav{background:#111111;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+.logo{font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:800;color:#fff}
+.logo span{color:#ff2e63}
 .nav-link{color:rgba(255,255,255,0.6);font-size:13px;font-weight:700;text-decoration:none;background:rgba(255,255,255,0.08);padding:8px 16px;border-radius:10px;cursor:pointer;border:none;transition:all 0.2s}
 .nav-link:hover{background:rgba(255,255,255,0.15);color:#fff}
 .hidden{display:none}
 
 .login-wrap{max-width:400px;margin:80px auto;padding:0 16px}
 .login-card{background:#fff;border-radius:24px;padding:32px 26px;box-shadow:0 8px 40px rgba(0,0,0,0.08)}
-.login-card h1{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;margin-bottom:6px;text-align:center}
+.login-card h1{font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:800;margin-bottom:6px;text-align:center}
 .login-card p{font-size:13px;color:#6b6870;text-align:center;margin-bottom:24px}
 .form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
 label{font-size:11px;font-weight:600;color:#6b6870;text-transform:uppercase;letter-spacing:0.5px}
-input{padding:13px 15px;border:1.5px solid #e2ddd6;border-radius:12px;font-family:'Space Grotesk',sans-serif;font-size:15px;outline:none;width:100%}
+input{padding:13px 15px;border:1.5px solid #e2ddd6;border-radius:12px;font-family:'Inter',sans-serif;font-size:15px;outline:none;width:100%}
 input:focus{border-color:#1c6fff}
-.btn-primary{background:#ff4d1c;color:#fff;border:none;border-radius:12px;padding:15px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:15px;cursor:pointer;width:100%}
-.btn-primary:hover{background:#e03d0e}
-.err-msg{font-size:12px;color:#ff4d1c;margin-top:10px;text-align:center;display:none}
+.btn-primary{background:#ff2e63;color:#fff;border:none;border-radius:12px;padding:15px;font-family:'Inter',sans-serif;font-weight:700;font-size:15px;cursor:pointer;width:100%}
+.btn-primary:hover{background:#e01e51}
+.err-msg{font-size:12px;color:#ff2e63;margin-top:10px;text-align:center;display:none}
 
-.hero{background:#0a0a0f;color:#fff;padding:32px 24px 46px}
-.hero h1{font-family:'Syne',sans-serif;font-size:26px;font-weight:800}
+.hero{background:#111111;color:#fff;padding:32px 24px 46px}
+.hero h1{font-family:'Plus Jakarta Sans',sans-serif;font-size:26px;font-weight:800}
 .hero p{color:rgba(255,255,255,0.5);font-size:13px;margin-top:4px}
 .body{max-width:1000px;margin:-22px auto 40px;padding:0 16px}
 
 .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
 .stat{background:#fff;border-radius:16px;padding:18px;box-shadow:0 2px 12px rgba(0,0,0,0.06);text-align:center}
 .stat-lbl{font-size:11px;color:#6b6870;font-weight:600;text-transform:uppercase;margin-bottom:6px}
-.stat-val{font-family:'Syne',sans-serif;font-size:24px;font-weight:800}
+.stat-val{font-family:'Plus Jakarta Sans',sans-serif;font-size:24px;font-weight:800}
 .green{color:#00c853}
-.orange{color:#ff4d1c}
+.orange{color:#ff2e63}
 .blue{color:#1c6fff}
 
 .card{background:#fff;border-radius:20px;padding:22px;box-shadow:0 2px 12px rgba(0,0,0,0.06)}
-.card h2{font-family:'Syne',sans-serif;font-size:17px;font-weight:700;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.card h2{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:700;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
 .filter-tabs{display:flex;gap:6px}
 .filter-tab{padding:6px 14px;border-radius:8px;border:1.5px solid #e2ddd6;background:#fff;font-size:12px;font-weight:700;cursor:pointer}
-.filter-tab.active{background:#0a0a0f;color:#fff;border-color:#0a0a0f}
+.filter-tab.active{background:#111111;color:#fff;border-color:#111111}
 
 .shop-table{width:100%;border-collapse:collapse}
 .shop-table th{text-align:left;font-size:10px;font-weight:700;color:#6b6870;text-transform:uppercase;padding:0 10px 10px;border-bottom:2px solid #f0ebe3}
@@ -89,6 +89,37 @@ input:focus{border-color:#1c6fff}
 #loginScreen .help-text a{color:#ff2e63;font-weight:700}
 #loginScreen .login-brand{position:absolute;top:18px;left:0;right:0;text-align:center;
   font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:15px;color:#111}
+</style>
+
+<style>
+/* ── Panel retheme: homepage (ad-style) look — white/ink/pink/yellow ── */
+body{background:#ffffff !important;font-family:'Inter',sans-serif !important;color:#111}
+nav{background:#fff !important;border-bottom:1.5px dashed #e2e5ec;padding:14px 22px !important}
+nav .logo{color:#111 !important;font-family:'Plus Jakarta Sans',sans-serif !important;letter-spacing:-.4px}
+nav .logo span{color:#ff2e63 !important}
+.nav-link{background:#fff !important;border:2px solid #111 !important;color:#111 !important;
+  border-radius:20px !important;font-weight:700 !important;transition:.15s}
+.nav-link:hover{background:#111 !important;color:#fff !important}
+.hero h1,.card h2,.card h3{font-family:'Plus Jakarta Sans',sans-serif !important;letter-spacing:-.6px;color:#111}
+.card,.login-card{border:1.5px solid #ecedf2 !important;border-radius:20px !important;
+  box-shadow:0 8px 30px rgba(17,17,17,.06) !important;background:#fff !important}
+.stat{border:1.5px solid #ecedf2 !important;border-radius:16px !important;background:#fff !important;
+  box-shadow:0 4px 14px rgba(17,17,17,.05) !important}
+.stat-val{font-family:'Plus Jakarta Sans',sans-serif !important;color:#111 !important}
+.stat:first-child .stat-val{background:linear-gradient(transparent 62%,#ffd22e 62%);display:inline-block;padding:0 4px}
+.btn-primary,.btn-save,.rzp-open-btn{background:#ff2e63 !important;border-radius:14px !important;
+  font-family:'Plus Jakarta Sans',sans-serif !important;font-weight:800 !important;
+  box-shadow:0 8px 20px rgba(255,46,99,.3) !important;transition:.15s !important}
+.btn-primary:hover,.btn-save:hover{background:#e01e51 !important;transform:translateY(-1px)}
+input,select,textarea{border:1.5px solid #e3e5ec !important;border-radius:12px !important;
+  font-family:'Inter',sans-serif !important;background:#fff !important}
+input:focus,select:focus,textarea:focus{border-color:#ff2e63 !important;outline:none !important}
+table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
+.status-pill{border-radius:20px !important;font-weight:700 !important}
+.filter-tab{border-radius:20px !important;border:1.5px solid #e3e5ec !important;font-weight:700 !important}
+.filter-tab.active,.gateway-tab.active,.payment-opt.selected{border-color:#ff2e63 !important;
+  background:#fff5f7 !important;color:#ff2e63 !important}
+::selection{background:#ffd22e}
 </style>
 </head>
 <body>
@@ -142,7 +173,7 @@ input:focus{border-color:#1c6fff}
       <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:#f8f7f5;border-radius:14px;padding:16px 20px;margin-bottom:14px;">
         <div>
           <div style="font-size:11px;color:#6b6870;font-weight:600;text-transform:uppercase;margin-bottom:4px;">Current Live Version</div>
-          <div style="font-family:'Syne',sans-serif;font-size:28px;font-weight:800;">v<span id="agentVersionDisplay">1</span></div>
+          <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:28px;font-weight:800;">v<span id="agentVersionDisplay">1</span></div>
           <div style="font-size:11px;color:#6b6870;margin-top:4px;" id="agentVersionUpdated"></div>
         </div>
         <button class="filter-tab" style="padding:14px 24px;background:#1c6fff;color:#fff;border-color:#1c6fff;font-size:13px;" onclick="pushAgentUpdate()">🚀 Naya Update Push Karo</button>
@@ -159,19 +190,19 @@ input:focus{border-color:#1c6fff}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
         <div>
           <label style="font-size:11px;color:#6b6870;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px;">Actual Price (₹) <span style="font-weight:400;text-transform:none;">— katega hua dikhega</span></label>
-          <input type="number" id="actualPriceInput" min="0" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:18px;font-weight:700;font-family:'Syne',sans-serif;">
+          <input type="number" id="actualPriceInput" min="0" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:18px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;">
         </div>
         <div>
           <label style="font-size:11px;color:#6b6870;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px;">Offer Price (₹) <span style="font-weight:400;text-transform:none;">— customer yahi dega</span></label>
-          <input type="number" id="offerPriceInput" min="0" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid #ff4d1c;border-radius:10px;font-size:18px;font-weight:700;font-family:'Syne',sans-serif;color:#ff4d1c;">
+          <input type="number" id="offerPriceInput" min="0" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid #ff2e63;border-radius:10px;font-size:18px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#ff2e63;">
         </div>
       </div>
 
       <!-- Live Preview - jaisa homepage pe dikhega -->
-      <div style="background:#0a0a0f;border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+      <div style="background:#111111;border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:14px;margin-bottom:14px;">
         <span style="font-size:11px;color:rgba(255,255,255,0.5);">Preview:</span>
-        <span style="font-family:'Syne',sans-serif;font-size:15px;color:rgba(255,255,255,0.4);text-decoration:line-through;" id="previewActual">₹999</span>
-        <span style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;color:#ff4d1c;" id="previewOffer">₹499</span>
+        <span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;color:rgba(255,255,255,0.4);text-decoration:line-through;" id="previewActual">₹999</span>
+        <span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:800;color:#ff2e63;" id="previewOffer">₹499</span>
         <span id="previewDiscount" style="background:#00c853;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">50% OFF</span>
       </div>
 
@@ -338,12 +369,12 @@ async function updateInstallerUrl() {
       msgEl.style.display = 'block';
     } else {
       msgEl.textContent = '❌ ' + data.error;
-      msgEl.style.color = '#ff4d1c';
+      msgEl.style.color = '#ff2e63';
       msgEl.style.display = 'block';
     }
   } catch(e) {
     msgEl.textContent = '❌ Network error';
-    msgEl.style.color = '#ff4d1c';
+    msgEl.style.color = '#ff2e63';
     msgEl.style.display = 'block';
   }
 }
@@ -369,12 +400,12 @@ async function pushAgentUpdate() {
       msgEl.style.display = 'block';
     } else {
       msgEl.textContent = '❌ ' + data.error;
-      msgEl.style.color = '#ff4d1c';
+      msgEl.style.color = '#ff2e63';
       msgEl.style.display = 'block';
     }
   } catch(e) {
     msgEl.textContent = '❌ Network error';
-    msgEl.style.color = '#ff4d1c';
+    msgEl.style.color = '#ff2e63';
     msgEl.style.display = 'block';
   }
 }
@@ -415,12 +446,12 @@ async function updateSetupFee() {
       msgEl.style.display = 'block';
     } else {
       msgEl.textContent = '❌ ' + data.error;
-      msgEl.style.color = '#ff4d1c';
+      msgEl.style.color = '#ff2e63';
       msgEl.style.display = 'block';
     }
   } catch(e) {
     msgEl.textContent = '❌ Network error';
-    msgEl.style.color = '#ff4d1c';
+    msgEl.style.color = '#ff2e63';
     msgEl.style.display = 'block';
   }
 }
