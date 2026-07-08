@@ -1433,6 +1433,7 @@ app.put('/api/superadmin/easy-installer-url', verifySuperAdmin, async (req, res)
 
 
 app.get('/print/:shopId', (req,res) => res.sendFile(path.join(__dirname,'public','customer.html')));
+app.get('/register',  (req,res) => res.sendFile(path.join(__dirname,'public','register.html')));
 app.get('/dashboard', (req,res) => res.sendFile(path.join(__dirname,'public','dashboard.html')));
 app.get('/admin', (req,res) => res.sendFile(path.join(__dirname,'public','admin.html')));
 app.get('/superadmin', (req,res) => res.sendFile(path.join(__dirname,'public','superadmin.html')));
