@@ -97,6 +97,37 @@ select{padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-fami
 
 @media(max-width:600px){.form-grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr 1fr}}
 </style>
+
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* ── Login screen: homepage (ad-style) look — scoped, panel untouched ── */
+#loginScreen{position:fixed;inset:0;z-index:500;background:#fff;overflow-y:auto;
+  display:flex;align-items:center;justify-content:center;padding:20px;margin:0;max-width:none}
+#loginScreen.hidden{display:none}
+#loginScreen::before,#loginScreen::after{content:'';position:fixed;border-radius:14px;pointer-events:none}
+#loginScreen::before{width:120px;height:120px;border:3px solid #ffd22e;top:10%;left:-46px;transform:rotate(14deg)}
+#loginScreen::after{width:130px;height:130px;border:3px solid #ffb3c7;bottom:12%;right:-52px;transform:rotate(-12deg)}
+#loginScreen .login-card{background:#fff;border:1.5px solid #ecedf2;border-radius:20px;
+  box-shadow:0 8px 30px rgba(17,17,17,.06);padding:28px 22px;width:100%;max-width:400px;position:relative}
+#loginScreen .login-card::before{content:'🖨️';position:absolute;top:-24px;left:50%;translate:-50% 0;
+  width:48px;height:48px;background:#ff2e63;border-radius:14px;display:flex;align-items:center;
+  justify-content:center;font-size:22px;box-shadow:0 8px 20px rgba(255,46,99,.35)}
+#loginScreen .login-card h1{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;
+  font-size:24px;letter-spacing:-.8px;color:#111;text-align:center;margin:14px 0 4px}
+#loginScreen .login-card p{font-family:'Inter',sans-serif;font-size:12.5px;color:#6b7280;text-align:center;margin-bottom:20px}
+#loginScreen label{font-family:'Inter',sans-serif;font-size:12px;font-weight:700;color:#111}
+#loginScreen input{width:100%;padding:12px 14px;border:1.5px solid #e3e5ec;border-radius:12px;
+  font-family:'Inter',sans-serif;font-size:14px;background:#fff;color:#111}
+#loginScreen input:focus{outline:none;border-color:#ff2e63}
+#loginScreen .btn-primary{width:100%;background:#ff2e63;color:#fff;border:none;border-radius:14px;
+  padding:15px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:15px;cursor:pointer;
+  box-shadow:0 10px 26px rgba(255,46,99,.35);transition:.15s}
+#loginScreen .btn-primary:hover{transform:translateY(-2px);background:#ff2e63}
+#loginScreen .btn-primary:focus-visible{outline:3px solid #111;outline-offset:2px}
+#loginScreen .help-text a{color:#ff2e63;font-weight:700}
+#loginScreen .login-brand{position:absolute;top:18px;left:0;right:0;text-align:center;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:15px;color:#111}
+</style>
 </head>
 <body>
 
@@ -109,6 +140,7 @@ select{padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-fami
 </nav>
 
 <div class="login-wrap" id="loginScreen">
+  <a class="login-brand" href="/" style="text-decoration:none">QR Se <span style="color:#ff2e63">Print</span></a>
   <div class="login-card">
     <h1>🔐 Shop Owner Login</h1>
     <p>Apna Shop ID aur Password daalo</p>

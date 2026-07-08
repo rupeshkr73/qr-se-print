@@ -164,7 +164,7 @@ body{
 <div class="wrap">
 
   <div class="topbar">
-    <a href="/shop-admin" class="login-pill">🔑 Shop Owner Login</a>
+    <a href="/admin" class="login-pill">🔑 Shop Owner Login</a>
   </div>
 
   <div class="brand-row">
@@ -204,25 +204,27 @@ body{
     <div class="pill">🔄 Auto Update</div>
   </div>
 
-  <a href="/setup" class="cta-main">🚀 Abhi Start Karein <span class="arrow">›</span></a>
-  <a href="/shop-admin" class="cta-sub">🔑 Shop Login</a>
+  <a href="/register" class="cta-main">🚀 Abhi Start Karein <span class="arrow">›</span></a>
+  <a href="/admin" class="cta-sub">🔑 Shop Login</a>
 
 </div>
 
 <div class="footer">
   <p>© 2026 All Rights Reserved | Developed by Rupesh Kumar Mahato</p>
   <a href="https://instagram.com/rupeshkr73" target="_blank" rel="noopener">📷 @rupeshkr73</a>
-  <a href="/super-admin" class="super-link">⚙</a>
+  <a href="/superadmin" class="super-link">⚙</a>
 </div>
 
 <script>
 // Live pricing — admin panel se set hoti hai
 async function loadPrices() {
   try {
-    const r   = await fetch('/api/settings');
+    // QR Se Print ka pricing endpoint (pehle galat /api/settings tha —
+    // wo Resume project ka route hai, is server par exist nahi karta)
+    const r   = await fetch('/api/setup-fee/current');
     const cfg = await r.json();
-    const actual = parseInt(cfg.setup_price) || 999;
-    const offer  = parseInt(cfg.setup_offer_price) || 499;
+    const actual = parseInt(cfg.actualPrice) || 999;
+    const offer  = parseInt(cfg.offerPrice)  || 499;
     document.getElementById('actualPrice').textContent = '₹' + actual;
     document.getElementById('offerPrice').textContent  = offer;
     const save = actual - offer;

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shop Register — QR Se Print</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--ink:#111;--muted:#6b7280;--yellow:#ffd22e;--pink:#ff2e63;--tint:#fff9ec}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;color:var(--ink);background:#fff;min-height:100vh;overflow-x:hidden}
+
+.deco{position:fixed;border-radius:14px;pointer-events:none;z-index:0}
+.deco.sq-y{border:3px solid var(--yellow)}
+.deco.sq-p{border:3px solid #ffb3c7}
+.d1{width:110px;height:110px;top:8%;left:-44px;transform:rotate(14deg)}
+.d2{width:120px;height:120px;top:40%;right:-50px;transform:rotate(-12deg)}
+.d3{width:90px;height:90px;bottom:10%;left:-32px;transform:rotate(-16deg)}
+
+.wrap{position:relative;z-index:1;max-width:520px;margin:0 auto;padding:14px 20px 40px}
+.topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+.brand{display:flex;align-items:center;gap:8px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:17px;text-decoration:none;color:var(--ink)}
+.brand-mark{width:28px;height:28px;border-radius:8px;background:var(--pink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:14px}
+.login-pill{border:2px solid var(--ink);color:var(--ink);text-decoration:none;padding:7px 16px;border-radius:20px;font-size:12px;font-weight:700}
+.login-pill:hover{background:var(--ink);color:#fff}
+
+h1{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:clamp(30px,8vw,40px);letter-spacing:-1.2px;line-height:1.05;text-align:center}
+h1 .mark{background:linear-gradient(transparent 62%,var(--yellow) 62%);padding:0 4px}
+.sub{text-align:center;font-size:13px;color:var(--muted);margin:8px 0 26px}
+
+.card{background:#fff;border:1.5px solid #ecedf2;border-radius:20px;padding:22px 18px;box-shadow:0 8px 30px rgba(17,17,17,.06);margin-bottom:16px}
+.card h3{font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:800;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card h3 .n{width:24px;height:24px;border-radius:8px;background:var(--yellow);display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:800}
+.fg{margin-bottom:13px;text-align:left}
+.fl{display:block;font-size:12px;font-weight:700;margin-bottom:6px}
+.fl small{font-weight:500;color:var(--muted)}
+.fi{width:100%;padding:12px 14px;border:1.5px solid #e3e5ec;border-radius:12px;font-family:'Inter',sans-serif;font-size:14px;background:#fff}
+.fi:focus{outline:none;border-color:var(--pink)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+.paymode{display:flex;flex-direction:column;gap:8px}
+.pm{display:flex;gap:10px;align-items:flex-start;border:1.5px solid #e3e5ec;border-radius:12px;padding:12px;cursor:pointer;transition:.12s}
+.pm.sel{border-color:var(--pink);background:#fff5f7}
+.pm input{margin-top:2px;accent-color:var(--pink)}
+.pm b{font-size:13px;display:block}
+.pm span{font-size:11px;color:var(--muted)}
+
+#gatewayCard{display:none}
+.gw-tabs{display:flex;gap:8px;margin-bottom:14px}
+.gw-tab{flex:1;padding:10px;border:1.5px solid #e3e5ec;border-radius:12px;font-size:13px;font-weight:700;background:#fff;cursor:pointer;font-family:'Inter',sans-serif}
+.gw-tab.sel{border-color:var(--pink);background:#fff5f7;color:var(--pink)}
+.gw-panel{display:none}
+.gw-panel.show{display:block}
+.hint{background:var(--tint);border:1.5px solid #f0e4c0;border-radius:12px;padding:11px 13px;font-size:11.5px;color:#7a5c1e;line-height:1.6;margin-top:4px}
+
+.cta{display:flex;width:100%;background:var(--pink);color:#fff;border:none;border-radius:16px;padding:17px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:16px;cursor:pointer;align-items:center;justify-content:center;gap:8px;box-shadow:0 10px 26px rgba(255,46,99,.35);transition:.15s;margin-top:4px}
+.cta:hover{transform:translateY(-2px)}
+.cta:disabled{background:#c6c9d2;box-shadow:none;transform:none;cursor:not-allowed}
+.cta:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.err{display:none;background:#fff1f1;border:1.5px solid #ffc9c9;color:#c22;border-radius:12px;padding:11px;font-size:12.5px;font-weight:600;margin-top:12px;text-align:center}
+.note{text-align:center;font-size:11px;color:var(--muted);margin-top:14px;line-height:1.7}
+</style>
+</head>
+<body>
+
+<div class="deco sq-y d1"></div>
+<div class="deco sq-p d2"></div>
+<div class="deco sq-y d3"></div>
+
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="/" class="brand"><span class="brand-mark">🖨️</span>QR Se Print</a>
+    <a href="/admin" class="login-pill">🔑 Shop Login</a>
+  </div>
+
+  <h1>Apni Shop <span class="mark">Register</span> Karo</h1>
+  <p class="sub">2 minute ka form — phir setup fee, phir QR Code + Print Agent ready</p>
+
+  <!-- 1: Shop details -->
+  <div class="card">
+    <h3><span class="n">1</span> Shop Details</h3>
+    <div class="fg"><label class="fl">Shop ka Naam *</label><input class="fi" id="f_name" placeholder="Sharma Cyber Cafe"></div>
+    <div class="fg"><label class="fl">Address</label><input class="fi" id="f_addr" placeholder="Main Road, Khowai"></div>
+    <div class="row2">
+      <div class="fg"><label class="fl">Phone</label><input class="fi" id="f_phone" type="tel" placeholder="98XXXXXXXX"></div>
+      <div class="fg"><label class="fl">Printer Model</label><input class="fi" id="f_printer" placeholder="Epson L3210"></div>
+    </div>
+    <div class="fg"><label class="fl">Login Password * <small>(kam se kam 4 characters)</small></label><input class="fi" id="f_pass" type="password" placeholder="••••••"></div>
+  </div>
+
+  <!-- 2: Print pricing -->
+  <div class="card">
+    <h3><span class="n">2</span> Print Rate <small style="font-weight:500;color:var(--muted)">— customer se per page kitna loge</small></h3>
+    <div class="row2">
+      <div class="fg"><label class="fl">⚫ B&W (₹/page)</label><input class="fi" id="f_bw" type="number" value="5" min="1"></div>
+      <div class="fg"><label class="fl">🌈 Color (₹/page)</label><input class="fi" id="f_color" type="number" value="10" min="1"></div>
+    </div>
+  </div>
+
+  <!-- 3: Payment mode -->
+  <div class="card">
+    <h3><span class="n">3</span> Customer Payment Kaise Lena Hai</h3>
+    <div class="paymode">
+      <label class="pm sel"><input type="radio" name="paymode" value="both" checked onchange="pmChange(this)">
+        <span><b>💳 Online + Counter dono</b><span>Customer ko dono option milenge (recommended)</span></span></label>
+      <label class="pm"><input type="radio" name="paymode" value="counter_only" onchange="pmChange(this)">
+        <span><b>🪙 Sirf Counter Cash</b><span>Online gateway ki zaroorat nahi — sabse simple start</span></span></label>
+      <label class="pm"><input type="radio" name="paymode" value="online_only" onchange="pmChange(this)">
+        <span><b>📲 Sirf Online</b><span>Payment gateway zaroori hoga</span></span></label>
+    </div>
+  </div>
+
+  <!-- 4: Gateway (conditional) -->
+  <div class="card" id="gatewayCard">
+    <h3><span class="n">4</span> Payment Gateway <small style="font-weight:500;color:var(--muted)">— paisa seedha aapke account mein</small></h3>
+    <div class="gw-tabs">
+      <button type="button" class="gw-tab sel" id="tabRzp" onclick="gwTab('razorpay')">Razorpay</button>
+      <button type="button" class="gw-tab" id="tabPp" onclick="gwTab('phonepe')">PhonePe</button>
+    </div>
+    <div class="gw-panel show" id="panelRzp">
+      <div class="fg"><label class="fl">Razorpay Key ID</label><input class="fi" id="f_rzp_id" placeholder="rzp_live_XXXX"></div>
+      <div class="fg"><label class="fl">Razorpay Key Secret</label><input class="fi" id="f_rzp_secret" type="password" placeholder="••••••••"></div>
+    </div>
+    <div class="gw-panel" id="panelPp">
+      <div class="fg"><label class="fl">PhonePe Merchant ID</label><input class="fi" id="f_pp_mid" placeholder="MERCHANTXXXX"></div>
+      <div class="fg"><label class="fl">Salt Key</label><input class="fi" id="f_pp_salt" type="password" placeholder="••••••••"></div>
+      <div class="fg"><label class="fl">Salt Index</label><input class="fi" id="f_pp_idx" type="number" value="1"></div>
+    </div>
+    <div class="hint">💡 Keys abhi nahi hain? Upar <b>"Sirf Counter Cash"</b> select karo — baad mein Shop Login ke settings se gateway add kar sakte ho.</div>
+  </div>
+
+  <button class="cta" id="regBtn" onclick="doRegister()">Register Karo — Agla Step: Setup Fee ›</button>
+  <div class="err" id="errBox"></div>
+  <p class="note">Register hone ke baad one-time setup fee lagegi,<br>uske baad QR Code + Print Agent turant milega.</p>
+
+</div>
+
+<script>
+let gateway = 'razorpay';
+
+function pmChange(input){
+  document.querySelectorAll('.pm').forEach(p=>p.classList.remove('sel'));
+  input.closest('.pm').classList.add('sel');
+  const needsGw = input.value !== 'counter_only';
+  document.getElementById('gatewayCard').style.display = needsGw ? 'block' : 'none';
+}
+
+function gwTab(g){
+  gateway = g;
+  document.getElementById('tabRzp').classList.toggle('sel', g==='razorpay');
+  document.getElementById('tabPp').classList.toggle('sel', g==='phonepe');
+  document.getElementById('panelRzp').classList.toggle('show', g==='razorpay');
+  document.getElementById('panelPp').classList.toggle('show', g==='phonepe');
+}
+
+const gv = id => document.getElementById(id).value.trim();
+
+async function doRegister(){
+  const btn = document.getElementById('regBtn');
+  const err = document.getElementById('errBox');
+  err.style.display = 'none';
+
+  const paymode = document.querySelector('input[name="paymode"]:checked').value;
+  if(!gv('f_name')) return showErr('Shop ka naam daalo');
+  if(gv('f_pass').length < 4) return showErr('Password kam se kam 4 character ka rakho');
+
+  const body = {
+    name: gv('f_name'), address: gv('f_addr'), phone: gv('f_phone'),
+    printer_model: gv('f_printer'),
+    price_bw: parseInt(gv('f_bw'))||5, price_color: parseInt(gv('f_color'))||10,
+    payment_mode: paymode, password: document.getElementById('f_pass').value
+  };
+  if(paymode !== 'counter_only'){
+    body.payment_gateway = gateway;
+    if(gateway === 'razorpay'){
+      body.razorpay_key_id = gv('f_rzp_id');
+      body.razorpay_key_secret = document.getElementById('f_rzp_secret').value.trim();
+      if(!body.razorpay_key_id || !body.razorpay_key_secret)
+        return showErr('Razorpay Key ID aur Secret dono daalo — ya "Sirf Counter Cash" choose karo');
+    } else {
+      body.phonepe_merchant_id = gv('f_pp_mid');
+      body.phonepe_salt_key = document.getElementById('f_pp_salt').value.trim();
+      body.phonepe_salt_index = gv('f_pp_idx') || '1';
+      if(!body.phonepe_merchant_id || !body.phonepe_salt_key)
+        return showErr('PhonePe Merchant ID aur Salt Key dono daalo — ya "Sirf Counter Cash" choose karo');
+    }
+  }
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Register ho raha hai...';
+  try{
+    const r = await fetch('/api/shop/register', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if(!d.success) throw new Error(d.error || 'Registration fail hui');
+    // Seedha setup fee page — shopId path mein
+    location.href = '/setup-payment/' + d.shopId;
+  }catch(e){
+    showErr(e.message);
+    btn.disabled = false;
+    btn.textContent = 'Register Karo — Agla Step: Setup Fee ›';
+  }
+}
+
+function showErr(msg){
+  const err = document.getElementById('errBox');
+  err.textContent = '❌ ' + msg;
+  err.style.display = 'block';
+  err.scrollIntoView({behavior:'smooth', block:'center'});
+  return false;
+}
+</script>
+</body>
+</html>
