@@ -55,7 +55,9 @@ const pool = new Pool({
 });
 
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
+// verify: raw body stash — Razorpay webhook ka signature RAW body par
+// HMAC hota hai, parsed JSON par nahi
+app.use(express.json({ limit: '50mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static('public'));
 
@@ -238,6 +240,9 @@ async function initDB() {
 
     await pool.query(`
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS payment_mode VARCHAR(20) DEFAULT 'both';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_last_seen TIMESTAMP;
+      ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS printing_at TIMESTAMP;
+      ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS payment_gateway VARCHAR(20) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS razorpay_key_id VARCHAR(200) DEFAULT '';
@@ -453,6 +458,20 @@ app.post('/api/setup-fee/create', async (req, res) => {
   }
 });
 
+
+// ── Shop activation (setup fee confirm hone par) — verify handler,
+//    webhook aur reconciliation teeno yahi use karte hain ──
+async function activateShop(shopId, paymentId) {
+  const qrUrl = `${BASE_URL}/print/${shopId}`;
+  const qrCode = await QRCode.toDataURL(qrUrl, { width: 300, margin: 2 });
+  await pool.query(
+    'UPDATE shops SET setup_paid=true, setup_payment_id=$1, qr_code=$2 WHERE id=$3',
+    [paymentId, qrCode, shopId]
+  );
+  console.log(`Setup fee paid: ${shopId} | Payment: ${paymentId}`);
+  return { qrCode, qrUrl };
+}
+
 app.post('/api/setup-fee/verify', async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, shopId } = req.body;
@@ -470,15 +489,7 @@ app.post('/api/setup-fee/verify', async (req, res) => {
     const shopResult = await pool.query('SELECT id FROM shops WHERE id=$1 AND setup_order_id=$2', [shopId, razorpay_order_id]);
     if (!shopResult.rows.length) return res.status(404).json({ error: 'Shop ya order match nahi hua' });
 
-    const qrUrl = `${BASE_URL}/print/${shopId}`;
-    const qrCode = await QRCode.toDataURL(qrUrl, { width: 300, margin: 2 });
-
-    await pool.query(
-      'UPDATE shops SET setup_paid=true, setup_payment_id=$1, qr_code=$2 WHERE id=$3',
-      [razorpay_payment_id, qrCode, shopId]
-    );
-
-    console.log(`Setup fee paid: ${shopId} | Payment: ${razorpay_payment_id}`);
+    const { qrCode, qrUrl } = await activateShop(shopId, razorpay_payment_id);
     res.json({ success: true, shopId, qrCode, qrUrl });
   } catch(err) {
     console.error('Setup fee verify error:', err.message);
@@ -1070,15 +1081,39 @@ app.get('/api/agent/download-latest-exe', async (req, res) => {
 
 app.get('/api/jobs/pending/:shopId', async (req, res) => {
   try {
+    // Agent heartbeat — dashboard ka Online/Offline indicator isi se chalta hai
+    await pool.query('UPDATE shops SET agent_last_seen=NOW() WHERE id=$1', [req.params.shopId]);
+
+    // ATOMIC CLAIM: job dete hi status 'printing' ho jata hai. Pehle jobs
+    // 'queued' hi rehte the fetch ke baad — bade PDF ke print ke दौरान agla
+    // poll wahi job dobara utha ke DOUBLE PRINT kar deta tha, aur crashed
+    // agent ka job detect karne ka koi tarika nahi tha. FOR UPDATE SKIP
+    // LOCKED se do parallel polls me bhi ek job do baar claim nahi hota.
     const r = await pool.query(
-      `SELECT j.id,j.file_name,j.file_url,j.file_public_id,j.file_type,j.copies,j.color_mode,j.total_pages,j.selected_pages,j.amount,
-              s.printer_name_bw, s.printer_name_color
-       FROM print_jobs j JOIN shops s ON j.shop_id=s.id
-       WHERE j.shop_id=$1 AND j.status=$2 AND j.payment_status=$3 AND s.setup_paid=true 
-       ORDER BY j.created_at ASC LIMIT 5`,
-      [req.params.shopId, 'queued', 'paid']
+      `UPDATE print_jobs j SET status='printing', printing_at=NOW()
+       FROM shops s
+       WHERE j.id IN (
+         SELECT j2.id FROM print_jobs j2 JOIN shops s2 ON j2.shop_id=s2.id
+         WHERE j2.shop_id=$1 AND j2.status='queued' AND j2.payment_status='paid' AND s2.setup_paid=true
+         ORDER BY j2.created_at ASC LIMIT 5
+         FOR UPDATE OF j2 SKIP LOCKED
+       ) AND s.id=j.shop_id
+       RETURNING j.id,j.file_name,j.file_url,j.file_public_id,j.file_type,j.copies,j.color_mode,
+                 j.total_pages,j.selected_pages,j.amount,s.printer_name_bw,s.printer_name_color`,
+      [req.params.shopId]
     );
     res.json({ jobs: r.rows });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Agent Online/Offline status (dashboard indicator) ──
+app.get('/api/shop/:shopId/agent-status', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT agent_last_seen FROM shops WHERE id=$1', [req.params.shopId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Shop not found' });
+    const last = r.rows[0].agent_last_seen;
+    const secondsAgo = last ? Math.round((Date.now() - new Date(last).getTime()) / 1000) : null;
+    res.json({ online: secondsAgo !== null && secondsAgo < 45, seconds_ago: secondsAgo, last_seen: last });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1431,6 +1466,131 @@ app.put('/api/superadmin/easy-installer-url', verifySuperAdmin, async (req, res)
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+
+
+// ══════════════════════════════════════════════════════════════════
+// RAZORPAY WEBHOOK — server-side payment confirmation
+// Customer browser band kar de payment ke turant baad, tab bhi payment
+// confirm hoti hai. NOTE: yeh sirf OWNER (setup fee) Razorpay account ke
+// webhooks ke liye hai — Razorpay dashboard mein webhook URL + secret set
+// karo, secret ko RAZORPAY_WEBHOOK_SECRET env mein daalo.
+// Shop owners ke apne accounts ke liye niche wali RECONCILIATION chalti
+// hai (unke dashboards mein webhook configure karwana practical nahi).
+// ══════════════════════════════════════════════════════════════════
+app.post('/api/webhook/razorpay', async (req, res) => {
+  try {
+    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
+    if (!secret) return res.status(503).json({ error: 'Webhook secret configured nahi' });
+    const signature = req.headers['x-razorpay-signature'];
+    const expected = crypto.createHmac('sha256', secret).update(req.rawBody).digest('hex');
+    if (signature !== expected) return res.status(400).json({ error: 'Invalid signature' });
+
+    const event = req.body.event;
+    if (event === 'payment.captured' || event === 'order.paid') {
+      const payment = req.body.payload?.payment?.entity || {};
+      const orderId = payment.order_id || req.body.payload?.order?.entity?.id;
+      const paymentId = payment.id || '';
+      if (orderId) {
+        // 1) Setup fee?
+        const sh = await pool.query(
+          'SELECT id, setup_paid FROM shops WHERE setup_order_id=$1', [orderId]);
+        if (sh.rows.length && !sh.rows[0].setup_paid) {
+          await activateShop(sh.rows[0].id, paymentId);
+        }
+        // 2) Customer print job? (agar owner account se aaya ho)
+        await pool.query(
+          `UPDATE print_jobs SET payment_status='paid', payment_id=$1
+           WHERE razorpay_order_id=$2 AND payment_status='pending'`,
+          [paymentId, orderId]);
+      }
+    }
+    res.json({ received: true });
+  } catch(err) {
+    console.error('Webhook error:', err.message);
+    res.status(200).json({ received: true }); // 5xx par Razorpay retry-storm karta hai
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════
+// BACKGROUND JOBS (har 2 min)
+// 1) STUCK-JOB CLEANUP: agent print ke beech crash ho jaye to job
+//    'printing' mein hamesha atka rehta tha. 10 min baad wapas 'queued',
+//    2 retries ke baad 'failed' — poison job (corrupt PDF jo har baar
+//    agent crash kare) infinite loop nahi banayega.
+// 2) RAZORPAY RECONCILIATION: pending payments ko seedha Razorpay Orders
+//    API se check karo — shop ki apni stored keys se. Customer browser
+//    band kar de to bhi 2 min ke andar payment paid mark ho jati hai,
+//    kisi webhook config ke bina.
+// ══════════════════════════════════════════════════════════════════
+async function razorpayOrderStatus(orderId, keyId, keySecret) {
+  const auth = Buffer.from(`${keyId}:${keySecret}`).toString('base64');
+  const resp = await fetch(`https://api.razorpay.com/v1/orders/${orderId}`, {
+    headers: { 'Authorization': 'Basic ' + auth }
+  });
+  if (!resp.ok) return null;
+  return resp.json();
+}
+
+let bgRunning = false;
+async function backgroundMaintenance() {
+  if (bgRunning) return; // overlap guard
+  bgRunning = true;
+  try {
+    // 1) Stuck printing jobs
+    const requeued = await pool.query(
+      `UPDATE print_jobs SET status='queued', printing_at=NULL, retry_count=retry_count+1
+       WHERE status='printing' AND printing_at < NOW() - INTERVAL '10 minutes' AND retry_count < 2
+       RETURNING id`);
+    if (requeued.rows.length) console.log('♻️ Requeued stuck jobs:', requeued.rows.map(r=>r.id).join(','));
+    const failed = await pool.query(
+      `UPDATE print_jobs SET status='failed'
+       WHERE status='printing' AND printing_at < NOW() - INTERVAL '10 minutes' AND retry_count >= 2
+       RETURNING id`);
+    if (failed.rows.length) console.log('❌ Gave up on stuck jobs:', failed.rows.map(r=>r.id).join(','));
+
+    // 2a) Customer job payments reconcile (shop ki apni keys)
+    const pending = await pool.query(
+      `SELECT j.id, j.razorpay_order_id, s.razorpay_key_id, s.razorpay_key_secret
+       FROM print_jobs j JOIN shops s ON j.shop_id=s.id
+       WHERE j.payment_status='pending' AND j.razorpay_order_id IS NOT NULL
+         AND j.razorpay_order_id <> '' AND s.razorpay_key_id <> ''
+         AND j.created_at > NOW() - INTERVAL '45 minutes'
+       LIMIT 20`);
+    for (const job of pending.rows) {
+      try {
+        const order = await razorpayOrderStatus(job.razorpay_order_id, job.razorpay_key_id, job.razorpay_key_secret);
+        if (order && order.status === 'paid') {
+          await pool.query(
+            `UPDATE print_jobs SET payment_status='paid' WHERE id=$1 AND payment_status='pending'`,
+            [job.id]);
+          console.log('💰 Reconciled payment for job:', job.id);
+        }
+      } catch(e) { /* agla cycle try karega */ }
+    }
+
+    // 2b) Setup fee reconcile (owner keys)
+    if (OWNER_RAZORPAY_KEY_ID && OWNER_RAZORPAY_KEY_SECRET) {
+      const setups = await pool.query(
+        `SELECT id, setup_order_id FROM shops
+         WHERE setup_paid=false AND setup_order_id IS NOT NULL AND setup_order_id <> ''
+         LIMIT 10`);
+      for (const shop of setups.rows) {
+        try {
+          const order = await razorpayOrderStatus(shop.setup_order_id, OWNER_RAZORPAY_KEY_ID, OWNER_RAZORPAY_KEY_SECRET);
+          if (order && order.status === 'paid') {
+            await activateShop(shop.id, order.id);
+            console.log('💰 Reconciled setup fee:', shop.id);
+          }
+        } catch(e) { /* agla cycle */ }
+      }
+    }
+  } catch(err) {
+    console.error('Background maintenance error:', err.message);
+  } finally {
+    bgRunning = false;
+  }
+}
+setInterval(backgroundMaintenance, 2 * 60 * 1000).unref();
 
 app.get('/print/:shopId', (req,res) => res.sendFile(path.join(__dirname,'public','customer.html')));
 app.get('/register',  (req,res) => res.sendFile(path.join(__dirname,'public','register.html')));
