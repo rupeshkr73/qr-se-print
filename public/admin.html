@@ -209,6 +209,11 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
   <div class="hero">
     <h1 id="adminShopName">Shop Dashboard</h1>
     <p>Apni shop manage karo</p>
+    <div id="agentStatusChip" style="display:inline-flex;align-items:center;gap:7px;margin-top:10px;
+         padding:7px 16px;border-radius:20px;font-size:12px;font-weight:700;font-family:'Inter',sans-serif;
+         background:#f4f5f8;color:#6b7280;border:1.5px solid #e3e5ec">
+      ⏳ Agent status check ho raha hai...
+    </div>
   </div>
   <div class="body">
 
@@ -401,6 +406,40 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 <script>
 let authToken = localStorage.getItem('qrprint_token');
 let currentShop = null;
+
+// ── AGENT ONLINE/OFFLINE INDICATOR ──
+// Agent har poll (5 sec) par server ko heartbeat deta hai. 45 sec se
+// purana = offline. Pehle shop owner ko agent band hone ka pata tab
+// chalta tha jab customer complain karta tha.
+let agentStatusTimer = null;
+function startAgentStatusPolling() {
+  if (agentStatusTimer) clearInterval(agentStatusTimer);
+  const check = async () => {
+    if (!currentShop || !currentShop.id) return;
+    const chip = document.getElementById('agentStatusChip');
+    if (!chip) return;
+    try {
+      const r = await fetch(`/api/shop/${currentShop.id}/agent-status`);
+      const d = await r.json();
+      if (d.online) {
+        chip.style.background = '#e9fbf0';
+        chip.style.borderColor = '#b7ecc9';
+        chip.style.color = '#0d8a3f';
+        chip.innerHTML = '🟢 Print Agent Online — sab ready';
+      } else {
+        chip.style.background = '#fff1f1';
+        chip.style.borderColor = '#ffc9c9';
+        chip.style.color = '#c22222';
+        chip.innerHTML = d.seconds_ago === null
+          ? '🔴 Agent kabhi connect nahi hua — shop PC par Print Agent chalu karo'
+          : '🔴 Agent Offline — shop PC check karo (prints nahi niklenge)';
+      }
+    } catch(e) { /* agla poll */ }
+  };
+  check();
+  agentStatusTimer = setInterval(check, 10000);
+}
+
 let adminSelectedGateway = 'razorpay';
 
 if (authToken) {
@@ -433,6 +472,7 @@ async function doLogin() {
       authToken = data.token;
       localStorage.setItem('qrprint_token', authToken);
       currentShop = data.shop;
+      startAgentStatusPolling();
       loadAdminPanel();
     } else {
       showLoginError(data.error || 'Login fail hua');
@@ -495,6 +535,7 @@ async function loadAdminPanel() {
     }
     const shop = await res.json();
     currentShop = shop;
+    startAgentStatusPolling();
 
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('adminPanel').classList.remove('hidden');
