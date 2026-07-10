@@ -494,7 +494,7 @@ async function renderShops() {
       <td><span class="status-pill ${shop.setup_paid ? 'active' : 'pending'}">${shop.setup_paid ? '✅ Active' : '⏳ Pending'}</span>${shop.setup_paid ? `<div style="font-size:11px;color:#00875a;font-weight:700;margin-top:4px">Paid ₹${shop.setup_amount || 0}</div>` : ''}</td>
       <td class="earnings-cell" id="earn-${shop.id}">Loading...</td>
       <td style="font-size:11px;color:#6b6870;">${createdDate}</td>
-      <td>${!shop.setup_paid ? `<button onclick="deletePendingShop('${shop.id}','${(shop.name||'').replace(/'/g,"")}')" style="background:#ff3b3b;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑️ Delete</button>` : '<span style="font-size:11px;color:#b0b0b0">—</span>'}</td>
+      <td>${(!shop.setup_amount || shop.setup_amount == 0) && shop.id !== 'SHOP_ECB1AB8A' ? `<button onclick="deletePendingShop('${shop.id}','${(shop.name||'').replace(/'/g,"")}')" style="background:#ff3b3b;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑️ Delete</button>` : `<span style="font-size:11px;color:#b0b0b0">${shop.id === 'SHOP_ECB1AB8A' ? '🔒 Protected' : '—'}</span>`}</td>
     `;
     tbody.appendChild(tr);
 
@@ -514,7 +514,7 @@ async function renderShops() {
 }
 
 async function deletePendingShop(shopId, name){
-  if(!confirm(`"${name}" (${shopId}) pending shop delete karein? Ye wapas nahi aayega.`)) return;
+  if(!confirm(`"${name}" (${shopId}) delete karein? Ye shop wapas nahi aayegi.`)) return;
   try{
     const res = await fetch(`/api/superadmin/shop/${shopId}`, {
       method: 'DELETE',
