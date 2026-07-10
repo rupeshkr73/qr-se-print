@@ -319,6 +319,10 @@ async function loadPanel() {
     document.getElementById('activeShops').textContent = overview.active_shops;
     document.getElementById('pendingShops').textContent = overview.pending_shops;
     document.getElementById('setupRevenue').textContent = '₹' + overview.total_setup_revenue;
+    if (overview.paid_shops != null) {
+      const el = document.getElementById('setupRevenue');
+      el.insertAdjacentHTML('afterend', `<div style="font-size:11px;color:#6b6870;font-weight:600;margin-top:2px">${overview.paid_shops} shops ne paid kiya</div>`);
+    }
 
     if (feeRes.ok) {
       const feeData = await feeRes.json();
@@ -486,7 +490,7 @@ async function renderShops() {
         📞 ${shop.phone || '-'}
       </td>
       <td style="font-size:12px;">${shop.printer_model || '-'}</td>
-      <td><span class="status-pill ${shop.setup_paid ? 'active' : 'pending'}">${shop.setup_paid ? '✅ Active' : '⏳ Pending'}</span></td>
+      <td><span class="status-pill ${shop.setup_paid ? 'active' : 'pending'}">${shop.setup_paid ? '✅ Active' : '⏳ Pending'}</span>${shop.setup_paid ? `<div style="font-size:11px;color:#00875a;font-weight:700;margin-top:4px">Paid ₹${shop.setup_amount || 0}</div>` : ''}</td>
       <td class="earnings-cell" id="earn-${shop.id}">Loading...</td>
       <td style="font-size:11px;color:#6b6870;">${createdDate}</td>
     `;

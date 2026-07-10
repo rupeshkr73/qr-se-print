@@ -221,6 +221,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       <div class="stat"><div class="stat-lbl">Aaj Prints</div><div class="stat-val orange" id="todayPrints">0</div></div>
       <div class="stat"><div class="stat-lbl">Aaj Kamai</div><div class="stat-val green" id="todayEarn">₹0</div></div>
       <div class="stat"><div class="stat-lbl">Total Orders</div><div class="stat-val" id="totalOrders">0</div></div>
+      <div class="stat"><div class="stat-lbl">💰 Overall Total Kamai</div><div class="stat-val green" id="totalEarn">₹0</div></div>
     </div>
 
     <div class="card qr-section">
@@ -689,6 +690,7 @@ async function loadStats(shopId) {
     document.getElementById('todayPrints').textContent = stats.today_prints || 0;
     document.getElementById('todayEarn').textContent = '₹' + (stats.today_earnings || 0);
     document.getElementById('totalOrders').textContent = stats.total_orders || 0;
+    document.getElementById('totalEarn').textContent = '₹' + (stats.total_earnings || 0);
   } catch(e) {}
 }
 
