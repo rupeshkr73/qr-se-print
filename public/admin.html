@@ -159,6 +159,48 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
   background:#fff5f7 !important;color:#ff2e63 !important}
 ::selection{background:#ffd22e}
 </style>
+
+<style id="qsp-sidebar">
+#adminPanel .app-shell{display:flex;min-height:100vh}
+.side{position:fixed;top:0;left:0;bottom:0;width:250px;z-index:120;
+  background:linear-gradient(180deg,#1a1030 0%,#2d1b52 100%);
+  display:flex;flex-direction:column;padding:22px 16px;transition:transform .28s cubic-bezier(.4,0,.2,1)}
+.side-brand{display:flex;align-items:center;gap:10px;color:#fff;font-family:'Plus Jakarta Sans',sans-serif;
+  font-weight:800;font-size:17px;padding:0 6px 18px;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:12px}
+.side-brand .bm{width:34px;height:34px;border-radius:10px;background:linear-gradient(120deg,#7c3aed,#e0489f);
+  display:flex;align-items:center;justify-content:center;font-size:17px}
+.side-shop{padding:0 6px 14px;font-size:11px;color:rgba(255,255,255,.5)}
+.side-shop b{color:#c9b8f0;font-size:13px;display:block;margin-top:2px}
+.nav-it{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:12px;
+  color:rgba(255,255,255,.72);font-size:14px;font-weight:600;cursor:pointer;margin-bottom:4px;
+  transition:.15s;border:none;background:none;width:100%;text-align:left;font-family:'Inter',sans-serif}
+.nav-it:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-it.active{background:linear-gradient(120deg,#7c3aed,#e0489f);color:#fff;box-shadow:0 6px 18px rgba(124,58,237,.4)}
+.nav-it .ico{font-size:17px;width:22px;text-align:center}
+.side-foot{margin-top:auto;padding-top:14px;border-top:1px solid rgba(255,255,255,.1)}
+.side-lg{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:12px;color:#ff8a9b;
+  font-weight:700;font-size:14px;cursor:pointer;background:rgba(255,80,100,.12);border:none;width:100%;font-family:'Inter',sans-serif}
+.app-main{flex:1;margin-left:250px;min-height:100vh}
+.app-topbar{position:sticky;top:0;z-index:90;background:rgba(255,255,255,.85);backdrop-filter:blur(12px);
+  border-bottom:1.5px dashed #ece7f5;padding:14px 26px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.hamburger{display:none;background:none;border:none;font-size:22px;cursor:pointer;color:#1a1030}
+.page-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:19px;color:#1a1030;margin-right:auto}
+.app-content{padding:24px 26px 60px;max-width:1100px;margin:0 auto}
+#sectionHost > [data-sect]{display:none;animation:fadeUp .3s ease}
+#sectionHost > [data-sect].show{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+#sectionHost .card{margin-bottom:20px}
+@media(min-width:900px){#adminPanel .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}}
+.side-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:110}
+@media(max-width:899px){
+  .side{transform:translateX(-100%)}
+  .side.open{transform:translateX(0)}
+  .app-main{margin-left:0}
+  .hamburger{display:block}
+  .side-overlay.show{display:block}
+  .app-content{padding:18px 16px 50px}
+}
+</style>
 </head>
 <body>
 
@@ -206,17 +248,31 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 </div>
 
 <div class="hidden" id="adminPanel">
-  <div class="hero">
-    <h1 id="adminShopName">Shop Dashboard</h1>
-    <p>Apni shop manage karo</p>
-    <div id="agentStatusChip" style="display:inline-flex;align-items:center;gap:7px;margin-top:10px;
-         padding:7px 16px;border-radius:20px;font-size:12px;font-weight:700;font-family:'Inter',sans-serif;
-         background:#f4f5f8;color:#6b7280;border:1.5px solid #e3e5ec">
-      ⏳ Agent status check ho raha hai...
+<div class="app-shell">
+  <div class="side-overlay" id="sideOverlay" onclick="closeSide()"></div>
+  <aside class="side" id="sideNav">
+    <div class="side-brand"><span class="bm">🖨️</span> QR Se Print</div>
+    <div class="side-shop">Shop<b id="adminShopName">Shop Dashboard</b></div>
+    <button class="nav-it active" data-nav="overview" onclick="navTo('overview',this)"><span class="ico">📊</span> Overview</button>
+    <button class="nav-it" data-nav="refer" onclick="navTo('refer',this)"><span class="ico">🎁</span> Refer &amp; Earn</button>
+    <button class="nav-it" data-nav="qr" onclick="navTo('qr',this)"><span class="ico">📱</span> QR &amp; Downloads</button>
+    <button class="nav-it" data-nav="orders" onclick="navTo('orders',this)"><span class="ico">📋</span> Orders</button>
+    <button class="nav-it" data-nav="settings" onclick="navTo('settings',this)"><span class="ico">⚙️</span> Settings</button>
+    <div class="side-foot"><button class="side-lg" onclick="logout()"><span>🚪</span> Logout</button></div>
+  </aside>
+  <div class="app-main">
+    <div class="app-topbar">
+      <button class="hamburger" onclick="openSide()">☰</button>
+      <div class="page-title" id="pageTitle">Overview</div>
+      <div id="agentStatusChip" style="display:inline-flex;align-items:center;gap:7px;
+           padding:7px 14px;border-radius:20px;font-size:12px;font-weight:700;font-family:'Inter',sans-serif;
+           background:#f4f5f8;color:#6b7280;border:1.5px solid #e3e5ec">
+        ⏳ Agent status...
+      </div>
     </div>
-  </div>
-  <div class="body">
+    <div class="app-content"><div id="sectionHost">
 
+    <div data-sect="overview" class="show">
     <div class="stats">
       <div class="stat"><div class="stat-lbl">Aaj Prints</div><div class="stat-val orange" id="todayPrints">0</div></div>
       <div class="stat"><div class="stat-lbl">Aaj Kamai</div><div class="stat-val green" id="todayEarn">₹0</div></div>
@@ -224,16 +280,20 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       <div class="stat"><div class="stat-lbl">💰 Overall Total Kamai</div><div class="stat-val green" id="totalEarn">₹0</div></div>
     </div>
 
+    </div><!-- /overview -->
+
+    <div data-sect="refer">
     <!-- REFER AND EARN -->
     <style>
       /* Theme overlay text ko dark force karta hai — refer card purple hai
          to uske andar sab white chahiye. Scoped !important se override. */
+      #referCard { background:linear-gradient(135deg,#7c3aed,#e0489f) !important; }
       #referCard, #referCard h2, #referCard p, #referCard b, #referCard div,
       #referCard span { color:#ffffff !important; }
       #referCard input#refLink { color:#333333 !important; background:#fff !important; }
       #referCard button { color:#7c3aed !important; background:#fff !important; }
     </style>
-    <div class="card" id="referCard" style="background:linear-gradient(135deg,#7c3aed,#e0489f);color:#fff;border:none;">
+    <div class="card" id="referCard" style="background:linear-gradient(135deg,#7c3aed,#e0489f) !important;color:#fff;border:none !important;">
       <h2 style="color:#fff !important;">🎁 Refer & Earn</h2>
       <p style="font-size:13px;opacity:.92;margin:6px 0 14px;">Kisi cyber cafe owner ko refer karo — uski setup fee pay hone par aapko <b>₹50</b> milega!</p>
       <div id="referLocked" style="display:none;background:rgba(255,255,255,.15);border-radius:12px;padding:14px;font-size:13px;">
@@ -298,6 +358,9 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       </p>
     </div>
 
+    </div><!-- /qr -->
+
+    <div data-sect="settings">
     <div class="card">
       <h2>⚙️ Shop Settings</h2>
       <div class="form-grid">
@@ -428,6 +491,12 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       <div class="err-msg" id="passErr"></div>
     </div>
 
+    </div><!-- /refer -->
+
+    <div data-sect="qr">
+    </div><!-- /settings -->
+
+    <div data-sect="orders">
     <div class="card">
       <h2>📋 Recent Print Jobs</h2>
       <table class="jobs-table">
@@ -436,11 +505,26 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       </table>
     </div>
 
-  </div>
-</div>
+    </div><!-- /orders -->
+    </div><!-- /sectionHost -->
+    </div><!-- /app-content -->
+  </div><!-- /app-main -->
+</div><!-- /app-shell -->
 
 <script>
 let authToken = localStorage.getItem('qrprint_token');
+
+// ===== SIDEBAR NAV =====
+const PAGE_TITLES={overview:'Overview',refer:'Refer & Earn',qr:'QR & Downloads',orders:'Orders',settings:'Settings'};
+function navTo(sect,btn){
+  document.querySelectorAll('#sectionHost > [data-sect]').forEach(el=>el.classList.toggle('show',el.getAttribute('data-sect')===sect));
+  document.querySelectorAll('.nav-it[data-nav]').forEach(n=>n.classList.toggle('active',n.getAttribute('data-nav')===sect));
+  document.getElementById('pageTitle').textContent=PAGE_TITLES[sect]||'';
+  closeSide(); window.scrollTo(0,0);
+}
+function openSide(){document.getElementById('sideNav').classList.add('open');document.getElementById('sideOverlay').classList.add('show')}
+function closeSide(){document.getElementById('sideNav').classList.remove('open');document.getElementById('sideOverlay').classList.remove('show')}
+
 let currentShop = null;
 
 // ── AGENT ONLINE/OFFLINE INDICATOR ──
