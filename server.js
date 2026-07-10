@@ -256,6 +256,18 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS setup_amount INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS printer_name_bw VARCHAR(300) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS printer_name_color VARCHAR(300) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS referred_by VARCHAR(50) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS referral_earnings INTEGER DEFAULT 0;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS referral_rewarded BOOLEAN DEFAULT false;
+      CREATE TABLE IF NOT EXISTS withdrawals (
+        id SERIAL PRIMARY KEY,
+        shop_id VARCHAR(50),
+        amount INTEGER,
+        upi_id VARCHAR(120),
+        status VARCHAR(20) DEFAULT 'pending',
+        requested_at TIMESTAMP DEFAULT NOW(),
+        completed_at TIMESTAMP
+      );
     `);
 
     // GRANDFATHER MIGRATION: Purani shops jo setup-fee feature se PEHLE bani thi,
@@ -332,6 +344,93 @@ function verifyToken(req, res, next) {
   }
 }
 
+// ══════════════ REFER & EARN (shop side) ══════════════
+// Referral dashboard: earnings, withdrawable, referred shops list
+app.get('/api/shop/referral', verifyToken, async (req, res) => {
+  try {
+    const me = await pool.query('SELECT referral_earnings, setup_paid FROM shops WHERE id=$1', [req.shopId]);
+    if (!me.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
+    const earnings = me.rows[0].referral_earnings || 0;
+    const canRefer = me.rows[0].setup_paid; // sirf paid shop refer kar sakta hai
+
+    // Withdrawn total (done + pending — dono balance se ghatao taaki double-withdraw na ho)
+    const wd = await pool.query(
+      "SELECT COALESCE(SUM(amount),0) as used FROM withdrawals WHERE shop_id=$1 AND status IN ('pending','done')",
+      [req.shopId]);
+    const used = parseInt(wd.rows[0].used) || 0;
+    const available = earnings - used;
+
+    // Referred shops list — naam, number, paid status
+    const refs = await pool.query(
+      `SELECT name, phone, setup_paid, created_at FROM shops WHERE referred_by=$1 ORDER BY created_at DESC`,
+      [req.shopId]);
+
+    // Withdrawal history
+    const hist = await pool.query(
+      `SELECT amount, upi_id, status, requested_at, completed_at FROM withdrawals WHERE shop_id=$1 ORDER BY requested_at DESC`,
+      [req.shopId]);
+
+    res.json({
+      canRefer,
+      earnings,
+      available,
+      referred: refs.rows.map(r => ({
+        name: r.name, phone: r.phone,
+        status: r.setup_paid ? 'paid' : 'pending',
+        date: r.created_at
+      })),
+      withdrawals: hist.rows
+    });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Withdrawal request — min ₹500, UPI zaroori
+app.post('/api/shop/withdraw', verifyToken, async (req, res) => {
+  try {
+    const { upi_id } = req.body;
+    if (!upi_id || !/^[\w.\-]+@[\w.\-]+$/.test(upi_id.trim()))
+      return res.status(400).json({ error: 'Sahi UPI ID daalo (jaise name@bank)' });
+
+    const me = await pool.query('SELECT referral_earnings FROM shops WHERE id=$1', [req.shopId]);
+    const earnings = me.rows[0]?.referral_earnings || 0;
+    const wd = await pool.query(
+      "SELECT COALESCE(SUM(amount),0) as used FROM withdrawals WHERE shop_id=$1 AND status IN ('pending','done')",
+      [req.shopId]);
+    const available = earnings - (parseInt(wd.rows[0].used) || 0);
+
+    if (available < 500) return res.status(400).json({ error: `Withdrawal ke liye kam se kam ₹500 chahiye (abhi ₹${available})` });
+
+    // Pending request already hai?
+    const pend = await pool.query("SELECT id FROM withdrawals WHERE shop_id=$1 AND status='pending'", [req.shopId]);
+    if (pend.rows.length) return res.status(400).json({ error: 'Ek withdrawal request pehle se pending hai' });
+
+    await pool.query('INSERT INTO withdrawals (shop_id, amount, upi_id) VALUES ($1,$2,$3)',
+      [req.shopId, available, upi_id.trim()]);
+    res.json({ success: true, amount: available });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ══════════════ WITHDRAWALS (superadmin side) ══════════════
+app.get('/api/superadmin/withdrawals', verifySuperAdmin, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT w.id, w.shop_id, s.name, s.phone, w.amount, w.upi_id, w.status, w.requested_at, w.completed_at
+       FROM withdrawals w LEFT JOIN shops s ON w.shop_id=s.id
+       ORDER BY (w.status='pending') DESC, w.requested_at DESC`);
+    res.json(r.rows);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/superadmin/withdrawals/:id/complete', verifySuperAdmin, async (req, res) => {
+  try {
+    const r = await pool.query(
+      "UPDATE withdrawals SET status='done', completed_at=NOW() WHERE id=$1 AND status='pending' RETURNING shop_id, amount",
+      [req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Pending withdrawal nahi mili' });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/printer-models', (req, res) => {
   res.json({ models: PRINTER_MODELS });
 });
@@ -356,8 +455,17 @@ app.post('/api/shop/register', async (req, res) => {
     const {
       name, address, phone, printer_model, price_bw, price_color, payment_mode, password,
       payment_gateway, razorpay_key_id, razorpay_key_secret,
-      phonepe_merchant_id, phonepe_salt_key, phonepe_salt_index
+      phonepe_merchant_id, phonepe_salt_key, phonepe_salt_index, ref
     } = req.body;
+
+    // Referral: ?ref=SHOP_XXX se aaya — sirf tab valid jab wo referrer
+    // EXIST kare aur khud PAID ho (unpaid shop refer nahi kar sakta),
+    // aur khud ko refer na kare
+    let referredBy = '';
+    if (ref && typeof ref === 'string') {
+      const r = await pool.query('SELECT id FROM shops WHERE id=$1 AND setup_paid=true', [ref.trim()]);
+      if (r.rows.length) referredBy = ref.trim();
+    }
 
     if (!name || !name.trim()) return res.status(400).json({ error: 'Shop ka naam zaroori hai' });
     if (!password || password.length < 4) return res.status(400).json({ error: 'Password kam se kam 4 character ka hona chahiye' });
@@ -469,6 +577,23 @@ async function activateShop(shopId, paymentId) {
     [paymentId, qrCode, shopId]
   );
   console.log(`Setup fee paid: ${shopId} | Payment: ${paymentId}`);
+
+  // ── REFERRAL REWARD ── is naye shop ko kisi ne refer kiya tha?
+  try {
+    const me = await pool.query('SELECT referred_by, referral_rewarded FROM shops WHERE id=$1', [shopId]);
+    const row = me.rows[0];
+    if (row && row.referred_by && !row.referral_rewarded) {
+      // Referrer khud PAID hona chahiye — warna reward nahi
+      const ref = await pool.query('SELECT id, setup_paid FROM shops WHERE id=$1', [row.referred_by]);
+      if (ref.rows.length && ref.rows[0].setup_paid) {
+        await pool.query('UPDATE shops SET referral_earnings = referral_earnings + 50 WHERE id=$1', [row.referred_by]);
+        console.log(`Referral reward: ₹50 -> ${row.referred_by} (referred ${shopId})`);
+      }
+      // rewarded flag hamesha set — dobara trigger na ho (referrer unpaid ho tab bhi)
+      await pool.query('UPDATE shops SET referral_rewarded=true WHERE id=$1', [shopId]);
+    }
+  } catch(e) { console.error('Referral reward error:', e.message); }
+
   return { qrCode, qrUrl };
 }
 
