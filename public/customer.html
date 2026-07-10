@@ -460,6 +460,29 @@ async function init() {
     }
 
     const shop = await shopRes.json();
+
+    // ── Shop band hai? Poora block — order flow shuru hi nahi hoga ──
+    if (shop.paused) {
+      document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Space Grotesk',sans-serif;">
+        <div style="font-size:52px;margin-bottom:16px;">🏪</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:22px;margin-bottom:10px;">Shop Abhi Band Hai</h2>
+        <p style="color:#6b6870;font-size:14px;line-height:1.6;">${shop.name} abhi temporarily band hai.<br>Thodi der baad dobara QR scan karo.</p>
+      </div>`;
+      return;
+    }
+
+    // ── Ink/paper warning banner (order allowed, bas heads-up) ──
+    if (shop.supply_warning) {
+      const w = shop.supply_warning;
+      const banner = document.createElement('div');
+      banner.style.cssText = 'position:sticky;top:0;z-index:200;padding:10px 16px;text-align:center;font-size:13px;font-weight:700;font-family:sans-serif;' +
+        (w === 'no_paper' ? 'background:#fee2e2;color:#b91c1c;' : 'background:#fef3c7;color:#92400e;');
+      banner.textContent = w === 'no_paper'
+        ? '🔴 Shop mein paper khatam hai — print milne mein deri ho sakti hai, counter par puchh lo'
+        : '🟡 Shop mein ink kam hai — print quality halki ho sakti hai';
+      document.body.prepend(banner);
+    }
+
     document.getElementById('shopName').textContent = shop.name;
     document.getElementById('shopAddr').textContent = '📍 ' + (shop.address || '');
     document.getElementById('priceBWBadge').textContent = `B&W: ₹${shop.price_bw}/page`;
