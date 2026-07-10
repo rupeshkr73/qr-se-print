@@ -1352,20 +1352,27 @@ app.get('/api/superadmin/shops', verifySuperAdmin, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
-// ─── Pending (unpaid) shop delete — SIRF setup_paid=false wali ───
-// Safety: paid shop ko yeh endpoint delete NAHI karega, chahe UI se kuch
-// bhi bheja jaye. Paid shop udana = paying customer ka data gaya = mahnga.
+// Owner ka apna pehla shop — kabhi delete nahi hoga, chahe UI/API se kuch
+// bhi bheja jaye. Server-side hardcoded taaki koi bypass na kar sake.
+const PROTECTED_SHOP_IDS = ['SHOP_ECB1AB8A'];
+
+// ─── Shop delete — paid amount 0 wali shops delete ho sakti hain ───
+// Rule: setup_amount 0 (ya null) wali koi bhi shop delete ho sakti hai
+// (pending + purane jinme amount capture nahi hua tha). Jisne ASLI paisa
+// diya (setup_amount > 0) wo protected. Owner ka pehla shop hamesha safe.
 app.delete('/api/superadmin/shop/:shopId', verifySuperAdmin, async (req, res) => {
   try {
     const shopId = req.params.shopId;
-    const chk = await pool.query('SELECT setup_paid FROM shops WHERE id=$1', [shopId]);
-    if (!chk.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
-    if (chk.rows[0].setup_paid) {
-      return res.status(403).json({ error: 'Paid/Active shop delete nahi ho sakti — sirf pending shops delete hoti hain' });
+    if (PROTECTED_SHOP_IDS.includes(shopId)) {
+      return res.status(403).json({ error: 'Ye shop protected hai — delete nahi ho sakti' });
     }
-    // Orphan jobs bhi saaf karo (waise pending shop ke jobs shayad na hon)
+    const chk = await pool.query('SELECT setup_amount FROM shops WHERE id=$1', [shopId]);
+    if (!chk.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
+    if ((chk.rows[0].setup_amount || 0) > 0) {
+      return res.status(403).json({ error: 'Is shop ne setup fee pay ki hai — delete nahi ho sakti' });
+    }
     await pool.query('DELETE FROM print_jobs WHERE shop_id=$1', [shopId]);
-    await pool.query('DELETE FROM shops WHERE id=$1 AND setup_paid=false', [shopId]);
+    await pool.query('DELETE FROM shops WHERE id=$1 AND COALESCE(setup_amount,0)=0', [shopId]);
     res.json({ success: true });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
