@@ -224,8 +224,35 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       <div class="stat"><div class="stat-lbl">💰 Overall Total Kamai</div><div class="stat-val green" id="totalEarn">₹0</div></div>
     </div>
 
-    <div class="card qr-section">
-      <h2>📱 QR Code</h2>
+    <!-- REFER AND EARN -->
+    <div class="card" id="referCard" style="background:linear-gradient(135deg,#7c3aed,#e0489f);color:#fff;border:none;">
+      <h2 style="color:#fff;">🎁 Refer & Earn</h2>
+      <p style="font-size:13px;opacity:.92;margin:6px 0 14px;">Kisi cyber cafe owner ko refer karo — uski setup fee pay hone par aapko <b>₹50</b> milega!</p>
+      <div id="referLocked" style="display:none;background:rgba(255,255,255,.15);border-radius:12px;padding:14px;font-size:13px;">
+        🔒 Refer karne ke liye pehle aapki khud ki setup fee complete honi chahiye.
+      </div>
+      <div id="referActive" style="display:none;">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+          <div style="flex:1;min-width:130px;background:rgba(255,255,255,.15);border-radius:12px;padding:12px;">
+            <div style="font-size:11px;opacity:.85;">Total Kamaya</div>
+            <div style="font-size:24px;font-weight:800;" id="refEarnings">₹0</div>
+          </div>
+          <div style="flex:1;min-width:130px;background:rgba(255,255,255,.15);border-radius:12px;padding:12px;">
+            <div style="font-size:11px;opacity:.85;">Withdrawal Available</div>
+            <div style="font-size:24px;font-weight:800;" id="refAvailable">₹0</div>
+          </div>
+        </div>
+        <div style="font-size:11px;opacity:.85;margin-bottom:5px;">Aapka Referral Link:</div>
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+          <input id="refLink" readonly style="flex:1;padding:11px;border:none;border-radius:10px;font-size:12px;color:#333;background:#fff;">
+          <button onclick="copyRefLink()" style="background:#fff;color:#7c3aed;border:none;border-radius:10px;padding:0 16px;font-weight:700;cursor:pointer;">Copy</button>
+        </div>
+        <button onclick="openWithdraw()" id="withdrawBtn" style="width:100%;background:#fff;color:#7c3aed;border:none;border-radius:12px;padding:13px;font-weight:800;font-size:15px;cursor:pointer;margin-bottom:14px;">💸 Withdraw Karo (₹500+ pe)</button>
+        <div style="font-size:12px;font-weight:700;opacity:.9;margin-bottom:8px;">👥 Aapke Referrals</div>
+        <div id="refList" style="display:flex;flex-direction:column;gap:6px;"></div>
+        <div id="wdHistory" style="margin-top:14px;"></div>
+      </div>
+    </div>
       <img id="adminQrImg" src="">
       <br>
       <button onclick="downloadQrOnly()" style="background:none;border:1.5px solid #e2ddd6;border-radius:10px;padding:7px 14px;font-size:11px;font-weight:700;color:#111111;cursor:pointer;margin:10px 0;font-family:'Inter',sans-serif;">
@@ -571,6 +598,7 @@ async function loadAdminPanel() {
     await loadColorPrinterDropdowns(shop.printer_name_bw, shop.printer_name_color);
     loadStats(shop.id);
     loadJobs();
+    loadReferral(shop.id);
   } catch(e) {
     console.error(e);
   }
@@ -681,6 +709,84 @@ function selectGatewayAdmin(gw) {
   document.getElementById('adminTabPhonepe').classList.toggle('active', gw === 'phonepe');
   document.getElementById('adminFieldsRazorpay').classList.toggle('show', gw === 'razorpay');
   document.getElementById('adminFieldsPhonepe').classList.toggle('show', gw === 'phonepe');
+}
+
+// ═══ REFER & EARN ═══
+function toast(msg){
+  let t = document.getElementById('_reftoast');
+  if(!t){ t=document.createElement('div'); t.id='_reftoast';
+    t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#111;color:#fff;padding:12px 20px;border-radius:12px;font-size:14px;font-weight:600;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.25);transition:opacity .3s;';
+    document.body.appendChild(t); }
+  t.textContent=msg; t.style.opacity='1';
+  clearTimeout(t._h); t._h=setTimeout(()=>t.style.opacity='0',2600);
+}
+let currentShopId = '';
+async function loadReferral(shopId) {
+  currentShopId = shopId;
+  try {
+    const res = await fetch('/api/shop/referral', { headers: { 'Authorization': 'Bearer ' + authToken } });
+    const d = await res.json();
+    if (!d.canRefer) {
+      document.getElementById('referLocked').style.display = 'block';
+      document.getElementById('referActive').style.display = 'none';
+      return;
+    }
+    document.getElementById('referLocked').style.display = 'none';
+    document.getElementById('referActive').style.display = 'block';
+    document.getElementById('refEarnings').textContent = '₹' + d.earnings;
+    document.getElementById('refAvailable').textContent = '₹' + d.available;
+    document.getElementById('refLink').value = location.origin + '/register?ref=' + shopId;
+
+    const wb = document.getElementById('withdrawBtn');
+    wb.disabled = d.available < 500;
+    wb.style.opacity = d.available < 500 ? '.55' : '1';
+
+    // Referred shops list
+    const list = document.getElementById('refList');
+    if (!d.referred.length) {
+      list.innerHTML = '<div style="font-size:12px;opacity:.75;">Abhi koi referral nahi. Link share karo!</div>';
+    } else {
+      list.innerHTML = d.referred.map(r => {
+        const paid = r.status === 'paid';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.13);border-radius:10px;padding:9px 12px;">
+          <div><div style="font-size:13px;font-weight:700;">${esc(r.name||'—')}</div><div style="font-size:11px;opacity:.8;">${esc(r.phone||'')}</div></div>
+          <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:${paid?'#16a34a':'rgba(255,255,255,.25)'};">${paid?'✅ Paid +₹50':'⏳ Pending'}</span>
+        </div>`;
+      }).join('');
+    }
+
+    // Withdrawal history
+    const wh = document.getElementById('wdHistory');
+    if (d.withdrawals.length) {
+      wh.innerHTML = '<div style="font-size:12px;font-weight:700;opacity:.9;margin-bottom:6px;">💸 Withdrawal History</div>' +
+        d.withdrawals.map(w => {
+          const done = w.status === 'done';
+          const dt = done && w.completed_at ? new Date(w.completed_at).toLocaleString('en-IN') : '';
+          return `<div style="background:rgba(255,255,255,.13);border-radius:10px;padding:9px 12px;margin-bottom:5px;font-size:12px;">
+            <div style="display:flex;justify-content:space-between;"><b>₹${w.amount}</b>
+            <span>${done?'✅ Done':'⏳ Pending'}</span></div>
+            ${done?`<div style="font-size:11px;opacity:.8;margin-top:3px;">${dt}</div>`:''}</div>`;
+        }).join('');
+    } else { wh.innerHTML = ''; }
+  } catch(e) { console.error('referral load', e); }
+}
+function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function copyRefLink(){
+  const inp = document.getElementById('refLink');
+  navigator.clipboard.writeText(inp.value).then(()=>toast('📋 Referral link copied!'));
+}
+async function openWithdraw(){
+  const upi = prompt('Apni UPI ID daalo (jaise name@paytm):');
+  if (upi === null) return;
+  try {
+    const res = await fetch('/api/shop/withdraw', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},
+      body: JSON.stringify({ upi_id: upi })
+    });
+    const d = await res.json();
+    if (d.success) { toast('✅ Withdrawal request bhej di! Approve hone par paisa aayega.'); loadReferral(currentShopId); }
+    else toast('❌ ' + (d.error||'Fail'));
+  } catch(e){ toast('❌ '+e.message); }
 }
 
 async function loadStats(shopId) {

@@ -169,7 +169,8 @@ async function doRegister(){
     name: gv('f_name'), address: gv('f_addr'), phone: gv('f_phone'),
     printer_model: gv('f_printer'),
     price_bw: parseInt(gv('f_bw'))||5, price_color: parseInt(gv('f_color'))||10,
-    payment_mode: paymode, password: document.getElementById('f_pass').value
+    payment_mode: paymode, password: document.getElementById('f_pass').value,
+    ref: new URLSearchParams(location.search).get('ref') || ''
   };
   if(paymode !== 'counter_only'){
     body.payment_gateway = gateway;
