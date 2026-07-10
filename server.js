@@ -1352,6 +1352,24 @@ app.get('/api/superadmin/shops', verifySuperAdmin, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── Pending (unpaid) shop delete — SIRF setup_paid=false wali ───
+// Safety: paid shop ko yeh endpoint delete NAHI karega, chahe UI se kuch
+// bhi bheja jaye. Paid shop udana = paying customer ka data gaya = mahnga.
+app.delete('/api/superadmin/shop/:shopId', verifySuperAdmin, async (req, res) => {
+  try {
+    const shopId = req.params.shopId;
+    const chk = await pool.query('SELECT setup_paid FROM shops WHERE id=$1', [shopId]);
+    if (!chk.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
+    if (chk.rows[0].setup_paid) {
+      return res.status(403).json({ error: 'Paid/Active shop delete nahi ho sakti — sirf pending shops delete hoti hain' });
+    }
+    // Orphan jobs bhi saaf karo (waise pending shop ke jobs shayad na hon)
+    await pool.query('DELETE FROM print_jobs WHERE shop_id=$1', [shopId]);
+    await pool.query('DELETE FROM shops WHERE id=$1 AND setup_paid=false', [shopId]);
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/superadmin/shop/:shopId/earnings', verifySuperAdmin, async (req, res) => {
   try {
     const r = await pool.query(`
