@@ -225,6 +225,15 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     </div>
 
     <!-- REFER AND EARN -->
+    <style>
+      /* Theme overlay text ko dark force karta hai — refer card purple hai
+         to uske andar sab white chahiye. Scoped !important se override. */
+      #referCard, #referCard * { color:#fff !important; }
+      #referCard h2 { color:#fff !important; }
+      #referCard input { color:#333 !important; background:#fff !important; }
+      #referCard button { color:#7c3aed !important; }
+      #referCard #refList span { color:#fff !important; }
+    </style>
     <div class="card" id="referCard" style="background:linear-gradient(135deg,#7c3aed,#e0489f);color:#fff;border:none;">
       <h2 style="color:#fff;">🎁 Refer & Earn</h2>
       <p style="font-size:13px;opacity:.92;margin:6px 0 14px;">Kisi cyber cafe owner ko refer karo — uski setup fee pay hone par aapko <b>₹50</b> milega!</p>
