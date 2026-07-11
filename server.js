@@ -259,6 +259,8 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS referred_by VARCHAR(50) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS referral_earnings INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS referral_rewarded BOOLEAN DEFAULT false;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS paused BOOLEAN DEFAULT false;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS supply_warning VARCHAR(30) DEFAULT '';
       CREATE TABLE IF NOT EXISTS withdrawals (
         id SERIAL PRIMARY KEY,
         shop_id VARCHAR(50),
@@ -346,6 +348,45 @@ function verifyToken(req, res, next) {
 
 // ══════════════ REFER & EARN (shop side) ══════════════
 // Referral dashboard: earnings, withdrawable, referred shops list
+// ── Shop pause/holiday toggle ──
+app.post('/api/shop/pause', verifyToken, async (req, res) => {
+  try {
+    const paused = !!req.body.paused;
+    await pool.query('UPDATE shops SET paused=$1 WHERE id=$2', [paused, req.shopId]);
+    res.json({ success: true, paused });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Supply self-report: '' | 'low_ink' | 'no_paper' ──
+app.post('/api/shop/supply-warning', verifyToken, async (req, res) => {
+  try {
+    const w = String(req.body.warning || '');
+    if (!['', 'low_ink', 'no_paper'].includes(w))
+      return res.status(400).json({ error: 'Invalid warning' });
+    await pool.query('UPDATE shops SET supply_warning=$1 WHERE id=$2', [w, req.shopId]);
+    res.json({ success: true, warning: w });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── 7-din earning breakdown (sirf paid) ──
+app.get('/api/shop/earnings-breakdown', verifyToken, async (req, res) => {
+  try {
+    const daily = await pool.query(
+      `SELECT DATE(created_at) as day,
+              COUNT(*) as orders,
+              COALESCE(SUM(copies),0) as prints,
+              COALESCE(SUM(amount),0) as earnings
+       FROM print_jobs
+       WHERE shop_id=$1 AND payment_status='paid' AND created_at > NOW() - INTERVAL '7 days'
+       GROUP BY DATE(created_at) ORDER BY day DESC`, [req.shopId]);
+    const weeks = await pool.query(
+      `SELECT COALESCE(SUM(CASE WHEN created_at > NOW() - INTERVAL '7 days' THEN amount ELSE 0 END),0) as this_week,
+              COALESCE(SUM(CASE WHEN created_at <= NOW() - INTERVAL '7 days' AND created_at > NOW() - INTERVAL '14 days' THEN amount ELSE 0 END),0) as last_week
+       FROM print_jobs WHERE shop_id=$1 AND payment_status='paid'`, [req.shopId]);
+    res.json({ daily: daily.rows, this_week: weeks.rows[0].this_week, last_week: weeks.rows[0].last_week });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/shop/referral', verifyToken, async (req, res) => {
   try {
     const me = await pool.query('SELECT referral_earnings, setup_paid FROM shops WHERE id=$1', [req.shopId]);
@@ -666,7 +707,7 @@ app.post('/api/shop/set-password', async (req, res) => {
 app.get('/api/shop/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,name,address,phone,printer_model,price_bw,price_color,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid FROM shops WHERE id=$1',
+      'SELECT id,name,address,phone,printer_model,price_bw,price_color,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning FROM shops WHERE id=$1',
       [req.params.shopId]
     );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
@@ -695,7 +736,7 @@ app.get('/api/shop/:shopId/stats', async (req, res) => {
 app.get('/api/admin/profile', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT id,name,address,phone,printer_model,printer_name_bw,printer_name_color,price_bw,price_color,payment_mode,qr_code,created_at,
+      `SELECT id,name,address,phone,printer_model,printer_name_bw,printer_name_color,price_bw,price_color,payment_mode,qr_code,created_at,paused,supply_warning,
               payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
               CASE WHEN phonepe_salt_key != '' THEN true ELSE false END as has_phonepe_salt
@@ -846,12 +887,13 @@ app.post('/api/payment/online/create', async (req, res) => {
     const { jobId, colorMode, copies, totalPages, selectedPages } = req.body;
 
     const jobCheck = await pool.query(
-      `SELECT j.*, s.price_bw, s.price_color, s.payment_mode, s.payment_gateway,
+      `SELECT j.*, s.price_bw, s.price_color, s.payment_mode, s.payment_gateway, s.paused,
               s.razorpay_key_id, s.razorpay_key_secret,
               s.phonepe_merchant_id, s.phonepe_salt_key, s.phonepe_salt_index
        FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1`, [jobId]
     );
     if (!jobCheck.rows.length) return res.status(404).json({ error:'Job not found' });
+    if (jobCheck.rows[0].paused) return res.status(403).json({ error: '🏪 Shop abhi band hai — baad mein try karo' });
 
     const job = jobCheck.rows[0];
 
@@ -1109,11 +1151,12 @@ app.post('/api/payment/counter', async (req, res) => {
     if (!jobId) return res.status(400).json({ error:'Job ID required' });
 
     const jobCheck = await pool.query(
-      'SELECT j.*, s.price_bw, s.price_color, s.payment_mode FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1', [jobId]
+      'SELECT j.*, s.price_bw, s.price_color, s.payment_mode, s.paused FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1', [jobId]
     );
     if (!jobCheck.rows.length) return res.status(404).json({ error:'Job not found' });
 
     const job = jobCheck.rows[0];
+    if (job.paused) return res.status(403).json({ error: '🏪 Shop abhi band hai — baad mein try karo' });
 
     if (job.payment_mode === 'online_only') {
       return res.status(400).json({ error: 'Yeh shop sirf Online payment accept karta hai' });
