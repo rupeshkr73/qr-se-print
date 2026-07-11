@@ -1267,7 +1267,8 @@ app.get('/api/jobs/pending/:shopId', async (req, res) => {
          FOR UPDATE OF j2 SKIP LOCKED
        ) AND s.id=j.shop_id
        RETURNING j.id,j.file_name,j.file_url,j.file_public_id,j.file_type,j.copies,j.color_mode,
-                 j.total_pages,j.selected_pages,j.amount,s.printer_name_bw,s.printer_name_color`,
+                 j.total_pages,j.selected_pages,j.amount,j.payment_method,j.created_at,
+                 s.printer_name_bw,s.printer_name_color`,
       [req.params.shopId]
     );
     res.json({ jobs: r.rows });
@@ -1301,7 +1302,16 @@ app.post('/api/jobs/complete/:jobId', async (req, res) => {
 
 app.post('/api/jobs/failed/:jobId', async (req, res) => {
   try {
-    await pool.query('UPDATE print_jobs SET status=$1 WHERE id=$2', ['failed', req.params.jobId]);
+    const reason = (req.body && req.body.reason) || '';
+    const result = await pool.query(
+      'UPDATE print_jobs SET status=$1 WHERE id=$2 RETURNING file_public_id',
+      ['failed', req.params.jobId]);
+    // Deny/fail par bhi customer ki file Cloudinary se saaf — warna orphan
+    // files jama hoti rehti (privacy + storage dono)
+    if (result.rows.length && result.rows[0].file_public_id) {
+      await deleteFromCloudinary(result.rows[0].file_public_id);
+    }
+    console.log(`Job failed/denied: ${req.params.jobId}${reason ? ' | ' + reason : ''}`);
     res.json({ success:true });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });

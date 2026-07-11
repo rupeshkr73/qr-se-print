@@ -42,7 +42,7 @@ SHOP_ID_TEMPLATE   = "AAPKA_SHOP_ID"
 SERVER_URL         = "https://qr-se-print.onrender.com"
 CHECK_INTERVAL     = 5          # Print jobs check karne ka interval (seconds)
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 6           # Integer version number — server ke agent_version se compare hota hai
+VERSION            = 8           # Integer version number — server ke agent_version se compare hota hai
 
 # Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
 # kyunki .exe install hone par Program Files mein likhna permission-denied
@@ -50,8 +50,53 @@ VERSION            = 6           # Integer version number — server ke agent_ve
 _APPDATA_DIR = os.path.join(os.environ.get('APPDATA', tempfile.gettempdir()), 'QRSePrint')
 os.makedirs(_APPDATA_DIR, exist_ok=True)
 LOG_FILE           = os.path.join(_APPDATA_DIR, "print_agent_log.txt")
+
+# ══════════════════════════════════════════════════════════════════
+# TLS CA BUNDLE PIN — PyInstaller --onefile ka _MEIxxxxx temp folder
+# Windows Storage Sense / temp cleaners 8-12 ghante chalte agent ke
+# neeche se uda dete hain. Uske baad har HTTPS request "Could not find
+# a suitable TLS CA certificate bundle" se fail hoti hai — agent tray
+# mein "Running" dikhta hai par server tak kuch nahi pahunchta.
+# Fix: startup par cacert.pem ko APPDATA mein copy karke env se wahi
+# point karo — _MEI ude to bhi HTTPS zinda rahega.
+# ══════════════════════════════════════════════════════════════════
+def _pin_ca_bundle():
+    try:
+        import certifi
+        src = certifi.where()
+        dst = os.path.join(_APPDATA_DIR, "cacert.pem")
+        try:
+            if (not os.path.exists(dst)
+                    or os.path.getsize(dst) != os.path.getsize(src)):
+                shutil.copy2(src, dst)
+        except Exception:
+            pass  # copy fail ho to purani pinned copy chalegi (agar hai)
+        if os.path.exists(dst) and os.path.getsize(dst) > 10000:
+            os.environ["REQUESTS_CA_BUNDLE"] = dst
+            os.environ["SSL_CERT_FILE"] = dst
+    except Exception:
+        pass  # certifi hi nahi mila — requests apne default par chalega
+
+_pin_ca_bundle()
 LOCAL_VERSION_FILE = os.path.join(_APPDATA_DIR, "agent_version.txt")
 SHOP_CONFIG_FILE   = os.path.join(_APPDATA_DIR, "shop_config.txt")
+APPROVAL_CONFIG    = os.path.join(_APPDATA_DIR, "approval_mode.txt")
+
+def approval_enabled():
+    """Counter jobs par owner-approval popup — default ON."""
+    try:
+        if os.path.exists(APPROVAL_CONFIG):
+            return open(APPROVAL_CONFIG).read().strip() != "off"
+    except Exception:
+        pass
+    return True
+
+def set_approval(on):
+    try:
+        with open(APPROVAL_CONFIG, "w") as f:
+            f.write("on" if on else "off")
+    except Exception:
+        pass
 # ============================================================
 
 # Tray icon ke liye global state — taaki tray menu se live status dikhaya ja sake
@@ -109,12 +154,31 @@ def show_shop_id_prompt():
         if not value:
             messagebox.showerror("Error", "Shop ID daalo!")
             return
+        # Server se verify karo — typo waala Shop ID save ho gaya to agent
+        # hamesha nonexistent shop poll karta rahega, "waiting" dikhata
+        # rahega, aur kabhi print nahi karega — debug karna nightmare.
+        # timeout 30s: Render free tier sleep se 30-60s mein jaagta hai.
+        status_lbl.config(text="⏳ Shop ID verify ho raha hai...")
+        root.update()
+        try:
+            r = requests.get(f"{SERVER_URL}/api/shop/{value}", timeout=30)
+            if r.status_code == 404:
+                status_lbl.config(text="❌ Yeh Shop ID server pe nahi mila — check karo")
+                return
+            # 200/403/500 sab pe aage badho — shop exist karta hai ya
+            # server issue hai, dono case mein ID save karna theek hai
+        except requests.exceptions.Timeout:
+            status_lbl.config(text="⏳ Server jaag raha hai — 30 sec baad dobara dabao")
+            return
+        except Exception:
+            # Offline/net issue — verify skip, save kar do (fail-open)
+            pass
         result["shop_id"] = value
         root.destroy()
 
     root = tk.Tk()
     root.title("QR Se Print - Setup")
-    root.geometry("420x220")
+    root.geometry("420x260")
     root.resizable(False, False)
     try:
         root.attributes('-topmost', True)
@@ -130,7 +194,10 @@ def show_shop_id_prompt():
     entry.focus()
 
     tk.Button(root, text="Shuru Karo", font=("Segoe UI", 11, "bold"),
-              bg="#ff4d1c", fg="white", padx=20, pady=8, command=on_submit).pack(pady=10)
+              bg="#ff4d1c", fg="white", padx=20, pady=8, command=on_submit).pack(pady=6)
+
+    status_lbl = tk.Label(root, text="", font=("Segoe UI", 9), fg="#b45309")
+    status_lbl.pack(pady=(0, 8))
 
     root.bind('<Return>', lambda e: on_submit())
     root.mainloop()
@@ -171,15 +238,73 @@ def resolve_shop_id():
 
     return shop_id
 
+# ─── SINGLE INSTANCE LOCK ─────────────────────────────────────────────
+# Startup-registry + owner ka manually exe kholna = 2 agents ek saath =
+# dono same pending jobs poll karke DOUBLE PRINT nikaalte — customer ka
+# paisa ek copy ka, paper/ink do ka. Mutex se sirf pehla instance chalta
+# hai, baaki chupchaap exit ho jaate hain.
+# NOTE: yeh check module-level pe hai (resolve_shop_id se PEHLE) taaki
+# duplicate instance Shop ID popup tak bhi na pahunche.
+_mutex_handle = [None]
+
+def _ensure_single_instance():
+    try:
+        import ctypes
+        ERROR_ALREADY_EXISTS = 183
+        handle = ctypes.windll.kernel32.CreateMutexW(
+            None, False, "Global\\QRSePrint_Agent_SingleInstance")
+        if ctypes.windll.kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
+            return False
+        _mutex_handle[0] = handle
+        return True
+    except Exception as e:
+        log(f"⚠️  Mutex check fail (fail-open): {e}", "WARN")
+        return True
+
+def _release_mutex():
+    try:
+        import ctypes
+        if _mutex_handle[0]:
+            ctypes.windll.kernel32.ReleaseMutex(_mutex_handle[0])
+            ctypes.windll.kernel32.CloseHandle(_mutex_handle[0])
+            _mutex_handle[0] = None
+    except Exception:
+        pass
+
+if not _ensure_single_instance():
+    log("⛔ Agent already chal raha hai — duplicate instance exit ho raha hai")
+    sys.exit(0)
+
 SHOP_ID = resolve_shop_id()
 
+# ─── AUTO STARTUP (PC restart pe tray mein khud start ho) ─────────────
+def add_to_startup():
+    """HKCU Run key mein register — admin rights ki zaroorat nahi."""
+    try:
+        import winreg
+        if is_running_as_exe():
+            cmd = f'"{sys.executable}"'
+        else:
+            py = sys.executable.replace('python.exe', 'pythonw.exe')
+            if not os.path.exists(py):
+                py = sys.executable
+            cmd = f'"{py}" "{os.path.abspath(__file__)}"'
+        key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+            r"Software\Microsoft\Windows\CurrentVersion\Run",
+            0, winreg.KEY_SET_VALUE)
+        winreg.SetValueEx(key, "QRSePrintAgent", 0, winreg.REG_SZ, cmd)
+        winreg.CloseKey(key)
+        log("✅ Windows startup mein register ho gaya (restart pe khud chalega)")
+    except Exception as e:
+        log(f"⚠️  Startup register nahi hua: {e}", "WARN")
+
 def show_banner():
-    print(f"""
-╔══════════════════════════════════════════════╗
-║         QR Se Print - Local Agent v{VERSION}        ║
-║  ✅ System Tray  ✅ Auto-Update  ✅ Fit-A4   ║
-╚══════════════════════════════════════════════╝
-    """)
+    # CRITICAL FIX: yahan bare print() tha — try ke bahar. --noconsole exe
+    # mein sys.stdout None hota hai, print() AttributeError deta, aur yeh
+    # main() ki PEHLI line hai — matlab exe har launch pe turant FATAL
+    # CRASH ho jaata tha (log mein "'NoneType' object has no attribute
+    # 'write'" dikhta hai). log() already guarded hai, isliye usi se bhejo.
+    log(f"QR Se Print - Local Agent v{VERSION} | Tray + Auto-Update + Fit-A4")
 
 def check_printer():
     """
@@ -652,6 +777,98 @@ def mark_failed(job_id, reason=""):
     except:
         pass
 
+
+# ══════════════════════════════════════════════════════════════════
+# COUNTER-PAYMENT APPROVAL POPUP
+# Counter (cash) wale jobs mein customer ne abhi paisa NAHI diya hota —
+# system turant print nikal deta tha. Ab owner ke PC par popup: details
+# dekho, cash lo, Approve karo — tab print. Deny = job cancel + file delete.
+# FAIL-OPEN: popup kisi wajah se na ban paye to print ho jata hai —
+# popup ki technical dikkat business nahi rokni chahiye.
+# ══════════════════════════════════════════════════════════════════
+def ask_approval(job):
+    try:
+        import tkinter as tk
+
+        color  = job.get("color_mode", "bw")
+        copies = job.get("copies", 1)
+        pages  = job.get("total_pages", 1)
+        sel    = job.get("selected_pages", "")
+        amount = job.get("amount", 0)
+        fname  = job.get("file_name", "file")
+        # Server ka created_at (ISO/UTC) -> local time
+        tstr = ""
+        try:
+            from datetime import datetime, timezone
+            raw = job.get("created_at", "")
+            if raw:
+                dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+                tstr = dt.astimezone().strftime("%I:%M %p")
+        except Exception:
+            tstr = ""
+
+        result = {"ok": None}
+        root = tk.Tk()
+        root.title("QR Se Print — Counter Order")
+        root.attributes("-topmost", True)
+        root.resizable(False, False)
+        # Bottom-right corner (tray ke paas)
+        w, h = 360, 300
+        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+        root.geometry(f"{w}x{h}+{sw - w - 20}+{sh - h - 80}")
+        root.configure(bg="white")
+
+        tk.Label(root, text="🪙 Counter Payment Order", font=("Segoe UI", 13, "bold"),
+                 bg="white").pack(pady=(16, 2))
+        tk.Label(root, text="Customer counter par cash dega — print approve karein?",
+                 font=("Segoe UI", 9), bg="white", fg="#666").pack()
+
+        box = tk.Frame(root, bg="#f6f4ff", padx=14, pady=10)
+        box.pack(fill="x", padx=16, pady=10)
+        mode_txt = "🌈 COLOR" if color == "color" else "⚫ B&W"
+        pages_txt = f"{pages} page" + ("s" if pages != 1 else "")
+        if sel:
+            pages_txt += f" (pages: {sel})"
+        rows = [
+            ("Print", f"{mode_txt}  •  {pages_txt}  •  {copies} cop{'ies' if copies!=1 else 'y'}"),
+            ("Amount", f"₹{amount}  (counter par lena hai)"),
+            ("File", fname[:38]),
+        ]
+        if tstr:
+            rows.append(("Time", tstr))
+        for k, v in rows:
+            r = tk.Frame(box, bg="#f6f4ff"); r.pack(fill="x", pady=2)
+            tk.Label(r, text=k, font=("Segoe UI", 9, "bold"), bg="#f6f4ff",
+                     width=8, anchor="w").pack(side="left")
+            tk.Label(r, text=v, font=("Segoe UI", 9), bg="#f6f4ff",
+                     anchor="w", wraplength=240, justify="left").pack(side="left")
+
+        btns = tk.Frame(root, bg="white"); btns.pack(pady=6)
+        def _ok():
+            result["ok"] = True; root.destroy()
+        def _no():
+            result["ok"] = False; root.destroy()
+        tk.Button(btns, text="✅ Approve & Print", font=("Segoe UI", 10, "bold"),
+                  bg="#16a34a", fg="white", padx=16, pady=8, bd=0,
+                  cursor="hand2", command=_ok).pack(side="left", padx=6)
+        tk.Button(btns, text="❌ Deny", font=("Segoe UI", 10, "bold"),
+                  bg="#dc2626", fg="white", padx=22, pady=8, bd=0,
+                  cursor="hand2", command=_no).pack(side="left", padx=6)
+        tk.Label(root, text="Deny karne par order cancel + file delete ho jayegi",
+                 font=("Segoe UI", 8), bg="white", fg="#999").pack()
+
+        root.mainloop()
+
+        if result["ok"] is None:
+            # Window band ki bina choose kiye (X) — kuch mat karo abhi,
+            # job 'printing' claim mein hai; 10-min cleanup requeue karega
+            # aur agla poll dobara popup dikhayega
+            return None
+        return result["ok"]
+    except Exception as e:
+        log(f"⚠️ Approval popup fail ({e}) — fail-open, print jaari", "WARN")
+        return True
+
 def process_job(job):
     job_id  = job.get("id", "unknown")
     url     = job.get("file_url")
@@ -671,6 +888,20 @@ def process_job(job):
     printer_name_bw = job.get("printer_name_bw", "") or None
     printer_name_color = job.get("printer_name_color", "") or None
     target_printer = printer_name_bw if color == "bw" else printer_name_color
+
+    # ── COUNTER APPROVAL GATE ── online-paid jobs seedha print (paisa aa
+    # chuka); sirf counter jobs par owner se pucho
+    if job.get("payment_method") == "counter" and approval_enabled():
+        update_tray_status("Counter order — approval ka wait")
+        ans = ask_approval(job)
+        if ans is None:
+            log(f"⏸️ Approval window band hui bina jawab ke — job {job_id} baad mein dobara aayega")
+            return
+        if ans is False:
+            log(f"❌ Owner ne DENY kiya — job {job_id} cancel")
+            mark_failed(job_id, "Shop owner ne counter order deny kiya")
+            return
+        log(f"✅ Owner ne approve kiya — job {job_id} print ho raha hai")
 
     log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     log(f"📄 Job: {job_id}")
@@ -774,7 +1005,10 @@ def get_remote_version():
     try:
         resp = requests.get(f"{SERVER_URL}/api/agent/version", timeout=15)
         resp.raise_for_status()
-        return resp.json().get("version")
+        v = resp.json().get("version")
+        # Server string bhej de ("7") to int(6) se compare TypeError deta —
+        # update silently kabhi trigger nahi hota. Int coerce karo.
+        return int(v) if v is not None else None
     except Exception as e:
         log(f"⚠️  Version check failed: {e}", "WARN")
         return None
@@ -838,37 +1072,145 @@ def apply_update_and_restart(new_code=None):
     except Exception as e:
         log(f"❌ Update apply karne mein error: {e}", "ERROR")
 
+def download_installer(progress_cb=None):
+    """
+    Naya installer download karo. progress_cb(percent_or_None, mb_done)
+    har chunk par call hota hai. Return: installer path ya (None, error_msg).
+    """
+    resp = requests.get(f"{SERVER_URL}/api/agent/download-latest-exe", timeout=120, stream=True)
+    if resp.status_code == 404:
+        return None, "Server par naya installer upload nahi hua hai (Super Admin ko batao)"
+    resp.raise_for_status()
+
+    total = int(resp.headers.get('content-length') or 0)
+    installer_path = os.path.join(tempfile.gettempdir(), "QRSePrint-Update-Setup.exe")
+    done = 0
+    with open(installer_path, 'wb') as f:
+        for chunk in resp.iter_content(chunk_size=65536):
+            if chunk:
+                f.write(chunk)
+                done += len(chunk)
+                if progress_cb:
+                    pct = int(done * 100 / total) if total else None
+                    progress_cb(pct, done / 1048576)
+    if done < 100_000:  # <100KB = installer nahi, koi error page hai
+        return None, "Download hui file installer nahi lagti (bahut chhoti hai) — installer URL check karo"
+    return installer_path, None
+
+def run_installer_and_exit(installer_path):
+    log("🔄 Silent update install ho raha hai...")
+    subprocess.Popen([installer_path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"])
+    time.sleep(2)
+    if agent_state["tray_icon"]:
+        agent_state["tray_icon"].stop()
+    os._exit(0)
+
 def apply_exe_update_and_restart():
-    """
-    .exe mode update: server se naya installer .exe download karo,
-    background mein silent-install chalao, aur current agent exit karo.
-    Installer khud purane exe ko replace karke naya tray instance start karega.
-    """
+    """Auto-update path (hourly loop) — silent, koi UI nahi."""
     try:
         log("⬇️  Naya installer download ho raha hai...")
-        resp = requests.get(f"{SERVER_URL}/api/agent/download-latest-exe", timeout=120, stream=True)
-        resp.raise_for_status()
-
-        temp_dir = tempfile.gettempdir()
-        installer_path = os.path.join(temp_dir, "QRSePrint-Update-Setup.exe")
-        with open(installer_path, 'wb') as f:
-            for chunk in resp.iter_content(chunk_size=8192):
-                f.write(chunk)
-
+        installer_path, err = download_installer()
+        if err:
+            log(f"❌ {err}", "ERROR")
+            return
         log(f"✅ Installer download ho gaya: {installer_path}")
-        log("🔄 Silent update install ho raha hai...")
-
-        # Installer ko silent mode mein chalao (Inno Setup convention: /VERYSILENT)
-        # Yeh khud purane exe ko replace karke naya tray instance start kar dega
-        subprocess.Popen([installer_path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"])
-
-        # Thoda wait karo taaki installer process pick up kar le, phir exit
-        time.sleep(2)
-        if agent_state["tray_icon"]:
-            agent_state["tray_icon"].stop()
-        os._exit(0)
+        run_installer_and_exit(installer_path)
     except Exception as e:
         log(f"❌ .exe update apply karne mein error: {e}", "ERROR")
+
+# ─── MANUAL UPDATE CHECK (tray menu se) ──────────────────────────────
+# Auto-loop errors chupchaap kha jata hai — yeh window sab kuch DIKHATI
+# hai: server ka version, download %, aur exact error. Har shop par bina
+# logs khole update-problem diagnose ho jati hai.
+def manual_update_check(icon=None, item=None):
+    threading.Thread(target=_manual_update_ui, daemon=True).start()
+
+def _manual_update_ui():
+    try:
+        import tkinter as tk
+        from tkinter import ttk
+
+        root = tk.Tk()
+        root.title("QR Se Print — Update Check")
+        root.attributes('-topmost', True)
+        root.resizable(False, False)
+        root.geometry("380x190")
+        frame = tk.Frame(root, bg='white')
+        frame.pack(fill='both', expand=True)
+
+        title = tk.Label(frame, text="🔍 Update check ho raha hai...",
+                         font=('Segoe UI', 12, 'bold'), bg='white')
+        title.pack(pady=(22, 4))
+        sub = tk.Label(frame, text=f"Abhi installed: v{VERSION}",
+                       font=('Segoe UI', 10), bg='white', fg='#666')
+        sub.pack()
+        bar = ttk.Progressbar(frame, length=300, mode='determinate')
+        pct_lbl = tk.Label(frame, text="", font=('Segoe UI', 10, 'bold'), bg='white')
+        close_btn = tk.Button(frame, text="Band Karo", font=('Segoe UI', 10),
+                              command=root.destroy)
+        root.update()
+
+        # 1) Version check
+        remote = get_remote_version()
+        if remote is None:
+            title.config(text="⚠️ Server se version nahi mila")
+            sub.config(text="Internet ya server check karo, phir dobara try karo")
+            close_btn.pack(pady=14)
+            root.mainloop()
+            return
+        if remote <= VERSION:
+            title.config(text="✅ Aapke paas latest version hai")
+            sub.config(text=f"Installed v{VERSION} = Server v{remote}")
+            close_btn.pack(pady=14)
+            root.mainloop()
+            return
+
+        # 2) Naya version mila — download with %
+        title.config(text=f"🔄 Naya version mila: v{VERSION} → v{remote}")
+        sub.config(text="Download ho raha hai...")
+        bar.pack(pady=(14, 4))
+        pct_lbl.pack()
+        root.update()
+
+        def on_progress(pct, mb):
+            if pct is not None:
+                bar['value'] = pct
+                pct_lbl.config(text=f"{pct}%  ({mb:.1f} MB)")
+            else:
+                bar.config(mode='indeterminate')
+                pct_lbl.config(text=f"{mb:.1f} MB downloaded...")
+            root.update()
+
+        try:
+            installer_path, err = download_installer(on_progress)
+        except Exception as e:
+            installer_path, err = None, str(e)
+
+        if err:
+            title.config(text="❌ Update download fail")
+            sub.config(text=err[:60])
+            log(f"❌ Manual update: {err}", "ERROR")
+            close_btn.pack(pady=10)
+            root.mainloop()
+            return
+
+        # 3) Install + restart
+        bar['value'] = 100
+        pct_lbl.config(text="100%")
+        title.config(text=f"✅ v{remote} install ho raha hai...")
+        sub.config(text="Agent khud restart hoga — tray mein naya version dikhega")
+        root.update()
+        time.sleep(1.5)
+        root.destroy()
+        run_installer_and_exit(installer_path)
+    except Exception as e:
+        log(f"❌ Manual update UI error: {e}", "ERROR")
+        try:
+            import ctypes
+            ctypes.windll.user32.MessageBoxW(None,
+                f"Update check error: {e}", "QR Se Print", 0x10)
+        except Exception:
+            pass
 
 def update_checker_loop():
     """Background thread — har UPDATE_CHECK_INTERVAL seconds mein naya version check karta hai"""
@@ -916,6 +1258,15 @@ def create_tray_icon_image():
     draw.rectangle([16, 44, 48, 54], fill=(40, 40, 45))    # tray
     return img
 
+def toggle_approval(icon=None, item=None):
+    now = not approval_enabled()
+    set_approval(now)
+    log(f"🔔 Counter approval: {'ON' if now else 'OFF'}")
+    try:
+        icon.update_menu()
+    except Exception:
+        pass
+
 def open_logs(icon=None, item=None):
     """Log file ko Notepad mein kholo"""
     try:
@@ -940,6 +1291,9 @@ def change_shop_id(icon=None, item=None):
         log(f"Config delete error: {e}", "ERROR")
 
     try:
+        # Mutex release karo warna naya instance "already running" samajh
+        # ke exit ho jayega aur Shop ID popup kabhi nahi khulega
+        _release_mutex()
         if is_running_as_exe():
             subprocess.Popen([sys.executable])
         else:
@@ -990,7 +1344,9 @@ def run_tray_icon():
             Item(printer_label, None, enabled=False),
             Item(version_label, None, enabled=False),
             pystray.Menu.SEPARATOR,
+            Item(lambda item: f"🔔 Counter Approval: {'ON' if approval_enabled() else 'OFF'}", toggle_approval),
             Item("📋 Logs Dekho", open_logs),
+            Item("⬆️ Check for Update", manual_update_check),
             Item("🔄 Shop ID Change Karo", change_shop_id),
             Item("❌ Exit", quit_agent),
         )
@@ -1049,6 +1405,9 @@ def main():
 
     log(f"🚀 Agent start | Shop: {SHOP_ID} | Version: v{VERSION}")
     log(f"🌐 Server: {SERVER_URL}")
+
+    # PC restart pe agent khud tray mein start ho — HKCU Run registry
+    add_to_startup()
 
     # CRITICAL FIX: Pehle yahan printer na milne par input("Enter dabao...")
     # call hota tha — yeh .exe ke WINDOWED mode mein (jahan koi console/STDIN
