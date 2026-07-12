@@ -144,6 +144,31 @@ body{
 .rs-left{font-size:13px;font-weight:600}
 .rs-left b{font-family:'Poppins','Plus Jakarta Sans',sans-serif;font-weight:800}
 .rs-arrow{font-size:20px;font-weight:800;opacity:.9}
+.demo-strip{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;
+  border:2px solid var(--ink);border-radius:12px;padding:10px 16px;margin:0 0 10px;cursor:pointer;
+  background:#fff;color:var(--ink);font-family:'Inter',sans-serif;transition:.15s}
+.demo-strip:hover{background:var(--ink);color:#fff}
+.demo-strip .rs-left{font-size:13px;font-weight:600}
+/* Demo modal */
+.dm-overlay{display:none;position:fixed;inset:0;background:rgba(17,17,17,.55);z-index:500;
+  align-items:center;justify-content:center;padding:20px}
+.dm-overlay.open{display:flex}
+.dm-box{background:#fff;border-radius:20px;padding:26px 22px;width:100%;max-width:400px;text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.dm-box h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:20px;margin-bottom:4px}
+.dm-box .dm-sub{font-size:12px;color:var(--muted);margin-bottom:16px}
+.dm-box input{width:100%;padding:12px 14px;border:1.5px solid #e3e5ec;border-radius:12px;
+  font-family:'Inter',sans-serif;font-size:14px;margin-bottom:10px}
+.dm-box input:focus{outline:none;border-color:var(--pink)}
+.dm-btn{width:100%;background:var(--pink);color:#fff;border:none;border-radius:14px;padding:14px;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:15px;cursor:pointer}
+.dm-btn:disabled{background:#c6c9d2;cursor:not-allowed}
+.dm-close{background:none;border:none;font-size:13px;color:var(--muted);margin-top:10px;cursor:pointer}
+.dm-err{display:none;background:#fff1f1;border:1.5px solid #ffc9c9;color:#c22;border-radius:10px;
+  padding:10px;font-size:12px;font-weight:600;margin-bottom:8px}
+.dm-result{display:none;text-align:left;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;
+  padding:14px;font-size:13px;line-height:1.8;margin-top:6px}
+.dm-result code{background:#fff;padding:2px 8px;border-radius:6px;font-weight:800;font-size:14px}
 .cta-sub{
   display:block;text-decoration:none;color:var(--ink);
   border:2px solid var(--ink);border-radius:16px;padding:14px;
@@ -176,6 +201,11 @@ body{
   <div class="topbar">
     <a href="/admin" class="login-pill">🔑 Shop Owner Login</a>
   </div>
+
+  <button class="demo-strip" onclick="openDemoModal()">
+    <span class="rs-left">🎯 <b>2 Ghante FREE Demo</b> — bina payment ke try karo</span>
+    <span class="rs-arrow">›</span>
+  </button>
 
   <a href="/admin" class="refer-strip">
     <span class="rs-left">🎁 <b>Refer &amp; Earn</b> — har referral par ₹50</span>
@@ -222,6 +252,21 @@ body{
   <a href="/register" class="cta-main">🚀 Abhi Start Karein <span class="arrow">›</span></a>
   <a href="/admin" class="cta-sub">🔑 Shop Login</a>
 
+</div>
+
+<div class="dm-overlay" id="demoModal">
+  <div class="dm-box">
+    <h3>🎯 2 Ghante Free Demo</h3>
+    <div class="dm-sub">Naam + mobile — turant Demo Shop ID milega, koi payment nahi</div>
+    <div class="dm-err" id="dmErr"></div>
+    <div id="dmForm">
+      <input id="dmName" placeholder="Aapka naam / shop ka naam">
+      <input id="dmPhone" type="tel" maxlength="10" placeholder="Mobile number (10 digit)">
+      <button class="dm-btn" id="dmGo" onclick="createDemo()">Demo Shuru Karo ›</button>
+    </div>
+    <div class="dm-result" id="dmResult"></div>
+    <button class="dm-close" onclick="closeDemoModal()">Band karo</button>
+  </div>
 </div>
 
 <div class="footer">
