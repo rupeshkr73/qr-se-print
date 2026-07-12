@@ -261,6 +261,20 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS referral_rewarded BOOLEAN DEFAULT false;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS paused BOOLEAN DEFAULT false;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS supply_warning VARCHAR(30) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS demo BOOLEAN DEFAULT false;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS demo_expires_at TIMESTAMP;
+      CREATE TABLE IF NOT EXISTS demo_registrations (
+        id SERIAL PRIMARY KEY,
+        phone VARCHAR(15) UNIQUE,
+        ip VARCHAR(64),
+        shop_id VARCHAR(50),
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS demo_machines (
+        machine_id VARCHAR(100) PRIMARY KEY,
+        shop_id VARCHAR(50),
+        created_at TIMESTAMP DEFAULT NOW()
+      );
       CREATE TABLE IF NOT EXISTS withdrawals (
         id SERIAL PRIMARY KEY,
         shop_id VARCHAR(50),
@@ -389,10 +403,10 @@ app.get('/api/shop/earnings-breakdown', verifyToken, async (req, res) => {
 
 app.get('/api/shop/referral', verifyToken, async (req, res) => {
   try {
-    const me = await pool.query('SELECT referral_earnings, setup_paid FROM shops WHERE id=$1', [req.shopId]);
+    const me = await pool.query('SELECT referral_earnings, setup_paid, demo FROM shops WHERE id=$1', [req.shopId]);
     if (!me.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
     const earnings = me.rows[0].referral_earnings || 0;
-    const canRefer = me.rows[0].setup_paid; // sirf paid shop refer kar sakta hai
+    const canRefer = me.rows[0].setup_paid && !me.rows[0].demo; // paid AND non-demo hi refer kare — warna demo user free ₹50 kamata
 
     // Withdrawn total (done + pending — dono balance se ghatao taaki double-withdraw na ho)
     const wd = await pool.query(
@@ -472,6 +486,57 @@ app.post('/api/superadmin/withdrawals/:id/complete', verifySuperAdmin, async (re
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// ══════════════════ FREE DEMO (2 ghante) ══════════════════
+// Anti-abuse: (1) ek phone = ek demo PERMANENT, (2) ek IP = 2/din,
+// (3) ek MACHINE = ek demo permanent (agent MachineGuid bhejta hai).
+function normPhone(p) {
+  const d = String(p || '').replace(/\D/g, '');
+  return d.length >= 10 ? d.slice(-10) : '';
+}
+function isDemoExpired(shop) {
+  return shop && shop.demo && shop.demo_expires_at &&
+         new Date(shop.demo_expires_at).getTime() < Date.now();
+}
+
+app.post('/api/demo/create', async (req, res) => {
+  try {
+    const name = String(req.body.name || '').trim().slice(0, 100);
+    const phone = normPhone(req.body.phone);
+    if (!name) return res.status(400).json({ error: 'Naam daalo' });
+    if (!phone) return res.status(400).json({ error: 'Sahi 10-digit mobile number daalo' });
+
+    // Layer 1: phone permanent lock
+    const dup = await pool.query('SELECT id FROM demo_registrations WHERE phone=$1', [phone]);
+    if (dup.rows.length)
+      return res.status(400).json({ error: 'Is number par demo pehle liya ja chuka hai. Pasand aaya tha? Ab register karo 🙂' });
+
+    // Layer 2: IP — max 2 demo/din
+    const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim().slice(0, 60);
+    const ipCount = await pool.query(
+      "SELECT COUNT(*) FROM demo_registrations WHERE ip=$1 AND created_at > NOW() - INTERVAL '24 hours'", [ip]);
+    if (parseInt(ipCount.rows[0].count) >= 2)
+      return res.status(429).json({ error: 'Aaj ke liye demo limit ho gayi — kal try karo ya abhi register karo' });
+
+    const shopId = 'DEMO_' + crypto.randomBytes(4).toString('hex').toUpperCase();
+    const passwordHash = await bcrypt.hash(phone, 10);
+    await pool.query(
+      `INSERT INTO shops (id, name, phone, price_bw, price_color, payment_mode, password_hash,
+                          setup_paid, setup_amount, demo, demo_expires_at)
+       VALUES ($1,$2,$3,5,10,'counter_only',$4,true,0,true,NOW() + INTERVAL '2 hours')`,
+      [shopId, name + ' (Demo)', phone, passwordHash]);
+    await pool.query('INSERT INTO demo_registrations (phone, ip, shop_id) VALUES ($1,$2,$3)', [phone, ip, shopId]);
+
+    const qrUrl = `${BASE_URL}/print/${shopId}`;
+    const qrCode = await QRCode.toDataURL(qrUrl, { width: 300, margin: 2 });
+    await pool.query('UPDATE shops SET qr_code=$1 WHERE id=$2', [qrCode, shopId]);
+
+    console.log(`Demo created: ${shopId} | ${phone} | ip ${ip}`);
+    res.json({ success: true, shopId, password: phone, qrUrl, qrCode,
+               expiresInMinutes: 120,
+               note: 'Login password = aapka mobile number' });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/printer-models', (req, res) => {
   res.json({ models: PRINTER_MODELS });
 });
@@ -504,7 +569,7 @@ app.post('/api/shop/register', async (req, res) => {
     // aur khud ko refer na kare
     let referredBy = '';
     if (ref && typeof ref === 'string') {
-      const r = await pool.query('SELECT id FROM shops WHERE id=$1 AND setup_paid=true', [ref.trim()]);
+      const r = await pool.query('SELECT id FROM shops WHERE id=$1 AND setup_paid=true AND demo=false', [ref.trim()]);
       if (r.rows.length) referredBy = ref.trim();
     }
 
@@ -707,7 +772,7 @@ app.post('/api/shop/set-password', async (req, res) => {
 app.get('/api/shop/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,name,address,phone,printer_model,price_bw,price_color,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning FROM shops WHERE id=$1',
+      'SELECT id,name,address,phone,printer_model,price_bw,price_color,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at FROM shops WHERE id=$1',
       [req.params.shopId]
     );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
@@ -1158,6 +1223,17 @@ app.post('/api/payment/counter', async (req, res) => {
     const job = jobCheck.rows[0];
     if (job.paused) return res.status(403).json({ error: '🏪 Shop abhi band hai — baad mein try karo' });
 
+    // Demo guards: expiry + 10-print cap
+    const shopD = await pool.query('SELECT demo, demo_expires_at FROM shops WHERE id=$1', [job.shop_id]);
+    if (shopD.rows.length && shopD.rows[0].demo) {
+      if (isDemoExpired(shopD.rows[0]))
+        return res.status(403).json({ error: '⏰ Demo khatam — shop register karo!' });
+      const cnt = await pool.query(
+        "SELECT COUNT(*) FROM print_jobs WHERE shop_id=$1 AND payment_status='paid'", [job.shop_id]);
+      if (parseInt(cnt.rows[0].count) >= 10)
+        return res.status(403).json({ error: '🎯 Demo mein max 10 prints — pasand aaya to register karo!' });
+    }
+
     if (job.payment_mode === 'online_only') {
       return res.status(400).json({ error: 'Yeh shop sirf Online payment accept karta hai' });
     }
@@ -1251,6 +1327,30 @@ app.get('/api/jobs/pending/:shopId', async (req, res) => {
   try {
     // Agent heartbeat — dashboard ka Online/Offline indicator isi se chalta hai
     await pool.query('UPDATE shops SET agent_last_seen=NOW() WHERE id=$1', [req.params.shopId]);
+
+    // ── DEMO: machine-lock + expiry ──
+    const shopRow = await pool.query(
+      'SELECT demo, demo_expires_at FROM shops WHERE id=$1', [req.params.shopId]);
+    if (shopRow.rows.length && shopRow.rows[0].demo) {
+      const sh = shopRow.rows[0];
+      // Layer 3: ek machine = ek demo PERMANENT. Agent ?m=MachineGuid bhejta
+      // hai; is machine par pehle KISI AUR demo ka record hai to yeh demo
+      // turant expire — naya number/IP kuch kaam nahi aayega.
+      const m = String(req.query.m || '').trim().slice(0, 90);
+      if (m) {
+        const mc = await pool.query('SELECT shop_id FROM demo_machines WHERE machine_id=$1', [m]);
+        if (!mc.rows.length) {
+          await pool.query('INSERT INTO demo_machines (machine_id, shop_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [m, req.params.shopId]);
+        } else if (mc.rows[0].shop_id !== req.params.shopId) {
+          await pool.query('UPDATE shops SET demo_expires_at=NOW() WHERE id=$1', [req.params.shopId]);
+          console.log(`Demo machine-lock: ${req.params.shopId} expired (machine pehle ${mc.rows[0].shop_id} use kar chuki)`);
+          return res.json({ jobs: [], demo_expired: true });
+        }
+      }
+      if (isDemoExpired({ demo: true, demo_expires_at: sh.demo_expires_at })) {
+        return res.json({ jobs: [], demo_expired: true });
+      }
+    }
 
     // ATOMIC CLAIM: job dete hi status 'printing' ho jata hai. Pehle jobs
     // 'queued' hi rehte the fetch ke baad — bade PDF ke print ke दौरान agla
@@ -1786,6 +1886,14 @@ async function backgroundMaintenance() {
           }
         } catch(e) { /* agla cycle */ }
       }
+    }
+    // 3) Purane demo shops saaf (7 din baad) — DB junk-free rahe
+    const oldDemos = await pool.query(
+      "SELECT id FROM shops WHERE demo=true AND demo_expires_at < NOW() - INTERVAL '7 days' LIMIT 20");
+    for (const d of oldDemos.rows) {
+      await pool.query('DELETE FROM print_jobs WHERE shop_id=$1', [d.id]);
+      await pool.query('DELETE FROM shops WHERE id=$1', [d.id]);
+      console.log('🧹 Old demo deleted:', d.id);
     }
   } catch(err) {
     console.error('Background maintenance error:', err.message);

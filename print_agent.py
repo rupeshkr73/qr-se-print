@@ -82,6 +82,25 @@ LOCAL_VERSION_FILE = os.path.join(_APPDATA_DIR, "agent_version.txt")
 SHOP_CONFIG_FILE   = os.path.join(_APPDATA_DIR, "shop_config.txt")
 APPROVAL_CONFIG    = os.path.join(_APPDATA_DIR, "approval_mode.txt")
 
+def get_machine_id():
+    """Windows MachineGuid — demo machine-lock ke liye. Fail par hostname."""
+    try:
+        import winreg
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
+                             r"SOFTWARE\Microsoft\Cryptography",
+                             0, winreg.KEY_READ | winreg.KEY_WOW64_64KEY)
+        val, _ = winreg.QueryValueEx(key, "MachineGuid")
+        winreg.CloseKey(key)
+        return str(val)[:80]
+    except Exception:
+        try:
+            import socket
+            return "host_" + socket.gethostname()[:70]
+        except Exception:
+            return ""
+
+MACHINE_ID = get_machine_id()
+
 def approval_enabled():
     """Counter jobs par owner-approval popup — default ON."""
     try:
@@ -753,16 +772,41 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
                 pass
 
 def get_pending_jobs():
+    global _demo_expired_shown
     try:
-        resp = requests.get(f"{SERVER_URL}/api/jobs/pending/{SHOP_ID}", timeout=15)
-        resp.raise_for_status()
-        return resp.json().get("jobs", [])
-    except requests.ConnectionError:
-        log("⚠️  Server connect nahi hua...", "WARN")
+        url = f"{SERVER_URL}/api/jobs/pending/{SHOP_ID}"
+        if MACHINE_ID:
+            url += f"?m={MACHINE_ID}"
+        resp = requests.get(url, timeout=15)
+        if resp.status_code != 200:
+            return []
+        d = resp.json()
+        if d.get("demo_expired"):
+            update_tray_status("⏰ Demo khatam — register karo!")
+            if not _demo_expired_shown:
+                _demo_expired_shown = True
+                log("⏰ Demo period khatam — register karke naya Shop ID lo")
+                threading.Thread(target=_show_demo_expired_popup, daemon=True).start()
+            return []
+        return d.get("jobs", [])
+    except Exception:
         return []
-    except Exception as e:
-        log(f"❌ Jobs fetch: {e}", "ERROR")
-        return []
+
+_demo_expired_shown = False
+
+def _show_demo_expired_popup():
+    try:
+        import ctypes
+        r = ctypes.windll.user32.MessageBoxW(None,
+            "Aapka 2 ghante ka demo khatam ho gaya!\n\n"
+            "Pasand aaya? Register karke apna permanent Shop ID lo:\n"
+            f"{SERVER_URL}/register\n\n"
+            "OK dabane par register page khulega.",
+            "QR Se Print — Demo Khatam", 0x40 | 0x1)  # OK/Cancel + info icon
+        if r == 1:  # OK
+            os.startfile(f"{SERVER_URL}/register")
+    except Exception:
+        pass
 
 def mark_complete(job_id):
     try:
