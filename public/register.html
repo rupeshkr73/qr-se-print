@@ -102,10 +102,10 @@ h1 .mark{background:linear-gradient(transparent 62%,var(--yellow) 62%);padding:0
   <div class="card">
     <h3><span class="n">3</span> Customer Payment Kaise Lena Hai</h3>
     <div class="paymode">
-      <label class="pm sel"><input type="radio" name="paymode" value="both" checked onchange="pmChange(this)">
-        <span><b>💳 Online + Counter dono</b><span>Customer ko dono option milenge (recommended)</span></span></label>
-      <label class="pm"><input type="radio" name="paymode" value="counter_only" onchange="pmChange(this)">
+      <label class="pm sel"><input type="radio" name="paymode" value="counter_only" checked onchange="pmChange(this)">
         <span><b>🪙 Sirf Counter Cash</b><span>Online gateway ki zaroorat nahi — sabse simple start</span></span></label>
+      <label class="pm"><input type="radio" name="paymode" value="both" onchange="pmChange(this)">
+        <span><b>💳 Online + Counter dono</b><span>Customer ko dono option milenge</span></span></label>
       <label class="pm"><input type="radio" name="paymode" value="online_only" onchange="pmChange(this)">
         <span><b>📲 Sirf Online</b><span>Payment gateway zaroori hoga</span></span></label>
     </div>
