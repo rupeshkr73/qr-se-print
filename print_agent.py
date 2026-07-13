@@ -42,7 +42,7 @@ SHOP_ID_TEMPLATE   = "AAPKA_SHOP_ID"
 SERVER_URL         = "https://qr-se-print.onrender.com"
 CHECK_INTERVAL     = 5          # Print jobs check karne ka interval (seconds)
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 8           # Integer version number — server ke agent_version se compare hota hai
+VERSION            = 9           # Integer version number — server ke agent_version se compare hota hai
 
 # Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
 # kyunki .exe install hone par Program Files mein likhna permission-denied
@@ -577,7 +577,7 @@ def get_bundled_resource_path(filename):
     return None
 
 # ─── Problem 5: B&W / Color Print + Fit-to-A4 ────────────────────────
-def print_pdf_sumatra(filepath, copies=1, color_mode="bw", printer_name=None):
+def print_pdf_sumatra(filepath, copies=1, color_mode="bw", printer_name=None, extra=""):
     """
     SumatraPDF se print — B&W/Color setting ke saath
     'fit' flag use karte hain taaki chhota PDF/page bhi A4 paper
@@ -617,6 +617,9 @@ def print_pdf_sumatra(filepath, copies=1, color_mode="bw", printer_name=None):
     else:
         print_settings = f"copies={copies},fit"
         log(f"🖨️  Color + Fit-to-Page print karenge")
+    if extra:
+        print_settings += f",{extra}"
+        log(f"🖨️  Extra print settings: {extra}")
 
     use_specific_printer = bool(printer_name and printer_name.strip())
     if use_specific_printer:
@@ -751,6 +754,38 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
         else:
             print_path = filepath
 
+        # ── DUPLEX ──
+        duplex_on   = bool(job.get("duplex"))
+        duplex_mode = job.get("duplex_mode", "") or ""
+        total_pgs   = int(job.get("total_pages", 1) or 1)
+
+        if duplex_on and duplex_mode == "auto":
+            # Printer khud duplex karta hai — driver ko duplexlong flag
+            log("📄 AUTO duplex — printer dono side khud chhapega")
+            return print_pdf_sumatra(print_path, copies, color_mode, printer_name, extra="duplexlong")
+
+        if duplex_on and duplex_mode == "manual" and total_pgs > 1:
+            # Do-pass manual duplex: pehle ODD pages (1,3,5...), phir owner
+            # pages palat ke lagaye, phir EVEN pages (2,4,6...).
+            # Server manual-duplex par copies=1 force karta hai.
+            # NOTE: 3+ sheets par even-pass ka order printer ke output
+            # stacking par depend karta hai (face-down laser = seedha sahi;
+            # face-up par owner stack palat le). 1-2 page docs par hamesha sahi.
+            log("📄 MANUAL duplex — pass 1: front (odd pages)")
+            ok1 = print_pdf_sumatra(print_path, 1, color_mode, printer_name, extra="odd")
+            if not ok1:
+                return False
+            update_tray_status("📄 Back side ka wait — pages palto!")
+            if ask_backside(job):
+                log("📄 MANUAL duplex — pass 2: back (even pages)")
+                return print_pdf_sumatra(print_path, 1, color_mode, printer_name, extra="even")
+            else:
+                log("📄 Owner ne back side skip kiya — sirf front print hua")
+                return True  # front print hua tha, job done
+
+        if duplex_on and total_pgs <= 1:
+            log("📄 Duplex select tha par 1 hi page hai — normal print")
+
         # PDF print karo with fit-to-page (image bhi ab already A4-fitted PDF hai)
         success = print_pdf_sumatra(print_path, copies, color_mode, printer_name)
         return success
@@ -830,6 +865,53 @@ def mark_failed(job_id, reason=""):
 # FAIL-OPEN: popup kisi wajah se na ban paye to print ho jata hai —
 # popup ki technical dikkat business nahi rokni chahiye.
 # ══════════════════════════════════════════════════════════════════
+def ask_backside(job):
+    """Manual duplex: front pages print ho gaye — owner se pucho back side
+    ready hai? tkinter popup, fail par ctypes MessageBox (win32 core,
+    virtually kabhi fail nahi hota). Dono fail (impossible-adjacent) to
+    True — evens print karo, worst case alag sheets par niklenge."""
+    try:
+        import tkinter as tk
+        result = {"ok": None}
+        root = tk.Tk()
+        root.title("QR Se Print — Back Side")
+        root.attributes("-topmost", True)
+        root.resizable(False, False)
+        w, h = 380, 240
+        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+        root.geometry(f"{w}x{h}+{sw - w - 20}+{sh - h - 80}")
+        root.configure(bg="white")
+        tk.Label(root, text="📄 Front Side Print Ho Gaya!", font=("Segoe UI", 13, "bold"),
+                 bg="white").pack(pady=(18, 4))
+        tk.Label(root, text="Ab printed pages ko printer ki tray mein\n"
+                            "WAPAS lagao (blank side print hone wali taraf).\n"
+                            "Phir neeche button dabao — back side chhapega.",
+                 font=("Segoe UI", 10), bg="white", fg="#444", justify="center").pack(pady=4)
+        btns = tk.Frame(root, bg="white"); btns.pack(pady=12)
+        def _ok(): result["ok"] = True; root.destroy()
+        def _no(): result["ok"] = False; root.destroy()
+        tk.Button(btns, text="🖨️ Ab Back Side Print Karo", font=("Segoe UI", 10, "bold"),
+                  bg="#16a34a", fg="white", padx=14, pady=8, bd=0, cursor="hand2",
+                  command=_ok).pack(side="left", padx=6)
+        tk.Button(btns, text="❌ Rehne Do", font=("Segoe UI", 10, "bold"),
+                  bg="#9ca3af", fg="white", padx=14, pady=8, bd=0, cursor="hand2",
+                  command=_no).pack(side="left", padx=6)
+        root.mainloop()
+        if result["ok"] is None:
+            return False  # X se band = back side cancel
+        return result["ok"]
+    except Exception:
+        try:
+            import ctypes
+            r = ctypes.windll.user32.MessageBoxW(None,
+                "Front side print ho gaya!\n\nPages printer mein WAPAS lagao,\n"
+                "phir OK dabao — back side print hoga.\n(Cancel = back side skip)",
+                "QR Se Print — Back Side", 0x40 | 0x1)
+            return r == 1
+        except Exception:
+            log("⚠️ Back-side popup + MessageBox dono fail — evens seedha print", "WARN")
+            return True
+
 def ask_approval(job):
     try:
         import tkinter as tk
@@ -935,6 +1017,10 @@ def process_job(job):
 
     # ── COUNTER APPROVAL GATE ── online-paid jobs seedha print (paisa aa
     # chuka); sirf counter jobs par owner se pucho
+    log(f"📄 Job {job_id}: {color.upper()} | copies={job.get('copies',1)} | "
+        f"BW-printer='{printer_name_bw or 'default'}' | Color-printer='{printer_name_color or 'default'}' | "
+        f"target='{target_printer or 'DEFAULT PRINTER'}'")
+
     if job.get("payment_method") == "counter" and approval_enabled():
         update_tray_status("Counter order — approval ka wait")
         ans = ask_approval(job)
@@ -1127,7 +1213,17 @@ def download_installer(progress_cb=None):
     resp.raise_for_status()
 
     total = int(resp.headers.get('content-length') or 0)
-    installer_path = os.path.join(tempfile.gettempdir(), "QRSePrint-Update-Setup.exe")
+    # FIX [Errno 13]: fixed filename par purana locked/antivirus-held installer
+    # har agla download fail karwata tha (auto + manual dono). Ab unique naam
+    # per download + purane installers best-effort saaf.
+    try:
+        for old_f in os.listdir(tempfile.gettempdir()):
+            if old_f.startswith("QRSePrint-Update-") and old_f.endswith(".exe"):
+                try: os.remove(os.path.join(tempfile.gettempdir(), old_f))
+                except Exception: pass
+    except Exception:
+        pass
+    installer_path = os.path.join(tempfile.gettempdir(), f"QRSePrint-Update-{int(time.time())}.exe")
     done = 0
     with open(installer_path, 'wb') as f:
         for chunk in resp.iter_content(chunk_size=65536):
