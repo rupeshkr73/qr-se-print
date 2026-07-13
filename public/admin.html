@@ -235,6 +235,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       <div class="form-group">
         <label>Shop ID</label>
         <input id="spShopId" placeholder="SHOP_XXXXXXXX" style="text-transform:uppercase;">
+        <input id="spPhone" type="tel" maxlength="10" placeholder="Registered mobile number (verification ke liye)" style="margin-top:8px;">
       </div>
       <div class="form-group">
         <label>Naya Password Banao</label>
@@ -291,6 +292,17 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           <button class="supply-btn" data-w="low_ink" onclick="setSupply('low_ink')" style="border:1.5px solid #e3e5ec;background:#fff;border-radius:10px;padding:9px 14px;font-size:12px;font-weight:700;cursor:pointer;">🟡 Ink Kam Hai</button>
           <button class="supply-btn" data-w="no_paper" onclick="setSupply('no_paper')" style="border:1.5px solid #e3e5ec;background:#fff;border-radius:10px;padding:9px 14px;font-size:12px;font-weight:700;cursor:pointer;">🔴 Paper Khatam</button>
         </div>
+      </div>
+    </div>
+
+    <!-- SOFTWARE VERSION BANNER -->
+    <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg,#e8f9ee,#f0fdf4) !important;border:1.5px solid #86efac !important;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+          <div style="font-weight:800;font-size:14px;">🔄 Software Version <span id="verBannerNum">—</span> Available</div>
+          <div style="font-size:11px;color:#166534;margin-top:2px;">Hamesha latest version install rakho — naye features + bug fixes</div>
+        </div>
+        <button onclick="downloadEasyInstaller()" style="background:#16a34a;color:#fff;border:none;border-radius:12px;padding:12px 18px;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap;">⬇️ Download & Install</button>
       </div>
     </div>
 
@@ -379,33 +391,25 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       <p style="font-size:11px;color:#6b6870;margin-top:4px;word-break:break-all;" id="adminQrUrl"></p>
 
       <button class="btn-save" style="background:linear-gradient(135deg,#00c853,#009624);margin-top:16px;" onclick="downloadEasyInstaller()">
-        ⬇️ Easy Installer Download Karo (.exe)
+        ⬇️ Download Latest Software Version <span id="latestVerBtn">—</span>
       </button>
       <p style="font-size:11px;color:#6b6870;margin-top:6px;text-align:center;">Recommended — Python ya SumatraPDF alag se install karne ki zaroorat nahi, sab bundled hai</p>
 
-      <button class="btn-save" style="background:#6b6870;margin-top:10px;font-size:12px;" onclick="downloadAgentPackage()">
-        📦 Advanced: Python ZIP Version Download Karo
+      <button onclick="downloadPoster()" style="width:100%;background:none;border:2px solid #7c3aed;color:#7c3aed;border-radius:12px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;margin-top:10px;font-family:'Inter',sans-serif;">
+        🖼️ Shop Poster Download Karo (QR laga hua)
       </button>
-      <p style="font-size:10px;color:#9b9690;margin-top:4px;text-align:center;">Sirf technical users ke liye — agar Easy Installer kaam na kare</p>
+      <p style="font-size:10px;color:#9b9690;margin-top:4px;text-align:center;">A4 poster — aapka QR code isme already laga hoga, print karke shop mein lagao</p>
     </div>
 
     <div class="card">
-      <h2>🔗 Important Software Links</h2>
-      <p style="font-size:12px;color:#6b6870;margin-bottom:14px;">Agar PC mein Python ya SumatraPDF nahi hai, ya install karte waqt error aaye, yahan se direct download karo:</p>
-      <div style="display:flex;flex-direction:column;gap:10px;">
-        <a href="https://www.python.org/downloads/" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#f8f7f5;border-radius:12px;text-decoration:none;color:#111111;">
-          <span style="font-size:13px;font-weight:700;">🐍 Python (Required)</span>
-          <span style="font-size:11px;color:#1c6fff;font-weight:700;">Download →</span>
-        </a>
-        <a href="https://www.sumatrapdfreader.org/download-free-pdf-viewer" target="_blank" rel="noopener" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#f8f7f5;border-radius:12px;text-decoration:none;color:#111111;">
-          <span style="font-size:13px;font-weight:700;">📄 SumatraPDF (Required)</span>
-          <span style="font-size:11px;color:#1c6fff;font-weight:700;">Download →</span>
-        </a>
+      <h2>📌 Zaroori Instructions</h2>
+      <div style="font-size:13px;color:#333;line-height:2;margin-top:8px;">
+        1️⃣ <b>Hamesha latest version install rakho</b> — upar wale green button se. Naye features (duplex, counter approval) aur bug fixes latest version mein hi milte hain.<br>
+        2️⃣ Software <b>usi PC par install karo jisse printer juda hai</b> aur jo shop time par chalu rehta hai.<br>
+        3️⃣ Install ke baad apna <b>Shop ID</b> daalo — bas, ho gaya. Python ya SumatraPDF alag se install karne ki <b>koi zaroorat nahi</b>, sab software ke andar bundled hai.<br>
+        4️⃣ Naya version install karne se pehle purana <b>uninstall karne ki zaroorat nahi</b> — naya khud replace kar deta hai.<br>
+        5️⃣ Agent tray icon (neeche right corner) mein 🖨️ dikhta rahe = sab theek. Wahan se "Check for Update" bhi kar sakte ho.
       </div>
-      <p style="font-size:11px;color:#6b6870;margin-top:14px;line-height:1.6;">
-        ⚠️ Python install karte waqt <strong>"Add to PATH"</strong> checkbox zaroor tick karo.<br>
-        SumatraPDF install karke seedha "Next, Next, Finish" karo — koi extra setting nahi chahiye.
-      </p>
     </div>
 
     </div><!-- /qr -->
@@ -433,6 +437,15 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           <select id="setPrinterColor">
             <option value="">System Default Printer (auto)</option>
           </select>
+        </div>
+        <div class="form-group full">
+          <label>📄 Duplex (Dual-Side) Printing</label>
+          <select id="setDuplexMode">
+            <option value="">❌ Nahi — single side only</option>
+            <option value="auto">🔁 Auto Duplex — printer khud dono side chhapta hai</option>
+            <option value="manual">✋ Manual Duplex — front ke baad popup, page palat ke back print</option>
+          </select>
+          <p style="font-size:11px;color:#c2410c;margin:4px 0 0;">⚠️ Duplex ke liye Print Agent v9+ chahiye — pehle agent update karo, tabhi ye enable karna.</p>
         </div>
         <div class="form-group full">
           <p style="font-size:12px;color:#6b6870;margin:-8px 0 0;">
@@ -735,7 +748,7 @@ async function setNewPassword() {
     const res = await fetch('/api/shop/set-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ shopId, newPassword })
+      body: JSON.stringify({ shopId, newPassword, phone: document.getElementById('spPhone').value.trim() })
     });
     const data = await res.json();
     if (data.success) {
@@ -797,10 +810,12 @@ async function loadAdminPanel() {
 
     await loadPrinterModelsAdmin(shop.printer_model);
     await loadColorPrinterDropdowns(shop.printer_name_bw, shop.printer_name_color);
+    document.getElementById('setDuplexMode').value = shop.duplex_mode || '';
     loadStats(shop.id);
     loadJobs();
     loadReferral(shop.id);
     loadBreakdown();
+    loadAgentVersion();
     shopPaused = !!shop.paused; shopSupply = shop.supply_warning || '';
     renderStatusUI();
   } catch(e) {
@@ -993,6 +1008,47 @@ async function openWithdraw(){
   } catch(e){ toast('❌ '+e.message); }
 }
 
+// ===== VERSION DISPLAY =====
+async function loadAgentVersion(){
+  try{
+    const r = await fetch('/api/agent/version');
+    const d = await r.json();
+    const v = 'V' + (d.version || '?');
+    const b1 = document.getElementById('verBannerNum'); if(b1) b1.textContent = v;
+    const b2 = document.getElementById('latestVerBtn'); if(b2) b2.textContent = v;
+  }catch(e){}
+}
+
+// ===== POSTER (QR embedded) =====
+function downloadPoster(){
+  const qrImg = document.getElementById('adminQrImg');
+  if (!qrImg || !qrImg.src) { alert('QR abhi load nahi hua, page refresh karo'); return; }
+  const poster = new Image();
+  poster.onload = function(){
+    const cv = document.createElement('canvas');
+    cv.width = poster.naturalWidth; cv.height = poster.naturalHeight;
+    const ctx = cv.getContext('2d');
+    ctx.drawImage(poster, 0, 0);
+    // Blank box (measured): left 31.45%, top 30.19%, w 37.42%, h 25.51%
+    const bx = cv.width*0.3145, by = cv.height*0.3019, bw = cv.width*0.3742, bh = cv.height*0.2551;
+    const side = Math.min(bw, bh) * 0.96;              // square QR, thoda padding
+    const qx = bx + (bw - side)/2, qy = by + (bh - side)/2;
+    ctx.fillStyle = '#fff'; ctx.fillRect(bx, by, bw, bh);
+    const qr = new Image();
+    qr.onload = function(){
+      ctx.imageSmoothingEnabled = false;               // QR crisp rahe
+      ctx.drawImage(qr, qx, qy, side, side);
+      const a = document.createElement('a');
+      a.href = cv.toDataURL('image/png');
+      a.download = 'QRSePrint-Poster.png';
+      a.click();
+    };
+    qr.src = qrImg.src;
+  };
+  poster.onerror = function(){ alert('poster.jpg nahi mila — GitHub public folder mein poster.jpg upload karo'); };
+  poster.src = '/poster.jpg';
+}
+
 async function loadStats(shopId) {
   try {
     const res = await fetch(`/api/shop/${shopId}/stats`);
@@ -1071,6 +1127,7 @@ async function saveSettings() {
     printer_model: printerModel,
     printer_name_bw: document.getElementById('setPrinterBW').value,
     printer_name_color: document.getElementById('setPrinterColor').value,
+      duplex_mode: document.getElementById('setDuplexMode').value,
     price_bw: parseInt(document.getElementById('setPriceBW').value),
     price_color: parseInt(document.getElementById('setPriceColor').value),
     payment_mode: paymentMode
