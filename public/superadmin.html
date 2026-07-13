@@ -281,6 +281,38 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     </div><!-- /overview -->
 
     <div data-sect="demos">
+
+    <!-- DEMO CONFIG CONTROL -->
+    <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg,#f3ecff,#faf5ff) !important;border:1.5px solid #d9caf9 !important;">
+      <h2><span>⚙️ Demo Control</span></h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:12px 0;">
+        <div>
+          <div style="font-weight:800;font-size:14px;" id="demoStatusLbl">Loading...</div>
+          <div style="font-size:11px;color:#6b6870;margin-top:2px;">Band karne par homepage se demo button gayab ho jaayega</div>
+        </div>
+        <button id="demoToggleBtn" onclick="toggleDemoEnabled()" style="border:none;border-radius:12px;padding:11px 20px;font-weight:800;font-size:13px;cursor:pointer;">Loading...</button>
+      </div>
+      <div style="border-top:1.5px dashed #d9caf9;padding-top:12px;">
+        <div style="font-size:12px;font-weight:700;margin-bottom:8px;">⏰ Demo Time Limit</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+          <input type="number" id="demoMinsInput" min="15" max="1440" step="15" style="width:100px;padding:9px 12px;border:1.5px solid #d9caf9;border-radius:10px;font-weight:700;">
+          <span style="font-size:12px;color:#6b6870;">minutes (<span id="demoMinsHuman">—</span>)</span>
+          <button onclick="saveDemoMinutes()" style="background:#7c3aed;color:#fff;border:none;border-radius:10px;padding:9px 16px;font-size:12px;font-weight:700;cursor:pointer;">Save Time</button>
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+          <button onclick="setDemoMinsQuick(60)" class="demo-preset">1 hr</button>
+          <button onclick="setDemoMinsQuick(90)" class="demo-preset">1.5 hr</button>
+          <button onclick="setDemoMinsQuick(120)" class="demo-preset">2 hr</button>
+          <button onclick="setDemoMinsQuick(240)" class="demo-preset">4 hr</button>
+          <button onclick="setDemoMinsQuick(720)" class="demo-preset">12 hr</button>
+          <button onclick="setDemoMinsQuick(1440)" class="demo-preset">24 hr</button>
+        </div>
+        <style>.demo-preset{background:#fff;border:1.5px solid #d9caf9;color:#7c3aed;border-radius:8px;padding:6px 12px;font-size:11px;font-weight:700;cursor:pointer;}
+        .demo-preset:hover{background:#7c3aed;color:#fff;}</style>
+        <p style="font-size:11px;color:#6b6870;margin-top:8px;">Min 15 min, max 1440 min (24 hr). <b>Sirf nayi demos par lagega</b> — pehle ki active demos apni original time se hi expire hongi.</p>
+      </div>
+    </div>
+
     <!-- DEMO ACCOUNTS -->
     <div class="card" style="margin-bottom:20px;">
       <h2><span>🎯 Demo Accounts</span></h2>
@@ -378,6 +410,59 @@ async function doLogin() {
   btn.disabled = false; btn.textContent = 'Login';
 }
 
+let _demoCfg = { enabled: true, minutes: 120 };
+function humanMins(m){
+  if (m >= 60 && m % 60 === 0) return (m/60) + ' hr';
+  if (m >= 60) return (m/60).toFixed(1) + ' hr';
+  return m + ' min';
+}
+function renderDemoCfg(){
+  const lbl = document.getElementById('demoStatusLbl');
+  const btn = document.getElementById('demoToggleBtn');
+  if (_demoCfg.enabled) {
+    lbl.textContent = '🟢 Demo Enabled — homepage par button dikh raha hai';
+    btn.textContent = '⏸️ Disable Demo';
+    btn.style.background = '#fee2e2'; btn.style.color = '#c22';
+  } else {
+    lbl.textContent = '🔴 Demo Disabled — homepage par button chhupa hai';
+    btn.textContent = '▶️ Enable Demo';
+    btn.style.background = '#dcfce7'; btn.style.color = '#166534';
+  }
+  document.getElementById('demoMinsInput').value = _demoCfg.minutes;
+  document.getElementById('demoMinsHuman').textContent = humanMins(_demoCfg.minutes);
+}
+async function loadDemoConfig(){
+  try{
+    const r = await fetch('/api/superadmin/demo-config', { headers:{'Authorization':'Bearer '+authToken} });
+    _demoCfg = await r.json();
+    renderDemoCfg();
+  }catch(e){}
+}
+async function toggleDemoEnabled(){
+  try{
+    const r = await fetch('/api/superadmin/demo-config', {
+      method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},
+      body: JSON.stringify({ enabled: !_demoCfg.enabled, minutes: _demoCfg.minutes })
+    });
+    const d = await r.json();
+    if(d.success){ _demoCfg = d; renderDemoCfg(); } else alert('❌ '+(d.error||'Fail'));
+  }catch(e){ alert('❌ '+e.message); }
+}
+function setDemoMinsQuick(m){ document.getElementById('demoMinsInput').value = m; document.getElementById('demoMinsHuman').textContent = humanMins(m); }
+async function saveDemoMinutes(){
+  const m = parseInt(document.getElementById('demoMinsInput').value);
+  if (isNaN(m) || m < 15 || m > 1440) { alert('15 se 1440 minutes ke beech daalo'); return; }
+  try{
+    const r = await fetch('/api/superadmin/demo-config', {
+      method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},
+      body: JSON.stringify({ enabled: _demoCfg.enabled, minutes: m })
+    });
+    const d = await r.json();
+    if(d.success){ _demoCfg = d; renderDemoCfg(); alert('✅ Demo time save ho gaya: '+humanMins(m)); }
+    else alert('❌ '+(d.error||'Fail'));
+  }catch(e){ alert('❌ '+e.message); }
+}
+
 async function loadDemos(){
   try{
     const res = await fetch('/api/superadmin/demos', { headers:{'Authorization':'Bearer '+authToken} });
@@ -449,6 +534,7 @@ async function completeWithdrawal(id, amount){
 async function loadPanel() {
   loadWithdrawals();
   loadDemos();
+  loadDemoConfig();
   try {
     const [overviewRes, shopsRes, feeRes, versionRes, installerUrlRes] = await Promise.all([
       fetch('/api/superadmin/overview', { headers: { 'Authorization': 'Bearer ' + authToken } }),

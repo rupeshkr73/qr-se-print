@@ -296,6 +296,21 @@ async function loadPrices() {
 loadPrices();
 
 // ===== FREE DEMO =====
+// Config check — agar demo band hai to strip chhipao
+(async ()=>{
+  try{
+    const r = await fetch('/api/demo/config');
+    const c = await r.json();
+    const el = document.querySelector('.demo-strip');
+    if (el && !c.enabled) el.style.display = 'none';
+    if (c.enabled && c.minutes && el){
+      const hrs = c.minutes >= 60 ? (c.minutes/60).toFixed(c.minutes%60?1:0) : null;
+      const txt = hrs ? `${hrs} Ghanta FREE Demo` : `${c.minutes} Min FREE Demo`;
+      const lbl = el.querySelector('.rs-left b');
+      if (lbl) lbl.textContent = '🎯 ' + txt;
+    }
+  }catch(e){}
+})();
 function openDemoModal(){ document.getElementById('demoModal').classList.add('open'); }
 function closeDemoModal(){ document.getElementById('demoModal').classList.remove('open'); }
 async function createDemo(){
