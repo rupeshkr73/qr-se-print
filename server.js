@@ -280,6 +280,8 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS demo BOOLEAN DEFAULT false;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS demo_expires_at TIMESTAMP;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS duplex_mode VARCHAR(10) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_bw_duplex INTEGER DEFAULT 0;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_color_duplex INTEGER DEFAULT 0;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS duplex BOOLEAN DEFAULT false;
       CREATE TABLE IF NOT EXISTS demo_registrations (
         id SERIAL PRIMARY KEY,
@@ -858,7 +860,7 @@ app.post('/api/shop/set-password', async (req, res) => {
 app.get('/api/shop/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,name,address,printer_model,price_bw,price_color,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode FROM shops WHERE id=$1',
+      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode FROM shops WHERE id=$1',
       [req.params.shopId]
     );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
@@ -887,7 +889,7 @@ app.get('/api/shop/:shopId/stats', async (req, res) => {
 app.get('/api/admin/profile', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT id,name,address,phone,printer_model,printer_name_bw,printer_name_color,price_bw,price_color,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
+      `SELECT id,name,address,phone,printer_model,printer_name_bw,printer_name_color,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
               payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
               CASE WHEN phonepe_salt_key != '' THEN true ELSE false END as has_phonepe_salt
@@ -961,6 +963,11 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
     if (typeof req.body.duplex_mode === 'string' && ['','auto','manual'].includes(req.body.duplex_mode)) {
       await pool.query('UPDATE shops SET duplex_mode=$1 WHERE id=$2', [req.body.duplex_mode, req.shopId]);
     }
+    // Duplex prices — sirf tab store jab valid non-negative int mile
+    const pbwd = parseInt(req.body.price_bw_duplex);
+    const pcld = parseInt(req.body.price_color_duplex);
+    if (!isNaN(pbwd) && pbwd >= 0) await pool.query('UPDATE shops SET price_bw_duplex=$1 WHERE id=$2', [pbwd, req.shopId]);
+    if (!isNaN(pcld) && pcld >= 0) await pool.query('UPDATE shops SET price_color_duplex=$1 WHERE id=$2', [pcld, req.shopId]);
     res.json({ success: true, shop: r.rows[0] });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
@@ -1042,7 +1049,7 @@ app.post('/api/payment/online/create', async (req, res) => {
     const { jobId, colorMode, copies, totalPages, selectedPages } = req.body;
 
     const jobCheck = await pool.query(
-      `SELECT j.*, s.price_bw, s.price_color, s.payment_mode, s.payment_gateway, s.paused,
+      `SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.payment_mode, s.payment_gateway, s.paused,
               s.razorpay_key_id, s.razorpay_key_secret,
               s.phonepe_merchant_id, s.phonepe_salt_key, s.phonepe_salt_index
        FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1`, [jobId]
@@ -1073,7 +1080,11 @@ app.post('/api/payment/online/create', async (req, res) => {
     // customer se N copies ka paisa, print 1 ka)
     const effCopies = (finalDuplex && shopDuplexMode === 'manual') ? 1 : finalCopies;
     const finalSelectedPages = parseSelectedPages(selectedPages, job.total_pages);
-    const pricePerPage = finalColorMode === 'color' ? job.price_color : job.price_bw;
+    // Duplex prices: agar owner ne set kiye hain (>0) to use, warna normal
+    // rate hi lagta hai (backwards-compat + accidentally 0 rakhna safe)
+    const _rateBw    = (finalDuplex && parseInt(job.price_bw_duplex) > 0)    ? job.price_bw_duplex    : job.price_bw;
+    const _rateColor = (finalDuplex && parseInt(job.price_color_duplex) > 0) ? job.price_color_duplex : job.price_color;
+    const pricePerPage = finalColorMode === 'color' ? _rateColor : _rateBw;
     const amount = pricePerPage * finalPages * effCopies;
 
     // Common job update (gateway se pehle)
@@ -1316,7 +1327,7 @@ app.post('/api/payment/counter', async (req, res) => {
     if (!jobId) return res.status(400).json({ error:'Job ID required' });
 
     const jobCheck = await pool.query(
-      'SELECT j.*, s.price_bw, s.price_color, s.payment_mode, s.paused FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1', [jobId]
+      'SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.payment_mode, s.paused FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1', [jobId]
     );
     if (!jobCheck.rows.length) return res.status(404).json({ error:'Job not found' });
 
@@ -1352,7 +1363,11 @@ app.post('/api/payment/counter', async (req, res) => {
     // customer se N copies ka paisa, print 1 ka)
     const effCopies = (finalDuplex && shopDuplexMode === 'manual') ? 1 : finalCopies;
     const finalSelectedPages = parseSelectedPages(selectedPages, job.total_pages);
-    const pricePerPage = finalColorMode === 'color' ? job.price_color : job.price_bw;
+    // Duplex prices: agar owner ne set kiye hain (>0) to use, warna normal
+    // rate hi lagta hai (backwards-compat + accidentally 0 rakhna safe)
+    const _rateBw    = (finalDuplex && parseInt(job.price_bw_duplex) > 0)    ? job.price_bw_duplex    : job.price_bw;
+    const _rateColor = (finalDuplex && parseInt(job.price_color_duplex) > 0) ? job.price_color_duplex : job.price_color;
+    const pricePerPage = finalColorMode === 'color' ? _rateColor : _rateBw;
     const amount = pricePerPage * finalPages * effCopies;
     const txnId = 'COUNTER_' + uuidv4().substring(0,10).toUpperCase();
 
