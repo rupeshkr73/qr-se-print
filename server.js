@@ -263,6 +263,8 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS supply_warning VARCHAR(30) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS demo BOOLEAN DEFAULT false;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS demo_expires_at TIMESTAMP;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS duplex_mode VARCHAR(10) DEFAULT '';
+      ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS duplex BOOLEAN DEFAULT false;
       CREATE TABLE IF NOT EXISTS demo_registrations (
         id SERIAL PRIMARY KEY,
         phone VARCHAR(15) UNIQUE,
@@ -318,6 +320,16 @@ async function initDB() {
       VALUES ('agent_version', '1')
       ON CONFLICT (key) DO NOTHING
     `);
+
+    // Broken demo logins repair (bcrypt hash galti se gaya tha; login sha256
+    // expect karta hai). Idempotent — sirf $2 (bcrypt) wale demo shops.
+    const brokenDemos = await pool.query(
+      "SELECT id, phone FROM shops WHERE demo=true AND password_hash LIKE '$2%'");
+    for (const d of brokenDemos.rows) {
+      const h = crypto.createHash('sha256').update(d.phone || '').digest('hex');
+      await pool.query('UPDATE shops SET password_hash=$1 WHERE id=$2', [h, d.id]);
+      console.log('🔧 Demo login repaired:', d.id);
+    }
 
     console.log('Database ready!');
   } catch(err) { console.error('DB error:', err.message); }
@@ -466,6 +478,48 @@ app.post('/api/shop/withdraw', verifyToken, async (req, res) => {
 });
 
 // ══════════════ WITHDRAWALS (superadmin side) ══════════════
+// ── MANUAL ACTIVATE — jab payment Razorpay me dikh raha ho par website
+// par match nahi hua (browser band, DB outage me order_id store nahi hua,
+// waghera). activateShop hi use hota hai — QR, referral reward sab same. ──
+app.post('/api/superadmin/shop/:shopId/activate', verifySuperAdmin, async (req, res) => {
+  try {
+    const shopId = req.params.shopId;
+    const ref = String((req.body && req.body.payment_ref) || '').trim().slice(0, 60);
+    if (!ref) return res.status(400).json({ error: 'Payment reference/ID daalo (Razorpay dashboard se)' });
+    const chk = await pool.query('SELECT id, setup_paid FROM shops WHERE id=$1', [shopId]);
+    if (!chk.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
+    if (chk.rows[0].setup_paid) return res.status(400).json({ error: 'Shop pehle se active hai' });
+    const { qrUrl } = await activateShop(shopId, 'MANUAL_' + ref);
+    console.log(`Manual activation: ${shopId} | ref: ${ref}`);
+    res.json({ success: true, qrUrl });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Password reset (superadmin) — number badal gaya / bhool gaya cases ──
+app.post('/api/superadmin/shop/:shopId/reset-password', verifySuperAdmin, async (req, res) => {
+  try {
+    const temp = 'QSP' + crypto.randomBytes(3).toString('hex');
+    const h = crypto.createHash('sha256').update(temp).digest('hex');
+    const r = await pool.query('UPDATE shops SET password_hash=$1 WHERE id=$2 RETURNING id', [h, req.params.shopId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
+    console.log(`Password reset by superadmin: ${req.params.shopId}`);
+    res.json({ success: true, tempPassword: temp });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Demo accounts list — nazar rakhne + manual delete ke liye ──
+app.get('/api/superadmin/demos', verifySuperAdmin, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT s.id, s.name, s.phone, s.created_at, s.demo_expires_at,
+              (SELECT COUNT(*) FROM print_jobs j WHERE j.shop_id = s.id) as total_jobs,
+              (SELECT COUNT(*) FROM print_jobs j WHERE j.shop_id = s.id AND j.payment_status='paid') as prints
+       FROM shops s WHERE s.demo = true
+       ORDER BY s.created_at DESC`);
+    res.json(r.rows);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/superadmin/withdrawals', verifySuperAdmin, async (req, res) => {
   try {
     const r = await pool.query(
@@ -518,7 +572,7 @@ app.post('/api/demo/create', async (req, res) => {
       return res.status(429).json({ error: 'Aaj ke liye demo limit ho gayi — kal try karo ya abhi register karo' });
 
     const shopId = 'DEMO_' + crypto.randomBytes(4).toString('hex').toUpperCase();
-    const passwordHash = await bcrypt.hash(phone, 10);
+    const passwordHash = crypto.createHash('sha256').update(phone).digest('hex');
     await pool.query(
       `INSERT INTO shops (id, name, phone, price_bw, price_color, payment_mode, password_hash,
                           setup_paid, setup_amount, demo, demo_expires_at)
@@ -752,16 +806,32 @@ app.post('/api/shop/login', async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Set/claim password — ab REGISTERED MOBILE verify hota hai ──
+// Pehle koi bhi kisi legacy Shop ID (jo QR URL me public hai) ka password
+// set karke shop hijack kar sakta tha. Ab: shop ka registered number do,
+// match hua tabhi. Phone public API se hata diya gaya hai (neeche), to
+// attacker use remotely nahi jaan sakta. + IP rate-limit (brute force).
+const _spAttempts = new Map();  // ip -> {count, reset}
 app.post('/api/shop/set-password', async (req, res) => {
   try {
-    const { shopId, newPassword } = req.body;
-    if (!shopId || !newPassword || newPassword.length < 4) {
-      return res.status(400).json({ error: 'Shop ID aur kam se kam 4-character password chahiye' });
+    const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+    const now = Date.now();
+    const rec = _spAttempts.get(ip) || { count: 0, reset: now + 3600e3 };
+    if (now > rec.reset) { rec.count = 0; rec.reset = now + 3600e3; }
+    if (rec.count >= 5) return res.status(429).json({ error: 'Bahut zyada koshish — 1 ghante baad try karo' });
+    rec.count++; _spAttempts.set(ip, rec);
+
+    const { shopId, phone, newPassword } = req.body;
+    if (!shopId || !phone || !newPassword || newPassword.length < 4) {
+      return res.status(400).json({ error: 'Shop ID, registered mobile aur 4+ character password — teeno chahiye' });
     }
-    const r = await pool.query('SELECT id, password_hash FROM shops WHERE id=$1', [shopId.trim().toUpperCase()]);
+    const r = await pool.query('SELECT id, phone, password_hash FROM shops WHERE id=$1', [shopId.trim().toUpperCase()]);
     if (!r.rows.length) return res.status(404).json({ error: 'Shop ID nahi mila' });
     if (r.rows[0].password_hash) {
-      return res.status(400).json({ error: 'Password already set hai. Login karke change karo.' });
+      return res.status(400).json({ error: 'Password already set hai. Login karke change karo, ya bhool gaye to admin se contact karo.' });
+    }
+    if (normPhone(phone) !== normPhone(r.rows[0].phone)) {
+      return res.status(403).json({ error: 'Mobile number match nahi hua — wahi number daalo jo registration me diya tha' });
     }
     const passwordHash = crypto.createHash('sha256').update(newPassword).digest('hex');
     await pool.query('UPDATE shops SET password_hash=$1 WHERE id=$2', [passwordHash, shopId.trim().toUpperCase()]);
@@ -772,7 +842,7 @@ app.post('/api/shop/set-password', async (req, res) => {
 app.get('/api/shop/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,name,address,phone,printer_model,price_bw,price_color,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at FROM shops WHERE id=$1',
+      'SELECT id,name,address,printer_model,price_bw,price_color,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode FROM shops WHERE id=$1',
       [req.params.shopId]
     );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
@@ -801,7 +871,7 @@ app.get('/api/shop/:shopId/stats', async (req, res) => {
 app.get('/api/admin/profile', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT id,name,address,phone,printer_model,printer_name_bw,printer_name_color,price_bw,price_color,payment_mode,qr_code,created_at,paused,supply_warning,
+      `SELECT id,name,address,phone,printer_model,printer_name_bw,printer_name_color,price_bw,price_color,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
               payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
               CASE WHEN phonepe_salt_key != '' THEN true ELSE false END as has_phonepe_salt
@@ -871,6 +941,10 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
     );
 
     const r = await pool.query('SELECT id,name,address,phone,printer_model,printer_name_bw,printer_name_color,price_bw,price_color,payment_mode,payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index FROM shops WHERE id=$1', [req.shopId]);
+    // Duplex mode alag se (validate karke)
+    if (typeof req.body.duplex_mode === 'string' && ['','auto','manual'].includes(req.body.duplex_mode)) {
+      await pool.query('UPDATE shops SET duplex_mode=$1 WHERE id=$2', [req.body.duplex_mode, req.shopId]);
+    }
     res.json({ success: true, shop: r.rows[0] });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
@@ -970,6 +1044,13 @@ app.post('/api/payment/online/create', async (req, res) => {
     }
 
     const finalColorMode = colorMode || job.color_mode;
+    // ── DUPLEX ── sirf tab jab shop ne enable kiya ho; manual duplex par
+    // copies zabardasti 1 (warna owner ko har copy pe front/back popup
+    // jhelna padta aur pages mix ho jate)
+    let finalDuplex = false;
+    let dupShop = await pool.query('SELECT duplex_mode FROM shops WHERE id=$1', [job.shop_id]);
+    const shopDuplexMode = dupShop.rows.length ? (dupShop.rows[0].duplex_mode || '') : '';
+    if (req.body.duplex === true && shopDuplexMode) finalDuplex = true;
     const finalCopies = parseInt(copies) || job.copies;
     const finalPages = parseInt(totalPages) || job.total_pages;
     const finalSelectedPages = parseSelectedPages(selectedPages, job.total_pages);
@@ -978,8 +1059,8 @@ app.post('/api/payment/online/create', async (req, res) => {
 
     // Common job update (gateway se pehle)
     await pool.query(
-      'UPDATE print_jobs SET color_mode=$1, copies=$2, total_pages=$3, selected_pages=$4, amount=$5 WHERE id=$6',
-      [finalColorMode, finalCopies, finalPages, finalSelectedPages.join(','), amount, jobId]
+      'UPDATE print_jobs SET color_mode=$1, copies=$2, total_pages=$3, selected_pages=$4, amount=$5, duplex=$6 WHERE id=$7',
+      [finalColorMode, (finalDuplex && shopDuplexMode==='manual') ? 1 : finalCopies, finalTotalPages, finalSelectedPages, finalAmount, finalDuplex, jobId]
     );
 
     if (job.payment_gateway === 'razorpay') {
@@ -1239,6 +1320,13 @@ app.post('/api/payment/counter', async (req, res) => {
     }
 
     const finalColorMode = colorMode || job.color_mode;
+    // ── DUPLEX ── sirf tab jab shop ne enable kiya ho; manual duplex par
+    // copies zabardasti 1 (warna owner ko har copy pe front/back popup
+    // jhelna padta aur pages mix ho jate)
+    let finalDuplex = false;
+    let dupShop = await pool.query('SELECT duplex_mode FROM shops WHERE id=$1', [job.shop_id]);
+    const shopDuplexMode = dupShop.rows.length ? (dupShop.rows[0].duplex_mode || '') : '';
+    if (req.body.duplex === true && shopDuplexMode) finalDuplex = true;
     const finalCopies = parseInt(copies) || job.copies;
     const finalPages = parseInt(totalPages) || job.total_pages;
     const finalSelectedPages = parseSelectedPages(selectedPages, job.total_pages);
@@ -1367,8 +1455,8 @@ app.get('/api/jobs/pending/:shopId', async (req, res) => {
          FOR UPDATE OF j2 SKIP LOCKED
        ) AND s.id=j.shop_id
        RETURNING j.id,j.file_name,j.file_url,j.file_public_id,j.file_type,j.copies,j.color_mode,
-                 j.total_pages,j.selected_pages,j.amount,j.payment_method,j.created_at,
-                 s.printer_name_bw,s.printer_name_color`,
+                 j.total_pages,j.selected_pages,j.amount,j.payment_method,j.created_at,j.duplex,
+                 s.printer_name_bw,s.printer_name_color,s.duplex_mode`,
       [req.params.shopId]
     );
     res.json({ jobs: r.rows });
