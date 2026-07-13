@@ -440,12 +440,26 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         </div>
         <div class="form-group full">
           <label>📄 Duplex (Dual-Side) Printing</label>
-          <select id="setDuplexMode">
+          <select id="setDuplexMode" onchange="toggleDuplexPrices()">
             <option value="">❌ Nahi — single side only</option>
             <option value="auto">🔁 Auto Duplex — printer khud dono side chhapta hai</option>
             <option value="manual">✋ Manual Duplex — front ke baad popup, page palat ke back print</option>
           </select>
-          <p style="font-size:11px;color:#c2410c;margin:4px 0 0;">⚠️ Duplex ke liye Print Agent v9+ chahiye — pehle agent update karo, tabhi ye enable karna.</p>
+          <p style="font-size:11px;color:#c2410c;margin:4px 0 0;">⚠️ Duplex ke liye Print Agent v10+ chahiye — pehle agent update karo, tabhi ye enable karna.</p>
+        </div>
+        <div class="form-group full" id="duplexPricesRow" style="display:none;background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:12px;padding:12px;margin-top:4px;">
+          <label style="color:#7c3aed;">💰 Duplex Prices (per page — dono side milaake)</label>
+          <p style="font-size:11px;color:#6b6870;margin:0 0 8px;">Blank rakho ya 0 daalo to normal B&W/Color rate hi lagega. Duplex ka alag rate chahiye to yahan set karo.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label style="font-size:11px;">B&W Duplex (₹/page)</label>
+              <input type="number" id="setPriceBwDuplex" min="0" placeholder="e.g. 8">
+            </div>
+            <div>
+              <label style="font-size:11px;">Color Duplex (₹/page)</label>
+              <input type="number" id="setPriceColorDuplex" min="0" placeholder="e.g. 15">
+            </div>
+          </div>
         </div>
         <div class="form-group full">
           <p style="font-size:12px;color:#6b6870;margin:-8px 0 0;">
@@ -811,6 +825,9 @@ async function loadAdminPanel() {
     await loadPrinterModelsAdmin(shop.printer_model);
     await loadColorPrinterDropdowns(shop.printer_name_bw, shop.printer_name_color);
     document.getElementById('setDuplexMode').value = shop.duplex_mode || '';
+    document.getElementById('setPriceBwDuplex').value    = shop.price_bw_duplex    || '';
+    document.getElementById('setPriceColorDuplex').value = shop.price_color_duplex || '';
+    toggleDuplexPrices();
     loadStats(shop.id);
     loadJobs();
     loadReferral(shop.id);
@@ -1008,6 +1025,11 @@ async function openWithdraw(){
   } catch(e){ toast('❌ '+e.message); }
 }
 
+function toggleDuplexPrices(){
+  const on = !!document.getElementById('setDuplexMode').value;
+  document.getElementById('duplexPricesRow').style.display = on ? 'block' : 'none';
+}
+
 // ===== VERSION DISPLAY =====
 async function loadAgentVersion(){
   try{
@@ -1128,6 +1150,8 @@ async function saveSettings() {
     printer_name_bw: document.getElementById('setPrinterBW').value,
     printer_name_color: document.getElementById('setPrinterColor').value,
       duplex_mode: document.getElementById('setDuplexMode').value,
+      price_bw_duplex:    document.getElementById('setPriceBwDuplex').value    || 0,
+      price_color_duplex: document.getElementById('setPriceColorDuplex').value || 0,
     price_bw: parseInt(document.getElementById('setPriceBW').value),
     price_color: parseInt(document.getElementById('setPriceColor').value),
     payment_mode: paymentMode

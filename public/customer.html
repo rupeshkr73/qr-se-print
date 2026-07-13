@@ -398,7 +398,7 @@ const shopId = location.pathname.split('/').pop();
 // ═══════════════════════════════════════════════
 let state = {
   priceBW: 5, priceColor: 10,
-  colorMode: 'bw', copies: 1, duplex: false, shopDuplexMode: '',
+  colorMode: 'bw', copies: 1, duplex: false, shopDuplexMode: '', priceBwDuplex: 0, priceColorDuplex: 0,
   jobId: null,
   shopPaymentMode: 'both', shopGateway: '', razorpayKeyId: '',
   onlineAllowed: false, counterAllowed: true,
@@ -497,6 +497,8 @@ async function init() {
     }
 
     state.shopDuplexMode = shop.duplex_mode || '';
+    state.priceBwDuplex    = parseInt(shop.price_bw_duplex)    || 0;
+    state.priceColorDuplex = parseInt(shop.price_color_duplex) || 0;
     if (state.shopDuplexMode) {
       const dr = document.getElementById('duplexRow');
       if (dr) dr.style.display = 'block';
@@ -1623,7 +1625,7 @@ function showSuccess(method, amount) {
 }
 </script>
 
-<div id="langSwitch" style="position:fixed;top:10px;left:10px;z-index:400;">
+<div id="langSwitch" style="position:fixed;bottom:14px;left:12px;z-index:400;opacity:.9;">
   <select id="langSel" onchange="setLang(this.value)" style="border:1.5px solid #d9d4cc;border-radius:10px;padding:6px 8px;font-size:12px;font-weight:700;background:#fff;color:#111;">
     <option value="hi">🇮🇳 हिंदी</option>
     <option value="en">EN English</option>
