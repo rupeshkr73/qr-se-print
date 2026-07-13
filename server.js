@@ -1803,13 +1803,17 @@ app.delete('/api/superadmin/shop/:shopId', verifySuperAdmin, async (req, res) =>
     if (PROTECTED_SHOP_IDS.includes(shopId)) {
       return res.status(403).json({ error: 'Ye shop protected hai — delete nahi ho sakti' });
     }
-    const chk = await pool.query('SELECT setup_amount FROM shops WHERE id=$1', [shopId]);
+    const chk = await pool.query('SELECT setup_paid, setup_amount FROM shops WHERE id=$1', [shopId]);
     if (!chk.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
-    if ((chk.rows[0].setup_amount || 0) > 0) {
-      return res.status(403).json({ error: 'Is shop ne setup fee pay ki hai — delete nahi ho sakti' });
+    // Delete-able: PENDING (setup_paid=false — naye ho ya purane) YA
+    // legacy paid-₹0. setup_amount register par hi store hota hai (payment
+    // se pehle), isliye amount>0 hona payment ka saboot NAHI — setup_paid hai.
+    const deletable = !chk.rows[0].setup_paid || (chk.rows[0].setup_amount || 0) === 0;
+    if (!deletable) {
+      return res.status(403).json({ error: 'Paid/Active shop delete nahi ho sakti' });
     }
     await pool.query('DELETE FROM print_jobs WHERE shop_id=$1', [shopId]);
-    await pool.query('DELETE FROM shops WHERE id=$1 AND COALESCE(setup_amount,0)=0', [shopId]);
+    await pool.query("DELETE FROM shops WHERE id=$1 AND (setup_paid=false OR COALESCE(setup_amount,0)=0)", [shopId]);
     res.json({ success: true });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
