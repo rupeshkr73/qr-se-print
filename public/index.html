@@ -294,6 +294,98 @@ async function loadPrices() {
   } catch(e) {}
 }
 loadPrices();
+
+// ===== FREE DEMO =====
+function openDemoModal(){ document.getElementById('demoModal').classList.add('open'); }
+function closeDemoModal(){ document.getElementById('demoModal').classList.remove('open'); }
+async function createDemo(){
+  const err = document.getElementById('dmErr');
+  err.style.display = 'none';
+  const name = document.getElementById('dmName').value.trim();
+  const phone = document.getElementById('dmPhone').value.trim();
+  if(!name){ err.textContent='Naam daalo'; err.style.display='block'; return; }
+  if(!/^\d{10}$/.test(phone)){ err.textContent='Sahi 10-digit mobile daalo'; err.style.display='block'; return; }
+  const btn = document.getElementById('dmGo');
+  btn.disabled = true; btn.textContent = '⏳ Ban raha hai...';
+  try{
+    const r = await fetch('/api/demo/create', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name, phone })
+    });
+    const d = await r.json();
+    if(!d.success) throw new Error(d.error||'Demo create fail');
+    document.getElementById('dmForm').style.display = 'none';
+    const res = document.getElementById('dmResult');
+    res.innerHTML = '✅ <b>Demo ready — 2 ghante ka time shuru!</b><br>' +
+      '🆔 Shop ID: <code>' + d.shopId + '</code><br>' +
+      '🔑 Password: <code>' + d.password + '</code> (aapka mobile)<br><br>' +
+      '<b>Ab kya karo:</b><br>' +
+      '1️⃣ <a href="/admin" target="_blank" style="color:#7c3aed;font-weight:700;">Shop Login</a> karke Print Agent (.exe) download karo<br>' +
+      '2️⃣ PC par install karke yehi Shop ID daalo<br>' +
+      '3️⃣ Apne phone se QR scan karke test print bhejo!<br>' +
+      '<span style="font-size:11px;color:#666;">⏰ 2 ghante baad demo expire — pasand aaye to register karna</span>';
+    res.style.display = 'block';
+  }catch(e){
+    err.textContent = '❌ ' + e.message;
+    err.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Demo Shuru Karo ›';
+  }
+}
+</script>
+
+
+<div id="langSwitch" style="position:fixed;top:10px;left:10px;z-index:400;">
+  <select id="langSel" onchange="setLang(this.value)" style="border:1.5px solid #e3e5ec;border-radius:10px;padding:6px 8px;font-size:12px;font-weight:700;background:#fff;color:#111;">
+    <option value="hi">🇮🇳 हिंदी</option>
+    <option value="en">EN English</option>
+    <option value="bn">🇧🇩 বাংলা</option>
+  </select>
+</div>
+<script>
+const I18N = {
+  en: {
+    'Customer ke phone se':'From customer\'s phone','seedha aapke printer par —':'straight to your printer —',
+    'One-time setup fee • No monthly fee • Lifetime use':'One-time setup fee • No monthly fee • Lifetime use',
+    'QR Scan':'QR Scan','File Upload':'File Upload','Pay':'Pay','Auto Print':'Auto Print',
+    'Abhi Start Karein':'Start Now','Shop Login':'Shop Login','Shop Owner Login':'Shop Owner Login',
+    '2 Ghante FREE Demo':'2 Hours FREE Demo','— bina payment ke try karo':'— try without payment',
+    'Refer & Earn':'Refer & Earn','— har referral par ₹50':'— ₹50 per referral',
+  },
+  bn: {
+    'Customer ke phone se':'কাস্টমারের ফোন থেকে','seedha aapke printer par —':'সরাসরি আপনার প্রিন্টারে —',
+    'One-time setup fee • No monthly fee • Lifetime use':'এককালীন সেটআপ ফি • মাসিক ফি নেই • লাইফটাইম',
+    'QR Scan':'QR স্ক্যান','File Upload':'ফাইল আপলোড','Pay':'পেমেন্ট','Auto Print':'অটো প্রিন্ট',
+    'Abhi Start Karein':'এখনই শুরু করুন','Shop Login':'শপ লগইন','Shop Owner Login':'শপ ওনার লগইন',
+    '2 Ghante FREE Demo':'২ ঘণ্টা ফ্রি ডেমো','— bina payment ke try karo':'— পেমেন্ট ছাড়া ট্রাই করুন',
+    'Refer & Earn':'রেফার করুন আয় করুন','— har referral par ₹50':'— প্রতি রেফারে ₹৫০',
+  }
+};
+let _origText = new Map();
+function setLang(lang){
+  try{ localStorage.setItem('qsp_lang', lang); }catch(e){}
+  const dict = I18N[lang];
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(node=>{
+    const t = node.textContent.trim();
+    if (!t) return;
+    if (!_origText.has(node)) _origText.set(node, node.textContent);
+    const orig = _origText.get(node).trim();
+    if (!dict) { node.textContent = _origText.get(node); return; }
+    if (dict[orig]) node.textContent = node.textContent.replace(orig, dict[orig]);
+    else node.textContent = _origText.get(node);
+  });
+  const sel = document.getElementById('langSel');
+  if (sel) sel.value = lang;
+}
+window.addEventListener('load', ()=>{
+  let saved = 'hi';
+  try{ saved = localStorage.getItem('qsp_lang') || 'hi'; }catch(e){}
+  if (saved !== 'hi') setTimeout(()=>setLang(saved), 300);
+  const sel = document.getElementById('langSel');
+  if (sel) sel.value = saved;
+});
 </script>
 </body>
 </html>

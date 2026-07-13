@@ -298,6 +298,15 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
           <div class="pr" id="optColorPrice">₹-/page</div>
         </div>
       </div>
+
+      <div id="duplexRow" style="display:none;margin-top:12px;">
+        <div class="opt-card" id="optDuplex" onclick="toggleDuplex()" style="width:100%;">
+          <div class="ic">📄</div>
+          <div class="lbl">Dual-Side (Duplex) Print</div>
+          <div class="pr" id="duplexNote">Dono side print hoga</div>
+        </div>
+        <p id="duplexCopyNote" style="display:none;font-size:11px;color:#c2410c;margin:6px 0 0;">✋ Manual duplex mein copies 1 hi rahegi</p>
+      </div>
       <div class="copies-row">
         <span class="lbl">📑 Copies</span>
         <div class="copies-ctrl">
@@ -389,7 +398,7 @@ const shopId = location.pathname.split('/').pop();
 // ═══════════════════════════════════════════════
 let state = {
   priceBW: 5, priceColor: 10,
-  colorMode: 'bw', copies: 1,
+  colorMode: 'bw', copies: 1, duplex: false, shopDuplexMode: '',
   jobId: null,
   shopPaymentMode: 'both', shopGateway: '', razorpayKeyId: '',
   onlineAllowed: false, counterAllowed: true,
@@ -433,6 +442,10 @@ function setStep(n) {
     s.className = 'step' + (i<n?' done':i===n?' active':'');
     s.querySelector('.dot').textContent = i<n?'✓':i;
   }
+  // Step 2 (Edit) par shop header hide — document adjust area + buttons ko
+  // poori screen mile. Baaki har step par header wapas.
+  const hdr = document.querySelector('.shop-header');
+  if (hdr) hdr.style.display = (n === 2) ? 'none' : 'flex';
 }
 
 // ═══════════════════════════════════════════════
@@ -483,6 +496,11 @@ async function init() {
       document.body.prepend(banner);
     }
 
+    state.shopDuplexMode = shop.duplex_mode || '';
+    if (state.shopDuplexMode) {
+      const dr = document.getElementById('duplexRow');
+      if (dr) dr.style.display = 'block';
+    }
     document.getElementById('shopName').textContent = shop.name;
     document.getElementById('shopAddr').textContent = '📍 ' + (shop.address || '');
     document.getElementById('priceBWBadge').textContent = `B&W: ₹${shop.price_bw}/page`;
@@ -1406,6 +1424,21 @@ function backToPreviewStep() {
   setStep(3);
 }
 
+function toggleDuplex() {
+  state.duplex = !state.duplex;
+  document.getElementById('optDuplex').classList.toggle('sel', state.duplex);
+  const note = document.getElementById('duplexCopyNote');
+  if (state.duplex && state.shopDuplexMode === 'manual') {
+    state.copies = 1;
+    note.style.display = 'block';
+    const ce = document.getElementById('copiesVal');
+    if (ce) ce.textContent = '1';
+  } else {
+    note.style.display = 'none';
+  }
+  updateSummary();
+}
+
 function setColorMode(mode) {
   state.colorMode = mode;
   document.getElementById('optBW').classList.toggle('sel', mode === 'bw');
@@ -1413,6 +1446,7 @@ function setColorMode(mode) {
   updatePriceSummary();
 }
 function changeCopies(delta) {
+  if (state.duplex && state.shopDuplexMode === 'manual') { state.copies = 1; }
   state.copies = Math.max(1, Math.min(50, state.copies + delta));
   document.getElementById('copiesNum').textContent = state.copies;
   updatePriceSummary();
@@ -1487,7 +1521,7 @@ async function payOnline() {
         copies: state.copies,
         totalPages: getEffectivePageCount(),
         selectedPages: state.selectedPages
-      })
+      , duplex: state.duplex })
     });
     const data = await res.json();
     if (!data.success) { toast('❌ ' + (data.error || 'Payment create failed')); return; }
@@ -1544,7 +1578,7 @@ async function payCounter() {
         copies: state.copies,
         totalPages: getEffectivePageCount(),
         selectedPages: state.selectedPages
-      })
+      , duplex: state.duplex })
     });
     const data = await res.json();
     if (data.success) {
@@ -1587,6 +1621,64 @@ function showSuccess(method, amount) {
     document.getElementById('amountLabel').textContent = 'Counter Pe Dena Hai';
   }
 }
+</script>
+
+<div id="langSwitch" style="position:fixed;top:10px;left:10px;z-index:400;">
+  <select id="langSel" onchange="setLang(this.value)" style="border:1.5px solid #d9d4cc;border-radius:10px;padding:6px 8px;font-size:12px;font-weight:700;background:#fff;color:#111;">
+    <option value="hi">🇮🇳 हिंदी</option>
+    <option value="en">EN English</option>
+    <option value="bn">🇧🇩 বাংলা</option>
+  </select>
+</div>
+<script>
+// ── Lightweight i18n: key visible strings hi/en/bn ──
+const I18N = {
+  en: {
+    'Document Adjust Karo':'Adjust Document','Drag karke move karo, corner se size badlo/chhota karo':'Drag to move, resize from corner',
+    'Upload':'Upload','Edit':'Edit','Preview':'Preview','Pay':'Pay',
+    'File Upload Karo':'Upload File','Aage Badho':'Continue','Wapas':'Back',
+    'Print Preview':'Print Preview','Payment Karo':'Make Payment','Copies':'Copies',
+    'Kitne Copies?':'How many copies?','B&W':'B&W','Color':'Color',
+    'Pay at Counter':'Pay at Counter','Online Pay Karo':'Pay Online',
+    'Loading...':'Loading...','Print ho raha hai...':'Printing...',
+  },
+  bn: {
+    'Document Adjust Karo':'ডকুমেন্ট ঠিক করুন','Drag karke move karo, corner se size badlo/chhota karo':'টেনে সরান, কোণা থেকে সাইজ বদলান',
+    'Upload':'আপলোড','Edit':'এডিট','Preview':'প্রিভিউ','Pay':'পেমেন্ট',
+    'File Upload Karo':'ফাইল আপলোড করুন','Aage Badho':'এগিয়ে যান','Wapas':'পিছনে',
+    'Print Preview':'প্রিন্ট প্রিভিউ','Payment Karo':'পেমেন্ট করুন','Copies':'কপি',
+    'Kitne Copies?':'কয়টি কপি?','B&W':'সাদা-কালো','Color':'রঙিন',
+    'Pay at Counter':'কাউন্টারে পেমেন্ট','Online Pay Karo':'অনলাইন পেমেন্ট',
+    'Loading...':'লোড হচ্ছে...','Print ho raha hai...':'প্রিন্ট হচ্ছে...',
+  }
+};
+let _origText = new Map();
+function setLang(lang){
+  try{ localStorage.setItem('qsp_lang', lang); }catch(e){}
+  const dict = I18N[lang];
+  // Sab text nodes walk karo — original save, translate ya restore
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(node=>{
+    const t = node.textContent.trim();
+    if (!t) return;
+    if (!_origText.has(node)) _origText.set(node, node.textContent);
+    const orig = _origText.get(node).trim();
+    if (!dict) { node.textContent = _origText.get(node); return; }  // hi = original
+    if (dict[orig]) node.textContent = node.textContent.replace(orig, dict[orig]);
+    else node.textContent = _origText.get(node);
+  });
+  const sel = document.getElementById('langSel');
+  if (sel) sel.value = lang;
+}
+window.addEventListener('load', ()=>{
+  let saved = 'hi';
+  try{ saved = localStorage.getItem('qsp_lang') || 'hi'; }catch(e){}
+  if (saved !== 'hi') setTimeout(()=>setLang(saved), 400);
+  const sel = document.getElementById('langSel');
+  if (sel) sel.value = saved;
+});
 </script>
 </body>
 </html>
