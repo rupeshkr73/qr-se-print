@@ -61,6 +61,22 @@ app.use(express.json({ limit: '50mb', verify: (req, res, buf) => { req.rawBody =
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static('public'));
 
+// ─── Canonical host redirect ───
+// Purane customers ka QR / bookmark / WhatsApp me shared link
+// qr-se-print.onrender.com pe hi hai. Unko naye domain par bhejo — path,
+// query string, sab as-is. Jab tak PRIMARY_HOST env na set ho, redirect
+// band (staging/local pe fasne se bachne ke liye).
+const PRIMARY_HOST = process.env.PRIMARY_HOST || '';
+if (PRIMARY_HOST) {
+  app.use((req, res, next) => {
+    const host = (req.headers.host || '').toLowerCase();
+    if (host && host !== PRIMARY_HOST && host.endsWith('onrender.com')) {
+      return res.redirect(301, 'https://' + PRIMARY_HOST + req.originalUrl);
+    }
+    next();
+  });
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 },
@@ -1053,14 +1069,17 @@ app.post('/api/payment/online/create', async (req, res) => {
     if (req.body.duplex === true && shopDuplexMode) finalDuplex = true;
     const finalCopies = parseInt(copies) || job.copies;
     const finalPages = parseInt(totalPages) || job.total_pages;
+    // Manual duplex par copies HAMESHA 1 — print bhi aur BILL bhi (warna
+    // customer se N copies ka paisa, print 1 ka)
+    const effCopies = (finalDuplex && shopDuplexMode === 'manual') ? 1 : finalCopies;
     const finalSelectedPages = parseSelectedPages(selectedPages, job.total_pages);
     const pricePerPage = finalColorMode === 'color' ? job.price_color : job.price_bw;
-    const amount = pricePerPage * finalPages * finalCopies;
+    const amount = pricePerPage * finalPages * effCopies;
 
     // Common job update (gateway se pehle)
     await pool.query(
       'UPDATE print_jobs SET color_mode=$1, copies=$2, total_pages=$3, selected_pages=$4, amount=$5, duplex=$6 WHERE id=$7',
-      [finalColorMode, (finalDuplex && shopDuplexMode==='manual') ? 1 : finalCopies, finalTotalPages, finalSelectedPages, finalAmount, finalDuplex, jobId]
+      [finalColorMode, effCopies, finalPages, finalSelectedPages.join(','), amount, finalDuplex, jobId]
     );
 
     if (job.payment_gateway === 'razorpay') {
@@ -1072,7 +1091,7 @@ app.post('/api/payment/online/create', async (req, res) => {
         amount: amountInPaise,
         currency: 'INR',
         receipt: jobId,
-        notes: { jobId, colorMode: finalColorMode, copies: finalCopies, pages: finalPages }
+        notes: { jobId, colorMode: finalColorMode, copies: effCopies, pages: finalPages }
       });
       const authHeader = 'Basic ' + Buffer.from(`${job.razorpay_key_id}:${job.razorpay_key_secret}`).toString('base64');
 
@@ -1329,14 +1348,17 @@ app.post('/api/payment/counter', async (req, res) => {
     if (req.body.duplex === true && shopDuplexMode) finalDuplex = true;
     const finalCopies = parseInt(copies) || job.copies;
     const finalPages = parseInt(totalPages) || job.total_pages;
+    // Manual duplex par copies HAMESHA 1 — print bhi aur BILL bhi (warna
+    // customer se N copies ka paisa, print 1 ka)
+    const effCopies = (finalDuplex && shopDuplexMode === 'manual') ? 1 : finalCopies;
     const finalSelectedPages = parseSelectedPages(selectedPages, job.total_pages);
     const pricePerPage = finalColorMode === 'color' ? job.price_color : job.price_bw;
-    const amount = pricePerPage * finalPages * finalCopies;
+    const amount = pricePerPage * finalPages * effCopies;
     const txnId = 'COUNTER_' + uuidv4().substring(0,10).toUpperCase();
 
     await pool.query(
-      'UPDATE print_jobs SET payment_status=$1, status=$2, payment_id=$3, color_mode=$4, copies=$5, total_pages=$6, selected_pages=$7, amount=$8, payment_method=$9 WHERE id=$10',
-      ['paid', 'queued', txnId, finalColorMode, finalCopies, finalPages, finalSelectedPages.join(','), amount, 'counter', jobId]
+      'UPDATE print_jobs SET payment_status=$1, status=$2, payment_id=$3, color_mode=$4, copies=$5, total_pages=$6, selected_pages=$7, amount=$8, payment_method=$9, duplex=$10 WHERE id=$11',
+      ['paid', 'queued', txnId, finalColorMode, effCopies, finalPages, finalSelectedPages.join(','), amount, 'counter', finalDuplex, jobId]
     );
 
     console.log(`Counter payment: ${jobId} | Rs.${amount} | Pages: ${finalSelectedPages.join(',')}`);
