@@ -338,6 +338,8 @@ async function initDB() {
       VALUES ('agent_version', '1')
       ON CONFLICT (key) DO NOTHING
     `);
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_enabled','1') ON CONFLICT DO NOTHING");
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_minutes','120') ON CONFLICT DO NOTHING");
 
     // Broken demo logins repair (bcrypt hash galti se gaya tha; login sha256
     // expect karta hai). Idempotent — sirf $2 (bcrypt) wale demo shops.
@@ -526,6 +528,21 @@ app.post('/api/superadmin/shop/:shopId/reset-password', verifySuperAdmin, async 
 });
 
 // ── Demo accounts list — nazar rakhne + manual delete ke liye ──
+app.get('/api/superadmin/demo-config', verifySuperAdmin, async (req, res) => {
+  res.json(await getDemoConfig());
+});
+app.put('/api/superadmin/demo-config', verifySuperAdmin, async (req, res) => {
+  try {
+    const enabled = req.body.enabled ? '1' : '0';
+    let mins = parseInt(req.body.minutes);
+    if (isNaN(mins) || mins < 15 || mins > 1440)
+      return res.status(400).json({ error: 'Minutes 15 se 1440 (24 ghante) ke beech ho' });
+    await pool.query("UPDATE system_settings SET value=$1 WHERE key='demo_enabled'", [enabled]);
+    await pool.query("UPDATE system_settings SET value=$1 WHERE key='demo_minutes'", [String(mins)]);
+    res.json({ success: true, enabled: enabled === '1', minutes: mins });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/superadmin/demos', verifySuperAdmin, async (req, res) => {
   try {
     const r = await pool.query(
@@ -561,6 +578,15 @@ app.post('/api/superadmin/withdrawals/:id/complete', verifySuperAdmin, async (re
 // ══════════════════ FREE DEMO (2 ghante) ══════════════════
 // Anti-abuse: (1) ek phone = ek demo PERMANENT, (2) ek IP = 2/din,
 // (3) ek MACHINE = ek demo permanent (agent MachineGuid bhejta hai).
+async function getDemoConfig() {
+  try {
+    const r = await pool.query("SELECT key,value FROM system_settings WHERE key IN ('demo_enabled','demo_minutes')");
+    const m = Object.fromEntries(r.rows.map(x => [x.key, x.value]));
+    const mins = Math.max(15, Math.min(1440, parseInt(m.demo_minutes) || 120)); // 15 min .. 24 hr guard
+    return { enabled: (m.demo_enabled || '1') === '1', minutes: mins };
+  } catch (e) { return { enabled: true, minutes: 120 }; }
+}
+
 function normPhone(p) {
   const d = String(p || '').replace(/\D/g, '');
   return d.length >= 10 ? d.slice(-10) : '';
@@ -572,6 +598,9 @@ function isDemoExpired(shop) {
 
 app.post('/api/demo/create', async (req, res) => {
   try {
+    const cfg = await getDemoConfig();
+    if (!cfg.enabled) return res.status(403).json({ error: 'Demo abhi band hai — thodi der baad try karo ya seedha register karo' });
+
     const name = String(req.body.name || '').trim().slice(0, 100);
     const phone = normPhone(req.body.phone);
     if (!name) return res.status(400).json({ error: 'Naam daalo' });
@@ -594,8 +623,8 @@ app.post('/api/demo/create', async (req, res) => {
     await pool.query(
       `INSERT INTO shops (id, name, phone, price_bw, price_color, payment_mode, password_hash,
                           setup_paid, setup_amount, demo, demo_expires_at)
-       VALUES ($1,$2,$3,5,10,'counter_only',$4,true,0,true,NOW() + INTERVAL '2 hours')`,
-      [shopId, name + ' (Demo)', phone, passwordHash]);
+       VALUES ($1,$2,$3,5,10,'counter_only',$4,true,0,true,NOW() + ($5 || ' minutes')::INTERVAL)`,
+      [shopId, name + ' (Demo)', phone, passwordHash, String(cfg.minutes)]);
     await pool.query('INSERT INTO demo_registrations (phone, ip, shop_id) VALUES ($1,$2,$3)', [phone, ip, shopId]);
 
     const qrUrl = `${BASE_URL}/print/${shopId}`;
@@ -604,13 +633,18 @@ app.post('/api/demo/create', async (req, res) => {
 
     console.log(`Demo created: ${shopId} | ${phone} | ip ${ip}`);
     res.json({ success: true, shopId, password: phone, qrUrl, qrCode,
-               expiresInMinutes: 120,
+               expiresInMinutes: cfg.minutes,
                note: 'Login password = aapka mobile number' });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/printer-models', (req, res) => {
   res.json({ models: PRINTER_MODELS });
+});
+
+app.get('/api/demo/config', async (req, res) => {
+  const c = await getDemoConfig();
+  res.json({ enabled: c.enabled, minutes: c.minutes });
 });
 
 app.get('/api/setup-fee/current', async (req, res) => {
