@@ -1155,7 +1155,7 @@ async function loadJobs() {
       // file_deleted server ka asli flag hai — UI guess nahi karta
       const fileNote = job.file_deleted
         ? '<div style="font-size:11px;color:#059669;margin-top:6px;">🗑️ File delete ho chuki hai — koi copy store nahi (privacy safe)</div>'
-        : '<div style="font-size:11px;color:#9ca3af;margin-top:6px;">⏳ File temporary hai — print ke baad turant delete ho jaayegi</div>';
+        : '<div style="font-size:11px;color:#9ca3af;margin-top:6px;">⏳ File 90 minute mein automatic delete ho jaayegi — chahe print ho ya na ho</div>';
 
       const pagesTxt = job.selected_pages
         ? `${job.total_pages || 1} pages (${esc(job.selected_pages)})`
