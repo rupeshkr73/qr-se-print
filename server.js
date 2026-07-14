@@ -284,6 +284,7 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_color_duplex INTEGER DEFAULT 0;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS duplex BOOLEAN DEFAULT false;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS failure_reason VARCHAR(200) DEFAULT '';
+      ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS file_deleted BOOLEAN DEFAULT false;
       CREATE TABLE IF NOT EXISTS demo_registrations (
         id SERIAL PRIMARY KEY,
         phone VARCHAR(15) UNIQUE,
@@ -1030,7 +1031,7 @@ app.put('/api/admin/change-password', verifyToken, async (req, res) => {
 app.get('/api/admin/jobs', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,file_name,amount,copies,color_mode,total_pages,selected_pages,duplex,status,payment_status,payment_method,failure_reason,created_at,printed_at FROM print_jobs WHERE shop_id=$1 ORDER BY created_at DESC LIMIT 50',
+      'SELECT id,file_name,amount,copies,color_mode,total_pages,selected_pages,duplex,status,payment_status,payment_method,failure_reason,file_deleted,created_at,printed_at FROM print_jobs WHERE shop_id=$1 ORDER BY created_at DESC LIMIT 50',
       [req.shopId]
     );
     res.json({ jobs: r.rows });
@@ -1554,6 +1555,7 @@ app.post('/api/jobs/complete/:jobId', async (req, res) => {
     );
     if (result.rows.length && result.rows[0].file_public_id) {
       await deleteFromCloudinary(result.rows[0].file_public_id);
+      await pool.query('UPDATE print_jobs SET file_deleted=true WHERE id=$1', [req.params.jobId]);
     }
     console.log(`Printed + Deleted: ${req.params.jobId}`);
     res.json({ success:true });
@@ -1570,6 +1572,7 @@ app.post('/api/jobs/failed/:jobId', async (req, res) => {
     // files jama hoti rehti (privacy + storage dono)
     if (result.rows.length && result.rows[0].file_public_id) {
       await deleteFromCloudinary(result.rows[0].file_public_id);
+      await pool.query('UPDATE print_jobs SET file_deleted=true WHERE id=$1', [req.params.jobId]);
     }
     console.log(`Job failed/denied: ${req.params.jobId}${reason ? ' | ' + reason : ''}`);
     res.json({ success:true });
@@ -2051,6 +2054,23 @@ async function backgroundMaintenance() {
         } catch(e) { /* agla cycle */ }
       }
     }
+    // 2c) ABANDONED uploads — customer ne upload kiya par payment complete
+    // nahi kiya. Pehle ye files Cloudinary par HAMESHA padi rehti thi
+    // (storage leak + customer ki private file server par). Ab 60 min baad
+    // file delete + job abandoned mark.
+    const abandoned = await pool.query(
+      `SELECT id, file_public_id FROM print_jobs
+       WHERE status='pending' AND payment_status='pending'
+         AND created_at < NOW() - INTERVAL '60 minutes'
+       LIMIT 20`);
+    for (const j of abandoned.rows) {
+      if (j.file_public_id) await deleteFromCloudinary(j.file_public_id);
+      await pool.query(
+        "UPDATE print_jobs SET status='abandoned', file_deleted=true, failure_reason=$1 WHERE id=$2",
+        ['Customer ne payment complete nahi kiya', j.id]);
+      console.log('🧹 Abandoned upload cleaned:', j.id);
+    }
+
     // 3) Purane demo shops saaf (7 din baad) — DB junk-free rahe
     const oldDemos = await pool.query(
       "SELECT id FROM shops WHERE demo=true AND demo_expires_at < NOW() - INTERVAL '7 days' LIMIT 20");
