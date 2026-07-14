@@ -271,6 +271,17 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     </div><!-- /pricing -->
 
     <div data-sect="overview" class="show">
+
+    <!-- CLOUDINARY STORAGE -->
+    <div class="card" style="margin-bottom:20px;">
+      <h2><span>☁️ Cloudinary Storage</span></h2>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px;">
+        <div id="cldStatus" style="font-size:13px;">Loading...</div>
+        <button onclick="sweepCloudinary()" style="background:#7c3aed;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🧹 Abhi Saaf Karo</button>
+      </div>
+      <div id="cldFiles" style="margin-top:10px;"></div>
+    </div>
+
     <div class="stats">
       <div class="stat"><div class="stat-lbl">Total Shops</div><div class="stat-val" id="totalShops">0</div></div>
       <div class="stat"><div class="stat-lbl">Active Shops</div><div class="stat-val green" id="activeShops">0</div></div>
@@ -431,6 +442,37 @@ function renderDemoCfg(){
   document.getElementById('demoMinsInput').value = _demoCfg.minutes;
   document.getElementById('demoMinsHuman').textContent = humanMins(_demoCfg.minutes);
 }
+async function loadCloudinaryStatus(){
+  try{
+    const r = await fetch('/api/superadmin/cloudinary-status', { headers:{'Authorization':'Bearer '+authToken} });
+    const d = await r.json();
+    const el = document.getElementById('cldStatus');
+    const files = document.getElementById('cldFiles');
+    if (d.count === 0) {
+      el.innerHTML = '<span style="color:#16a34a;font-weight:800;">✅ Cloudinary bilkul khali hai — 0 files</span>';
+      files.innerHTML = '';
+      return;
+    }
+    const staleWarn = d.stale > 0
+      ? `<div style="color:#b91c1c;font-weight:700;margin-top:3px;">⚠️ ${d.stale} file 90+ min purani — sweep hona chahiye tha</div>`
+      : '<div style="color:#16a34a;font-size:12px;margin-top:3px;">✅ Sab fresh hain (abhi active jobs ki) — koi leak nahi</div>';
+    el.innerHTML = `<b>${d.count} file(s)</b> · ${d.total_kb} KB${staleWarn}`;
+    files.innerHTML = d.files.map(f =>
+      `<div style="display:flex;justify-content:space-between;font-size:11px;font-family:monospace;padding:5px 8px;border-radius:6px;background:${f.age_min>=90?'#fee2e2':'#f8f8fa'};margin-bottom:3px;">
+        <span>${f.public_id}</span><span>${f.age_min} min · ${Math.round(f.bytes/1024)} KB</span>
+      </div>`).join('');
+  }catch(e){ document.getElementById('cldStatus').textContent = 'Load fail'; }
+}
+async function sweepCloudinary(){
+  if(!confirm('90+ minute purani saari orphan files delete karein?')) return;
+  try{
+    const r = await fetch('/api/superadmin/cloudinary-sweep', { method:'POST', headers:{'Authorization':'Bearer '+authToken} });
+    const d = await r.json();
+    if(d.success){ alert(`✅ ${d.swept} file(s) delete ho gayi`); loadCloudinaryStatus(); }
+    else alert('❌ '+(d.error||'Fail'));
+  }catch(e){ alert('❌ '+e.message); }
+}
+
 async function loadDemoConfig(){
   try{
     const r = await fetch('/api/superadmin/demo-config', { headers:{'Authorization':'Bearer '+authToken} });
@@ -535,6 +577,7 @@ async function loadPanel() {
   loadWithdrawals();
   loadDemos();
   loadDemoConfig();
+  loadCloudinaryStatus();
   try {
     const [overviewRes, shopsRes, feeRes, versionRes, installerUrlRes] = await Promise.all([
       fetch('/api/superadmin/overview', { headers: { 'Authorization': 'Bearer ' + authToken } }),
