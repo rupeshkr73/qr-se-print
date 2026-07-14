@@ -175,6 +175,35 @@ async function uploadToCloudinary(fileBuffer, fileType) {
   });
 }
 
+// Cloudinary par ASLI me kya pada hai — Admin API se list.
+// DB ki nazar se orphan files (jinka job row hi nahi) sirf isse dikhti hain.
+let _sweepTick = 0;
+
+async function listCloudinaryFiles(nextCursor = '') {
+  return new Promise((resolve) => {
+    if (!CLOUD_NAME || !CLD_API_KEY || !CLD_API_SECRET) return resolve({ resources: [] });
+    const auth = Buffer.from(`${CLD_API_KEY}:${CLD_API_SECRET}`).toString('base64');
+    let path = `/v1_1/${CLOUD_NAME}/resources/raw?prefix=qrprint_&max_results=100`;
+    if (nextCursor) path += `&next_cursor=${encodeURIComponent(nextCursor)}`;
+    const req = https.request({
+      hostname: 'api.cloudinary.com', path, method: 'GET',
+      headers: { Authorization: 'Basic ' + auth }
+    }, (res) => {
+      let body = '';
+      res.on('data', c => body += c);
+      res.on('end', () => {
+        try {
+          const j = JSON.parse(body);
+          resolve({ resources: j.resources || [], next_cursor: j.next_cursor || '' });
+        } catch (e) { resolve({ resources: [] }); }
+      });
+    });
+    req.on('error', () => resolve({ resources: [] }));
+    req.setTimeout(20000, () => { req.destroy(); resolve({ resources: [] }); });
+    req.end();
+  });
+}
+
 async function deleteFromCloudinary(publicId) {
   return new Promise((resolve) => {
     const timestamp = Math.round(Date.now() / 1000);
@@ -530,6 +559,55 @@ app.post('/api/superadmin/shop/:shopId/reset-password', verifySuperAdmin, async 
 });
 
 // ── Demo accounts list — nazar rakhne + manual delete ke liye ──
+// Cloudinary status — kitni file abhi padi hai (sach, DB se nahi, Cloudinary se)
+app.get('/api/superadmin/cloudinary-status', verifySuperAdmin, async (req, res) => {
+  try {
+    let cursor = '', all = [];
+    for (let p = 0; p < 5; p++) {
+      const { resources, next_cursor } = await listCloudinaryFiles(cursor);
+      all = all.concat(resources);
+      if (!next_cursor) break;
+      cursor = next_cursor;
+    }
+    const now = Date.now();
+    const files = all.map(r => ({
+      public_id: r.public_id,
+      bytes: r.bytes || 0,
+      age_min: Math.round((now - new Date(r.created_at).getTime()) / 60000)
+    })).sort((a, b) => b.age_min - a.age_min);
+    const totalBytes = files.reduce((s, f) => s + f.bytes, 0);
+    res.json({
+      count: files.length,
+      total_kb: Math.round(totalBytes / 1024),
+      stale: files.filter(f => f.age_min >= 90).length,   // ye nahi hone chahiye
+      files: files.slice(0, 20)
+    });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Manual sweep — "abhi saaf karo" button
+app.post('/api/superadmin/cloudinary-sweep', verifySuperAdmin, async (req, res) => {
+  try {
+    let cursor = '', swept = 0;
+    for (let p = 0; p < 5; p++) {
+      const { resources, next_cursor } = await listCloudinaryFiles(cursor);
+      for (const r of resources) {
+        const ageMin = (Date.now() - new Date(r.created_at).getTime()) / 60000;
+        if (ageMin < 90) continue;
+        const active = await pool.query(
+          "SELECT 1 FROM print_jobs WHERE file_public_id=$1 AND status IN ('queued','printing')", [r.public_id]);
+        if (active.rows.length) continue;
+        await deleteFromCloudinary(r.public_id);
+        await pool.query('UPDATE print_jobs SET file_deleted=true WHERE file_public_id=$1', [r.public_id]);
+        swept++;
+      }
+      if (!next_cursor) break;
+      cursor = next_cursor;
+    }
+    res.json({ success: true, swept });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/superadmin/demo-config', verifySuperAdmin, async (req, res) => {
   res.json(await getDemoConfig());
 });
@@ -2069,6 +2147,53 @@ async function backgroundMaintenance() {
         "UPDATE print_jobs SET status='abandoned', file_deleted=true, failure_reason=$1 WHERE id=$2",
         ['Customer ne payment complete nahi kiya', j.id]);
       console.log('🧹 Abandoned upload cleaned:', j.id);
+    }
+
+    // ══════════ SAFETY LAYER 1: VERIFY SWEEP ══════════
+    // Job complete/fail/abandon ho gayi par file_deleted flag false hai
+    // (matlab delete call silently fail hua tha — network, API error).
+    // 5 min baad dobara delete maaro. Cloudinary destroy idempotent hai.
+    const unverified = await pool.query(
+      `SELECT id, file_public_id FROM print_jobs
+       WHERE status IN ('printed','failed','abandoned')
+         AND file_deleted = false
+         AND file_public_id IS NOT NULL AND file_public_id <> ''
+         AND created_at < NOW() - INTERVAL '5 minutes'
+       LIMIT 25`);
+    for (const j of unverified.rows) {
+      await deleteFromCloudinary(j.file_public_id);
+      await pool.query('UPDATE print_jobs SET file_deleted=true WHERE id=$1', [j.id]);
+      console.log('🔁 Retry-deleted leftover file:', j.id);
+    }
+
+    // ══════════ SAFETY LAYER 2: CLOUDINARY ORPHAN SWEEP ══════════
+    // Har ~10 min: Cloudinary se ASLI list lo. Jo file 90+ min purani hai
+    // aur kisi ACTIVE job ki nahi hai — uda do. Ye un files ko bhi pakadta
+    // hai jinka DB me row hi nahi (upload hua par insert fail, ya row delete
+    // ho gaya) — DB-based cleanup unhe kabhi nahi dekh sakta.
+    _sweepTick++;
+    if (_sweepTick % 5 === 0) {
+      let cursor = '';
+      let swept = 0;
+      for (let page = 0; page < 5; page++) {   // max 500 files/cycle
+        const { resources, next_cursor } = await listCloudinaryFiles(cursor);
+        if (!resources.length) break;
+        for (const r of resources) {
+          const ageMin = (Date.now() - new Date(r.created_at).getTime()) / 60000;
+          if (ageMin < 90) continue;   // fresh file — abhi koi use kar raha ho sakta hai
+          // Active job to nahi hai iski?
+          const active = await pool.query(
+            `SELECT 1 FROM print_jobs
+             WHERE file_public_id=$1 AND status IN ('queued','printing')`, [r.public_id]);
+          if (active.rows.length) continue;   // print hone wali hai — chhod do
+          await deleteFromCloudinary(r.public_id);
+          await pool.query('UPDATE print_jobs SET file_deleted=true WHERE file_public_id=$1', [r.public_id]);
+          swept++;
+        }
+        if (!next_cursor) break;
+        cursor = next_cursor;
+      }
+      if (swept) console.log(`🧹 Cloudinary orphan sweep: ${swept} file(s) deleted`);
     }
 
     // 3) Purane demo shops saaf (7 din baad) — DB junk-free rahe
