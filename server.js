@@ -283,6 +283,7 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_bw_duplex INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_color_duplex INTEGER DEFAULT 0;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS duplex BOOLEAN DEFAULT false;
+      ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS failure_reason VARCHAR(200) DEFAULT '';
       CREATE TABLE IF NOT EXISTS demo_registrations (
         id SERIAL PRIMARY KEY,
         phone VARCHAR(15) UNIQUE,
@@ -1029,7 +1030,7 @@ app.put('/api/admin/change-password', verifyToken, async (req, res) => {
 app.get('/api/admin/jobs', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,file_name,amount,copies,color_mode,total_pages,status,payment_status,payment_method,created_at,printed_at FROM print_jobs WHERE shop_id=$1 ORDER BY created_at DESC LIMIT 50',
+      'SELECT id,file_name,amount,copies,color_mode,total_pages,selected_pages,duplex,status,payment_status,payment_method,failure_reason,created_at,printed_at FROM print_jobs WHERE shop_id=$1 ORDER BY created_at DESC LIMIT 50',
       [req.shopId]
     );
     res.json({ jobs: r.rows });
@@ -1563,8 +1564,8 @@ app.post('/api/jobs/failed/:jobId', async (req, res) => {
   try {
     const reason = (req.body && req.body.reason) || '';
     const result = await pool.query(
-      'UPDATE print_jobs SET status=$1 WHERE id=$2 RETURNING file_public_id',
-      ['failed', req.params.jobId]);
+      'UPDATE print_jobs SET status=$1, failure_reason=$2 WHERE id=$3 RETURNING file_public_id',
+      ['failed', reason.slice(0, 200), req.params.jobId]);
     // Deny/fail par bhi customer ki file Cloudinary se saaf — warna orphan
     // files jama hoti rehti (privacy + storage dono)
     if (result.rows.length && result.rows[0].file_public_id) {
