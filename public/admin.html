@@ -1107,16 +1107,20 @@ async function loadJobs() {
         ? ' <span style="background:#ede9fe;color:#6d28d9;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;">📄 Duplex</span>'
         : '';
 
-      // Payment: Online / Counter (+ owner ka faisla)
-      const isCounter = job.payment_method === 'counter';
+      // Payment — payment_status se, payment_method se NAHI (uska DB default
+      // 'counter' hai, to abandoned jobs bhi jhooth-mooth 'counter' dikhti thi)
+      const paid = job.payment_status === 'paid';
+      const isCounter = paid && job.payment_method === 'counter';
       let payChip;
-      if (isCounter) {
+      if (!paid) {
+        payChip = '<span style="background:#f3f4f6;color:#6b7280;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;">❌ Payment nahi hua</span>';
+      } else if (isCounter) {
         payChip = '<span style="background:#fee2e2;color:#b91c1c;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;">💵 Counter Cash</span>';
       } else {
         payChip = '<span style="background:#dcfce7;color:#166534;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:700;">💳 Online Paid</span>';
       }
 
-      // Owner ka approval faisla — sirf counter jobs par
+      // Owner ka approval faisla — sirf PAID counter jobs par
       let decisionLine = '';
       if (isCounter) {
         const denied = job.status === 'failed' && /deny|den[iy]/i.test(job.failure_reason || '');
@@ -1132,21 +1136,26 @@ async function loadJobs() {
       } else if (job.status === 'failed') {
         decisionLine = `<div style="font-size:12px;color:#b91c1c;font-weight:700;margin-top:4px;">⚠️ Fail: ${esc(job.failure_reason || 'unknown')}</div>`;
       }
+      if (!paid && (job.status === 'pending' || job.status === 'abandoned')) {
+        decisionLine = '<div style="font-size:12px;color:#6b7280;font-weight:700;margin-top:4px;">🚫 Customer ne payment complete nahi kiya — aapko koi popup nahi aaya, print nahi nikla</div>';
+      }
 
       // Status pill
       const statusMap = {
-        printed:  ['#dcfce7', '#166534', '🖨️ Print Ho Gaya'],
-        queued:   ['#fef3c7', '#92400e', '⏳ Queue Mein'],
-        printing: ['#dbeafe', '#1e40af', '🔄 Print Ho Raha Hai'],
-        failed:   ['#fee2e2', '#b91c1c', '❌ Fail'],
-        pending:  ['#f3f4f6', '#6b7280', '⏸️ Payment Pending']
+        printed:   ['#dcfce7', '#166534', '🖨️ Print Ho Gaya'],
+        queued:    ['#fef3c7', '#92400e', '⏳ Queue Mein'],
+        printing:  ['#dbeafe', '#1e40af', '🔄 Print Ho Raha Hai'],
+        failed:    ['#fee2e2', '#b91c1c', '❌ Print Nahi Hua'],
+        abandoned: ['#f3f4f6', '#6b7280', '🚫 Cancel — Payment Nahi Hua'],
+        pending:   ['#f3f4f6', '#6b7280', '❓ Payment Nahi Hua — Print Nahi Nikla']
       };
       const [bg, fg, label] = statusMap[job.status] || ['#f3f4f6', '#6b7280', job.status];
 
       // File deleted note — print ke baad server se file hat jaati hai
-      const fileNote = (job.status === 'printed' || job.status === 'failed')
-        ? '<div style="font-size:11px;color:#059669;margin-top:6px;display:flex;align-items:center;gap:4px;">🗑️ File server se delete ho chuki hai (privacy safe)</div>'
-        : '<div style="font-size:11px;color:#9ca3af;margin-top:6px;">📁 File abhi server par hai — print ke baad delete ho jaayegi</div>';
+      // file_deleted server ka asli flag hai — UI guess nahi karta
+      const fileNote = job.file_deleted
+        ? '<div style="font-size:11px;color:#059669;margin-top:6px;">🗑️ File delete ho chuki hai — koi copy store nahi (privacy safe)</div>'
+        : '<div style="font-size:11px;color:#9ca3af;margin-top:6px;">⏳ File temporary hai — print ke baad turant delete ho jaayegi</div>';
 
       const pagesTxt = job.selected_pages
         ? `${job.total_pages || 1} pages (${esc(job.selected_pages)})`
