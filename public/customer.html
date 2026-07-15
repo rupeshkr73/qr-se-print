@@ -197,10 +197,10 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
   <!-- STEP 1: Upload -->
   <div id="secUpload">
     <div class="upload-zone" id="uploadZone">
-      <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" onchange="handleFileUpload(this)">
+      <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" multiple onchange="handleFileUpload(this)">
       <div class="upload-icon">📄</div>
       <h3>Document Upload Karo</h3>
-      <p>PDF, JPG, PNG — sab supported</p>
+      <p>PDF, JPG, PNG — sab supported<br><b>📚 Ek saath kai files select kar sakte ho</b> — sab ek hi order me print hongi</p>
       <div class="ftypes">
         <span class="ft">PDF</span><span class="ft">JPG</span><span class="ft">PNG</span>
       </div>
@@ -223,7 +223,7 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
       </div>
 
       <button class="add-doc-btn" onclick="triggerAddDocument()">➕ Add Document (Back Side, etc.)</button>
-      <input type="file" id="addDocInput" accept=".jpg,.jpeg,.png,.pdf" class="hidden" onchange="handleAddDocument(this)">
+      <input type="file" id="addDocInput" accept=".jpg,.jpeg,.png,.pdf" multiple class="hidden" onchange="handleAddDocument(this)">
 
       <div class="edit-toolbar">
         <button class="edit-btn" onclick="toolAutoA4()">🤖 Auto A4 Fit</button>
@@ -539,9 +539,9 @@ init();
 // FILE UPLOAD — converts PDF/image into one or more "pages"
 // ═══════════════════════════════════════════════
 async function handleFileUpload(input) {
-  const file = input.files[0];
-  if (!file) return;
-  input.value = ''; // allow re-selecting the same file later
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
+  input.value = ''; // allow re-selecting the same files later
 
   // secEditor PEHLE show karo, item add hone se pehle — warna a4Canvas
   // abhi tak "display:none" hota hai jab clientWidth/clientHeight measure
@@ -553,21 +553,31 @@ async function handleFileUpload(input) {
     setStep(2);
   }
 
-  const ext = file.name.split('.').pop().toLowerCase();
-  toast('⏳ Document load ho raha hai...');
+  // Saari files EK-EK karke, selection ke order me — PDF ke saare pages,
+  // images apne-apne A4 page par. Sab milke aage EK hi PDF banti hai
+  // (ek job, ek payment) — flow me aage kuch nahi badla.
+  let failed = 0;
+  for (let fi = 0; fi < files.length; fi++) {
+    const file = files[fi];
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (files.length > 1) toast(`⏳ File ${fi + 1}/${files.length}: ${file.name}`);
+    else toast('⏳ Document load ho raha hai...');
 
-  try {
-    if (ext === 'pdf') {
-      await loadPdfAsPages(file);
-    } else {
-      const srcCanvas = await fileToCanvas(file);
-      addPage([srcCanvas]); // naya page, ek hi item ke saath
+    try {
+      if (ext === 'pdf') {
+        await loadPdfAsPages(file);
+      } else {
+        const srcCanvas = await fileToCanvas(file);
+        addPage([srcCanvas]); // naya page, ek hi item ke saath
+      }
+    } catch(e) {
+      failed++;
+      toast(`❌ ${file.name} load nahi hui: ` + e.message);
     }
-  } catch(e) {
-    toast('❌ File load nahi hui: ' + e.message);
-    return;
   }
 
+  if (files.length > 1 && !failed) toast(`✅ ${files.length} files load ho gayi!`);
+  if (isFirstUpload && pages.length) activePageIdx = 0;  // pehla page samne
   renderEditor();
 }
 
@@ -664,37 +674,50 @@ function triggerAddDocument() {
 }
 
 async function handleAddDocument(input) {
-  const file = input.files[0];
-  if (!file) return;
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
   input.value = '';
 
   const page = getActivePageObj();
   if (!page) { toast('⚠️ Pehle koi document upload karo'); return; }
 
-  toast('⏳ Document load ho raha hai...');
-  try {
-    const ext = file.name.split('.').pop().toLowerCase();
-    let canvas;
-    if (ext === 'pdf') {
-      const buf = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-      const pdfPage = await pdf.getPage(1);
-      const vp = pdfPage.getViewport({ scale: 1.5 });
-      canvas = document.createElement('canvas');
-      canvas.width = vp.width; canvas.height = vp.height;
-      await pdfPage.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
-    } else {
-      canvas = await fileToCanvas(file);
+  for (let fi = 0; fi < files.length; fi++) {
+    const file = files[fi];
+    if (files.length > 1) toast(`⏳ File ${fi + 1}/${files.length}: ${file.name}`);
+    else toast('⏳ Document load ho raha hai...');
+    try {
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (ext === 'pdf') {
+        const buf = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+        if (pdf.numPages === 1) {
+          // 1-page PDF: current page par item (Aadhaar back-side use case)
+          const pdfPage = await pdf.getPage(1);
+          const vp = pdfPage.getViewport({ scale: 1.5 });
+          const canvas = document.createElement('canvas');
+          canvas.width = vp.width; canvas.height = vp.height;
+          await pdfPage.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+          const newItem = createItemFromCanvas(canvas, true);
+          page.items.push(newItem);
+          page.activeItemId = newItem.id;
+        } else {
+          // Multi-page PDF: saare pages naye pages ke roop me — pehle sirf
+          // page 1 aata tha aur baaki chupchaap GIR jaate the
+          toast(`⏳ ${file.name}: ${pdf.numPages} pages add ho rahe hain...`);
+          await loadPdfAsPages(file);
+        }
+      } else {
+        const canvas = await fileToCanvas(file);
+        const newItem = createItemFromCanvas(canvas, true);
+        page.items.push(newItem);
+        page.activeItemId = newItem.id;
+      }
+    } catch(e) {
+      toast(`❌ ${file.name} load nahi hua: ` + e.message);
     }
-
-    const newItem = createItemFromCanvas(canvas, true);
-    page.items.push(newItem);
-    page.activeItemId = newItem.id;
-    renderEditor();
-    toast('✅ Document add ho gaya!');
-  } catch(e) {
-    toast('❌ Document load nahi hua: ' + e.message);
   }
+  renderEditor();
+  toast('✅ Add ho gaya!');
 }
 
 // ═══════════════════════════════════════════════
