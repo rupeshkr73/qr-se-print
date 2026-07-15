@@ -227,11 +227,16 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
 
       <div class="edit-toolbar">
         <button class="edit-btn" onclick="toolAutoA4()">🤖 Auto A4 Fit</button>
-        <button class="edit-btn" id="adjustBtn" onclick="toolToggleAdjust()">🎨 Brightness/Contrast</button>
+        <button class="edit-btn" id="adjustBtn" onclick="toolToggleAdjust()">🎨 Rotate / Brightness</button>
         <button class="edit-btn" onclick="toolPerspectiveCrop()">📐 Perspective Crop</button>
       </div>
 
       <div id="adjustPanel" class="adjust-panel hidden">
+        <div class="adjust-row" style="justify-content:center;gap:8px;">
+          <button class="edit-btn" onclick="rotateItem(-90)">↺ Left 90°</button>
+          <button class="edit-btn" onclick="rotateItem(90)">↻ Right 90°</button>
+          <button class="edit-btn" onclick="rotateItem(180)">🔃 180°</button>
+        </div>
         <div class="adjust-row">
           <label>☀️ Brightness</label>
           <input type="range" id="adjBrightness" min="-100" max="100" value="0" oninput="applyAdjustments()">
@@ -618,7 +623,7 @@ function createItemFromCanvas(sourceCanvas, isSecondaryItem) {
     id: 'item_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
     originalCanvas: sourceCanvas,
     sourceCanvas, workingCanvas: sourceCanvas,
-    brightness: 0, contrast: 0, cropPoints: null,
+    brightness: 0, contrast: 0, rotation: 0, cropPoints: null,
     x: isSecondaryItem ? a4W * 0.3 : (a4W - w) / 2,
     y: isSecondaryItem ? a4H * 0.35 : (a4H - h) / 2,
     w, h
@@ -877,29 +882,75 @@ function applyAdjustments() {
 // sourceCanvas (cropped ya original) par brightness/contrast apply karke
 // workingCanvas banata hai. Crop apply hone ke baad bhi yahi chalta hai
 // taaki existing brightness/contrast settings crop ke upar preserve rahein.
-function renderWorking(item) {
-  const src = item.sourceCanvas;
-  const b = item.brightness, c = item.contrast;
-  if (b === 0 && c === 0) { item.workingCanvas = src; return; }
-
+// 90° steps par canvas rotate — exact right angle, koi quality loss nahi
+function rotateCanvas(src, deg) {
   const out = document.createElement('canvas');
-  out.width = src.width; out.height = src.height;
+  if (deg % 180 === 0) { out.width = src.width;  out.height = src.height; }
+  else                 { out.width = src.height; out.height = src.width;  }
   const ctx = out.getContext('2d');
-  ctx.drawImage(src, 0, 0);
+  ctx.translate(out.width / 2, out.height / 2);
+  ctx.rotate(deg * Math.PI / 180);
+  ctx.drawImage(src, -src.width / 2, -src.height / 2);
+  return out;
+}
 
-  const id = ctx.getImageData(0, 0, out.width, out.height);
-  const d = id.data;
-  const brightAmt = b * 2.55;
-  const contrastFactor = (259 * (c + 255)) / (255 * (259 - c));
-  for (let i = 0; i < d.length; i += 4) {
-    for (let ch = 0; ch < 3; ch++) {
-      let v = d[i+ch] + brightAmt;
-      v = contrastFactor * (v - 128) + 128;
-      d[i+ch] = Math.max(0, Math.min(255, v));
+function renderWorking(item) {
+  let cur = item.sourceCanvas;
+  const b = item.brightness, c = item.contrast;
+
+  if (b !== 0 || c !== 0) {
+    const out = document.createElement('canvas');
+    out.width = cur.width; out.height = cur.height;
+    const ctx = out.getContext('2d');
+    ctx.drawImage(cur, 0, 0);
+
+    const id = ctx.getImageData(0, 0, out.width, out.height);
+    const d = id.data;
+    const brightAmt = b * 2.55;
+    const contrastFactor = (259 * (c + 255)) / (255 * (259 - c));
+    for (let i = 0; i < d.length; i += 4) {
+      for (let ch = 0; ch < 3; ch++) {
+        let v = d[i+ch] + brightAmt;
+        v = contrastFactor * (v - 128) + 128;
+        d[i+ch] = Math.max(0, Math.min(255, v));
+      }
     }
+    ctx.putImageData(id, 0, 0);
+    cur = out;
   }
-  ctx.putImageData(id, 0, 0);
-  item.workingCanvas = out;
+
+  if ((item.rotation || 0) % 360 !== 0) {
+    cur = rotateCanvas(cur, item.rotation);
+  }
+
+  item.workingCanvas = cur;
+}
+
+// Rotate — w/h center ke around swap (90° par), page ke andar clamp
+function rotateItem(deg) {
+  const item = getActiveItem();
+  if (!item) return;
+  item.rotation = (((item.rotation || 0) + deg) % 360 + 360) % 360;
+
+  if (Math.abs(deg) % 180 === 90) {
+    const cx = item.x + item.w / 2, cy = item.y + item.h / 2;
+    const nw = item.h, nh = item.w;
+    item.w = nw; item.h = nh;
+    item.x = cx - nw / 2; item.y = cy - nh / 2;
+    // Page se bahar na jaye — pehle scale, phir position clamp
+    const sc = Math.min(1, (A4_DISPLAY_W * 0.95) / item.w, (A4_DISPLAY_H * 0.95) / item.h);
+    if (sc < 1) {
+      const cx2 = item.x + item.w / 2, cy2 = item.y + item.h / 2;
+      item.w *= sc; item.h *= sc;
+      item.x = cx2 - item.w / 2; item.y = cy2 - item.h / 2;
+    }
+    item.x = Math.max(0, Math.min(item.x, A4_DISPLAY_W - item.w));
+    item.y = Math.max(0, Math.min(item.y, A4_DISPLAY_H - item.h));
+  }
+
+  renderWorking(item);
+  renderCanvasItems();
+  toast(item.rotation === 0 ? '↺ Seedha ho gaya' : `🔄 ${item.rotation}° rotate`);
 }
 
 function resetAdjustments() {
@@ -908,6 +959,15 @@ function resetAdjustments() {
   document.getElementById('adjBrightness').value = 0;
   document.getElementById('adjContrast').value = 0;
   item.brightness = 0; item.contrast = 0;
+  if ((item.rotation || 0) % 180 !== 0) {
+    // 90/270 par the — w/h wapas swap (center fixed)
+    const cx = item.x + item.w / 2, cy = item.y + item.h / 2;
+    const nw = item.h, nh = item.w;
+    item.w = nw; item.h = nh;
+    item.x = Math.max(0, Math.min(cx - nw / 2, A4_DISPLAY_W - nw));
+    item.y = Math.max(0, Math.min(cy - nh / 2, A4_DISPLAY_H - nh));
+  }
+  item.rotation = 0;
   item.workingCanvas = item.sourceCanvas;
   renderCanvasItems();
   toast('↺ Reset ho gaya');
@@ -1131,11 +1191,11 @@ function cropApply() {
     const warped = perspectiveWarp(src, pts);
     item.cropPoints = pts.map(p => ({ x: p.x / src.width, y: p.y / src.height }));
     item.sourceCanvas = warped;
-    // A4 par item ka aspect ratio naye crop ke hisaab se update
-    const ratio = warped.width / warped.height;
+    renderWorking(item); // brightness/contrast + rotation crop ke upar dobara apply
+    // A4 par aspect ratio WORKING canvas se — rotation 90/270 par bhi sahi
+    const ratio = item.workingCanvas.width / item.workingCanvas.height;
     item.h = item.w / ratio;
     if (item.h > A4_DISPLAY_H * 0.92) { item.h = A4_DISPLAY_H * 0.92; item.w = item.h * ratio; }
-    renderWorking(item); // brightness/contrast crop ke upar dobara apply
     cropClose();
     renderCanvasItems();
     toast('✂️ Crop ho gaya!');
