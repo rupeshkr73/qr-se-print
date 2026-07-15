@@ -560,6 +560,91 @@ app.post('/api/superadmin/shop/:shopId/reset-password', verifySuperAdmin, async 
 
 // ── Demo accounts list — nazar rakhne + manual delete ke liye ──
 // Cloudinary status — kitni file abhi padi hai (sach, DB se nahi, Cloudinary se)
+// ══════════════ DB MIGRATION (Railway -> Supabase) ══════════════
+// GUI-only migration: OLD_DATABASE_URL env me purana (Railway) URL daalo,
+// DATABASE_URL me naya (Supabase). Server boot par naye DB me tables khud
+// ban jaate hain (initDB), phir ye endpoint saara data copy karta hai.
+// Idempotent — ON CONFLICT DO NOTHING, do baar chalao to bhi safe.
+const MIGRATE_TABLES = [
+  'system_settings', 'shops', 'print_jobs', 'withdrawals',
+  'demo_registrations', 'demo_machines'
+];
+
+app.post('/api/superadmin/migrate-db', verifySuperAdmin, async (req, res) => {
+  const oldUrl = process.env.OLD_DATABASE_URL;
+  if (!oldUrl) return res.status(400).json({ error: 'OLD_DATABASE_URL env set nahi hai' });
+
+  const oldPool = new Pool({
+    connectionString: oldUrl,
+    ssl: { rejectUnauthorized: false }
+  });
+
+  const report = {};
+  try {
+    for (const table of MIGRATE_TABLES) {
+      try {
+        const src = await oldPool.query(`SELECT * FROM ${table}`);
+        if (!src.rows.length) { report[table] = { found: 0, copied: 0 }; continue; }
+
+        let copied = 0;
+        for (const row of src.rows) {
+          const cols = Object.keys(row);
+          const vals = cols.map(c => row[c]);
+          const ph = cols.map((_, i) => '$' + (i + 1)).join(',');
+          try {
+            await pool.query(
+              `INSERT INTO ${table} (${cols.map(c => '"' + c + '"').join(',')})
+               VALUES (${ph}) ON CONFLICT DO NOTHING`, vals);
+            copied++;
+          } catch (e) { /* naya schema me column nahi — skip */ }
+        }
+        report[table] = { found: src.rows.length, copied };
+      } catch (e) {
+        report[table] = { error: e.message.slice(0, 80) };
+      }
+    }
+    await oldPool.end();
+    console.log('DB migration report:', JSON.stringify(report));
+    res.json({ success: true, report });
+  } catch (err) {
+    try { await oldPool.end(); } catch(e) {}
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ══════════════ BACKUP DOWNLOAD ══════════════
+// Supabase free me automatic backup nahi hota. Ye button poora DB ek JSON
+// file me deta hai — hafte me ek baar dabao, apne phone/PC me rakh lo.
+app.get('/api/superadmin/backup', verifySuperAdmin, async (req, res) => {
+  try {
+    const dump = { taken_at: new Date().toISOString(), tables: {} };
+    for (const table of MIGRATE_TABLES) {
+      try {
+        const r = await pool.query(`SELECT * FROM ${table}`);
+        dump.tables[table] = r.rows;
+      } catch (e) { dump.tables[table] = { error: e.message }; }
+    }
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="qrseprint-backup-${stamp}.json"`);
+    res.send(JSON.stringify(dump, null, 2));
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Row counts — migration verify karne ke liye
+app.get('/api/superadmin/db-counts', verifySuperAdmin, async (req, res) => {
+  try {
+    const counts = {};
+    for (const t of MIGRATE_TABLES) {
+      try {
+        const r = await pool.query(`SELECT COUNT(*) FROM ${t}`);
+        counts[t] = parseInt(r.rows[0].count);
+      } catch (e) { counts[t] = -1; }
+    }
+    res.json(counts);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/superadmin/cloudinary-status', verifySuperAdmin, async (req, res) => {
   try {
     let cursor = '', all = [];
