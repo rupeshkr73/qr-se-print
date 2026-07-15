@@ -42,7 +42,7 @@ SHOP_ID_TEMPLATE   = "AAPKA_SHOP_ID"
 SERVER_URL         = "https://qrseprint.in"
 CHECK_INTERVAL     = 5          # Print jobs check karne ka interval (seconds)
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 12           # Integer version number — server ke agent_version se compare hota hai
+VERSION            = 13           # Integer version number — server ke agent_version se compare hota hai
 
 # Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
 # kyunki .exe install hone par Program Files mein likhna permission-denied
@@ -615,8 +615,12 @@ def print_pdf_sumatra(filepath, copies=1, color_mode="bw", printer_name=None, ex
         print_settings = f"copies={copies},monochrome,fit"
         log(f"🖨️  B&W (Monochrome) + Fit-to-Page print karenge")
     else:
-        print_settings = f"copies={copies},fit"
-        log(f"🖨️  Color + Fit-to-Page print karenge")
+        # EXPLICIT 'color' flag — pehle kuch nahi bhejte the, to printer
+        # driver ka DEFAULT chalta tha. Driver default Grayscale ho (Canon/HP
+        # par common) to color job bhi B&W nikalta tha. Ab job ke hisaab se
+        # force hota hai, driver default jo bhi ho.
+        print_settings = f"copies={copies},color,fit"
+        log(f"🖨️  Color (explicit) + Fit-to-Page print karenge")
     if extra:
         print_settings += f",{extra}"
         log(f"🖨️  Extra print settings: {extra}")
