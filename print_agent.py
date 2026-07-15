@@ -39,10 +39,10 @@ except Exception:
 # touch kare, comparison check ko corrupt na kare.
 UNCONFIGURED_MARKER = "AAPKA" + "_SHOP_ID"
 SHOP_ID_TEMPLATE   = "AAPKA_SHOP_ID"
-SERVER_URL         = "https://qr-se-print.onrender.com"
+SERVER_URL         = "https://qrseprint.in"
 CHECK_INTERVAL     = 5          # Print jobs check karne ka interval (seconds)
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 11           # Integer version number — server ke agent_version se compare hota hai
+VERSION            = 12           # Integer version number — server ke agent_version se compare hota hai
 
 # Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
 # kyunki .exe install hone par Program Files mein likhna permission-denied
@@ -1193,7 +1193,7 @@ def apply_update_and_restart(new_code=None):
         # Naya code mein placeholder ko current Shop ID/Server URL se fill karo
         new_code = new_code.replace('AAPKA_SHOP_ID', SHOP_ID)
         new_code = new_code.replace(
-            'SERVER_URL         = "https://qr-se-print.onrender.com"',
+            'SERVER_URL         = "https://qrseprint.in"',
             f'SERVER_URL         = "{SERVER_URL}"'
         )
 

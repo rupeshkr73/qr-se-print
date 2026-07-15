@@ -69,6 +69,10 @@ app.use(express.static('public'));
 const PRIMARY_HOST = process.env.PRIMARY_HOST || '';
 if (PRIMARY_HOST) {
   app.use((req, res, next) => {
+    // API calls ko KABHI redirect nahi — 301 par POST body gir jaati hai
+    // (clients POST ko GET bana dete hain) aur field ke saare agents
+    // 404 khane lagte hain (printer list, complete/failed reports sab).
+    if (req.path.startsWith('/api/')) return next();
     const host = (req.headers.host || '').toLowerCase();
     if (host && host !== PRIMARY_HOST && host.endsWith('onrender.com')) {
       return res.redirect(301, 'https://' + PRIMARY_HOST + req.originalUrl);
