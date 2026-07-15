@@ -227,16 +227,26 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
 
       <div class="edit-toolbar">
         <button class="edit-btn" onclick="toolAutoA4()">🤖 Auto A4 Fit</button>
-        <button class="edit-btn" id="adjustBtn" onclick="toolToggleAdjust()">🎨 Rotate / Brightness</button>
+        <button class="edit-btn" id="rotateBtn" onclick="toolToggleRotate()">🔄 Rotate</button>
+        <button class="edit-btn" id="adjustBtn" onclick="toolToggleAdjust()">🎨 Brightness/Contrast</button>
         <button class="edit-btn" onclick="toolPerspectiveCrop()">📐 Perspective Crop</button>
       </div>
 
-      <div id="adjustPanel" class="adjust-panel hidden">
-        <div class="adjust-row" style="justify-content:center;gap:8px;">
-          <button class="edit-btn" onclick="rotateItem(-90)">↺ Left 90°</button>
-          <button class="edit-btn" onclick="rotateItem(90)">↻ Right 90°</button>
-          <button class="edit-btn" onclick="rotateItem(180)">🔃 180°</button>
+      <div id="rotatePanel" class="adjust-panel hidden">
+        <div class="adjust-row">
+          <label>🎛️ Free Rotate</label>
+          <input type="range" id="rotSlider" min="-180" max="180" value="0" oninput="onRotateSlider()">
+          <span id="rotVal">0°</span>
         </div>
+        <div class="adjust-row" style="justify-content:center;gap:8px;flex-wrap:wrap;">
+          <button class="edit-btn" onclick="nudgeRotation(-90)">↺ Left 90°</button>
+          <button class="edit-btn" onclick="nudgeRotation(90)">↻ Right 90°</button>
+          <button class="edit-btn" onclick="nudgeRotation(180)">🔃 180°</button>
+        </div>
+        <button class="edit-btn" style="width:100%;justify-content:center;background:#f0ebe3;" onclick="resetRotation()">↺ Seedha Karo (0°)</button>
+      </div>
+
+      <div id="adjustPanel" class="adjust-panel hidden">
         <div class="adjust-row">
           <label>☀️ Brightness</label>
           <input type="range" id="adjBrightness" min="-100" max="100" value="0" oninput="applyAdjustments()">
@@ -857,6 +867,8 @@ function toolToggleAdjust() {
 
   const panel = document.getElementById('adjustPanel');
   const btn = document.getElementById('adjustBtn');
+  document.getElementById('rotatePanel').classList.add('hidden');
+  document.getElementById('rotateBtn').classList.remove('active');
   panel.classList.toggle('hidden');
   btn.classList.toggle('active', !panel.classList.contains('hidden'));
   if (!panel.classList.contains('hidden')) {
@@ -882,14 +894,19 @@ function applyAdjustments() {
 // sourceCanvas (cropped ya original) par brightness/contrast apply karke
 // workingCanvas banata hai. Crop apply hone ke baad bhi yahi chalta hai
 // taaki existing brightness/contrast settings crop ke upar preserve rahein.
-// 90° steps par canvas rotate — exact right angle, koi quality loss nahi
+// Kisi bhi angle par rotate. Bounding box: |w·cosθ|+|h·sinθ| — poori image
+// hamesha dikhе, kuch katta nahi. 90° steps par exact swap (quality loss 0).
+// Hamesha SOURCE se render hota hai (renderWorking chain), isliye baar-baar
+// ghumane par bhi quality kharab nahi hoti — ek hi baar resample.
 function rotateCanvas(src, deg) {
+  const rad = deg * Math.PI / 180;
+  const cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad));
   const out = document.createElement('canvas');
-  if (deg % 180 === 0) { out.width = src.width;  out.height = src.height; }
-  else                 { out.width = src.height; out.height = src.width;  }
+  out.width  = Math.max(1, Math.round(src.width * cos + src.height * sin));
+  out.height = Math.max(1, Math.round(src.width * sin + src.height * cos));
   const ctx = out.getContext('2d');
   ctx.translate(out.width / 2, out.height / 2);
-  ctx.rotate(deg * Math.PI / 180);
+  ctx.rotate(rad);
   ctx.drawImage(src, -src.width / 2, -src.height / 2);
   return out;
 }
@@ -926,31 +943,81 @@ function renderWorking(item) {
   item.workingCanvas = cur;
 }
 
-// Rotate — w/h center ke around swap (90° par), page ke andar clamp
-function rotateItem(deg) {
+// ═══ ROTATION CORE ═══
+// Absolute set — image ka on-screen SCALE preserve hota hai (box bounding
+// ke hisaab se badhta/ghata hai, image ka size nahi badalta). Center fixed,
+// page ke andar clamp. 0° par wapas aao to original size wapas.
+function setItemRotation(item, deg) {
+  deg = ((deg % 360) + 360) % 360;
+  const prevScale = item.w / item.workingCanvas.width;   // display px / canvas px
+  const cx = item.x + item.w / 2, cy = item.y + item.h / 2;
+
+  item.rotation = deg;
+  renderWorking(item);
+
+  item.w = item.workingCanvas.width  * prevScale;
+  item.h = item.workingCanvas.height * prevScale;
+  // Page se bahar na jaye — pehle shrink, phir clamp
+  const sc = Math.min(1, (A4_DISPLAY_W * 0.98) / item.w, (A4_DISPLAY_H * 0.98) / item.h);
+  item.w *= sc; item.h *= sc;
+  item.x = Math.max(0, Math.min(cx - item.w / 2, A4_DISPLAY_W - item.w));
+  item.y = Math.max(0, Math.min(cy - item.h / 2, A4_DISPLAY_H - item.h));
+
+  renderCanvasItems();
+  _syncRotUI(item);
+}
+
+// Quick buttons — current rotation me jodo
+function nudgeRotation(delta) {
+  const item = getActiveItem();
+  if (!item) { toast('⚠️ Pehle koi document select karo'); return; }
+  setItemRotation(item, (item.rotation || 0) + delta);
+  toast(item.rotation === 0 ? '↺ Seedha ho gaya' : `🔄 ${_rotDisplay(item.rotation)}°`);
+}
+
+// Free slider — rAF throttle (har pixel-move par heavy render na chale)
+let _rotPending = false;
+function onRotateSlider() {
+  const v = parseInt(document.getElementById('rotSlider').value);
+  document.getElementById('rotVal').textContent = v + '°';
+  if (_rotPending) return;
+  _rotPending = true;
+  requestAnimationFrame(() => {
+    _rotPending = false;
+    const item = getActiveItem();
+    if (!item) return;
+    setItemRotation(item, parseInt(document.getElementById('rotSlider').value));
+  });
+}
+
+function resetRotation() {
   const item = getActiveItem();
   if (!item) return;
-  item.rotation = (((item.rotation || 0) + deg) % 360 + 360) % 360;
+  setItemRotation(item, 0);
+  toast('↺ Seedha ho gaya');
+}
 
-  if (Math.abs(deg) % 180 === 90) {
-    const cx = item.x + item.w / 2, cy = item.y + item.h / 2;
-    const nw = item.h, nh = item.w;
-    item.w = nw; item.h = nh;
-    item.x = cx - nw / 2; item.y = cy - nh / 2;
-    // Page se bahar na jaye — pehle scale, phir position clamp
-    const sc = Math.min(1, (A4_DISPLAY_W * 0.95) / item.w, (A4_DISPLAY_H * 0.95) / item.h);
-    if (sc < 1) {
-      const cx2 = item.x + item.w / 2, cy2 = item.y + item.h / 2;
-      item.w *= sc; item.h *= sc;
-      item.x = cx2 - item.w / 2; item.y = cy2 - item.h / 2;
-    }
-    item.x = Math.max(0, Math.min(item.x, A4_DISPLAY_W - item.w));
-    item.y = Math.max(0, Math.min(item.y, A4_DISPLAY_H - item.h));
-  }
+// -180..180 display form (170° dikhane se -10° zyada samajh aata hai... nahi,
+// slider -180..180 hai to wahi form use karo)
+function _rotDisplay(r) { r = ((r % 360) + 360) % 360; return r > 180 ? r - 360 : r; }
+function _syncRotUI(item) {
+  const sl = document.getElementById('rotSlider');
+  const tv = document.getElementById('rotVal');
+  if (sl) sl.value = _rotDisplay(item.rotation || 0);
+  if (tv) tv.textContent = _rotDisplay(item.rotation || 0) + '°';
+}
 
-  renderWorking(item);
-  renderCanvasItems();
-  toast(item.rotation === 0 ? '↺ Seedha ho gaya' : `🔄 ${item.rotation}° rotate`);
+function toolToggleRotate() {
+  const item = getActiveItem();
+  if (!item) { toast('⚠️ Pehle koi document select karo'); return; }
+  const panel = document.getElementById('rotatePanel');
+  const btn = document.getElementById('rotateBtn');
+  // adjust panel band karo — ek waqt me ek hi panel
+  document.getElementById('adjustPanel').classList.add('hidden');
+  document.getElementById('adjustBtn').classList.remove('active');
+  panel.classList.toggle('hidden');
+  btn.classList.toggle('active', !panel.classList.contains('hidden'));
+  if (!panel.classList.contains('hidden')) _syncRotUI(item);
 }
 
 function resetAdjustments() {
@@ -958,19 +1025,12 @@ function resetAdjustments() {
   if (!item) return;
   document.getElementById('adjBrightness').value = 0;
   document.getElementById('adjContrast').value = 0;
+  document.getElementById('adjBrightnessVal').textContent = 0;
+  document.getElementById('adjContrastVal').textContent = 0;
   item.brightness = 0; item.contrast = 0;
-  if ((item.rotation || 0) % 180 !== 0) {
-    // 90/270 par the — w/h wapas swap (center fixed)
-    const cx = item.x + item.w / 2, cy = item.y + item.h / 2;
-    const nw = item.h, nh = item.w;
-    item.w = nw; item.h = nh;
-    item.x = Math.max(0, Math.min(cx - nw / 2, A4_DISPLAY_W - nw));
-    item.y = Math.max(0, Math.min(cy - nh / 2, A4_DISPLAY_H - nh));
-  }
-  item.rotation = 0;
-  item.workingCanvas = item.sourceCanvas;
+  renderWorking(item);   // rotation preserve — sirf b/c hata
   renderCanvasItems();
-  toast('↺ Reset ho gaya');
+  toast('↺ Brightness/Contrast reset');
 }
 
 // ══════════════════════════════════════════════════
