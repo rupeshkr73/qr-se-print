@@ -603,7 +603,10 @@ async function loadPdfAsPages(file) {
   const buf = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
 
-  const RENDER_SCALE = pdf.numPages > 8 ? 1.3 : 1.5;
+  // Print-grade rasterization. Pehle 1.3-1.5 tha (~100 DPI) — text print
+  // par dhundhla/draft jaisa dikhta tha. Ab 2.4 (~173 DPI). Zyada pages par
+  // scale ghatate hain warna low-end phone par memory crash.
+  const RENDER_SCALE = pdf.numPages > 15 ? 1.6 : (pdf.numPages > 8 ? 2.0 : 2.4);
   let loadedCount = 0;
 
   for (let i = 1; i <= pdf.numPages; i++) {
@@ -1403,10 +1406,12 @@ function backToUpload() {
 // screenshot mein dikha). Fix: A4_DISPLAY_W/H (fixed constants, top of
 // file) use karte hain, kabhi bhi clientWidth measure nahi karte yahan.
 function renderMergedPageCanvas(page) {
-  const A4_W = 1240, A4_H = 1754; // ~150 DPI A4
+  const A4_W = 1654, A4_H = 2339; // 200 DPI A4 — print-grade (pehle 150 tha)
   const out = document.createElement('canvas');
   out.width = A4_W; out.height = A4_H;
   const ctx = out.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';   // camera photos ke downscale crisp rahen
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, A4_W, A4_H);
 
