@@ -272,6 +272,19 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 
     <div data-sect="overview" class="show">
 
+    <!-- DATABASE: BACKUP + MIGRATION -->
+    <div class="card" style="margin-bottom:20px;border:1.5px solid #fca5a5 !important;background:#fffbfb !important;">
+      <h2><span>🗄️ Database — Backup & Migration</span></h2>
+      <div id="dbCounts" style="font-size:12px;color:#374151;margin:10px 0;font-family:monospace;">Loading...</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button onclick="downloadBackup()" style="background:#16a34a;color:#fff;border:none;border-radius:10px;padding:11px 18px;font-size:13px;font-weight:800;cursor:pointer;">💾 Backup Download Karo</button>
+        <button onclick="migrateDb()" style="background:#fff;color:#b91c1c;border:1.5px solid #fca5a5;border-radius:10px;padding:11px 18px;font-size:13px;font-weight:700;cursor:pointer;">⚙️ Purane DB Se Data Copy Karo</button>
+      </div>
+      <p style="font-size:11px;color:#6b6870;margin-top:8px;">💾 Backup: <b>hafte me ek baar dabao</b> — poora data ek JSON file me. Supabase free me auto-backup nahi hota.<br>
+      ⚙️ Copy: sirf migration ke waqt — OLD_DATABASE_URL env set hona chahiye.</p>
+      <div id="migrateOut" style="margin-top:10px;"></div>
+    </div>
+
     <!-- CLOUDINARY STORAGE -->
     <div class="card" style="margin-bottom:20px;">
       <h2><span>☁️ Cloudinary Storage</span></h2>
@@ -442,6 +455,44 @@ function renderDemoCfg(){
   document.getElementById('demoMinsInput').value = _demoCfg.minutes;
   document.getElementById('demoMinsHuman').textContent = humanMins(_demoCfg.minutes);
 }
+async function loadDbCounts(){
+  try{
+    const r = await fetch('/api/superadmin/db-counts', { headers:{'Authorization':'Bearer '+authToken} });
+    const d = await r.json();
+    document.getElementById('dbCounts').innerHTML = Object.entries(d)
+      .map(([t,c]) => `${t}: <b>${c < 0 ? '—' : c}</b>`).join(' &nbsp;|&nbsp; ');
+  }catch(e){}
+}
+function downloadBackup(){
+  fetch('/api/superadmin/backup', { headers:{'Authorization':'Bearer '+authToken} })
+    .then(r => r.blob())
+    .then(b => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(b);
+      a.download = 'qrseprint-backup-' + new Date().toISOString().slice(0,10) + '.json';
+      a.click();
+    })
+    .catch(e => alert('❌ ' + e.message));
+}
+async function migrateDb(){
+  if(!confirm('Purane database (OLD_DATABASE_URL) se saara data is naye DB me copy karein?\n\nSafe hai — duplicate rows skip ho jaayengi.')) return;
+  const out = document.getElementById('migrateOut');
+  out.innerHTML = '<div style="color:#6b6870;font-size:12px;">⏳ Copy ho raha hai... ruko, band mat karo</div>';
+  try{
+    const r = await fetch('/api/superadmin/migrate-db', { method:'POST', headers:{'Authorization':'Bearer '+authToken} });
+    const d = await r.json();
+    if(!d.success) throw new Error(d.error||'Fail');
+    out.innerHTML = '<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:10px;padding:12px;font-size:12px;font-family:monospace;">' +
+      Object.entries(d.report).map(([t,v]) =>
+        v.error ? `<div style="color:#b91c1c;">${t}: ERROR ${v.error}</div>`
+                : `<div>${t}: ${v.copied}/${v.found} copied</div>`).join('') +
+      '</div>';
+    loadDbCounts();
+  }catch(e){
+    out.innerHTML = `<div style="color:#b91c1c;font-size:12px;">❌ ${e.message}</div>`;
+  }
+}
+
 async function loadCloudinaryStatus(){
   try{
     const r = await fetch('/api/superadmin/cloudinary-status', { headers:{'Authorization':'Bearer '+authToken} });
@@ -578,6 +629,7 @@ async function loadPanel() {
   loadDemos();
   loadDemoConfig();
   loadCloudinaryStatus();
+  loadDbCounts();
   try {
     const [overviewRes, shopsRes, feeRes, versionRes, installerUrlRes] = await Promise.all([
       fetch('/api/superadmin/overview', { headers: { 'Authorization': 'Bearer ' + authToken } }),
