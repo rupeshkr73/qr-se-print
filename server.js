@@ -1712,10 +1712,17 @@ app.get('/api/shop/:shopId/agent-status', async (req, res) => {
 
 app.post('/api/jobs/complete/:jobId', async (req, res) => {
   try {
+    // Sirf active job hi 'printed' ban sakta hai. Late/duplicate report par
+    // (job pehle hi printed/failed) chupchaap success — agent retry karta
+    // hai, use error nahi chahiye. Requeued ('queued') job ka late complete
+    // aana ACHHA hai — matlab print asal me ho chuka tha, dubara nahi hoga.
     const result = await pool.query(
-      'UPDATE print_jobs SET status=$1, printed_at=NOW() WHERE id=$2 RETURNING file_public_id',
+      `UPDATE print_jobs SET status=$1, printed_at=NOW()
+       WHERE id=$2 AND status NOT IN ('printed','failed','abandoned')
+       RETURNING file_public_id`,
       ['printed', req.params.jobId]
     );
+    if (!result.rows.length) return res.json({ success: true, already: true });
     if (result.rows.length && result.rows[0].file_public_id) {
       await deleteFromCloudinary(result.rows[0].file_public_id);
       await pool.query('UPDATE print_jobs SET file_deleted=true WHERE id=$1', [req.params.jobId]);
@@ -1729,8 +1736,11 @@ app.post('/api/jobs/failed/:jobId', async (req, res) => {
   try {
     const reason = (req.body && req.body.reason) || '';
     const result = await pool.query(
-      'UPDATE print_jobs SET status=$1, failure_reason=$2 WHERE id=$3 RETURNING file_public_id',
+      `UPDATE print_jobs SET status=$1, failure_reason=$2
+       WHERE id=$3 AND status NOT IN ('printed','abandoned')
+       RETURNING file_public_id`,
       ['failed', reason.slice(0, 200), req.params.jobId]);
+    if (!result.rows.length) return res.json({ success: true, already: true });
     // Deny/fail par bhi customer ki file Cloudinary se saaf — warna orphan
     // files jama hoti rehti (privacy + storage dono)
     if (result.rows.length && result.rows[0].file_public_id) {
@@ -2170,15 +2180,25 @@ async function backgroundMaintenance() {
   bgRunning = true;
   try {
     // 1) Stuck printing jobs
+    // Max EK requeue. Pehle 2 the — matlab ek job 3 baar tak print ho
+    // sakta tha (report kho jaye to har 10 min me dubara). Duplicate print
+    // ka nuksan missed print se zyada hai.
     const requeued = await pool.query(
       `UPDATE print_jobs SET status='queued', printing_at=NULL, retry_count=retry_count+1
-       WHERE status='printing' AND printing_at < NOW() - INTERVAL '10 minutes' AND retry_count < 2
+       WHERE status='printing' AND printing_at < NOW() - INTERVAL '10 minutes' AND retry_count < 1
        RETURNING id`);
     if (requeued.rows.length) console.log('♻️ Requeued stuck jobs:', requeued.rows.map(r=>r.id).join(','));
     const failed = await pool.query(
-      `UPDATE print_jobs SET status='failed'
-       WHERE status='printing' AND printing_at < NOW() - INTERVAL '10 minutes' AND retry_count >= 2
-       RETURNING id`);
+      `UPDATE print_jobs SET status='failed',
+              failure_reason='Print timeout — shop PC/printer respond nahi kiya'
+       WHERE status='printing' AND printing_at < NOW() - INTERVAL '10 minutes' AND retry_count >= 1
+       RETURNING id, file_public_id`);
+    for (const fj of failed.rows) {
+      if (fj.file_public_id) {
+        await deleteFromCloudinary(fj.file_public_id);
+        await pool.query('UPDATE print_jobs SET file_deleted=true WHERE id=$1', [fj.id]);
+      }
+    }
     if (failed.rows.length) console.log('❌ Gave up on stuck jobs:', failed.rows.map(r=>r.id).join(','));
 
     // 2a) Customer job payments reconcile (shop ki apni keys)

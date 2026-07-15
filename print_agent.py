@@ -42,7 +42,7 @@ SHOP_ID_TEMPLATE   = "AAPKA_SHOP_ID"
 SERVER_URL         = "https://qr-se-print.onrender.com"
 CHECK_INTERVAL     = 5          # Print jobs check karne ka interval (seconds)
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 9           # Integer version number — server ke agent_version se compare hota hai
+VERSION            = 11           # Integer version number — server ke agent_version se compare hota hai
 
 # Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
 # kyunki .exe install hone par Program Files mein likhna permission-denied
@@ -720,7 +720,7 @@ def print_word(filepath, copies=1, color_mode="bw", printer_name=None):
             log(f"❌ Word print failed: {e}", "ERROR")
             return False
 
-def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_name=None):
+def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_name=None, duplex_on=False, duplex_mode="", duplex_pages=1):
     """Main print function — sab file types handle karta hai"""
     ext = Path(filepath).suffix.lower()
     log(f"🖨️  Printing: {os.path.basename(filepath)}")
@@ -755,9 +755,10 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
             print_path = filepath
 
         # ── DUPLEX ──
-        duplex_on   = bool(job.get("duplex"))
-        duplex_mode = job.get("duplex_mode", "") or ""
-        total_pgs   = int(job.get("total_pages", 1) or 1)
+        # duplex_on / duplex_mode / duplex_pages ab parameters hain —
+        # v9 me yahan job.get() tha par is function me 'job' hota hi nahi
+        # (NameError se HAR print fail ho raha tha)
+        total_pgs = duplex_pages
 
         if duplex_on and duplex_mode == "auto":
             # Printer khud duplex karta hai — driver ko duplexlong flag
@@ -776,7 +777,7 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
             if not ok1:
                 return False
             update_tray_status("📄 Back side ka wait — pages palto!")
-            if ask_backside(job):
+            if ask_backside():
                 log("📄 MANUAL duplex — pass 2: back (even pages)")
                 return print_pdf_sumatra(print_path, 1, color_mode, printer_name, extra="even")
             else:
@@ -843,18 +844,33 @@ def _show_demo_expired_popup():
     except Exception:
         pass
 
+def _report_with_retry(url, payload, job_id, what):
+    """Result report SERVER tak pahunchna hi chahiye — ek attempt fail hone
+    par job server par 'printing' me atka rehta hai aur 10 min baad requeue
+    hokar DUBARA print ho jata hai (duplicate paper!). Isliye 6 koshish,
+    10s gap — kamzor network par bhi ~1 min me pahunch jata hai."""
+    for attempt in range(1, 7):
+        try:
+            r = requests.post(url, json=payload, timeout=15)
+            if r.status_code == 200:
+                if attempt > 1:
+                    log(f"✅ {what} report {attempt}vi koshish me pahuncha ({job_id})")
+                return True
+            log(f"⚠️ {what} report HTTP {r.status_code} (koshish {attempt}/6)", "WARN")
+        except Exception as e:
+            log(f"⚠️ {what} report fail (koshish {attempt}/6): {e}", "WARN")
+        if attempt < 6:
+            time.sleep(10)
+    log(f"❌ {what} report 6 koshish ke baad bhi nahi pahuncha — job {job_id} "
+        f"server par atka rahega (10 min me server khud sambhal lega)", "ERROR")
+    return False
+
 def mark_complete(job_id):
-    try:
-        requests.post(f"{SERVER_URL}/api/jobs/complete/{job_id}", timeout=15)
-        log(f"✅ Job {job_id} complete! Cloudinary se delete ho rahi hai...")
-    except Exception as e:
-        log(f"❌ Complete mark: {e}", "ERROR")
+    log(f"✅ Job {job_id} complete! Server ko report ho raha hai...")
+    _report_with_retry(f"{SERVER_URL}/api/jobs/complete/{job_id}", {}, job_id, "Complete")
 
 def mark_failed(job_id, reason=""):
-    try:
-        requests.post(f"{SERVER_URL}/api/jobs/failed/{job_id}", json={"reason": reason}, timeout=10)
-    except:
-        pass
+    _report_with_retry(f"{SERVER_URL}/api/jobs/failed/{job_id}", {"reason": reason}, job_id, "Failed")
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -865,7 +881,7 @@ def mark_failed(job_id, reason=""):
 # FAIL-OPEN: popup kisi wajah se na ban paye to print ho jata hai —
 # popup ki technical dikkat business nahi rokni chahiye.
 # ══════════════════════════════════════════════════════════════════
-def ask_backside(job):
+def ask_backside():
     """Manual duplex: front pages print ho gaye — owner se pucho back side
     ready hai? tkinter popup, fail par ctypes MessageBox (win32 core,
     virtually kabhi fail nahi hota). Dono fail (impossible-adjacent) to
@@ -1059,7 +1075,14 @@ def process_job(job):
         mark_failed(job_id, "Empty file")
         return
 
-    success = print_file(filepath, copies, color, selected_pages, target_printer)
+    _dup_on   = bool(job.get("duplex"))
+    _dup_mode = job.get("duplex_mode", "") or ""
+    if selected_pages:
+        _dup_pages = len([p for p in str(selected_pages).replace(' ', '').split(',') if p])
+    else:
+        _dup_pages = int(job.get("total_pages", 1) or 1)
+    success = print_file(filepath, copies, color, selected_pages, target_printer,
+                         duplex_on=_dup_on, duplex_mode=_dup_mode, duplex_pages=_dup_pages)
 
     try:
         time.sleep(3)
