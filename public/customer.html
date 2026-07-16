@@ -518,6 +518,16 @@ async function init() {
 
     const shop = await shopRes.json();
 
+    // ── Subscription khatam? Poora block ──
+    if (shop.subscription_expired) {
+      document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Space Grotesk',sans-serif;">
+        <div style="font-size:52px;margin-bottom:16px;">⏸️</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:22px;margin-bottom:10px;">Shop Abhi Inactive Hai</h2>
+        <p style="color:#6b6870;font-size:14px;line-height:1.6;">${shop.name} ki online print service abhi inactive hai.<br>Shop owner se counter par baat karo.</p>
+      </div>`;
+      return;
+    }
+
     // ── Shop band hai? Poora block — order flow shuru hi nahi hoga ──
     if (shop.paused) {
       document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Space Grotesk',sans-serif;">
