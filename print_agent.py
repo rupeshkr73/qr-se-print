@@ -42,7 +42,7 @@ SHOP_ID_TEMPLATE   = "AAPKA_SHOP_ID"
 SERVER_URL         = "https://qrseprint.in"
 CHECK_INTERVAL     = 5          # Print jobs check karne ka interval (seconds)
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 13           # Integer version number — server ke agent_version se compare hota hai
+VERSION            = 15           # Integer version number — server ke agent_version se compare hota hai
 
 # Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
 # kyunki .exe install hone par Program Files mein likhna permission-denied
@@ -724,7 +724,7 @@ def print_word(filepath, copies=1, color_mode="bw", printer_name=None):
             log(f"❌ Word print failed: {e}", "ERROR")
             return False
 
-def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_name=None, duplex_on=False, duplex_mode="", duplex_pages=1):
+def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_name=None, duplex_on=False, duplex_mode="", duplex_pages=1, paper_size="a4"):
     """Main print function — sab file types handle karta hai"""
     ext = Path(filepath).suffix.lower()
     log(f"🖨️  Printing: {os.path.basename(filepath)}")
@@ -759,6 +759,17 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
             print_path = filepath
 
         # ── DUPLEX ──
+        # ── PAPER TOKEN ── Sumatra jo sizes samajhta hai unke liye paper=
+        # flag; baaki (4x6, A1) par flag skip — PDF khud sahi size ki hai,
+        # driver default+fit sambhal lega. Galat/unknown token Sumatra
+        # chupchaap ignore karta hai, par hum sirf known hi bhejte hain.
+        _PAPER_TOKENS = {"a4": "A4", "a3": "A3", "a5": "A5", "a2": "A2",
+                         "letter": "letter", "legal": "legal"}
+        _ptok = _PAPER_TOKENS.get((paper_size or "a4").lower(), "")
+        _paper_extra = f"paper={_ptok}" if _ptok else ""
+        def _mix(dup_extra=""):
+            return ",".join([t for t in (_paper_extra, dup_extra) if t])
+
         # duplex_on / duplex_mode / duplex_pages ab parameters hain —
         # v9 me yahan job.get() tha par is function me 'job' hota hi nahi
         # (NameError se HAR print fail ho raha tha)
@@ -767,7 +778,7 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
         if duplex_on and duplex_mode == "auto":
             # Printer khud duplex karta hai — driver ko duplexlong flag
             log("📄 AUTO duplex — printer dono side khud chhapega")
-            return print_pdf_sumatra(print_path, copies, color_mode, printer_name, extra="duplexlong")
+            return print_pdf_sumatra(print_path, copies, color_mode, printer_name, extra=_mix("duplexlong"))
 
         if duplex_on and duplex_mode == "manual" and total_pgs > 1:
             # Do-pass manual duplex: pehle ODD pages (1,3,5...), phir owner
@@ -777,13 +788,13 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
             # stacking par depend karta hai (face-down laser = seedha sahi;
             # face-up par owner stack palat le). 1-2 page docs par hamesha sahi.
             log("📄 MANUAL duplex — pass 1: front (odd pages)")
-            ok1 = print_pdf_sumatra(print_path, 1, color_mode, printer_name, extra="odd")
+            ok1 = print_pdf_sumatra(print_path, 1, color_mode, printer_name, extra=_mix("odd"))
             if not ok1:
                 return False
             update_tray_status("📄 Back side ka wait — pages palto!")
             if ask_backside():
                 log("📄 MANUAL duplex — pass 2: back (even pages)")
-                return print_pdf_sumatra(print_path, 1, color_mode, printer_name, extra="even")
+                return print_pdf_sumatra(print_path, 1, color_mode, printer_name, extra=_mix("even"))
             else:
                 log("📄 Owner ne back side skip kiya — sirf front print hua")
                 return True  # front print hua tha, job done
@@ -792,7 +803,7 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
             log("📄 Duplex select tha par 1 hi page hai — normal print")
 
         # PDF print karo with fit-to-page (image bhi ab already A4-fitted PDF hai)
-        success = print_pdf_sumatra(print_path, copies, color_mode, printer_name)
+        success = print_pdf_sumatra(print_path, copies, color_mode, printer_name, extra=_mix())
         return success
 
     finally:
@@ -1023,6 +1034,7 @@ def process_job(job):
     ext     = job.get("file_type", "pdf")
     fname   = job.get("file_name", f"print.{ext}")
     pages   = job.get("total_pages", 1)
+    paper   = job.get("paper_size", "a4")
     amount  = job.get("amount", 0)
     selected_pages = job.get("selected_pages", "")
 
@@ -1033,7 +1045,20 @@ def process_job(job):
     # wala behavior chalega (backward compatible, kuch nahi tootega).
     printer_name_bw = job.get("printer_name_bw", "") or None
     printer_name_color = job.get("printer_name_color", "") or None
-    target_printer = printer_name_bw if color == "bw" else printer_name_color
+    printer_name_4x6 = job.get("printer_name_4x6", "") or None
+    printer_name_a3 = job.get("printer_name_a3", "") or None
+    # ── ROUTING PRECEDENCE ──
+    # 1. Paper-special printer (4x6 photo / A3-A2-A1 large) agar shop ne set kiya
+    # 2. Warna color/bw routing (jaisa pehle)
+    _paper = (job.get("paper_size", "a4") or "a4").lower()
+    if _paper == "4x6" and printer_name_4x6:
+        target_printer = printer_name_4x6
+        log(f"   📷 4x6 photo job — special printer: {printer_name_4x6}")
+    elif _paper in ("a3", "a2", "a1") and printer_name_a3:
+        target_printer = printer_name_a3
+        log(f"   📐 {_paper.upper()} large job — special printer: {printer_name_a3}")
+    else:
+        target_printer = printer_name_bw if color == "bw" else printer_name_color
 
     # ── COUNTER APPROVAL GATE ── online-paid jobs seedha print (paisa aa
     # chuka); sirf counter jobs par owner se pucho
@@ -1086,7 +1111,8 @@ def process_job(job):
     else:
         _dup_pages = int(job.get("total_pages", 1) or 1)
     success = print_file(filepath, copies, color, selected_pages, target_printer,
-                         duplex_on=_dup_on, duplex_mode=_dup_mode, duplex_pages=_dup_pages)
+                         duplex_on=_dup_on, duplex_mode=_dup_mode, duplex_pages=_dup_pages,
+                         paper_size=job.get("paper_size", "a4") or "a4")
 
     try:
         time.sleep(3)
