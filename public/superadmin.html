@@ -257,6 +257,10 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           <label style="font-size:12px;font-weight:700;">📅 Monthly Plan Fee (₹/mahina)</label>
           <input type="number" id="monthlyFeeInput" min="1" style="width:100%;padding:11px 13px;border:1.5px solid #7c3aed;border-radius:10px;font-size:18px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#7c3aed;">
         </div>
+        <div style="margin-top:12px;">
+          <label style="font-size:12px;font-weight:700;">⚡ Advanced Printing Unlock Fee (₹ one-time)</label>
+          <input type="number" id="advancedFeeInput" min="1" style="width:100%;padding:11px 13px;border:1.5px solid #a855f7;border-radius:10px;font-size:18px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#a855f7;">
+        </div>
       </div>
 
       <!-- Live Preview - jaisa homepage pe dikhega -->
@@ -674,6 +678,7 @@ async function loadPanel() {
       document.getElementById('actualPriceInput').value = feeData.actualPrice;
       document.getElementById('offerPriceInput').value = feeData.offerPrice;
       if (feeData.monthlyFee !== undefined) document.getElementById('monthlyFeeInput').value = feeData.monthlyFee;
+      if (feeData.advancedFee !== undefined) document.getElementById('advancedFeeInput').value = feeData.advancedFee;
       updatePreview();
     }
 
@@ -787,7 +792,7 @@ async function updateSetupFee() {
     const res = await fetch('/api/superadmin/setup-fee', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
-      body: JSON.stringify({ actualPrice, offerPrice, monthlyFee: document.getElementById('monthlyFeeInput').value })
+      body: JSON.stringify({ actualPrice, offerPrice, monthlyFee: document.getElementById('monthlyFeeInput').value, advancedFee: document.getElementById('advancedFeeInput').value })
     });
     const data = await res.json();
     if (data.success) {
