@@ -317,6 +317,9 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_color_duplex INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS printer_name_4x6 VARCHAR(300) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS printer_name_a3 VARCHAR(300) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS plan_type VARCHAR(12) DEFAULT 'onetime';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS paid_until TIMESTAMP;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS renewal_order_id VARCHAR(200) DEFAULT '';
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS duplex BOOLEAN DEFAULT false;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS failure_reason VARCHAR(200) DEFAULT '';
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS file_deleted BOOLEAN DEFAULT false;
@@ -379,6 +382,7 @@ async function initDB() {
     `);
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_enabled','1') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_minutes','120') ON CONFLICT DO NOTHING");
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('monthly_fee','99') ON CONFLICT DO NOTHING");
 
     // Broken demo logins repair (bcrypt hash galti se gaya tha; login sha256
     // expect karta hai). Idempotent — sirf $2 (bcrypt) wale demo shops.
@@ -409,6 +413,7 @@ async function getSetupPricing() {
     r.rows.forEach(row => { map[row.key] = parseInt(row.value); });
     return {
       offerPrice: map.setup_fee_amount ?? SETUP_FEE_AMOUNT,
+      monthlyFee: await getMonthlyFee(),
       actualPrice: map.setup_actual_price ?? SETUP_ACTUAL_PRICE
     };
   } catch(e) {
@@ -555,6 +560,19 @@ app.post('/api/superadmin/shop/:shopId/activate', verifySuperAdmin, async (req, 
 });
 
 // ── Password reset (superadmin) — number badal gaya / bhool gaya cases ──
+// Support: monthly shop ko +30 din (cash/offline payment case)
+app.post('/api/superadmin/shop/:shopId/extend', verifySuperAdmin, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `UPDATE shops SET paid_until = GREATEST(NOW(), COALESCE(paid_until, NOW())) + INTERVAL '30 days',
+         plan_type='monthly'
+       WHERE id=$1 RETURNING paid_until`, [req.params.shopId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
+    console.log(`Superadmin extend +30d: ${req.params.shopId} -> ${r.rows[0].paid_until}`);
+    res.json({ success: true, paid_until: r.rows[0].paid_until });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/superadmin/shop/:shopId/reset-password', verifySuperAdmin, async (req, res) => {
   try {
     const temp = 'QSP' + crypto.randomBytes(3).toString('hex');
@@ -873,6 +891,10 @@ app.post('/api/shop/register', async (req, res) => {
     const shopId = 'SHOP_' + uuidv4().substring(0,8).toUpperCase();
     const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
     const currentSetupFee = await getSetupFeeAmount();
+    // Plan: 'onetime' (default) ya 'monthly' (₹99/mahina — pehli payment se 30 din)
+    const plan = req.body.plan === 'monthly' ? 'monthly' : 'onetime';
+    const monthlyFee = await getMonthlyFee();
+    const firstPayment = plan === 'monthly' ? monthlyFee : currentSetupFee;
 
     // Shop create hoti hai lekin setup_paid=false rehta hai by default.
     // QR Code aur Print Agent sirf setup fee payment confirm hone ke baad milte hain.
@@ -880,14 +902,14 @@ app.post('/api/shop/register', async (req, res) => {
       `INSERT INTO shops 
         (id,name,address,phone,printer_model,price_bw,price_color,payment_mode,password_hash,
          payment_gateway,razorpay_key_id,razorpay_key_secret,phonepe_merchant_id,phonepe_salt_key,phonepe_salt_index,
-         setup_paid,setup_amount)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,false,$16)`,
+         setup_paid,setup_amount,plan_type)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,false,$16,$17)`,
       [shopId, name, address, phone, printer_model, price_bw||5, price_color||10, finalPaymentMode, passwordHash,
        finalGateway, razorpay_key_id||'', razorpay_key_secret||'', phonepe_merchant_id||'', phonepe_salt_key||'', phonepe_salt_index||'1',
-       currentSetupFee]
+       firstPayment, plan]
     );
 
-    res.json({ success: true, shopId, setupFeeAmount: currentSetupFee });
+    res.json({ success: true, shopId, setupFeeAmount: firstPayment, plan });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -954,6 +976,38 @@ app.post('/api/setup-fee/create', async (req, res) => {
 
 // ── Shop activation (setup fee confirm hone par) — verify handler,
 //    webhook aur reconciliation teeno yahi use karte hain ──
+async function getMonthlyFee() {
+  try {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key='monthly_fee'");
+    return Math.max(1, parseInt(r.rows[0]?.value) || 99);
+  } catch(e) { return 99; }
+}
+
+// Shop ka subscription zinda hai? onetime = hamesha; monthly = paid_until check
+function isSubscriptionActive(shop) {
+  if (!shop) return false;
+  if ((shop.plan_type || 'onetime') !== 'monthly') return true;
+  return shop.paid_until && new Date(shop.paid_until).getTime() > Date.now();
+}
+
+// Monthly renewal — RACE-SAFE: renewal_order_id match + clear ek hi atomic
+// UPDATE me (webhook + verify + reconcile teeno fire ho sakte hain — sirf
+// pehla jeeta, baaki no-op, double +30din kabhi nahi)
+async function extendShop(shopId, orderId, paymentId) {
+  const r = await pool.query(
+    `UPDATE shops SET
+       paid_until = GREATEST(NOW(), COALESCE(paid_until, NOW())) + INTERVAL '30 days',
+       renewal_order_id = ''
+     WHERE id=$1 AND renewal_order_id=$2
+     RETURNING paid_until`,
+    [shopId, orderId]);
+  if (r.rows.length) {
+    console.log(`Subscription renewed: ${shopId} | till ${r.rows[0].paid_until} | pay ${paymentId}`);
+    return r.rows[0].paid_until;
+  }
+  return null; // koi aur pehle process kar chuka
+}
+
 async function activateShop(shopId, paymentId) {
   const qrUrl = `${BASE_URL}/print/${shopId}`;
   const qrCode = await QRCode.toDataURL(qrUrl, { width: 300, margin: 2 });
@@ -961,6 +1015,10 @@ async function activateShop(shopId, paymentId) {
     'UPDATE shops SET setup_paid=true, setup_payment_id=$1, qr_code=$2 WHERE id=$3',
     [paymentId, qrCode, shopId]
   );
+  // Monthly plan: pehli payment = pehle 30 din
+  await pool.query(
+    "UPDATE shops SET paid_until = NOW() + INTERVAL '30 days' WHERE id=$1 AND plan_type='monthly'",
+    [shopId]);
   console.log(`Setup fee paid: ${shopId} | Payment: ${paymentId}`);
 
   // ── REFERRAL REWARD ── is naye shop ko kisi ne refer kiya tha?
@@ -1005,6 +1063,57 @@ app.post('/api/setup-fee/verify', async (req, res) => {
     console.error('Setup fee verify error:', err.message);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ─── MONTHLY RENEWAL — ₹99 owner ke Razorpay se Rupesh ko ───
+app.post('/api/admin/renew/create-order', verifyToken, async (req, res) => {
+  try {
+    if (!OWNER_RAZORPAY_KEY_ID || !OWNER_RAZORPAY_KEY_SECRET)
+      return res.status(500).json({ error: 'Owner Razorpay configured nahi' });
+    const sh = await pool.query('SELECT id, plan_type FROM shops WHERE id=$1', [req.shopId]);
+    if (!sh.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
+    if (sh.rows[0].plan_type !== 'monthly')
+      return res.status(400).json({ error: 'Ye shop one-time plan par hai — renewal ki zaroorat nahi' });
+
+    const fee = await getMonthlyFee();
+    const amountInPaise = fee * 100;
+    const orderData = JSON.stringify({
+      amount: amountInPaise, currency: 'INR',
+      receipt: 'renew_' + req.shopId.slice(-8) + '_' + Date.now().toString().slice(-6),
+      notes: { shopId: req.shopId, kind: 'renewal' }
+    });
+    const auth = Buffer.from(`${OWNER_RAZORPAY_KEY_ID}:${OWNER_RAZORPAY_KEY_SECRET}`).toString('base64');
+    const razorpayOrder = await new Promise((resolve, reject) => {
+      const r = https.request({
+        hostname: 'api.razorpay.com', path: '/v1/orders', method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth,
+                   'Content-Length': Buffer.byteLength(orderData) }
+      }, (resp) => {
+        let data = '';
+        resp.on('data', c => data += c);
+        resp.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+      });
+      r.on('error', reject);
+      r.write(orderData);
+      r.end();
+    });
+    if (!razorpayOrder.id) return res.status(400).json({ error: 'Renewal order create nahi hua' });
+
+    await pool.query('UPDATE shops SET renewal_order_id=$1 WHERE id=$2', [razorpayOrder.id, req.shopId]);
+    res.json({ success: true, orderId: razorpayOrder.id, amount: amountInPaise, keyId: OWNER_RAZORPAY_KEY_ID, fee });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/renew/verify', verifyToken, async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const expected = crypto.createHmac('sha256', OWNER_RAZORPAY_KEY_SECRET)
+      .update(razorpay_order_id + '|' + razorpay_payment_id).digest('hex');
+    if (expected !== razorpay_signature)
+      return res.status(400).json({ error: 'Payment verification failed' });
+    const till = await extendShop(req.shopId, razorpay_order_id, razorpay_payment_id);
+    res.json({ success: true, paid_until: till });
+  } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/shop/login', async (req, res) => {
@@ -1067,14 +1176,17 @@ app.post('/api/shop/set-password', async (req, res) => {
 app.get('/api/shop/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode FROM shops WHERE id=$1',
+      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until FROM shops WHERE id=$1',
       [req.params.shopId]
     );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
     if (!r.rows[0].setup_paid) {
       return res.status(403).json({ error: 'Shop ka setup abhi incomplete hai. Shop owner ko setup fee complete karna hoga.' });
     }
-    res.json(r.rows[0]);
+    const shopInfo = r.rows[0];
+    shopInfo.subscription_expired = !isSubscriptionActive(shopInfo);
+    delete shopInfo.paid_until; // customer ko exact date nahi dikhani
+    res.json(shopInfo);
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1096,7 +1208,7 @@ app.get('/api/shop/:shopId/stats', async (req, res) => {
 app.get('/api/admin/profile', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT id,name,address,phone,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
+      `SELECT id,name,address,phone,plan_type,paid_until,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
               payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
               CASE WHEN phonepe_salt_key != '' THEN true ELSE false END as has_phonepe_salt
@@ -1265,13 +1377,14 @@ app.post('/api/payment/online/create', async (req, res) => {
     const { jobId, colorMode, copies, totalPages, selectedPages } = req.body;
 
     const jobCheck = await pool.query(
-      `SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.payment_mode, s.payment_gateway, s.paused,
+      `SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.payment_mode, s.payment_gateway, s.paused, s.plan_type, s.paid_until,
               s.razorpay_key_id, s.razorpay_key_secret,
               s.phonepe_merchant_id, s.phonepe_salt_key, s.phonepe_salt_index
        FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1`, [jobId]
     );
     if (!jobCheck.rows.length) return res.status(404).json({ error:'Job not found' });
     if (jobCheck.rows[0].paused) return res.status(403).json({ error: '🏪 Shop abhi band hai — baad mein try karo' });
+    if (!isSubscriptionActive(jobCheck.rows[0])) return res.status(403).json({ error: '⏸️ Shop inactive hai — owner ko subscription renew karni hai' });
 
     const job = jobCheck.rows[0];
 
@@ -1543,12 +1656,13 @@ app.post('/api/payment/counter', async (req, res) => {
     if (!jobId) return res.status(400).json({ error:'Job ID required' });
 
     const jobCheck = await pool.query(
-      'SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.payment_mode, s.paused FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1', [jobId]
+      'SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.payment_mode, s.paused, s.plan_type, s.paid_until FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1', [jobId]
     );
     if (!jobCheck.rows.length) return res.status(404).json({ error:'Job not found' });
 
     const job = jobCheck.rows[0];
     if (job.paused) return res.status(403).json({ error: '🏪 Shop abhi band hai — baad mein try karo' });
+    if (!isSubscriptionActive(job)) return res.status(403).json({ error: '⏸️ Shop inactive hai — owner ko subscription renew karni hai' });
 
     // Demo guards: expiry + 10-print cap
     const shopD = await pool.query('SELECT demo, demo_expires_at FROM shops WHERE id=$1', [job.shop_id]);
@@ -2052,6 +2166,12 @@ app.put('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Actual Price, Offer Price se kam nahi ho sakta' });
     }
 
+    if (req.body.monthlyFee !== undefined) {
+      const mf = parseInt(req.body.monthlyFee);
+      if (!isNaN(mf) && mf >= 1) {
+        await pool.query("UPDATE system_settings SET value=$1 WHERE key='monthly_fee'", [String(mf)]);
+      }
+    }
     await pool.query(
       `INSERT INTO system_settings (key, value, updated_at) VALUES ('setup_fee_amount', $1, NOW())
        ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
@@ -2155,6 +2275,14 @@ app.post('/api/webhook/razorpay', async (req, res) => {
         // 1) Setup fee?
         const sh = await pool.query(
           'SELECT id, setup_paid FROM shops WHERE setup_order_id=$1', [orderId]);
+        // Renewal order? (setup match na ho to)
+        if (!sh.rows.length) {
+          const rn = await pool.query('SELECT id FROM shops WHERE renewal_order_id=$1', [orderId]);
+          if (rn.rows.length) {
+            await extendShop(rn.rows[0].id, orderId, paymentId || 'WEBHOOK');
+            return res.json({ status: 'ok' });
+          }
+        }
         if (sh.rows.length && !sh.rows[0].setup_paid) {
           await activateShop(sh.rows[0].id, paymentId);
         }
@@ -2255,6 +2383,22 @@ async function backgroundMaintenance() {
         } catch(e) { /* agla cycle */ }
       }
     }
+    // 2b-ii) Renewal reconcile — renewal order bana par verify nahi pahuncha
+    if (OWNER_RAZORPAY_KEY_ID && OWNER_RAZORPAY_KEY_SECRET) {
+      const renews = await pool.query(
+        `SELECT id, renewal_order_id FROM shops
+         WHERE renewal_order_id IS NOT NULL AND renewal_order_id <> '' LIMIT 10`);
+      for (const shop of renews.rows) {
+        try {
+          const order = await razorpayOrderStatus(shop.renewal_order_id, OWNER_RAZORPAY_KEY_ID, OWNER_RAZORPAY_KEY_SECRET);
+          if (order && order.status === 'paid') {
+            await extendShop(shop.id, shop.renewal_order_id, 'RECONCILE');
+            console.log('💰 Reconciled renewal:', shop.id);
+          }
+        } catch(e) { /* agla cycle */ }
+      }
+    }
+
     // 2c) ABANDONED uploads — customer ne upload kiya par payment complete
     // nahi kiya. Pehle ye files Cloudinary par HAMESHA padi rehti thi
     // (storage leak + customer ki private file server par). Ab 60 min baad
