@@ -635,7 +635,11 @@ async function loadPdfAsPages(file) {
   // Print-grade rasterization. Pehle 1.3-1.5 tha (~100 DPI) — text print
   // par dhundhla/draft jaisa dikhta tha. Ab 2.4 (~173 DPI). Zyada pages par
   // scale ghatate hain warna low-end phone par memory crash.
-  const RENDER_SCALE = pdf.numPages > 15 ? 1.6 : (pdf.numPages > 8 ? 2.0 : 2.4);
+  // QUALITY-FIRST: flat high scale (~245 DPI source, 300 DPI output ke liye).
+  // 15+ pages par halka step-down (2.8 = ~200 DPI, phir bhi purane 1.6-2.0
+  // se bahut upar) — ye sasta-phone hedge nahi, browser ki memory-wall hai:
+  // 20 pages x full-res canvas = tab crash KISI bhi phone par.
+  const RENDER_SCALE = pdf.numPages > 15 ? 2.8 : 3.4;
   let loadedCount = 0;
 
   for (let i = 1; i <= pdf.numPages; i++) {
@@ -1483,7 +1487,10 @@ function renderMergedPageCanvas(page) {
   // DPI ghatate hain warna A1 ka canvas (~125MB) phone crash kar dega.
   const { wmm, hmm } = currentPaper();
   const area = wmm * hmm;
-  const dpi = area <= 210*297*1.05 ? 200 : (area <= 297*420*1.05 ? 150 : (area <= 420*594*1.05 ? 120 : 96));
+  // 300 DPI normal papers ke liye (4x6/A5/A4/Letter/Legal — Legal bhi
+  // normal desktop printer ka kagaz hai isliye included). Bade sizes
+  // (A3/A2/A1) wahi purane tiers — warna canvas memory phone crash karegi.
+  const dpi = area <= 216*356*1.02 ? 300 : (area <= 297*420*1.05 ? 150 : (area <= 420*594*1.05 ? 120 : 96));
   const A4_W = Math.round(wmm / 25.4 * dpi), A4_H = Math.round(hmm / 25.4 * dpi);
   const out = document.createElement('canvas');
   out.width = A4_W; out.height = A4_H;

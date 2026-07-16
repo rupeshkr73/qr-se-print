@@ -46,6 +46,12 @@ h1 .mark{background:linear-gradient(transparent 62%,var(--yellow) 62%);padding:0
 .pm span{font-size:11px;color:var(--muted)}
 
 #gatewayCard{display:none}
+.gw-help{background:#f0f7ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:12px 14px;margin-top:10px;font-size:12.5px;line-height:1.9;color:#1e3a5f}
+.gw-help b{color:#1d4ed8}
+.gw-help ol{margin:6px 0 0;padding-left:18px}
+.gw-help li{margin-bottom:4px}
+.gw-help a{color:#1d4ed8;font-weight:700;text-decoration:underline}
+.gw-help .imp{background:#fef3c7;border-radius:6px;padding:1px 6px;font-weight:700;color:#92400e}
 .gw-tabs{display:flex;gap:8px;margin-bottom:14px}
 .gw-tab{flex:1;padding:10px;border:1.5px solid #e3e5ec;border-radius:12px;font-size:13px;font-weight:700;background:#fff;cursor:pointer;font-family:'Inter',sans-serif}
 .gw-tab.sel{border-color:var(--pink);background:#fff5f7;color:var(--pink)}
@@ -121,11 +127,35 @@ h1 .mark{background:linear-gradient(transparent 62%,var(--yellow) 62%);padding:0
     <div class="gw-panel show" id="panelRzp">
       <div class="fg"><label class="fl">Razorpay Key ID</label><input class="fi" id="f_rzp_id" placeholder="rzp_live_XXXX"></div>
       <div class="fg"><label class="fl">Razorpay Key Secret</label><input class="fi" id="f_rzp_secret" type="password" placeholder="••••••••"></div>
+      <div class="gw-help">
+        <b>🔑 Razorpay account + keys kaise milenge (step by step):</b>
+        <ol>
+          <li>Account banao: <a href="https://dashboard.razorpay.com/signup" target="_blank" rel="noopener">dashboard.razorpay.com/signup</a></li>
+          <li>Business details + KYC bharo. <b>Website/App URL</b> mein likho: <span class="imp">qrseprint.in</span></li>
+          <li>Account <b>activate</b> hone ka wait karo (KYC approve — 1-3 din)</li>
+          <li>Phir Dashboard → <b>Account & Settings → API Keys → Generate Live Key</b></li>
+          <li><b>Key ID</b> (rzp_live_ se shuru) upar paste karo</li>
+          <li><b>Key Secret</b> sirf <span class="imp">EK BAAR</span> dikhta hai — turant copy karke upar paste karo</li>
+        </ol>
+        ⚠️ <b>rzp_test_</b> wali (Test) keys mat daalna — usse asli paisa nahi aayega. Sirf <b>rzp_live_</b> wali.
+      </div>
     </div>
     <div class="gw-panel" id="panelPp">
       <div class="fg"><label class="fl">PhonePe Merchant ID</label><input class="fi" id="f_pp_mid" placeholder="MERCHANTXXXX"></div>
       <div class="fg"><label class="fl">Salt Key</label><input class="fi" id="f_pp_salt" type="password" placeholder="••••••••"></div>
       <div class="fg"><label class="fl">Salt Index</label><input class="fi" id="f_pp_idx" type="number" value="1"></div>
+      <div class="gw-help">
+        <b>🔑 PhonePe merchant account + keys kaise milenge (step by step):</b>
+        <ol>
+          <li>PhonePe Business account banao: <a href="https://business.phonepe.com" target="_blank" rel="noopener">business.phonepe.com</a></li>
+          <li>Register karke <b>"Payment Gateway"</b> (website ke liye) activate karne ki request karo</li>
+          <li>Business details mein <b>Website URL</b> likho: <span class="imp">qrseprint.in</span></li>
+          <li>Approval ke baad Business dashboard ke <b>Developer / API Keys</b> section mein milenge:
+            <b>Merchant ID (MID)</b>, <b>Salt Key</b>, <b>Salt Index</b></li>
+          <li>Teeno upar paste karo — Salt Index zyada tar <b>1</b> hota hai</li>
+        </ol>
+        ⏳ PhonePe PG approval mein 2-7 din lag sakte hain. Jaldi shuru karna ho to <b>Razorpay</b> use karo ya <b>Sirf Counter Cash</b> se start karke baad mein Shop Login → Settings se gateway add karo.
+      </div>
     </div>
     <div class="hint">💡 Keys abhi nahi hain? Upar <b>"Sirf Counter Cash"</b> select karo — baad mein Shop Login ke settings se gateway add kar sakte ho.</div>
   </div>
