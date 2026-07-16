@@ -226,7 +226,18 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
       <input type="file" id="addDocInput" accept=".jpg,.jpeg,.png,.pdf" multiple class="hidden" onchange="handleAddDocument(this)">
 
       <div class="edit-toolbar">
-        <button class="edit-btn" onclick="toolAutoA4()">🤖 Auto A4 Fit</button>
+        <select class="edit-btn" id="paperSizeSel" onchange="changePaperSize()" style="appearance:auto;font-family:'Inter',sans-serif;">
+          <option value="4x6">📷 4×6 Photo</option>
+          <option value="a4" selected>📄 A4</option>
+          <option value="a5">📄 A5</option>
+          <option value="letter">📄 Letter</option>
+          <option value="legal">📄 Legal</option>
+          <option value="a3">📄 A3</option>
+          <option value="a2">📄 A2</option>
+          <option value="a1">📄 A1</option>
+        </select>
+        <button class="edit-btn" id="orientBtn" onclick="toggleOrientation()">📄 Portrait</button>
+        <button class="edit-btn" onclick="toolAutoA4()">🤖 Auto Fit</button>
         <button class="edit-btn" id="rotateBtn" onclick="toolToggleRotate()">🔄 Rotate</button>
         <button class="edit-btn" id="adjustBtn" onclick="toolToggleAdjust()">🎨 Brightness/Contrast</button>
         <button class="edit-btn" onclick="toolPerspectiveCrop()">📐 Perspective Crop</button>
@@ -413,7 +424,7 @@ const shopId = location.pathname.split('/').pop();
 // ═══════════════════════════════════════════════
 let state = {
   priceBW: 5, priceColor: 10,
-  colorMode: 'bw', copies: 1, duplex: false, shopDuplexMode: '', priceBwDuplex: 0, priceColorDuplex: 0,
+  colorMode: 'bw', copies: 1, duplex: false, shopDuplexMode: '', priceBwDuplex: 0, priceColorDuplex: 0, paperSize: 'a4', orientation: 'portrait',
   jobId: null,
   shopPaymentMode: 'both', shopGateway: '', razorpayKeyId: '',
   onlineAllowed: false, counterAllowed: true,
@@ -440,7 +451,25 @@ let currentPreviewPageIdx = 0;
 // clientWidth/clientHeight 0 milta hai — jisse layout calculations
 // Infinity/NaN ban jaate aur cheezein silently fail ho jaati (blank preview
 // jaisa bug isi wajah se aaya tha).
-const A4_DISPLAY_W = 280, A4_DISPLAY_H = 396;
+// ═══ PAPER SIZES ═══ (mm me; display/output/PDF sab isi se derive)
+const PAPER_SIZES = {
+  '4x6':    { label: '4×6 Photo', wmm: 101.6, hmm: 152.4 },
+  'a4':     { label: 'A4',        wmm: 210,   hmm: 297   },
+  'a5':     { label: 'A5',        wmm: 148,   hmm: 210   },
+  'letter': { label: 'Letter',    wmm: 215.9, hmm: 279.4 },
+  'legal':  { label: 'Legal',     wmm: 215.9, hmm: 355.6 },
+  'a3':     { label: 'A3',        wmm: 297,   hmm: 420   },
+  'a2':     { label: 'A2',        wmm: 420,   hmm: 594   },
+  'a1':     { label: 'A1',        wmm: 594,   hmm: 841   }
+};
+function currentPaper() {
+  const p = PAPER_SIZES[state.paperSize] || PAPER_SIZES.a4;
+  let w = p.wmm, h = p.hmm;
+  if (state.orientation === 'landscape') { const t = w; w = h; h = t; }
+  return { wmm: w, hmm: h };
+}
+// Display dims — paper/orientation ke saath badalte hain (isliye let)
+let A4_DISPLAY_W = 280, A4_DISPLAY_H = 396;
 
 function toast(msg) {
   const t = document.getElementById('toast');
@@ -867,6 +896,50 @@ function changeEditorPage(delta) {
 }
 
 // ═══════════════════════════════════════════════
+// ═══ PAPER SIZE / ORIENTATION ═══
+function applyPaper() {
+  const { wmm, hmm } = currentPaper();
+  // Display: paper ko 300x420 box me fit karo (phone-friendly)
+  const k = Math.min(300 / wmm, 420 / hmm);
+  const oldW = A4_DISPLAY_W, oldH = A4_DISPLAY_H;
+  A4_DISPLAY_W = Math.round(wmm * k);
+  A4_DISPLAY_H = Math.round(hmm * k);
+  const el = document.getElementById('a4Canvas');
+  el.style.width = A4_DISPLAY_W + 'px';
+  el.style.height = A4_DISPLAY_H + 'px';
+
+  // Items remap: relative CENTER + relative WIDTH preserve, aspect
+  // workingCanvas se (kabhi stretch nahi), page ke andar clamp
+  pages.forEach(pg => pg.items.forEach(it => {
+    const cxr = (it.x + it.w / 2) / oldW;
+    const cyr = (it.y + it.h / 2) / oldH;
+    const wr  = it.w / oldW;
+    let nw = wr * A4_DISPLAY_W;
+    const ratio = it.workingCanvas.width / it.workingCanvas.height;
+    let nh = nw / ratio;
+    const sc = Math.min(1, (A4_DISPLAY_W * 0.98) / nw, (A4_DISPLAY_H * 0.98) / nh);
+    nw *= sc; nh *= sc;
+    it.w = nw; it.h = nh;
+    it.x = Math.max(0, Math.min(cxr * A4_DISPLAY_W - nw / 2, A4_DISPLAY_W - nw));
+    it.y = Math.max(0, Math.min(cyr * A4_DISPLAY_H - nh / 2, A4_DISPLAY_H - nh));
+  }));
+  renderEditor();
+}
+
+function changePaperSize() {
+  state.paperSize = document.getElementById('paperSizeSel').value;
+  applyPaper();
+  toast('📐 ' + (PAPER_SIZES[state.paperSize] || {}).label + ' select hua — print isi size par niklega');
+}
+
+function toggleOrientation() {
+  state.orientation = state.orientation === 'portrait' ? 'landscape' : 'portrait';
+  document.getElementById('orientBtn').textContent =
+    state.orientation === 'portrait' ? '📄 Portrait' : '📃 Landscape';
+  applyPaper();
+  toast(state.orientation === 'portrait' ? '📄 Portrait mode' : '📃 Landscape mode');
+}
+
 // TOOL: Auto A4 Fit
 // ═══════════════════════════════════════════════
 function toolAutoA4() {
@@ -1406,7 +1479,12 @@ function backToUpload() {
 // screenshot mein dikha). Fix: A4_DISPLAY_W/H (fixed constants, top of
 // file) use karte hain, kabhi bhi clientWidth measure nahi karte yahan.
 function renderMergedPageCanvas(page) {
-  const A4_W = 1654, A4_H = 2339; // 200 DPI A4 — print-grade (pehle 150 tha)
+  // Output px selected paper se. DPI size ke hisaab se — bade paper par
+  // DPI ghatate hain warna A1 ka canvas (~125MB) phone crash kar dega.
+  const { wmm, hmm } = currentPaper();
+  const area = wmm * hmm;
+  const dpi = area <= 210*297*1.05 ? 200 : (area <= 297*420*1.05 ? 150 : (area <= 420*594*1.05 ? 120 : 96));
+  const A4_W = Math.round(wmm / 25.4 * dpi), A4_H = Math.round(hmm / 25.4 * dpi);
   const out = document.createElement('canvas');
   out.width = A4_W; out.height = A4_H;
   const ctx = out.getContext('2d');
@@ -1521,7 +1599,14 @@ async function buildOutputFile() {
   }
 
   const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+  // PDF page selected paper size + orientation me — print isi par niklega
+  const { wmm, hmm } = currentPaper();
+  const wpt = wmm * 72 / 25.4, hpt = hmm * 72 / 25.4;
+  const pdf = new jsPDF({
+    unit: 'pt',
+    format: [wpt, hpt],
+    orientation: wpt > hpt ? 'landscape' : 'portrait'
+  });
   const pageW = pdf.internal.pageSize.getWidth();
   const pageH = pdf.internal.pageSize.getHeight();
 
@@ -1545,6 +1630,8 @@ async function uploadAllPages() {
     fd.append('copies', state.copies);
     fd.append('colorMode', state.colorMode);
     fd.append('totalPages', pages.length);
+    fd.append('paperSize', state.paperSize);
+    fd.append('orientation', state.orientation);
 
     const res = await fetch('/api/upload', { method: 'POST', body: fd });
     const data = await res.json();
