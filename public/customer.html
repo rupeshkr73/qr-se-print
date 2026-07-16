@@ -734,24 +734,23 @@ async function handleAddDocument(input) {
     try {
       const ext = file.name.split('.').pop().toLowerCase();
       if (ext === 'pdf') {
+        // Add Document = ISI canvas par add. PDF ke SAARE pages current
+        // page par items ban ke aate hain (image ki tarah) — naye pages
+        // NAHI. High-res render (3.4) taaki quality image jaisi sharp ho;
+        // pehle 1.5 tha isliye PDF add "kaam nahi kar raha" jaisa dikhta tha.
         const buf = await file.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-        if (pdf.numPages === 1) {
-          // 1-page PDF: current page par item (Aadhaar back-side use case)
-          const pdfPage = await pdf.getPage(1);
-          const vp = pdfPage.getViewport({ scale: 1.5 });
+        for (let pg = 1; pg <= pdf.numPages; pg++) {
+          const pdfPage = await pdf.getPage(pg);
+          const vp = pdfPage.getViewport({ scale: 3.4 });
           const canvas = document.createElement('canvas');
           canvas.width = vp.width; canvas.height = vp.height;
           await pdfPage.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
           const newItem = createItemFromCanvas(canvas, true);
           page.items.push(newItem);
           page.activeItemId = newItem.id;
-        } else {
-          // Multi-page PDF: saare pages naye pages ke roop me — pehle sirf
-          // page 1 aata tha aur baaki chupchaap GIR jaate the
-          toast(`⏳ ${file.name}: ${pdf.numPages} pages add ho rahe hain...`);
-          await loadPdfAsPages(file);
         }
+        if (pdf.numPages > 1) toast(`✅ ${pdf.numPages} pages isi canvas par add ho gaye`);
       } else {
         const canvas = await fileToCanvas(file);
         const newItem = createItemFromCanvas(canvas, true);
