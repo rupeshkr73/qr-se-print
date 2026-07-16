@@ -42,7 +42,7 @@ SHOP_ID_TEMPLATE   = "AAPKA_SHOP_ID"
 SERVER_URL         = "https://qrseprint.in"
 CHECK_INTERVAL     = 5          # Print jobs check karne ka interval (seconds)
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 15           # Integer version number — server ke agent_version se compare hota hai
+VERSION            = 16           # Integer version number — server ke agent_version se compare hota hai
 
 # Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
 # kyunki .exe install hone par Program Files mein likhna permission-denied
@@ -577,7 +577,7 @@ def get_bundled_resource_path(filename):
     return None
 
 # ─── Problem 5: B&W / Color Print + Fit-to-A4 ────────────────────────
-def print_pdf_sumatra(filepath, copies=1, color_mode="bw", printer_name=None, extra=""):
+def print_pdf_sumatra(filepath, copies=1, color_mode="bw", printer_name=None, extra="", scale_mode="fit"):
     """
     SumatraPDF se print — B&W/Color setting ke saath
     'fit' flag use karte hain taaki chhota PDF/page bhi A4 paper
@@ -612,15 +612,15 @@ def print_pdf_sumatra(filepath, copies=1, color_mode="bw", printer_name=None, ex
     # "fit" — page ko printer paper size ke hisaab se scale karta hai
     # (chhota document A4 paper mein bada hoke print hoga, corner mein nahi rahega)
     if color_mode == "bw":
-        print_settings = f"copies={copies},monochrome,fit"
-        log(f"🖨️  B&W (Monochrome) + Fit-to-Page print karenge")
+        print_settings = f"copies={copies},monochrome,{scale_mode}"
+        log(f"🖨️  B&W (Monochrome) + {scale_mode} print karenge")
     else:
         # EXPLICIT 'color' flag — pehle kuch nahi bhejte the, to printer
         # driver ka DEFAULT chalta tha. Driver default Grayscale ho (Canon/HP
         # par common) to color job bhi B&W nikalta tha. Ab job ke hisaab se
         # force hota hai, driver default jo bhi ho.
-        print_settings = f"copies={copies},color,fit"
-        log(f"🖨️  Color (explicit) + Fit-to-Page print karenge")
+        print_settings = f"copies={copies},color,{scale_mode}"
+        log(f"🖨️  Color (explicit) + {scale_mode} print karenge")
     if extra:
         print_settings += f",{extra}"
         log(f"🖨️  Extra print settings: {extra}")
@@ -766,6 +766,11 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
         _PAPER_TOKENS = {"a4": "A4", "a3": "A3", "a5": "A5", "a2": "A2",
                          "letter": "letter", "legal": "legal"}
         _ptok = _PAPER_TOKENS.get((paper_size or "a4").lower(), "")
+        # 4x6: Sumatra me paper token NAHI hota — 'fit' driver ke default
+        # (aksar A4) par STRETCH kar deta tha (field bug: photo A4 jitni
+        # badi nikli). 'noscale' = PDF apni asli 4x6 size par hi chhape,
+        # kagaz koi bhi ho. Baaki sizes par 'fit' hi sahi hai.
+        _scale = "noscale" if (paper_size or "").lower() == "4x6" else "fit"
         _paper_extra = f"paper={_ptok}" if _ptok else ""
         def _mix(dup_extra=""):
             return ",".join([t for t in (_paper_extra, dup_extra) if t])
@@ -778,7 +783,7 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
         if duplex_on and duplex_mode == "auto":
             # Printer khud duplex karta hai — driver ko duplexlong flag
             log("📄 AUTO duplex — printer dono side khud chhapega")
-            return print_pdf_sumatra(print_path, copies, color_mode, printer_name, extra=_mix("duplexlong"))
+            return print_pdf_sumatra(print_path, copies, color_mode, printer_name, extra=_mix("duplexlong"), scale_mode=_scale)
 
         if duplex_on and duplex_mode == "manual" and total_pgs > 1:
             # Do-pass manual duplex: pehle ODD pages (1,3,5...), phir owner
@@ -788,13 +793,13 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
             # stacking par depend karta hai (face-down laser = seedha sahi;
             # face-up par owner stack palat le). 1-2 page docs par hamesha sahi.
             log("📄 MANUAL duplex — pass 1: front (odd pages)")
-            ok1 = print_pdf_sumatra(print_path, 1, color_mode, printer_name, extra=_mix("odd"))
+            ok1 = print_pdf_sumatra(print_path, 1, color_mode, printer_name, extra=_mix("odd"), scale_mode=_scale)
             if not ok1:
                 return False
             update_tray_status("📄 Back side ka wait — pages palto!")
             if ask_backside():
                 log("📄 MANUAL duplex — pass 2: back (even pages)")
-                return print_pdf_sumatra(print_path, 1, color_mode, printer_name, extra=_mix("even"))
+                return print_pdf_sumatra(print_path, 1, color_mode, printer_name, extra=_mix("even"), scale_mode=_scale)
             else:
                 log("📄 Owner ne back side skip kiya — sirf front print hua")
                 return True  # front print hua tha, job done
@@ -803,7 +808,7 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
             log("📄 Duplex select tha par 1 hi page hai — normal print")
 
         # PDF print karo with fit-to-page (image bhi ab already A4-fitted PDF hai)
-        success = print_pdf_sumatra(print_path, copies, color_mode, printer_name, extra=_mix())
+        success = print_pdf_sumatra(print_path, copies, color_mode, printer_name, extra=_mix(), scale_mode=_scale)
         return success
 
     finally:
