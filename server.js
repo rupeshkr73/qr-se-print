@@ -320,6 +320,8 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS plan_type VARCHAR(12) DEFAULT 'onetime';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS paid_until TIMESTAMP;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS renewal_order_id VARCHAR(200) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS advanced_unlocked BOOLEAN DEFAULT false;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS advanced_order_id VARCHAR(200) DEFAULT '';
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS duplex BOOLEAN DEFAULT false;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS failure_reason VARCHAR(200) DEFAULT '';
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS file_deleted BOOLEAN DEFAULT false;
@@ -383,6 +385,7 @@ async function initDB() {
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_enabled','1') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_minutes','120') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('monthly_fee','399') ON CONFLICT DO NOTHING");
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('advanced_fee','199') ON CONFLICT DO NOTHING");
 
     // Broken demo logins repair (bcrypt hash galti se gaya tha; login sha256
     // expect karta hai). Idempotent — sirf $2 (bcrypt) wale demo shops.
@@ -1074,6 +1077,13 @@ app.post('/api/setup-fee/create', async (req, res) => {
 
 // ── Shop activation (setup fee confirm hone par) — verify handler,
 //    webhook aur reconciliation teeno yahi use karte hain ──
+async function getAdvancedFee() {
+  try {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key='advanced_fee'");
+    return Math.max(1, parseInt(r.rows[0]?.value) || 199);
+  } catch(e) { return 199; }
+}
+
 async function getMonthlyFee() {
   try {
     const r = await pool.query("SELECT value FROM system_settings WHERE key='monthly_fee'");
@@ -1161,6 +1171,51 @@ app.post('/api/setup-fee/verify', async (req, res) => {
     console.error('Setup fee verify error:', err.message);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ─── ADVANCED PRINTING UNLOCK — ₹199 one-time ───
+app.post('/api/admin/advanced/create-order', verifyToken, async (req, res) => {
+  try {
+    if (!OWNER_RAZORPAY_KEY_ID || !OWNER_RAZORPAY_KEY_SECRET)
+      return res.status(500).json({ error: 'Owner Razorpay configured nahi' });
+    const sh = await pool.query('SELECT advanced_unlocked FROM shops WHERE id=$1', [req.shopId]);
+    if (!sh.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
+    if (sh.rows[0].advanced_unlocked) return res.status(400).json({ error: 'Advanced already unlocked hai' });
+
+    const fee = await getAdvancedFee();
+    const orderData = JSON.stringify({
+      amount: fee * 100, currency: 'INR',
+      receipt: 'adv_' + req.shopId.slice(-8) + '_' + Date.now().toString().slice(-6),
+      notes: { shopId: req.shopId, kind: 'advanced_unlock' }
+    });
+    const auth = Buffer.from(`${OWNER_RAZORPAY_KEY_ID}:${OWNER_RAZORPAY_KEY_SECRET}`).toString('base64');
+    const order = await new Promise((resolve, reject) => {
+      const r = https.request({
+        hostname: 'api.razorpay.com', path: '/v1/orders', method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth,
+                   'Content-Length': Buffer.byteLength(orderData) }
+      }, (resp) => { let d=''; resp.on('data',c=>d+=c); resp.on('end',()=>{try{resolve(JSON.parse(d))}catch(e){reject(e)}}); });
+      r.on('error', reject); r.write(orderData); r.end();
+    });
+    if (!order.id) return res.status(400).json({ error: 'Order create nahi hua' });
+    await pool.query('UPDATE shops SET advanced_order_id=$1 WHERE id=$2', [order.id, req.shopId]);
+    res.json({ success: true, orderId: order.id, amount: fee * 100, keyId: OWNER_RAZORPAY_KEY_ID, fee });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/advanced/verify', verifyToken, async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    const expected = crypto.createHmac('sha256', OWNER_RAZORPAY_KEY_SECRET)
+      .update(razorpay_order_id + '|' + razorpay_payment_id).digest('hex');
+    if (expected !== razorpay_signature) return res.status(400).json({ error: 'Verification failed' });
+    // Atomic: order match + unlock ek saath (double-fire safe)
+    const r = await pool.query(
+      "UPDATE shops SET advanced_unlocked=true, advanced_order_id='' WHERE id=$1 AND advanced_order_id=$2 RETURNING id",
+      [req.shopId, razorpay_order_id]);
+    if (r.rows.length) console.log('Advanced unlocked:', req.shopId, razorpay_payment_id);
+    res.json({ success: true, unlocked: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
 // ─── MONTHLY RENEWAL — ₹99 owner ke Razorpay se Rupesh ko ───
@@ -1306,7 +1361,7 @@ app.get('/api/shop/:shopId/stats', async (req, res) => {
 app.get('/api/admin/profile', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT id,name,address,phone,demo,plan_type,paid_until,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
+      `SELECT id,name,address,phone,demo,plan_type,paid_until,advanced_unlocked,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
               payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
               CASE WHEN phonepe_salt_key != '' THEN true ELSE false END as has_phonepe_salt
@@ -1377,15 +1432,18 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
 
     const r = await pool.query('SELECT id,name,address,phone,printer_model,printer_name_bw,printer_name_color,price_bw,price_color,payment_mode,payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index FROM shops WHERE id=$1', [req.shopId]);
     // Duplex mode alag se (validate karke)
-    if (typeof req.body.duplex_mode === 'string' && ['','auto','manual'].includes(req.body.duplex_mode)) {
+    if (advUnlocked && typeof req.body.duplex_mode === 'string' && ['','auto','manual'].includes(req.body.duplex_mode)) {
       await pool.query('UPDATE shops SET duplex_mode=$1 WHERE id=$2', [req.body.duplex_mode, req.shopId]);
     }
-    // Special-paper printer routing (4x6 photo / A3 large) — string hi accept
-    if (typeof req.body.printer_name_4x6 === 'string') {
-      await pool.query('UPDATE shops SET printer_name_4x6=$1 WHERE id=$2', [req.body.printer_name_4x6.slice(0,300), req.shopId]);
-    }
-    if (typeof req.body.printer_name_a3 === 'string') {
-      await pool.query('UPDATE shops SET printer_name_a3=$1 WHERE id=$2', [req.body.printer_name_a3.slice(0,300), req.shopId]);
+    // Advanced printing (4x6/A3/duplex) — SIRF unlocked shops save kar sakti hain.
+    // Server-side guard: lock ka UI bypass ho bhi jaaye to yahan ruk jaayega.
+    const unlockChk = await pool.query('SELECT advanced_unlocked FROM shops WHERE id=$1', [req.shopId]);
+    const advUnlocked = unlockChk.rows.length && unlockChk.rows[0].advanced_unlocked;
+    if (advUnlocked) {
+      if (typeof req.body.printer_name_4x6 === 'string')
+        await pool.query('UPDATE shops SET printer_name_4x6=$1 WHERE id=$2', [req.body.printer_name_4x6.slice(0,300), req.shopId]);
+      if (typeof req.body.printer_name_a3 === 'string')
+        await pool.query('UPDATE shops SET printer_name_a3=$1 WHERE id=$2', [req.body.printer_name_a3.slice(0,300), req.shopId]);
     }
     // Duplex prices — sirf tab store jab valid non-negative int mile
     const pbwd = parseInt(req.body.price_bw_duplex);
@@ -2243,6 +2301,7 @@ app.get('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
       offerPrice: pricing.offerPrice,
       actualPrice: pricing.actualPrice,
       monthlyFee: pricing.monthlyFee,
+      advancedFee: await getAdvancedFee(),
       defaultOfferPrice: SETUP_FEE_AMOUNT,
       defaultActualPrice: SETUP_ACTUAL_PRICE
     });
@@ -2269,6 +2328,12 @@ app.put('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
       const mf = parseInt(req.body.monthlyFee);
       if (!isNaN(mf) && mf >= 1) {
         await pool.query("UPDATE system_settings SET value=$1 WHERE key='monthly_fee'", [String(mf)]);
+      }
+    }
+    if (req.body.advancedFee !== undefined) {
+      const af = parseInt(req.body.advancedFee);
+      if (!isNaN(af) && af >= 1) {
+        await pool.query("UPDATE system_settings SET value=$1 WHERE key='advanced_fee'", [String(af)]);
       }
     }
     await pool.query(
@@ -2379,6 +2444,12 @@ app.post('/api/webhook/razorpay', async (req, res) => {
           const rn = await pool.query('SELECT id FROM shops WHERE renewal_order_id=$1', [orderId]);
           if (rn.rows.length) {
             await extendShop(rn.rows[0].id, orderId, paymentId || 'WEBHOOK');
+            return res.json({ status: 'ok' });
+          }
+          const adv = await pool.query('SELECT id FROM shops WHERE advanced_order_id=$1', [orderId]);
+          if (adv.rows.length) {
+            await pool.query("UPDATE shops SET advanced_unlocked=true, advanced_order_id='' WHERE id=$1", [adv.rows[0].id]);
+            console.log('Advanced unlocked (webhook):', adv.rows[0].id);
             return res.json({ status: 'ok' });
           }
         }
@@ -2495,6 +2566,21 @@ async function backgroundMaintenance() {
             console.log('💰 Reconciled renewal:', shop.id);
           }
         } catch(e) { /* agla cycle */ }
+      }
+    }
+
+    // 2b-iii) Advanced unlock reconcile
+    if (OWNER_RAZORPAY_KEY_ID && OWNER_RAZORPAY_KEY_SECRET) {
+      const advs = await pool.query(
+        `SELECT id, advanced_order_id FROM shops WHERE advanced_order_id IS NOT NULL AND advanced_order_id <> '' LIMIT 10`);
+      for (const shop of advs.rows) {
+        try {
+          const order = await razorpayOrderStatus(shop.advanced_order_id, OWNER_RAZORPAY_KEY_ID, OWNER_RAZORPAY_KEY_SECRET);
+          if (order && order.status === 'paid') {
+            await pool.query("UPDATE shops SET advanced_unlocked=true, advanced_order_id='' WHERE id=$1", [shop.id]);
+            console.log('Advanced unlocked (reconcile):', shop.id);
+          }
+        } catch(e) {}
       }
     }
 
