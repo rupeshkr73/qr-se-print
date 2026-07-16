@@ -71,9 +71,9 @@ nav{background:#0a0a0f;padding:16px 24px}
     <p>Setup fee complete karo aur QR Code + Print Agent download karo</p>
 
     <div class="price-box">
-      <div class="label">One-Time Setup Fee</div>
-      <div class="amount" id="feeAmount">₹499</div>
-      <div class="sub">Lifetime access — koi monthly charge nahi</div>
+      <div class="label" id="feeLabel">Setup Fee</div>
+      <div class="amount" id="feeAmount">₹—</div>
+      <div class="sub" id="feeSub"></div>
     </div>
 
     <ul class="benefits">
@@ -129,6 +129,26 @@ nav{background:#0a0a0f;padding:16px 24px}
 
 <script>
 const shopId = location.pathname.split('/').pop();
+
+// Plan-aware header — monthly par LIFETIME kabhi nahi likhna (galat promise)
+(async () => {
+  try {
+    const r = await fetch('/api/setup-status/' + shopId);
+    const d = await r.json();
+    if (d.paid) return; // paid par page khud redirect/handle karega
+    const lbl = document.getElementById('feeLabel');
+    const amt = document.getElementById('feeAmount');
+    const sub = document.getElementById('feeSub');
+    amt.textContent = '₹' + (d.amount || 0);
+    if (d.plan === 'monthly') {
+      lbl.textContent = '📅 Monthly Plan — Pehla Mahina';
+      sub.innerHTML = '<b>₹' + d.amount + ' har mahine</b> — service active rakhne ke liye time par renew karna hoga.<br>Ye one-time/lifetime NAHI hai.';
+    } else {
+      lbl.textContent = '💎 One-Time Setup Fee';
+      sub.textContent = 'Lifetime access — No renewal, koi monthly charge nahi';
+    }
+  } catch(e) {}
+})();
 
 async function loadShopId() {
   document.getElementById('shopIdDisplay').textContent = shopId;

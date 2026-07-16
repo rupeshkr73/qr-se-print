@@ -148,6 +148,23 @@ body{
   border:2px solid var(--ink);border-radius:12px;padding:10px 16px;margin:0 0 10px;cursor:pointer;
   background:#fff;color:var(--ink);font-family:'Inter',sans-serif;transition:.15s}
 .demo-strip:hover{background:var(--ink);color:#fff}
+.plans-wrap{margin:28px 0}
+.plans-title{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;text-align:center;margin-bottom:16px}
+.plans3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:760px){.plans3{grid-template-columns:1fr}}
+.plan3{border:2px solid #e5e0d8;border-radius:18px;padding:18px 16px;background:#fff;display:flex;flex-direction:column}
+.plan3.hot{border-color:#ff2e63;box-shadow:0 8px 26px rgba(255,46,99,.18);position:relative}
+.plan3.hot::before{content:'⭐ POPULAR';position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#ff2e63;color:#fff;font-size:10px;font-weight:800;padding:3px 12px;border-radius:20px}
+.plan3 .p3t{font-weight:800;font-size:15px;text-align:center}
+.plan3 .p3p{font-size:28px;font-weight:800;text-align:center;margin:6px 0;color:#ff2e63}
+.plan3 .p3p small{font-size:12px;color:#6b6870;font-weight:600}
+.plan3 .p3p .cut3{font-size:13px;color:#9b9690;text-decoration:line-through;margin-right:6px;font-weight:600}
+.plan3 .p3note{font-size:10.5px;text-align:center;font-weight:700;margin-bottom:10px}
+.plan3 ul{list-style:none;padding:0;margin:0 0 12px;font-size:12px;line-height:2;color:#333}
+.plan3 .p3btn{margin-top:auto;display:block;text-align:center;padding:12px;border-radius:12px;font-weight:800;font-size:13px;cursor:pointer;border:none;text-decoration:none;font-family:'Space Grotesk',sans-serif}
+.plans-cta{display:flex;gap:12px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+.plans-cta .big-btn{padding:15px 30px;border-radius:14px;font-weight:800;font-size:15px;cursor:pointer;border:none;font-family:'Syne',sans-serif;text-decoration:none;display:inline-block}
+
 .demo-strip .rs-left{font-size:13px;font-weight:600}
 /* Demo modal */
 .dm-overlay{display:none;position:fixed;inset:0;background:rgba(17,17,17,.55);z-index:500;
@@ -249,6 +266,60 @@ body{
     <div class="pill">🔄 Auto Update</div>
   </div>
 
+  <!-- ═══ PRICING PLANS ═══ -->
+  <div class="plans-wrap">
+    <div class="plans-title">💰 Apna Plan Chuno</div>
+    <div class="plans3">
+      <div class="plan3">
+        <div class="p3t">🎯 Demo</div>
+        <div class="p3p">₹0</div>
+        <div class="p3note" style="color:#6b6870;">Try karke dekho — bina paisa diye</div>
+        <ul>
+          <li>✅ Demo Auto Print Software</li>
+          <li>✅ Personalize QR For Shop</li>
+          <li>✅ Unlimited Print 24/Hrs</li>
+          <li>✅ Setup Guide (README) included</li>
+        </ul>
+        <button class="p3btn" style="background:#1b1b1f;color:#fff;" onclick="openDemoModal()">Try Now — Free Demo</button>
+      </div>
+      <div class="plan3">
+        <div class="p3t">📅 Monthly</div>
+        <div class="p3p">₹<span id="hpMonthly">399</span> <small>/month</small></div>
+        <div class="p3note" style="color:#b45309;">Per month renewal — time par pay karo, service chalti rahe</div>
+        <ul>
+          <li>✅ Auto Print Software</li>
+          <li>✅ Personalize QR For Shop</li>
+          <li>✅ Unlimited Print</li>
+          <li>✅ Assistant in Setup</li>
+          <li>✅ On Demand Service will be added</li>
+          <li>✅ Bug fix on update</li>
+          <li>✅ WhatsApp Assistant</li>
+        </ul>
+        <a class="p3btn" style="background:#7c3aed;color:#fff;" href="/register">Setup Now</a>
+      </div>
+      <div class="plan3 hot">
+        <div class="p3t">💎 One-Time</div>
+        <div class="p3p"><span class="cut3" id="hpCut">₹1999</span>₹<span id="hpOnetime">999</span></div>
+        <div class="p3note" style="color:#166534;">Lifetime Access & Update — No renewal</div>
+        <ul>
+          <li>✅ Auto Print Software</li>
+          <li>✅ Personalize QR For Shop</li>
+          <li>✅ Unlimited Print</li>
+          <li>✅ Assistant in Setup</li>
+          <li>✅ Assistant in Online Payment Gateway Setup</li>
+          <li>✅ Bug Fix Within 2Hr</li>
+          <li>✅ WhatsApp Assistant</li>
+          <li>✅ AnyDesk Assistant</li>
+        </ul>
+        <a class="p3btn" style="background:#ff2e63;color:#fff;" href="/register">Setup Now</a>
+      </div>
+    </div>
+    <div class="plans-cta">
+      <a href="/register" class="big-btn" style="background:#ff2e63;color:#fff;">🚀 Setup Now</a>
+      <button class="big-btn" style="background:#fff;color:#1b1b1f;border:2px solid #1b1b1f;" onclick="openDemoModal()">🎯 Try Now — Demo</button>
+    </div>
+  </div>
+
   <a href="/register" class="cta-main">🚀 Abhi Start Karein <span class="arrow">›</span></a>
   <a href="/admin" class="cta-sub">🔑 Shop Login</a>
 
@@ -311,6 +382,17 @@ loadPrices();
     }
   }catch(e){}
 })();
+// Homepage plan prices — live superadmin se
+(async () => {
+  try {
+    const r = await fetch('/api/setup-fee/current');
+    const d = await r.json();
+    if (d.monthlyFee) document.getElementById('hpMonthly').textContent = d.monthlyFee;
+    if (d.offerPrice !== undefined) document.getElementById('hpOnetime').textContent = d.offerPrice;
+    if (d.actualPrice) document.getElementById('hpCut').textContent = '₹' + d.actualPrice;
+  } catch(e) {}
+})();
+
 function openDemoModal(){ document.getElementById('demoModal').classList.add('open'); }
 function closeDemoModal(){ document.getElementById('demoModal').classList.remove('open'); }
 async function createDemo(){

@@ -117,74 +117,36 @@ h1 .mark{background:linear-gradient(transparent 62%,var(--yellow) 62%);padding:0
     <h3><span class="n">3</span> Customer Payment Kaise Lena Hai</h3>
     <label class="fl" style="margin-bottom:8px;display:block;">PLAN CHUNO</label>
     <div class="plan-row">
-      <div class="plan-card sel" id="planOnetime" onclick="selPlan('onetime')">
-        <div class="pt">💎 One-Time</div>
-        <div class="pp"><span class="cut" id="planCutPrice">₹999</span>₹<span id="planOfferPrice">499</span></div>
-        <div class="pd">Ek baar do, <b>lifetime</b> chalao<br>koi monthly kharcha nahi</div>
-      </div>
       <div class="plan-card" id="planMonthly" onclick="selPlan('monthly')">
         <div class="pt">📅 Monthly</div>
-        <div class="pp">₹<span id="planMonthlyPrice">99</span><span style="font-size:12px;color:#6b6870;">/mahina</span></div>
-        <div class="pd">Aaj ₹<span id="planMonthlyPrice2">99</span> — har 30 din renew<br>band karna ho to bas renew mat karo</div>
+        <div class="pp">₹<span id="planMonthlyPrice">399</span><span style="font-size:12px;color:#6b6870;">/mahina</span></div>
+        <div class="pd" style="color:#b45309;font-weight:700;">Har mahine time par pay karo —<br>tabhi service active rahegi</div>
+        <div class="pd" style="text-align:left;margin-top:8px;">
+          ✅ Auto Print Software<br>✅ Personalize QR For Shop<br>✅ Unlimited Print<br>
+          ✅ Assistant in Setup<br>✅ On Demand Service will be added<br>✅ Bug fix on update<br>✅ WhatsApp Assistant
+        </div>
+      </div>
+      <div class="plan-card sel" id="planOnetime" onclick="selPlan('onetime')">
+        <div class="pt">💎 One-Time</div>
+        <div class="pp"><span class="cut" id="planCutPrice">₹1999</span>₹<span id="planOfferPrice">999</span></div>
+        <div class="pd" style="color:#166534;font-weight:700;">Ek baar pay — Lifetime Access & Update<br>No renewal kabhi nahi</div>
+        <div class="pd" style="text-align:left;margin-top:8px;">
+          ✅ Auto Print Software<br>✅ Personalize QR For Shop<br>✅ Unlimited Print<br>
+          ✅ Assistant in Setup<br>✅ Assistant in Online Payment Gateway Setup<br>✅ Bug Fix Within 2Hr<br>
+          ✅ WhatsApp Assistant<br>✅ AnyDesk Assistant
+        </div>
       </div>
     </div>
 
-    <div class="paymode">
-      <label class="pm sel"><input type="radio" name="paymode" value="counter_only" checked onchange="pmChange(this)">
-        <span><b>🪙 Sirf Counter Cash</b><span>Online gateway ki zaroorat nahi — sabse simple start</span></span></label>
-      <label class="pm"><input type="radio" name="paymode" value="both" onchange="pmChange(this)">
-        <span><b>💳 Online + Counter dono</b><span>Customer ko dono option milenge</span></span></label>
-      <label class="pm"><input type="radio" name="paymode" value="online_only" onchange="pmChange(this)">
-        <span><b>📲 Sirf Online</b><span>Payment gateway zaroori hoga</span></span></label>
-    </div>
-  </div>
+      </div>
 
   <!-- 4: Gateway (conditional) -->
-  <div class="card" id="gatewayCard">
-    <h3><span class="n">4</span> Payment Gateway <small style="font-weight:500;color:var(--muted)">— paisa seedha aapke account mein</small></h3>
-    <div class="gw-tabs">
-      <button type="button" class="gw-tab sel" id="tabRzp" onclick="gwTab('razorpay')">Razorpay</button>
-      <button type="button" class="gw-tab" id="tabPp" onclick="gwTab('phonepe')">PhonePe</button>
-    </div>
-    <div class="gw-panel show" id="panelRzp">
-      <div class="fg"><label class="fl">Razorpay Key ID</label><input class="fi" id="f_rzp_id" placeholder="rzp_live_XXXX"></div>
-      <div class="fg"><label class="fl">Razorpay Key Secret</label><input class="fi" id="f_rzp_secret" type="password" placeholder="••••••••"></div>
-      <div class="gw-help">
-        <b>🔑 Razorpay account + keys kaise milenge (step by step):</b>
-        <ol>
-          <li>Account banao: <a href="https://dashboard.razorpay.com/signup" target="_blank" rel="noopener">dashboard.razorpay.com/signup</a></li>
-          <li>Business details + KYC bharo. <b>Website/App URL</b> mein likho: <span class="imp">qrseprint.in</span></li>
-          <li>Account <b>activate</b> hone ka wait karo (KYC approve — 1-3 din)</li>
-          <li>Phir Dashboard → <b>Account & Settings → API Keys → Generate Live Key</b></li>
-          <li><b>Key ID</b> (rzp_live_ se shuru) upar paste karo</li>
-          <li><b>Key Secret</b> sirf <span class="imp">EK BAAR</span> dikhta hai — turant copy karke upar paste karo</li>
-        </ol>
-        ⚠️ <b>rzp_test_</b> wali (Test) keys mat daalna — usse asli paisa nahi aayega. Sirf <b>rzp_live_</b> wali.
-      </div>
-    </div>
-    <div class="gw-panel" id="panelPp">
-      <div class="fg"><label class="fl">PhonePe Merchant ID</label><input class="fi" id="f_pp_mid" placeholder="MERCHANTXXXX"></div>
-      <div class="fg"><label class="fl">Salt Key</label><input class="fi" id="f_pp_salt" type="password" placeholder="••••••••"></div>
-      <div class="fg"><label class="fl">Salt Index</label><input class="fi" id="f_pp_idx" type="number" value="1"></div>
-      <div class="gw-help">
-        <b>🔑 PhonePe merchant account + keys kaise milenge (step by step):</b>
-        <ol>
-          <li>PhonePe Business account banao: <a href="https://business.phonepe.com" target="_blank" rel="noopener">business.phonepe.com</a></li>
-          <li>Register karke <b>"Payment Gateway"</b> (website ke liye) activate karne ki request karo</li>
-          <li>Business details mein <b>Website URL</b> likho: <span class="imp">qrseprint.in</span></li>
-          <li>Approval ke baad Business dashboard ke <b>Developer / API Keys</b> section mein milenge:
-            <b>Merchant ID (MID)</b>, <b>Salt Key</b>, <b>Salt Index</b></li>
-          <li>Teeno upar paste karo — Salt Index zyada tar <b>1</b> hota hai</li>
-        </ol>
-        ⏳ PhonePe PG approval mein 2-7 din lag sakte hain. Jaldi shuru karna ho to <b>Razorpay</b> use karo ya <b>Sirf Counter Cash</b> se start karke baad mein Shop Login → Settings se gateway add karo.
-      </div>
-    </div>
     <div class="hint">💡 Keys abhi nahi hain? Upar <b>"Sirf Counter Cash"</b> select karo — baad mein Shop Login ke settings se gateway add kar sakte ho.</div>
   </div>
 
   <button class="cta" id="regBtn" onclick="doRegister()">Register Karo — Agla Step: Setup Fee ›</button>
   <div class="err" id="errBox"></div>
-  <p class="note">Register hone ke baad one-time setup fee lagegi,<br>uske baad QR Code + Print Agent turant milega.</p>
+  <p class="note"><b>Payment kaise receive karna hai (Counter/Online), kaun sa printer B&W ke liye, kaun sa Color, kaun sa Duplex</b> — ye saari settings register ke baad <b>Shop Login → Settings</b> mein milengi.<br><br>Register karne ke baad: <b>pehle Software Download karo</b>, phir Settings mein jaake Printer aur Payment options update karo.</p>
 
 </div>
 
@@ -236,7 +198,9 @@ async function doRegister(){
   const err = document.getElementById('errBox');
   err.style.display = 'none';
 
-  const paymode = document.querySelector('input[name="paymode"]:checked').value;
+  // Register HAMESHA counter-only — payment mode/gateway baad me
+  // Shop Login -> Settings se set hota hai (register simple rahe)
+  const paymode = 'counter_only';
   if(!gv('f_name')) return showErr('Shop ka naam daalo');
   if(gv('f_pass').length < 4) return showErr('Password kam se kam 4 character ka rakho');
 

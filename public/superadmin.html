@@ -366,7 +366,10 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           <div class="filter-tab active" id="filterAll" onclick="setFilter('all')">All</div>
           <div class="filter-tab" id="filterActive" onclick="setFilter('active')">Active</div>
           <div class="filter-tab" id="filterPending" onclick="setFilter('pending')">Pending</div>
+          <div class="filter-tab" id="filterMonthly" onclick="setFilter('monthly')" style="border-color:#7c3aed;color:#7c3aed;">📅 Monthly</div>
+          <div class="filter-tab" id="filterExpired" onclick="setFilter('expired')" style="border-color:#dc2626;color:#dc2626;">❌ Expired</div>
         </div>
+        <div id="monthlySummary" style="display:none;background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:12px;padding:12px 14px;margin-top:10px;"></div>
       </h2>
       <div style="overflow-x:auto;">
         <table class="shop-table">
@@ -805,9 +808,8 @@ async function updateSetupFee() {
 
 function setFilter(f) {
   currentFilter = f;
-  document.getElementById('filterAll').classList.toggle('active', f === 'all');
-  document.getElementById('filterActive').classList.toggle('active', f === 'active');
-  document.getElementById('filterPending').classList.toggle('active', f === 'pending');
+  ['All','Active','Pending','Monthly','Expired'].forEach(x =>
+    document.getElementById('filter'+x)?.classList.toggle('active', f === x.toLowerCase()));
   renderShops();
 }
 
@@ -815,9 +817,33 @@ async function renderShops() {
   const tbody = document.getElementById('shopsList');
   tbody.innerHTML = '';
 
+  const _now = Date.now();
+  const _isMonthly = s => (s.plan_type === 'monthly');
+  const _isExpired = s => _isMonthly(s) && s.setup_paid && (!s.paid_until || new Date(s.paid_until).getTime() <= _now);
+
   let filtered = allShops;
   if (currentFilter === 'active') filtered = allShops.filter(s => s.setup_paid);
   if (currentFilter === 'pending') filtered = allShops.filter(s => !s.setup_paid);
+  if (currentFilter === 'monthly') filtered = allShops.filter(_isMonthly);
+  if (currentFilter === 'expired') filtered = allShops.filter(_isExpired);
+
+  // Monthly summary (MRR estimate) — sirf monthly filter par
+  const summaryEl = document.getElementById('monthlySummary');
+  if (summaryEl) {
+    if (currentFilter === 'monthly' || currentFilter === 'expired') {
+      const monthlies = allShops.filter(_isMonthly);
+      const activeM = monthlies.filter(s => s.setup_paid && s.paid_until && new Date(s.paid_until).getTime() > _now);
+      const expiredM = monthlies.filter(_isExpired);
+      const soon = activeM.filter(s => (new Date(s.paid_until).getTime() - _now) < 5*86400000);
+      summaryEl.style.display = 'block';
+      summaryEl.innerHTML = `<div style="display:flex;gap:16px;flex-wrap:wrap;font-size:13px;font-weight:700;">
+        <span>📅 Total Monthly: <b>${monthlies.length}</b></span>
+        <span style="color:#16a34a;">🟢 Active: <b>${activeM.length}</b></span>
+        <span style="color:#f59e0b;">⚠️ 5-din me expire: <b>${soon.length}</b></span>
+        <span style="color:#dc2626;">❌ Expired: <b>${expiredM.length}</b></span>
+      </div>`;
+    } else summaryEl.style.display = 'none';
+  }
 
   for (const shop of filtered) {
     const tr = document.createElement('tr');

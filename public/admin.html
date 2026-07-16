@@ -260,6 +260,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <button class="nav-it" data-nav="qr" onclick="navTo('qr',this)"><span class="ico">📱</span> QR &amp; Downloads</button>
     <button class="nav-it" data-nav="orders" onclick="navTo('orders',this)"><span class="ico">📋</span> Orders</button>
     <button class="nav-it" data-nav="settings" onclick="navTo('settings',this)"><span class="ico">⚙️</span> Settings</button>
+    <button class="nav-it" data-nav="support" id="navSupport" onclick="navTo('support',this)"><span class="ico">💬</span> Support</button>
     <div class="side-foot"><button class="side-lg" onclick="logout()"><span>🚪</span> Logout</button></div>
   </aside>
   <div class="app-main">
@@ -399,6 +400,9 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       </button>
       <p style="font-size:11px;color:#6b6870;margin-top:6px;text-align:center;">Recommended — Python ya SumatraPDF alag se install karne ki zaroorat nahi, sab bundled hai</p>
 
+      <button onclick="downloadReadme()" style="width:100%;background:#0ea5e9;color:#fff;border:none;border-radius:12px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;margin-top:10px;font-family:'Inter',sans-serif;">
+        📖 Setup Guide (README) Download Karo
+      </button>
       <button onclick="downloadPoster()" style="width:100%;background:none;border:2px solid #7c3aed;color:#7c3aed;border-radius:12px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;margin-top:10px;font-family:'Inter',sans-serif;">
         🖼️ Shop Poster Download Karo (QR laga hua)
       </button>
@@ -588,6 +592,42 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     </div>
 
     </div><!-- /settings -->
+
+    <div data-sect="support">
+    <div class="card" style="overflow:hidden;padding:0;">
+      <div style="background:linear-gradient(135deg,#25D366 0%,#128C7E 100%);padding:28px 22px;text-align:center;color:#fff;position:relative;">
+        <div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:rgba(255,255,255,.1);border-radius:50%;"></div>
+        <div style="position:absolute;bottom:-40px;left:-20px;width:100px;height:100px;background:rgba(255,255,255,.08);border-radius:50%;"></div>
+        <div style="font-size:46px;margin-bottom:6px;position:relative;">💬</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:24px;margin:0;color:#fff;position:relative;">Support Chahiye?</h2>
+        <p style="font-size:13px;opacity:.95;margin:6px 0 0;position:relative;">Koi bhi dikkat ho — seedhe WhatsApp par baat karo</p>
+      </div>
+
+      <div style="padding:22px;">
+        <label style="font-size:12px;font-weight:700;color:#128C7E;display:block;margin-bottom:6px;">🏪 Aapki Shop ID (automatic)</label>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;">
+          <input id="supShopId" readonly style="flex:1;padding:12px 14px;border:1.5px solid #e2ddd6;border-radius:12px;font-family:monospace;font-weight:700;font-size:14px;background:#f7f7f9;">
+          <button onclick="copySupShopId()" style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:12px 14px;cursor:pointer;font-size:16px;">📋</button>
+        </div>
+
+        <label style="font-size:12px;font-weight:700;color:#128C7E;display:block;margin-bottom:6px;">✍️ Apni problem likho</label>
+        <textarea id="supMsg" rows="4" placeholder="Jaise: Print nahi nikal raha / Printer list nahi dikh rahi / Payment ka issue..." style="width:100%;padding:12px 14px;border:1.5px solid #e2ddd6;border-radius:12px;font-family:'Inter',sans-serif;font-size:14px;resize:vertical;box-sizing:border-box;"></textarea>
+
+        <button onclick="sendWhatsApp()" style="width:100%;margin-top:16px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border:none;border-radius:14px;padding:16px;font-weight:800;font-size:16px;cursor:pointer;font-family:'Syne',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 20px rgba(37,211,102,.35);">
+          <span style="font-size:22px;">📱</span> WhatsApp Par Bhejo
+        </button>
+
+        <p style="font-size:11px;color:#9b9690;text-align:center;margin-top:14px;line-height:1.7;">
+          Message me aapki Shop ID automatic jud jaayegi<br>taaki hum turant aapki shop dhundh sakein 🔍
+        </p>
+
+        <div style="border-top:1.5px dashed #ece7f5;margin-top:16px;padding-top:14px;text-align:center;">
+          <div style="font-size:12px;color:#6b6870;">Ya seedhe call/message karo:</div>
+          <a href="https://wa.me/918404832414" target="_blank" style="font-family:'Syne',sans-serif;font-weight:800;font-size:19px;color:#128C7E;text-decoration:none;">📞 84048 32414</a>
+        </div>
+      </div>
+    </div>
+    </div><!-- /support -->
 
     <div data-sect="orders">
     <div class="card">
@@ -846,12 +886,14 @@ async function loadAdminPanel() {
     document.getElementById('setPriceBwDuplex').value    = shop.price_bw_duplex    || '';
     document.getElementById('setPriceColorDuplex').value = shop.price_color_duplex || '';
     toggleDuplexPrices();
+    currentShopId = shop.id;
     loadStats(shop.id);
     loadJobs();
     loadReferral(shop.id);
     loadBreakdown();
     loadAgentVersion();
     renderSubscription(shop);
+    initSupport(shop);
     shopPaused = !!shop.paused; shopSupply = shop.supply_warning || '';
     renderStatusUI();
   } catch(e) {
@@ -1052,6 +1094,28 @@ function toggleDuplexPrices(){
   document.getElementById('duplexPricesRow').style.display = on ? 'block' : 'none';
 }
 
+// ===== SUPPORT =====
+const SUPPORT_WA = '918404832414';
+function initSupport(shop) {
+  // Demo shops ko Support tab NAHI — sirf paid owners
+  const nav = document.getElementById('navSupport');
+  const isDemo = !!(shop && shop.demo);
+  if (nav) nav.style.display = isDemo ? 'none' : 'flex';
+  const idField = document.getElementById('supShopId');
+  if (idField && shop) idField.value = shop.id;
+}
+function copySupShopId() {
+  const v = document.getElementById('supShopId').value;
+  navigator.clipboard?.writeText(v).then(() => toast('📋 Shop ID copy ho gayi'))
+    .catch(() => toast('Copy nahi hua — manually select karo'));
+}
+function sendWhatsApp() {
+  const sid = document.getElementById('supShopId').value;
+  const msg = document.getElementById('supMsg').value.trim();
+  const text = `Hello, QR Se Print Support 🙏%0A%0AShop ID: ${sid}%0A%0AProblem: ${encodeURIComponent(msg || '(likha nahi)')}`;
+  window.open(`https://wa.me/${SUPPORT_WA}?text=${text}`, '_blank');
+}
+
 // ===== SUBSCRIPTION (monthly plan) =====
 function renderSubscription(shop) {
   const el = document.getElementById('subBanner');
@@ -1124,6 +1188,12 @@ async function loadAgentVersion(){
     const b1 = document.getElementById('verBannerNum'); if(b1) b1.textContent = v;
     const b2 = document.getElementById('latestVerBtn'); if(b2) b2.textContent = v;
   }catch(e){}
+}
+
+function downloadReadme(){
+  const sid = (window.__shopId || document.getElementById('spShopId')?.value || '').toUpperCase();
+  const url = '/api/setup-readme/' + (currentShopId || sid || 'SHOP');
+  const link = document.createElement('a'); link.href = url; link.download = 'QRSePrint-Setup-Guide.txt'; link.click();
 }
 
 // ===== POSTER (QR embedded) =====
