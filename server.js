@@ -382,7 +382,7 @@ async function initDB() {
     `);
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_enabled','1') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_minutes','120') ON CONFLICT DO NOTHING");
-    await pool.query("INSERT INTO system_settings (key,value) VALUES ('monthly_fee','99') ON CONFLICT DO NOTHING");
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('monthly_fee','399') ON CONFLICT DO NOTHING");
 
     // Broken demo logins repair (bcrypt hash galti se gaya tha; login sha256
     // expect karta hai). Idempotent — sirf $2 (bcrypt) wale demo shops.
@@ -838,6 +838,104 @@ app.get('/api/demo/config', async (req, res) => {
   res.json({ enabled: c.enabled, minutes: c.minutes });
 });
 
+// Setup-payment page: is shop ka plan + amount (sirf unpaid — paid par info leak nahi)
+app.get('/api/setup-status/:shopId', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT id, setup_paid, setup_amount, plan_type FROM shops WHERE id=$1', [req.params.shopId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
+    if (r.rows[0].setup_paid) return res.json({ paid: true });
+    res.json({ paid: false, plan: r.rows[0].plan_type || 'onetime', amount: r.rows[0].setup_amount || 0 });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/setup-readme/:shopId', async (req, res) => {
+  const shopId = (req.params.shopId || '').toUpperCase();
+  const txt = `\uFEFF========================================
+   QR SE PRINT — SETUP GUIDE (README)
+========================================
+
+Aapki Shop ID: ${shopId}
+
+Ye guide follow karke 10 minute me apni shop chalu karo.
+
+----------------------------------------
+STEP 1: SOFTWARE DOWNLOAD
+----------------------------------------
+1. Shop Login karo: qrseprint.in/admin
+   (Shop ID + jo password aapne register/demo me set kiya)
+2. Left menu me "QR & Downloads" tab kholo
+3. "Download Latest Software Version" (green button) dabao
+4. File download hone do (QRSePrint-Setup.exe)
+
+----------------------------------------
+STEP 2: INSTALL
+----------------------------------------
+1. Downloaded .exe file par double-click karo
+2. Windows "Unknown publisher" warning de to
+   "More info" -> "Run anyway" dabao (safe hai)
+3. Install complete hone do
+4. Software khulega aur SHOP ID maangega
+
+----------------------------------------
+STEP 3: SHOP ID PASTE
+----------------------------------------
+1. Aapki Shop ID: ${shopId}
+2. Ye Shop ID software me paste karo
+   (Shop Login -> QR & Downloads me bhi dikhti hai — copy kar sakte ho)
+3. Save/OK dabao
+4. Neeche right corner (system tray) me printer icon aa jayega
+   = Software chalu, server se juda hua
+
+----------------------------------------
+STEP 4: PRINTER SETTINGS (ZAROORI)
+----------------------------------------
+1. Shop Login -> "Settings" tab kholo
+2. Yahan printer select karo:
+   - B&W print kaun se printer se? (list me se chuno)
+   - Color print kaun se printer se?
+   - Duplex (dual-side) chahiye to mode chuno
+   - 4x6 photo / A3 ke liye alag printer ho to wo bhi
+3. "Save" dabao
+   (Printer list software se automatic aati hai —
+    software chalu hona chahiye tabhi list dikhegi)
+
+----------------------------------------
+STEP 5: PAYMENT SETTINGS
+----------------------------------------
+Settings me payment mode chuno:
+   - Sirf Counter Cash (sabse simple — koi gateway nahi)
+   - Online + Counter dono
+   - Sirf Online (gateway zaroori)
+
+ONLINE PAYMENT ke liye (Razorpay ya PhonePe):
+   Settings me "Keys Kaise Milegi" guide diya hai —
+   step by step Key ID / Secret / Salt Key kahan se
+   milegi aur kahan paste karni hai, sab likha hai.
+   Business/Website URL puchhe to likho: qrseprint.in
+
+----------------------------------------
+STEP 6: TEST
+----------------------------------------
+1. Apne phone se apni shop ka QR scan karo
+2. Ek file upload karo, payment karo (ya counter)
+3. Print nikalna chahiye
+4. Ho gaya! Ab customers use kar sakte hain.
+
+----------------------------------------
+MADAD CHAHIYE?
+----------------------------------------
+WhatsApp Assistant se contact karo.
+One-Time plan walon ko AnyDesk support bhi milta hai.
+
+========================================
+   Developed by Rupesh Kumar Mahato
+========================================
+`;
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="QRSePrint-Setup-Guide.txt"`);
+  res.send(txt);
+});
+
 app.get('/api/setup-fee/current', async (req, res) => {
   try {
     const pricing = await getSetupPricing();
@@ -1208,7 +1306,7 @@ app.get('/api/shop/:shopId/stats', async (req, res) => {
 app.get('/api/admin/profile', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT id,name,address,phone,plan_type,paid_until,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
+      `SELECT id,name,address,phone,demo,plan_type,paid_until,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
               payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
               CASE WHEN phonepe_salt_key != '' THEN true ELSE false END as has_phonepe_salt
@@ -2144,6 +2242,7 @@ app.get('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
     res.json({
       offerPrice: pricing.offerPrice,
       actualPrice: pricing.actualPrice,
+      monthlyFee: pricing.monthlyFee,
       defaultOfferPrice: SETUP_FEE_AMOUNT,
       defaultActualPrice: SETUP_ACTUAL_PRICE
     });
