@@ -46,6 +46,14 @@ h1 .mark{background:linear-gradient(transparent 62%,var(--yellow) 62%);padding:0
 .pm span{font-size:11px;color:var(--muted)}
 
 #gatewayCard{display:none}
+.plan-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
+.plan-card{border:2px solid #e5e0d8;border-radius:14px;padding:14px;cursor:pointer;text-align:center;background:#fff;transition:.15s}
+.plan-card.sel{border-color:#ff3b6b;background:#fff5f7;box-shadow:0 4px 14px rgba(255,59,107,.15)}
+.plan-card .pt{font-weight:800;font-size:14px;margin-bottom:4px}
+.plan-card .pp{font-size:20px;font-weight:800;color:#ff3b6b}
+.plan-card .pp .cut{font-size:12px;color:#9b9690;text-decoration:line-through;font-weight:600;margin-right:5px}
+.plan-card .pd{font-size:10.5px;color:#6b6870;margin-top:4px;line-height:1.5}
+@media(max-width:480px){.plan-row{grid-template-columns:1fr}}
 .gw-help{background:#f0f7ff;border:1.5px solid #bfdbfe;border-radius:12px;padding:12px 14px;margin-top:10px;font-size:12.5px;line-height:1.9;color:#1e3a5f}
 .gw-help b{color:#1d4ed8}
 .gw-help ol{margin:6px 0 0;padding-left:18px}
@@ -107,6 +115,20 @@ h1 .mark{background:linear-gradient(transparent 62%,var(--yellow) 62%);padding:0
   <!-- 3: Payment mode -->
   <div class="card">
     <h3><span class="n">3</span> Customer Payment Kaise Lena Hai</h3>
+    <label class="fl" style="margin-bottom:8px;display:block;">PLAN CHUNO</label>
+    <div class="plan-row">
+      <div class="plan-card sel" id="planOnetime" onclick="selPlan('onetime')">
+        <div class="pt">💎 One-Time</div>
+        <div class="pp"><span class="cut" id="planCutPrice">₹999</span>₹<span id="planOfferPrice">499</span></div>
+        <div class="pd">Ek baar do, <b>lifetime</b> chalao<br>koi monthly kharcha nahi</div>
+      </div>
+      <div class="plan-card" id="planMonthly" onclick="selPlan('monthly')">
+        <div class="pt">📅 Monthly</div>
+        <div class="pp">₹<span id="planMonthlyPrice">99</span><span style="font-size:12px;color:#6b6870;">/mahina</span></div>
+        <div class="pd">Aaj ₹<span id="planMonthlyPrice2">99</span> — har 30 din renew<br>band karna ho to bas renew mat karo</div>
+      </div>
+    </div>
+
     <div class="paymode">
       <label class="pm sel"><input type="radio" name="paymode" value="counter_only" checked onchange="pmChange(this)">
         <span><b>🪙 Sirf Counter Cash</b><span>Online gateway ki zaroorat nahi — sabse simple start</span></span></label>
@@ -186,6 +208,29 @@ function gwTab(g){
 
 const gv = id => document.getElementById(id).value.trim();
 
+let selectedPlan = 'onetime';
+function selPlan(p) {
+  selectedPlan = p;
+  document.getElementById('planOnetime').classList.toggle('sel', p === 'onetime');
+  document.getElementById('planMonthly').classList.toggle('sel', p === 'monthly');
+  const btn = document.getElementById('regBtn');
+  btn.textContent = p === 'monthly'
+    ? 'Register Karo — Agla Step: ₹' + document.getElementById('planMonthlyPrice').textContent + ' (pehla mahina) ›'
+    : 'Register Karo — Agla Step: Setup Fee ›';
+}
+(async () => {
+  try {
+    const r = await fetch('/api/setup-fee/current');
+    const d = await r.json();
+    if (d.offerPrice !== undefined) document.getElementById('planOfferPrice').textContent = d.offerPrice;
+    if (d.actualPrice) document.getElementById('planCutPrice').textContent = '₹' + d.actualPrice;
+    if (d.monthlyFee) {
+      document.getElementById('planMonthlyPrice').textContent = d.monthlyFee;
+      document.getElementById('planMonthlyPrice2').textContent = d.monthlyFee;
+    }
+  } catch(e) {}
+})();
+
 async function doRegister(){
   const btn = document.getElementById('regBtn');
   const err = document.getElementById('errBox');
@@ -196,6 +241,7 @@ async function doRegister(){
   if(gv('f_pass').length < 4) return showErr('Password kam se kam 4 character ka rakho');
 
   const body = {
+    plan: selectedPlan,
     name: gv('f_name'), address: gv('f_addr'), phone: gv('f_phone'),
     printer_model: gv('f_printer'),
     price_bw: parseInt(gv('f_bw'))||5, price_color: parseInt(gv('f_color'))||10,

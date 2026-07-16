@@ -201,6 +201,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
   .app-content{padding:18px 16px 50px}
 }
 </style>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 <body>
 
@@ -294,6 +295,9 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         </div>
       </div>
     </div>
+
+    <!-- SUBSCRIPTION BANNER (sirf monthly plan) -->
+    <div id="subBanner" style="display:none;margin-bottom:20px;"></div>
 
     <!-- SOFTWARE VERSION BANNER -->
     <div class="card" style="margin-bottom:20px;background:linear-gradient(135deg,#e8f9ee,#f0fdf4) !important;border:1.5px solid #86efac !important;">
@@ -847,6 +851,7 @@ async function loadAdminPanel() {
     loadReferral(shop.id);
     loadBreakdown();
     loadAgentVersion();
+    renderSubscription(shop);
     shopPaused = !!shop.paused; shopSupply = shop.supply_warning || '';
     renderStatusUI();
   } catch(e) {
@@ -1045,6 +1050,69 @@ async function openWithdraw(){
 function toggleDuplexPrices(){
   const on = !!document.getElementById('setDuplexMode').value;
   document.getElementById('duplexPricesRow').style.display = on ? 'block' : 'none';
+}
+
+// ===== SUBSCRIPTION (monthly plan) =====
+function renderSubscription(shop) {
+  const el = document.getElementById('subBanner');
+  if (!el || (shop.plan_type || 'onetime') !== 'monthly') return;
+  const until = shop.paid_until ? new Date(shop.paid_until) : null;
+  const now = Date.now();
+  const active = until && until.getTime() > now;
+  const daysLeft = until ? Math.ceil((until.getTime() - now) / 86400000) : 0;
+  const dateStr = until ? until.toLocaleDateString('en-IN', {day:'numeric',month:'short',year:'numeric'}) : '—';
+  el.style.display = 'block';
+  if (active) {
+    const warn = daysLeft <= 5;
+    el.innerHTML = `<div class="card" style="background:${warn?'#fff7ed':'#f0fdf4'} !important;border:1.5px solid ${warn?'#fdba74':'#86efac'} !important;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+          <div style="font-weight:800;font-size:14px;">${warn?'⚠️':'📅'} Monthly Plan — Active till ${dateStr} (${daysLeft} din bache)</div>
+          <div style="font-size:11px;color:#6b6870;margin-top:2px;">${warn ? 'Jaldi renew karo — expire hote hi prints band ho jayenge' : 'Time par renew karte raho, service kabhi nahi rukegi'}</div>
+        </div>
+        <button onclick="renewNow()" style="background:#7c3aed;color:#fff;border:none;border-radius:12px;padding:11px 18px;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap;">🔄 Abhi Renew Karo</button>
+      </div>
+    </div>`;
+  } else {
+    el.innerHTML = `<div class="card" style="background:#fef2f2 !important;border:2px solid #fca5a5 !important;">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div>
+          <div style="font-weight:800;font-size:15px;color:#b91c1c;">❌ Subscription Khatam — Prints BAND Hain</div>
+          <div style="font-size:12px;color:#7f1d1d;margin-top:2px;">Customers abhi order nahi kar sakte. Pay karte hi turant chalu.</div>
+        </div>
+        <button onclick="renewNow()" style="background:#16a34a;color:#fff;border:none;border-radius:12px;padding:13px 22px;font-weight:800;font-size:14px;cursor:pointer;white-space:nowrap;">💳 Pay Now — Activate Karo</button>
+      </div>
+    </div>`;
+  }
+}
+
+async function renewNow() {
+  try {
+    const res = await fetch('/api/admin/renew/create-order', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    const d = await res.json();
+    if (!d.success) { alert('❌ ' + (d.error || 'Order create fail')); return; }
+    const rzp = new Razorpay({
+      key: d.keyId, amount: d.amount, currency: 'INR',
+      name: 'QR Se Print', description: 'Monthly Subscription — ₹' + d.fee,
+      order_id: d.orderId,
+      handler: async function(resp) {
+        try {
+          const v = await fetch('/api/admin/renew/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+            body: JSON.stringify(resp)
+          });
+          const vd = await v.json();
+          if (vd.success) { alert('✅ Renew ho gaya! Service chalu.'); location.reload(); }
+          else alert('⚠️ ' + (vd.error || 'Verify fail — 2 min me khud confirm ho jayega, page refresh karna'));
+        } catch(e) { alert('⚠️ Verify me network issue — 2 min me khud confirm ho jayega'); }
+      },
+      theme: { color: '#7c3aed' }
+    });
+    rzp.open();
+  } catch(e) { alert('❌ ' + e.message); }
 }
 
 // ===== VERSION DISPLAY =====
