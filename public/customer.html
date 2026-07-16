@@ -1605,16 +1605,9 @@ function updateRangeFromInput() {
 // UPLOAD — merge all pages into ONE file and send to server
 // ═══════════════════════════════════════════════
 async function buildOutputFile() {
-  // Agar sirf 1 page hai, JPG bhejte hain (simplest, sabse fast).
-  // Agar multiple pages hain, jsPDF se ek multi-page PDF banate hain
-  // taaki print agent ko sab pages mil jayein, aur Page Range feature
-  // bhi sahi se kaam kare.
-  if (pages.length === 1) {
-    const merged = renderMergedPageCanvas(pages[0]);
-    const blob = await new Promise(resolve => merged.toBlob(resolve, 'image/jpeg', 0.92));
-    return { blob, fileName: 'document.jpg' };
-  }
-
+  // HAMESHA PDF — single page bhi. Pehle 1-page par JPG jata tha, par
+  // JPG me physical size nahi hoti — 4x6 job printer par A4 me stretch
+  // ho jata tha. PDF ke page-pt me asli size embedded rehti hai.
   const { jsPDF } = window.jspdf;
   // PDF page selected paper size + orientation me — print isi par niklega
   const { wmm, hmm } = currentPaper();
