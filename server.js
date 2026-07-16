@@ -315,9 +315,13 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS duplex_mode VARCHAR(10) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_bw_duplex INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_color_duplex INTEGER DEFAULT 0;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS printer_name_4x6 VARCHAR(300) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS printer_name_a3 VARCHAR(300) DEFAULT '';
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS duplex BOOLEAN DEFAULT false;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS failure_reason VARCHAR(200) DEFAULT '';
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS file_deleted BOOLEAN DEFAULT false;
+      ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS paper_size VARCHAR(12) DEFAULT 'a4';
+      ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS orientation VARCHAR(12) DEFAULT 'portrait';
       CREATE TABLE IF NOT EXISTS demo_registrations (
         id SERIAL PRIMARY KEY,
         phone VARCHAR(15) UNIQUE,
@@ -1092,7 +1096,7 @@ app.get('/api/shop/:shopId/stats', async (req, res) => {
 app.get('/api/admin/profile', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT id,name,address,phone,printer_model,printer_name_bw,printer_name_color,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
+      `SELECT id,name,address,phone,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
               payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
               CASE WHEN phonepe_salt_key != '' THEN true ELSE false END as has_phonepe_salt
@@ -1166,6 +1170,13 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
     if (typeof req.body.duplex_mode === 'string' && ['','auto','manual'].includes(req.body.duplex_mode)) {
       await pool.query('UPDATE shops SET duplex_mode=$1 WHERE id=$2', [req.body.duplex_mode, req.shopId]);
     }
+    // Special-paper printer routing (4x6 photo / A3 large) — string hi accept
+    if (typeof req.body.printer_name_4x6 === 'string') {
+      await pool.query('UPDATE shops SET printer_name_4x6=$1 WHERE id=$2', [req.body.printer_name_4x6.slice(0,300), req.shopId]);
+    }
+    if (typeof req.body.printer_name_a3 === 'string') {
+      await pool.query('UPDATE shops SET printer_name_a3=$1 WHERE id=$2', [req.body.printer_name_a3.slice(0,300), req.shopId]);
+    }
     // Duplex prices — sirf tab store jab valid non-negative int mile
     const pbwd = parseInt(req.body.price_bw_duplex);
     const pcld = parseInt(req.body.price_color_duplex);
@@ -1227,8 +1238,10 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     console.log(`Cloudinary: ${cloudResult.url}`);
 
     await pool.query(
-      'INSERT INTO print_jobs (id,shop_id,file_name,file_url,file_public_id,file_type,total_pages,copies,color_mode,amount) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
-      [jobId, shopId, req.file.originalname, cloudResult.url, cloudResult.publicId, fileType, numPages, numCopies, colorMode||'bw', amount]
+      'INSERT INTO print_jobs (id,shop_id,file_name,file_url,file_public_id,file_type,total_pages,copies,color_mode,amount,paper_size,orientation) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',
+      [jobId, shopId, req.file.originalname, cloudResult.url, cloudResult.publicId, fileType, numPages, numCopies, colorMode||'bw', amount,
+       ['4x6','a4','a5','letter','legal','a3','a2','a1'].includes(req.body.paperSize) ? req.body.paperSize : 'a4',
+       ['portrait','landscape'].includes(req.body.orientation) ? req.body.orientation : 'portrait']
     );
     res.json({ success:true, jobId, fileName:req.file.originalname, fileType, amount, copies:numCopies, totalPages:numPages, colorMode:colorMode||'bw' });
   } catch(err) {
@@ -1696,7 +1709,8 @@ app.get('/api/jobs/pending/:shopId', async (req, res) => {
        ) AND s.id=j.shop_id
        RETURNING j.id,j.file_name,j.file_url,j.file_public_id,j.file_type,j.copies,j.color_mode,
                  j.total_pages,j.selected_pages,j.amount,j.payment_method,j.created_at,j.duplex,
-                 s.printer_name_bw,s.printer_name_color,s.duplex_mode`,
+                 j.paper_size,j.orientation,
+                 s.printer_name_bw,s.printer_name_color,s.printer_name_4x6,s.printer_name_a3,s.duplex_mode`,
       [req.params.shopId]
     );
     res.json({ jobs: r.rows });
