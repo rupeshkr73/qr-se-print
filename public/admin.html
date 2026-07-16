@@ -439,6 +439,19 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           </select>
         </div>
         <div class="form-group full">
+          <label>📷 4×6 PHOTO print kis printer se nikle? (photo printer ho to)</label>
+          <select id="setPrinter4x6">
+            <option value="">— Nahi hai / Color-B&W wala hi use karo —</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>📐 A3 (bade size) print kis printer se nikle? (A3 printer ho to)</label>
+          <select id="setPrinterA3">
+            <option value="">— Nahi hai / Color-B&W wala hi use karo —</option>
+          </select>
+          <p style="font-size:11px;color:#6b6870;margin:4px 0 0;">A2/A1 jobs bhi isi printer par jaayengi. Ye set karne ke liye Agent v15+ chahiye.</p>
+        </div>
+        <div class="form-group full">
           <label>📄 Duplex (Dual-Side) Printing</label>
           <select id="setDuplexMode" onchange="toggleDuplexPrices()">
             <option value="">❌ Nahi — single side only</option>
@@ -508,6 +521,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
             </div>
             <div class="rzp-guide-body" id="rzpGuideBodyAdmin">
               <ol class="rzp-steps">
+                <li style="background:#fef3c7;border-radius:6px;padding:2px 8px;"><b>Business/Website URL puchhe to likho: qrseprint.in</b></li>
                 <li>Niche button se Razorpay Dashboard kholo (agar account nahi hai, "Sign Up" karo)</li>
                 <li>Dashboard khulne par left menu mein <strong>"Account & Settings"</strong> pe click karo</li>
                 <li>Usme <strong>"API Keys"</strong> option dhundo aur click karo</li>
@@ -535,6 +549,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
             </div>
             <div class="rzp-guide-body" id="ppGuideBodyAdmin">
               <ol class="rzp-steps">
+                <li style="background:#fef3c7;border-radius:6px;padding:2px 8px;"><b>Business/Website URL puchhe to likho: qrseprint.in</b></li>
                 <li>Niche button se PhonePe Business Dashboard kholo</li>
                 <li>Apne business account se login karo</li>
                 <li>Left menu mein <strong>"Developer Settings"</strong> ya <strong>"API & Webhooks"</strong> dhundo</li>
@@ -822,7 +837,7 @@ async function loadAdminPanel() {
     document.getElementById('adminQrUrl').textContent = location.origin + '/print/' + shop.id;
 
     await loadPrinterModelsAdmin(shop.printer_model);
-    await loadColorPrinterDropdowns(shop.printer_name_bw, shop.printer_name_color);
+    await loadColorPrinterDropdowns(shop.printer_name_bw, shop.printer_name_color, shop.printer_name_4x6, shop.printer_name_a3);
     document.getElementById('setDuplexMode').value = shop.duplex_mode || '';
     document.getElementById('setPriceBwDuplex').value    = shop.price_bw_duplex    || '';
     document.getElementById('setPriceColorDuplex').value = shop.price_color_duplex || '';
@@ -864,16 +879,19 @@ async function loadPrinterModelsAdmin(currentModel) {
   } catch(e) {}
 }
 
-async function loadColorPrinterDropdowns(currentBW, currentColor) {
+async function loadColorPrinterDropdowns(currentBW, currentColor, current4x6, currentA3) {
   const bwSelect = document.getElementById('setPrinterBW');
   const colorSelect = document.getElementById('setPrinterColor');
+  const p4x6Select = document.getElementById('setPrinter4x6');
+  const a3Select = document.getElementById('setPrinterA3');
   try {
     const res = await fetch('/api/admin/printers', { headers: { 'Authorization': 'Bearer ' + authToken } });
     const data = await res.json();
     const printers = data.printers || [];
 
-    [bwSelect, colorSelect].forEach((select, idx) => {
-      const currentValue = idx === 0 ? currentBW : currentColor;
+    const currents = [currentBW, currentColor, current4x6, currentA3];
+    [bwSelect, colorSelect, p4x6Select, a3Select].forEach((select, idx) => {
+      const currentValue = currents[idx];
       // "System Default Printer" wala option already HTML mein hai, baaki options yahan add karte hain
       printers.forEach(name => {
         const opt = document.createElement('option');
@@ -1229,6 +1247,8 @@ async function saveSettings() {
     printer_model: printerModel,
     printer_name_bw: document.getElementById('setPrinterBW').value,
     printer_name_color: document.getElementById('setPrinterColor').value,
+      printer_name_4x6: document.getElementById('setPrinter4x6').value,
+      printer_name_a3: document.getElementById('setPrinterA3').value,
       duplex_mode: document.getElementById('setDuplexMode').value,
       price_bw_duplex:    document.getElementById('setPriceBwDuplex').value    || 0,
       price_color_duplex: document.getElementById('setPriceColorDuplex').value || 0,
