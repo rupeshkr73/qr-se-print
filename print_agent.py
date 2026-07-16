@@ -42,7 +42,7 @@ SHOP_ID_TEMPLATE   = "AAPKA_SHOP_ID"
 SERVER_URL         = "https://qrseprint.in"
 CHECK_INTERVAL     = 5          # Print jobs check karne ka interval (seconds)
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 16           # Integer version number — server ke agent_version se compare hota hai
+VERSION            = 17           # Integer version number — server ke agent_version se compare hota hai
 
 # Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
 # kyunki .exe install hone par Program Files mein likhna permission-denied
@@ -528,9 +528,24 @@ def extract_selected_pages(pdf_path, selected_pages_str):
             log("⚠️  Page list empty hai — original PDF print hoga", "WARN")
             return pdf_path
 
+        # FAST-PATH: single page "1" = poora document (customer-uploaded PDFs
+        # aksar 1 hi page ke — 4x6 photo, single doc). Yahan PdfReader kholne
+        # ki zaroorat NAHI — aur wahi crash ka source tha (PyPDF2 encrypted-
+        # check pycryptodome ko lazy-import karta, jo bundle me missing hone
+        # par 'Cannot load Crypto.Util._cpuid_c' deta aur HAR print tootta).
+        if page_numbers == [1]:
+            log("📄 Single page (1) — poora document, extract skip")
+            return pdf_path
+
         log(f"📑 Specific pages extract ho rahe hain: {page_numbers}")
 
         reader = PdfReader(pdf_path)
+        # Encrypted na ho to crypto touch hi na ho — try/except safety
+        try:
+            if getattr(reader, 'is_encrypted', False):
+                reader.decrypt('')
+        except Exception:
+            pass
         writer = PdfWriter()
         total_pdf_pages = len(reader.pages)
 
@@ -561,6 +576,12 @@ def extract_selected_pages(pdf_path, selected_pages_str):
         return extracted_path
 
     except Exception as e:
+        # Crypto/native-module error = packaging issue, PDF ka dosh nahi.
+        # Aise me poori file print karo (fail+requeue+DOUBLE print se behtar).
+        emsg = str(e).lower()
+        if 'crypto' in emsg or 'cpuid' in emsg or 'native module' in emsg:
+            log(f"⚠️  Crypto module issue ({e}) — poora document print kar rahe hain (safe fallback)", "WARN")
+            return pdf_path
         log(f"❌ Page extract error: {e}", "ERROR")
         log(f"⚠️  SAFETY: Print ROK rahe hain taaki galat (zyada) pages print na ho", "WARN")
         return None
@@ -766,11 +787,11 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
         _PAPER_TOKENS = {"a4": "A4", "a3": "A3", "a5": "A5", "a2": "A2",
                          "letter": "letter", "legal": "legal"}
         _ptok = _PAPER_TOKENS.get((paper_size or "a4").lower(), "")
-        # 4x6: Sumatra me paper token NAHI hota — 'fit' driver ke default
-        # (aksar A4) par STRETCH kar deta tha (field bug: photo A4 jitni
-        # badi nikli). 'noscale' = PDF apni asli 4x6 size par hi chhape,
-        # kagaz koi bhi ho. Baaki sizes par 'fit' hi sahi hai.
-        _scale = "noscale" if (paper_size or "").lower() == "4x6" else "fit"
+        # Sab sizes par 'fit'. PDF ab KHUD sahi paper-size ki banti hai
+        # (customer side), to 'fit' usko us kagaz par poora bhar deta hai
+        # bina stretch (aspect match). Pehle 4x6 par 'noscale' tha jisse
+        # chhoti image chhoti hi rehti thi (size/quality complaint).
+        _scale = "fit"
         _paper_extra = f"paper={_ptok}" if _ptok else ""
         def _mix(dup_extra=""):
             return ",".join([t for t in (_paper_extra, dup_extra) if t])
