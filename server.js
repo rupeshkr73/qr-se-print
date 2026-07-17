@@ -594,6 +594,18 @@ app.post('/api/superadmin/shop/:shopId/extend', verifySuperAdmin, async (req, re
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// Support: kisi bhi shop ko Advance Feature FREE unlock (bina payment)
+app.post('/api/superadmin/shop/:shopId/unlock-advanced', verifySuperAdmin, async (req, res) => {
+  try {
+    const r = await pool.query(
+      "UPDATE shops SET advanced_unlocked=true WHERE id=$1 RETURNING id, name",
+      [req.params.shopId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
+    console.log(`Superadmin FREE advanced unlock: ${req.params.shopId}`);
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/superadmin/shop/:shopId/reset-password', verifySuperAdmin, async (req, res) => {
   try {
     const temp = 'QSP' + crypto.randomBytes(3).toString('hex');
@@ -2729,6 +2741,21 @@ app.use((req, res, next) => {
     res.setHeader('X-Robots-Tag', 'noindex, nofollow');
   }
   next();
+});
+
+// Homepage social-proof — ASLI numbers, 5 min cache
+let _statsCache = { t: 0, data: null };
+app.get('/api/public-stats', async (req, res) => {
+  try {
+    if (Date.now() - _statsCache.t < 300000 && _statsCache.data) return res.json(_statsCache.data);
+    const shops = await pool.query("SELECT COUNT(*) FROM shops WHERE setup_paid=true AND (demo IS NULL OR demo=false)");
+    const prints = await pool.query("SELECT COUNT(*) FROM print_jobs WHERE status='printed'");
+    _statsCache = { t: Date.now(), data: {
+      shops: parseInt(shops.rows[0].count) || 0,
+      prints: parseInt(prints.rows[0].count) || 0
+    }};
+    res.json(_statsCache.data);
+  } catch(e) { res.json({ shops: 0, prints: 0 }); }
 });
 
 app.get('/robots.txt', (req, res) => {
