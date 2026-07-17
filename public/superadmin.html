@@ -887,7 +887,7 @@ async function renderShops() {
       <td><span class="status-pill ${shop.setup_paid ? 'active' : 'pending'}">${shop.setup_paid ? '✅ Active' : '⏳ Pending'}</span>${shop.setup_paid ? `<div style="font-size:11px;color:#00875a;font-weight:700;margin-top:4px">Paid ₹${shop.setup_amount || 0}</div>` : ''}</td>
       <td class="earnings-cell" id="earn-${shop.id}">Loading...</td>
       <td style="font-size:11px;color:#6b6870;">${createdDate}<br><span style="font-family:monospace;color:#9a9aa0;">${createdTime}</span></td>
-      <td>${shop.plan_type === 'monthly' ? `<button onclick="extendShop30('${shop.id}')" style="background:#0ea5e9;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">🔄 +30 Din</button>` : ''}<button onclick="resetShopPassword('${shop.id}')" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">🔑 Reset Pass</button>${!shop.setup_paid ? `<button onclick="manualActivate('${shop.id}')" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;margin-right:6px;">💰 Activate</button>` : ''}${(!shop.setup_paid || !shop.setup_amount || shop.setup_amount == 0) && shop.id !== 'SHOP_ECB1AB8A' ? `<button onclick="deletePendingShop('${shop.id}','${(shop.name||'').replace(/'/g,"")}')" style="background:#ff3b3b;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑️ Delete</button>` : `<span style="font-size:11px;color:#b0b0b0">${shop.id === 'SHOP_ECB1AB8A' ? '🔒 Protected' : '—'}</span>`}</td>
+      <td>${shop.advanced_unlocked ? `<span style="display:inline-block;background:#f3e8ff;color:#7c3aed;border-radius:8px;padding:7px 9px;font-size:11px;font-weight:800;margin-right:6px;" title="Advance Feature active">⚡✓</span>` : `<button onclick="unlockAdvancedFor('${shop.id}')" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">⚡ Unlock</button>`}${shop.plan_type === 'monthly' ? `<button onclick="extendShop30('${shop.id}')" style="background:#0ea5e9;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">🔄 +30 Din</button>` : ''}<button onclick="resetShopPassword('${shop.id}')" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">🔑 Reset Pass</button>${!shop.setup_paid ? `<button onclick="manualActivate('${shop.id}')" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;margin-right:6px;">💰 Activate</button>` : ''}${(!shop.setup_paid || !shop.setup_amount || shop.setup_amount == 0) && shop.id !== 'SHOP_ECB1AB8A' ? `<button onclick="deletePendingShop('${shop.id}','${(shop.name||'').replace(/'/g,"")}')" style="background:#ff3b3b;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑️ Delete</button>` : `<span style="font-size:11px;color:#b0b0b0">${shop.id === 'SHOP_ECB1AB8A' ? '🔒 Protected' : '—'}</span>`}</td>
     `;
     tbody.appendChild(tr);
 
@@ -904,6 +904,18 @@ async function renderShops() {
   if (filtered.length === 0) {
     tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b6870;padding:24px;">Koi shop nahi mila</td></tr>';
   }
+}
+
+async function unlockAdvancedFor(shopId){
+  if(!confirm(`${shopId} ko Advance Feature FREE unlock karein?\n(4x6/A3/Duplex/Resume — bina ₹199 payment ke, lifetime)`)) return;
+  try{
+    const res = await fetch(`/api/superadmin/shop/${shopId}/unlock-advanced`, {
+      method:'POST', headers:{'Authorization':'Bearer '+authToken}
+    });
+    const d = await res.json();
+    if(d.success){ alert('✅ Advance Feature unlock ho gaya!'); loadPanel(); }
+    else alert('❌ '+(d.error||'Fail'));
+  }catch(e){ alert('❌ '+e.message); }
 }
 
 async function extendShop30(shopId){

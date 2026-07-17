@@ -208,6 +208,36 @@ body{
 .plan3 ul{list-style:none;padding:0;margin:0 0 12px;font-size:12px;line-height:2;color:#333}
 .plan3 .p3btn{margin-top:auto;display:block;text-align:center;padding:12px;border-radius:12px;font-weight:800;font-size:13px;cursor:pointer;border:none;text-decoration:none;font-family:'Space Grotesk',sans-serif}
 .plans-cta{display:flex;gap:12px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+.stats-strip{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin:18px 0 6px}
+.stat-chip{background:#1b1b1f;color:#fff;border-radius:14px;padding:10px 18px;text-align:center;min-width:100px}
+.stat-chip b{display:block;font-family:'Syne',sans-serif;font-size:20px;color:#ff9770}
+.stat-chip span{font-size:10.5px;opacity:.85}
+.sec-title{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;text-align:center;margin:34px 0 6px}
+.sec-sub{text-align:center;font-size:12.5px;color:#6b6870;margin-bottom:16px}
+.pain-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:560px){.pain-grid{grid-template-columns:1fr}}
+.pain-card{background:#fff;border:1.5px solid #fecaca;border-radius:16px;padding:14px}
+.pain-card .pi{font-size:22px}
+.pain-card b{display:block;font-size:13.5px;margin:6px 0 3px}
+.pain-card p{font-size:11.5px;color:#6b6870;line-height:1.7;margin:0}
+.ben-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:560px){.ben-grid{grid-template-columns:1fr}}
+.ben-card{background:#fff;border:1.5px solid #e5e0d8;border-radius:16px;padding:14px}
+.ben-card .bi{font-size:22px}
+.ben-card b{display:block;font-size:13px;margin:6px 0 3px}
+.ben-card p{font-size:11.5px;color:#6b6870;line-height:1.7;margin:0}
+.cmp-table{width:100%;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden;border:1.5px solid #e5e0d8;font-size:12px}
+.cmp-table th{background:#1b1b1f;color:#fff;padding:11px 10px;font-size:12px;text-align:left}
+.cmp-table th:first-child{width:34%}
+.cmp-table td{padding:10px;border-top:1px solid #f0ece5;vertical-align:top;line-height:1.55}
+.cmp-table .bad{color:#b91c1c}
+.cmp-table .good{color:#15803d;font-weight:700}
+.roi-card{background:linear-gradient(135deg,#1b1b1f,#3d3d46);color:#fff;border-radius:20px;padding:22px;margin-top:10px}
+.roi-card h3{font-family:'Syne',sans-serif;margin:0 0 10px;font-size:17px}
+.roi-line{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px dashed rgba(255,255,255,.15)}
+.roi-line:last-child{border:none;font-weight:800;color:#ff9770;font-size:15px}
+.founder-card{background:#fff7ed;border:1.5px solid #fdba74;border-radius:20px;padding:20px;margin-top:12px}
+.founder-card p{font-size:13px;line-height:1.9;color:#4b4852;margin:8px 0 0}
 .plans-cta .big-btn{padding:15px 30px;border-radius:14px;font-weight:800;font-size:15px;cursor:pointer;border:none;font-family:'Syne',sans-serif;text-decoration:none;display:inline-block}
 
 .demo-strip .rs-left{font-size:13px;font-weight:600}
@@ -283,15 +313,24 @@ body{
   <div class="h-top">Customer ke phone se</div>
   <div class="h-hero">Print</div>
   <div class="h-sub">seedha aapke printer par — <span class="mark">in 1 Scan</span></div>
+  <p style="text-align:center;font-size:14px;color:#4b4852;line-height:1.8;max-width:520px;margin:10px auto 0;">
+    Customer apne phone se <b>QR scan</b> karta hai, file bhejta hai, <b>payment karta hai</b> —
+    aur print aapke printer se <b>khud nikal jata hai</b>.<br>
+    <b style="color:#ff2e63;">Na WhatsApp pe file mangna, na pendrive, na hisaab ki tension.</b>
+  </p>
 
-  <div class="price-wrap">
+  <div class="stats-strip" style="display:none" id="statsStrip">
+    <div class="stat-chip"><b id="statShops">—</b><span>Shops chala rahi hain</span></div>
+    <div class="stat-chip"><b id="statPrints">—</b><span>Prints nikal chuke</span></div>
+    <div class="stat-chip"><b>🇮🇳</b><span>Jharkhand me bana</span></div>
+  </div>
+  <div class="price-wrap" style="display:none">
     <div class="price-sticker">
       <div class="price-actual" id="actualPrice">₹999</div>
       <div class="price-offer">₹<span id="offerPrice">499</span><small>/setup</small></div>
     </div>
     <div class="starburst" id="saveBurst"><span>Save</span>₹500</div>
   </div>
-  <div class="price-note">One-time setup fee • No monthly fee • Lifetime use</div>
 
   <div class="steps">
     <div class="step"><b>📱</b><span>QR Scan</span></div>
@@ -309,6 +348,78 @@ body{
     <div class="pill">💳 Online + Counter Pay</div>
     <div class="pill">🖥️ System Tray Agent</div>
     <div class="pill">🔄 Auto Update</div>
+  </div>
+
+  <!-- ═══ PAIN ═══ -->
+  <div class="sec-title">😤 Abhi Aapki Dukaan Me Kya Hota Hai?</div>
+  <div class="sec-sub">Har cyber cafe / print shop wale ka roz ka dard</div>
+  <div class="pain-grid">
+    <div class="pain-card"><div class="pi">📱</div><b>WhatsApp pe file mangna</b>
+      <p>Apna personal number har customer ko dena padta hai. Chat me files kho jaati hain, "bhaiya wo wali file" dhundhte raho.</p></div>
+    <div class="pain-card"><div class="pi">💾</div><b>Pendrive ka virus</b>
+      <p>Customer ka pendrive lagao = virus ka khatra. PC slow, files corrupt, kabhi-kabhi poora system hi baith jata hai.</p></div>
+    <div class="pain-card"><div class="pi">🧾</div><b>Hisaab ki tension</b>
+      <p>Kaun paid kar gaya, kaun baaki hai — copy pe likho, bhool jao, jhagda karo. Mahine ke end me hisaab milta hi nahi.</p></div>
+    <div class="pain-card"><div class="pi">⏰</div><b>Bheed me ek-ek ka wait</b>
+      <p>Aap ek customer ka print nikal rahe ho, baaki 5 khade hain. File lo, kholo, print karo — poora din isi me jata hai.</p></div>
+  </div>
+
+  <!-- ═══ SOLUTION ═══ -->
+  <div class="sec-title">✨ QR Se Print Lagane Ke Baad</div>
+  <div class="sec-sub">Aapka kaam: QR chipkao. Bas.</div>
+  <div style="background:#fff;border:2px solid #86efac;border-radius:20px;padding:18px;">
+    <div class="steps" style="margin:0;">
+      <div class="step"><b>1️⃣</b><span>Shop me QR<br>chipkao</span></div>
+      <div class="step-arrow">›</div>
+      <div class="step"><b>2️⃣</b><span>Customer scan,<br>upload, pay</span></div>
+      <div class="step-arrow">›</div>
+      <div class="step"><b>3️⃣</b><span>Print KHUD<br>nikal jata hai</span></div>
+    </div>
+    <p style="text-align:center;font-size:12.5px;color:#15803d;font-weight:700;margin:12px 0 0;">
+      Aap counter pe baithe raho — file lena, kholna, print dabana — kuch nahi. Payment ka record khud banta hai.</p>
+  </div>
+
+  <!-- ═══ BENEFITS ═══ -->
+  <div class="sec-title">🎁 Sirf Print Nahi — Poori Dukaan Ka System</div>
+  <div class="sec-sub">Jo-jo milta hai, sab ek jagah</div>
+  <div class="ben-grid">
+    <div class="ben-card"><div class="bi">📄</div><b>Multi-file Print</b><p>Customer ek saath 5-10 files bheje (PDF + photo mix) — ek payment, sahi order me print.</p></div>
+    <div class="ben-card"><div class="bi">✂️</div><b>Phone Se Hi Editing</b><p>Customer khud crop, rotate, brightness theek karta hai — aapse "thoda seedha kar do" nahi bolega.</p></div>
+    <div class="ben-card"><div class="bi">📷</div><b>4×6 Passport Photos</b><p>Photo bhejo, 4 ya 6 ki sheet khud ban ke photo printer se nikle — cutting lines ke saath.</p></div>
+    <div class="ben-card"><div class="bi">📝</div><b>Resume Maker</b><p>Customer QR se 6 designs me resume banaye aur print kare — aapki extra kamai, zero mehnat.</p></div>
+    <div class="ben-card"><div class="bi">📐</div><b>A3 / A2 / A1 + Duplex</b><p>Bade naksha-banner prints aur dono-side printing — har size ka apna printer, apna rate.</p></div>
+    <div class="ben-card"><div class="bi">💳</div><b>Paisa Seedha Aapke Account</b><p>Online payment (Razorpay/PhonePe) SEEDHA aapko. Hum beech me nahi — <b>0% commission, unlimited prints.</b></p></div>
+    <div class="ben-card"><div class="bi">🔒</div><b>Customer Ka Bharosa</b><p>File print ke 90 minute baad KHUD delete. Na aapke paas rahegi, na kisi aur ke — privacy pakki.</p></div>
+    <div class="ben-card"><div class="bi">📶</div><b>Net Jaye To Bhi Safe</b><p>Internet band? Jobs queue me. Wapas aate hi sab print. Auto-update bhi khud hota hai.</p></div>
+  </div>
+
+  <!-- ═══ COMPARISON ═══ -->
+  <div class="sec-title">⚖️ Pehle vs Ab</div>
+  <table class="cmp-table">
+    <tr><th></th><th>📱 WhatsApp Tareeka</th><th>⚡ QR Se Print</th></tr>
+    <tr><td><b>File lena</b></td><td class="bad">Apna number do, chat dhundo</td><td class="good">QR scan — number private</td></tr>
+    <tr><td><b>Payment</b></td><td class="bad">Yaad rakho kaun baaki hai</td><td class="good">Record khud banta hai</td></tr>
+    <tr><td><b>Aapka time</b></td><td class="bad">Har print me haath lagao</td><td class="good">Print khud nikalta hai</td></tr>
+    <tr><td><b>Virus risk</b></td><td class="bad">Pendrive = khatra</td><td class="good">Zero — sab phone se</td></tr>
+    <tr><td><b>Photo/Resume</b></td><td class="bad">Alag software, alag jhanjhat</td><td class="good">Sab isi me built-in</td></tr>
+    <tr><td><b>Commission</b></td><td class="bad">—</td><td class="good">0% — paisa poora aapka</td></tr>
+  </table>
+
+  <!-- ═══ ROI ═══ -->
+  <div class="roi-card">
+    <h3>🧮 Hisaab Lagao — Kitne Din Me Wasool?</h3>
+    <div class="roi-line"><span>Din ke sirf 15 print (kam se kam)</span><span>15 × ₹5 = ₹75/din</span></div>
+    <div class="roi-line"><span>Mahine ki print kamai</span><span>~₹2,250</span></div>
+    <div class="roi-line"><span>Software ka kharcha (One-Time)</span><span>₹999 — EK baar</span></div>
+    <div class="roi-line"><span>Wasool</span><span>2 hafte se pehle ✅</span></div>
+    <p style="font-size:11px;opacity:.7;margin:10px 0 0;">* Misaal ke taur par — aapke rates aur prints aapki dukaan par depend karte hain. Upar se time ki bachat aur photo/resume ki extra kamai alag.</p>
+  </div>
+
+  <!-- ═══ FOUNDER ═══ -->
+  <div class="founder-card">
+    <div style="font-weight:800;font-size:15px;">🙋 Banane Wala Bhi Aap Jaisa Hi Hai</div>
+    <p>Main <b>Rupesh Kumar Mahato</b> — Jharkhand me apna cyber cafe chalata hoon. Ye software maine pehle <b>apni dukaan ke liye</b> banaya tha, kyunki WhatsApp-pendrive wala jhanjhat mujhse bhi nahi jhela ja raha tha.<br><br>
+    Jab meri dukaan pe chal gaya, tab doosre shop walon ke liye khola. Isliye isme wahi cheezein hain jo <b>asli dukaan me kaam aati hain</b> — aur koi dikkat aaye to WhatsApp pe main khud jawab deta hoon.</p>
   </div>
 
   <!-- ═══ PRICING PLANS ═══ -->
@@ -462,6 +573,19 @@ loadPrices();
     }
   }catch(e){}
 })();
+// Real stats — social proof (asli numbers, fake nahi)
+(async () => {
+  try {
+    const r = await fetch('/api/public-stats');
+    const d = await r.json();
+    if (d.shops >= 5) {   // bahut kam ho to strip mat dikhao
+      document.getElementById('statShops').textContent = d.shops + '+';
+      document.getElementById('statPrints').textContent = d.prints >= 1000 ? (Math.floor(d.prints/100)/10) + 'k+' : d.prints + '+';
+      document.getElementById('statsStrip').style.display = 'flex';
+    }
+  } catch(e) {}
+})();
+
 // Homepage plan prices — live superadmin se
 (async () => {
   try {
