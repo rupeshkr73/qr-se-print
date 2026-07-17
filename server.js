@@ -942,7 +942,9 @@ One-Time plan walon ko AnyDesk support bhi milta hai.
 app.get('/api/setup-fee/current', async (req, res) => {
   try {
     const pricing = await getSetupPricing();
-    res.json({ amount: pricing.offerPrice, offerPrice: pricing.offerPrice, actualPrice: pricing.actualPrice });
+    // Poora object + advancedFee — manually copy karne par naye fields
+    // (monthlyFee) gir jaate the aur homepage stale price dikhata tha
+    res.json({ amount: pricing.offerPrice, ...pricing, advancedFee: await getAdvancedFee() });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1314,9 +1316,9 @@ app.post('/api/shop/set-password', async (req, res) => {
     }
     const r = await pool.query('SELECT id, phone, password_hash FROM shops WHERE id=$1', [shopId.trim().toUpperCase()]);
     if (!r.rows.length) return res.status(404).json({ error: 'Shop ID nahi mila' });
-    if (r.rows[0].password_hash) {
-      return res.status(400).json({ error: 'Password already set hai. Login karke change karo, ya bhool gaye to admin se contact karo.' });
-    }
+    // Password set HO YA NA HO — registered phone match = reset allowed.
+    // (Pehle set-hone par admin-contact bolta tha; ab self-serve reset.
+    //  Security wahi: phone public API se hata hua hai + IP rate-limit.)
     if (normPhone(phone) !== normPhone(r.rows[0].phone)) {
       return res.status(403).json({ error: 'Mobile number match nahi hua — wahi number daalo jo registration me diya tha' });
     }
@@ -1374,6 +1376,10 @@ app.get('/api/admin/profile', verifyToken, async (req, res) => {
 
 app.put('/api/admin/settings', verifyToken, async (req, res) => {
   try {
+    // Advanced-lock status SABSE PEHLE — duplex aur 4x6/A3 dono blocks
+    // ise use karte hain (pehle neeche declare tha -> TDZ crash on save)
+    const unlockChk = await pool.query('SELECT advanced_unlocked FROM shops WHERE id=$1', [req.shopId]);
+    const advUnlocked = unlockChk.rows.length && unlockChk.rows[0].advanced_unlocked;
     const {
       name, address, phone, printer_model, printer_name_bw, printer_name_color, price_bw, price_color, payment_mode,
       payment_gateway, razorpay_key_id, razorpay_key_secret,
@@ -1435,10 +1441,6 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
     if (advUnlocked && typeof req.body.duplex_mode === 'string' && ['','auto','manual'].includes(req.body.duplex_mode)) {
       await pool.query('UPDATE shops SET duplex_mode=$1 WHERE id=$2', [req.body.duplex_mode, req.shopId]);
     }
-    // Advanced printing (4x6/A3/duplex) — SIRF unlocked shops save kar sakti hain.
-    // Server-side guard: lock ka UI bypass ho bhi jaaye to yahan ruk jaayega.
-    const unlockChk = await pool.query('SELECT advanced_unlocked FROM shops WHERE id=$1', [req.shopId]);
-    const advUnlocked = unlockChk.rows.length && unlockChk.rows[0].advanced_unlocked;
     if (advUnlocked) {
       if (typeof req.body.printer_name_4x6 === 'string')
         await pool.query('UPDATE shops SET printer_name_4x6=$1 WHERE id=$2', [req.body.printer_name_4x6.slice(0,300), req.shopId]);
