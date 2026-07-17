@@ -921,21 +921,38 @@ function applyPaper() {
   el.style.width = A4_DISPLAY_W + 'px';
   el.style.height = A4_DISPLAY_H + 'px';
 
-  // Items remap: relative CENTER + relative WIDTH preserve, aspect
-  // workingCanvas se (kabhi stretch nahi), page ke andar clamp
-  pages.forEach(pg => pg.items.forEach(it => {
-    const cxr = (it.x + it.w / 2) / oldW;
-    const cyr = (it.y + it.h / 2) / oldH;
-    const wr  = it.w / oldW;
-    let nw = wr * A4_DISPLAY_W;
-    const ratio = it.workingCanvas.width / it.workingCanvas.height;
-    let nh = nw / ratio;
-    const sc = Math.min(1, (A4_DISPLAY_W * 0.98) / nw, (A4_DISPLAY_H * 0.98) / nh);
-    nw *= sc; nh *= sc;
-    it.w = nw; it.h = nh;
-    it.x = Math.max(0, Math.min(cxr * A4_DISPLAY_W - nw / 2, A4_DISPLAY_W - nw));
-    it.y = Math.max(0, Math.min(cyr * A4_DISPLAY_H - nh / 2, A4_DISPLAY_H - nh));
-  }));
+  // CONTENT bhi page ke saath adjust ho:
+  // - EK item wala page (aam case): item ko naye page par AUTO-FIT + center
+  //   karo — page landscape hua to photo bhi naye layout me poora baithe.
+  //   (Pehle relative remap tha — item purani jagah chipka rehta tha,
+  //    user ko lagta tha orientation kaam hi nahi kar raha.)
+  // - Multiple items: relative remap — unka aapas ka layout na bigde.
+  pages.forEach(pg => {
+    if (pg.items.length === 1) {
+      const it = pg.items[0];
+      const ratio = it.workingCanvas.width / it.workingCanvas.height;
+      let nw = A4_DISPLAY_W * 0.96;
+      let nh = nw / ratio;
+      if (nh > A4_DISPLAY_H * 0.96) { nh = A4_DISPLAY_H * 0.96; nw = nh * ratio; }
+      it.w = nw; it.h = nh;
+      it.x = (A4_DISPLAY_W - nw) / 2;
+      it.y = (A4_DISPLAY_H - nh) / 2;
+      return;
+    }
+    pg.items.forEach(it => {
+      const cxr = (it.x + it.w / 2) / oldW;
+      const cyr = (it.y + it.h / 2) / oldH;
+      const wr  = it.w / oldW;
+      let nw = wr * A4_DISPLAY_W;
+      const ratio = it.workingCanvas.width / it.workingCanvas.height;
+      let nh = nw / ratio;
+      const sc = Math.min(1, (A4_DISPLAY_W * 0.98) / nw, (A4_DISPLAY_H * 0.98) / nh);
+      nw *= sc; nh *= sc;
+      it.w = nw; it.h = nh;
+      it.x = Math.max(0, Math.min(cxr * A4_DISPLAY_W - nw / 2, A4_DISPLAY_W - nw));
+      it.y = Math.max(0, Math.min(cyr * A4_DISPLAY_H - nh / 2, A4_DISPLAY_H - nh));
+    });
+  });
   renderEditor();
 }
 
