@@ -2394,7 +2394,7 @@ app.put('/api/superadmin/homepage-config', verifySuperAdmin, async (req, res) =>
     const cur = await pool.query("SELECT value FROM system_settings WHERE key='homepage_config'");
     const cfg = cur.rows.length ? JSON.parse(cur.rows[0].value) : {};
     const b = req.body || {};
-    const strKeys = ['logoUrl','statShops','statPrints','supportEmail','supportPhone'];
+    const strKeys = ['logoUrl','statShops','statPrints','supportEmail','supportPhone','instagram','facebook','youtube'];
     for (const k of strKeys) if (typeof b[k] === 'string') cfg[k] = b[k].slice(0, 300);
     if (typeof b.showStats === 'boolean') cfg.showStats = b.showStats;
     for (const k of ['planDemo','planMonthly','planOnetime']) {
