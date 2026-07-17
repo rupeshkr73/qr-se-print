@@ -339,8 +339,12 @@ body{
     <div class="step"><b>🖨️</b><span>Auto Print</span></div>
   </div>
 
+  <button onclick="document.getElementById('pricingSection').scrollIntoView({behavior:'smooth'})" style="width:100%;margin:22px 0 6px;background:linear-gradient(135deg,#ff2e63,#ff6b35);color:#fff;border:none;border-radius:16px;padding:17px;font-family:'Syne',sans-serif;font-weight:800;font-size:17px;cursor:pointer;box-shadow:0 8px 24px rgba(255,46,99,.35);display:flex;align-items:center;justify-content:center;gap:8px;">
+    💰 See Setup Price <span style="font-size:20px;">↓</span>
+  </button>
+
   <div class="pills">
-    <div class="pill">✅ No Monthly Fee</div>
+    <div class="pill">✅ 0% Commission</div>
     <div class="pill">⚡ Automatic Print</div>
     <div class="pill">💳 Online + Counter Pay</div>
     <div class="pill">🖥️ System Tray Agent</div>
@@ -420,7 +424,7 @@ body{
   </div>
 
   <!-- ═══ PRICING PLANS ═══ -->
-  <div class="plans-wrap">
+  <div class="plans-wrap" id="pricingSection">
     <div class="plans-title">💰 Apna Plan Chuno</div>
     <div class="plans3">
       <div class="plan3">
@@ -529,9 +533,14 @@ body{
 </div>
 
 <div class="footer">
-  <div style="display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:8px;">
+  <div style="display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:10px;">
     <a id="ftEmail" href="mailto:mahatonetcafe@gmail.com">📧 mahatonetcafe@gmail.com</a>
     <a id="ftPhone" href="tel:9999999999">📞 9999999999</a>
+  </div>
+  <div id="ftSocial" style="display:flex;justify-content:center;gap:14px;margin-bottom:10px;flex-wrap:wrap;">
+    <a id="socInsta" href="#" target="_blank" rel="noopener" style="display:none;font-size:22px;text-decoration:none;">📷</a>
+    <a id="socFb" href="#" target="_blank" rel="noopener" style="display:none;font-size:22px;text-decoration:none;">📘</a>
+    <a id="socYt" href="#" target="_blank" rel="noopener" style="display:none;font-size:22px;text-decoration:none;">▶️</a>
   </div>
   <p>© 2026 QR Se Print · All Rights Reserved | Developed by Rupesh Kumar Mahato</p>
   <a href="/superadmin" class="super-link">⚙</a>
@@ -586,6 +595,9 @@ loadPrices();
   // Footer email/phone
   if (cfg.supportEmail) { const e=document.getElementById('ftEmail'); if(e){e.href='mailto:'+cfg.supportEmail; e.textContent='📧 '+cfg.supportEmail;} }
   if (cfg.supportPhone) { const p=document.getElementById('ftPhone'); if(p){p.href='tel:'+cfg.supportPhone; p.textContent='📞 '+cfg.supportPhone;} }
+  // Social links — sirf jinke URL set hain wahi dikhte hain
+  const soc = [['socInsta', cfg.instagram], ['socFb', cfg.facebook], ['socYt', cfg.youtube]];
+  soc.forEach(([id, url]) => { const el = document.getElementById(id); if (el && url) { el.href = url; el.style.display = 'inline-block'; } });
   // Plan features (agar config me hain)
   const fillPlan = (elId, arr) => {
     const ul = document.getElementById(elId);
