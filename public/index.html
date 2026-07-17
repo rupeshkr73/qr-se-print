@@ -294,10 +294,7 @@ body{
     <a href="/admin" class="login-pill">🔑 Shop Owner Login</a>
   </div>
 
-  <button class="demo-strip" onclick="openDemoModal()">
-    <span class="rs-left">🎯 <b>2 Ghante FREE Demo</b> — bina payment ke try karo</span>
-    <span class="rs-arrow">›</span>
-  </button>
+
 
   <a href="/admin" class="refer-strip">
     <span class="rs-left">🎁 <b>Refer &amp; Earn</b> — har referral par ₹50</span>
@@ -306,7 +303,7 @@ body{
 
   <div class="brand-row">
     <div class="perf" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-    <div class="brand"><div class="brand-mark">🖨️</div>QR Se Print</div>
+    <div class="brand" id="brandWrap"><div class="brand-mark">🖨️</div>QR Se Print</div>
     <div class="perf" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
   </div>
 
@@ -430,7 +427,7 @@ body{
         <div class="p3t">🎯 Demo</div>
         <div class="p3p">₹0</div>
         <div class="p3note" style="color:#6b6870;">Try karke dekho — bina paisa diye</div>
-        <ul>
+        <ul id="planDemoList">
           <li>✅ Demo Auto Print Software</li>
           <li>✅ Personalize QR For Shop</li>
           <li>✅ Unlimited Print 24/Hrs</li>
@@ -442,7 +439,7 @@ body{
         <div class="p3t">📅 Monthly</div>
         <div class="p3p">₹<span id="hpMonthly">399</span> <small>/month</small></div>
         <div class="p3note" style="color:#b45309;">Per month renewal — time par pay karo, service chalti rahe</div>
-        <ul>
+        <ul id="planMonthlyList">
           <li>✅ Auto Print Software</li>
           <li>✅ Personalize QR For Shop</li>
           <li>✅ Unlimited Print</li>
@@ -457,7 +454,7 @@ body{
         <div class="p3t">💎 One-Time</div>
         <div class="p3p"><span class="cut3" id="hpCut">₹1999</span>₹<span id="hpOnetime">999</span></div>
         <div class="p3note" style="color:#166534;">Lifetime Access & Update — No renewal</div>
-        <ul>
+        <ul id="planOnetimeList">
           <li>✅ Auto Print Software</li>
           <li>✅ Personalize QR For Shop</li>
           <li>✅ Unlimited Print</li>
@@ -532,8 +529,11 @@ body{
 </div>
 
 <div class="footer">
-  <p>© 2026 All Rights Reserved | Developed by Rupesh Kumar Mahato</p>
-  <a href="https://instagram.com/rupeshkr73" target="_blank" rel="noopener">📷 @rupeshkr73</a>
+  <div style="display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:8px;">
+    <a id="ftEmail" href="mailto:mahatonetcafe@gmail.com">📧 mahatonetcafe@gmail.com</a>
+    <a id="ftPhone" href="tel:9999999999">📞 9999999999</a>
+  </div>
+  <p>© 2026 QR Se Print · All Rights Reserved | Developed by Rupesh Kumar Mahato</p>
   <a href="/superadmin" class="super-link">⚙</a>
 </div>
 
@@ -573,17 +573,42 @@ loadPrices();
     }
   }catch(e){}
 })();
-// Real stats — social proof (asli numbers, fake nahi)
+// Homepage config — logo, stats, plans, footer sab superadmin se
 (async () => {
-  try {
-    const r = await fetch('/api/public-stats');
-    const d = await r.json();
-    if (d.shops >= 5) {   // bahut kam ho to strip mat dikhao
-      document.getElementById('statShops').textContent = d.shops + '+';
-      document.getElementById('statPrints').textContent = d.prints >= 1000 ? (Math.floor(d.prints/100)/10) + 'k+' : d.prints + '+';
+  let cfg = {};
+  try { cfg = await (await fetch('/api/homepage-config')).json(); } catch(e) {}
+  // Logo
+  if (cfg.logoUrl) {
+    const bi = document.querySelector('.brand-ico, .h-brand img, #brandIcon');
+    const bw = document.getElementById('brandWrap');
+    if (bw) bw.innerHTML = '<img src="'+cfg.logoUrl+'" alt="QR Se Print" style="height:38px;max-width:180px;object-fit:contain;">';
+  }
+  // Footer email/phone
+  if (cfg.supportEmail) { const e=document.getElementById('ftEmail'); if(e){e.href='mailto:'+cfg.supportEmail; e.textContent='📧 '+cfg.supportEmail;} }
+  if (cfg.supportPhone) { const p=document.getElementById('ftPhone'); if(p){p.href='tel:'+cfg.supportPhone; p.textContent='📞 '+cfg.supportPhone;} }
+  // Plan features (agar config me hain)
+  const fillPlan = (elId, arr) => {
+    const ul = document.getElementById(elId);
+    if (ul && Array.isArray(arr) && arr.length) ul.innerHTML = arr.map(x=>'<li>✅ '+x+'</li>').join('');
+  };
+  fillPlan('planDemoList', cfg.planDemo);
+  fillPlan('planMonthlyList', cfg.planMonthly);
+  fillPlan('planOnetimeList', cfg.planOnetime);
+  // Stats — manual override ya DB, showStats ke hisaab se
+  if (cfg.showStats !== false) {
+    let shops = cfg.statShops, prints = cfg.statPrints;
+    if (!shops || !prints) {
+      try { const d = await (await fetch('/api/public-stats')).json();
+        if (!shops) shops = d.shops >= 5 ? d.shops + '+' : '';
+        if (!prints) prints = d.prints >= 5 ? (d.prints >= 1000 ? (Math.floor(d.prints/100)/10)+'k+' : d.prints+'+') : '';
+      } catch(e) {}
+    }
+    if (shops || prints) {
+      if (shops) document.getElementById('statShops').textContent = shops;
+      if (prints) document.getElementById('statPrints').textContent = prints;
       document.getElementById('statsStrip').style.display = 'flex';
     }
-  } catch(e) {}
+  }
 })();
 
 // Homepage plan prices — live superadmin se
@@ -635,7 +660,7 @@ async function createDemo(){
 </script>
 
 
-<div id="langSwitch" style="position:fixed;top:10px;left:10px;z-index:400;">
+<div id="langSwitch" style="position:fixed;bottom:12px;left:12px;z-index:400;">
   <select id="langSel" onchange="setLang(this.value)" style="border:1.5px solid #e3e5ec;border-radius:10px;padding:6px 8px;font-size:12px;font-weight:700;background:#fff;color:#111;">
     <option value="hi">🇮🇳 हिंदी</option>
     <option value="en">EN English</option>
