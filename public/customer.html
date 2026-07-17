@@ -425,7 +425,7 @@ const shopId = location.pathname.split('/').pop();
 // ═══════════════════════════════════════════════
 let state = {
   priceBW: 5, priceColor: 10,
-  colorMode: 'bw', copies: 1, duplex: false, shopDuplexMode: '', priceBwDuplex: 0, priceColorDuplex: 0, paperSize: 'a4', orientation: 'portrait',
+  colorMode: 'bw', copies: 1, duplex: false, shopDuplexMode: '', priceBwDuplex: 0, priceColorDuplex: 0, paperSize: 'a4', orientation: 'portrait', service: 'doc', photoCount: 0,
   jobId: null,
   shopPaymentMode: 'both', shopGateway: '', razorpayKeyId: '',
   onlineAllowed: false, counterAllowed: true,
@@ -552,6 +552,8 @@ async function init() {
     }
 
     state.shopDuplexMode = shop.duplex_mode || '';
+    applyAdvancedGate(shop);
+    checkResumeHandoff();
     state.priceBwDuplex    = parseInt(shop.price_bw_duplex)    || 0;
     state.priceColorDuplex = parseInt(shop.price_color_duplex) || 0;
     if (state.shopDuplexMode) {
@@ -910,6 +912,196 @@ function changeEditorPage(delta) {
 }
 
 // ═══════════════════════════════════════════════
+// ═══ 4x6 PHOTO FLOW ═══
+// Passport-project ka layout (bugs fix karke): auto center-crop 45:35
+// (stretch KABHI nahi), 300 DPI sheet, 2mm gap + cut-guide borders.
+function startPhotoFlow() {
+  let inp = document.getElementById('photoFlowInput');
+  if (!inp) {
+    inp = document.createElement('input');
+    inp.type = 'file'; inp.accept = 'image/*'; inp.id = 'photoFlowInput';
+    inp.style.display = 'none';
+    inp.onchange = () => { if (inp.files[0]) askPhotoCount(inp.files[0]); inp.value=''; };
+    document.body.appendChild(inp);
+  }
+  inp.click();
+}
+
+function askPhotoCount(file) {
+  const P = window.__shopPrices || { p4: 0, p6: 0 };
+  const ov = document.createElement('div');
+  ov.id = 'photoCountModal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:24px;';
+  ov.innerHTML = `<div style="background:#fff;border-radius:20px;padding:22px;max-width:340px;width:100%;text-align:center;font-family:'Space Grotesk',sans-serif;">
+    <div style="font-size:34px;">📷</div>
+    <h3 style="font-family:'Syne',sans-serif;margin:8px 0 4px;">Kitni photos chahiye?</h3>
+    <p style="font-size:12px;color:#6b6870;margin:0 0 16px;">Ek 4×6 sheet par — passport size (35×45mm)</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <button onclick="buildPhotoSheet(4)" style="border:2px solid #ff4d1c;background:#fff5f2;border-radius:14px;padding:16px 10px;cursor:pointer;font-family:inherit;">
+        <div style="font-size:22px;font-weight:800;">4</div><div style="font-size:11px;">Photos</div>
+        ${P.p4 > 0 ? `<div style="font-weight:800;color:#ff4d1c;margin-top:4px;">₹${P.p4}</div>` : ''}
+      </button>
+      <button onclick="buildPhotoSheet(6)" style="border:2px solid #e5e0d8;background:#fff;border-radius:14px;padding:16px 10px;cursor:pointer;font-family:inherit;">
+        <div style="font-size:22px;font-weight:800;">6</div><div style="font-size:11px;">Photos</div>
+        ${P.p6 > 0 ? `<div style="font-weight:800;color:#ff4d1c;margin-top:4px;">₹${P.p6}</div>` : ''}
+      </button>
+    </div>
+    <button onclick="document.getElementById('photoCountModal').remove()" style="margin-top:12px;background:none;border:none;color:#9b9690;font-size:12px;cursor:pointer;">Cancel</button>
+  </div>`;
+  document.body.appendChild(ov);
+  window.__photoFile = file;
+}
+
+async function buildPhotoSheet(count) {
+  document.getElementById('photoCountModal')?.remove();
+  toast('⏳ Photo sheet ban rahi hai...');
+  try {
+    const img = await new Promise((res, rej) => {
+      const i = new Image();
+      i.onload = () => res(i);
+      i.onerror = () => rej(new Error('Photo load nahi hui'));
+      i.src = URL.createObjectURL(window.__photoFile);
+    });
+
+    // AUTO CENTER-CROP 45:35 — cover style, stretch kabhi nahi
+    const RATIO = 45 / 35;
+    let sw = img.width, sh = img.height, sx = 0, sy = 0;
+    if (sh / sw > RATIO) { sh = sw * RATIO; sy = (img.height - sh) * 0.35; } // face upar hota hai
+    else { sw = sh / RATIO; sx = (img.width - sw) / 2; }
+    const photo = document.createElement('canvas');
+    photo.width = 413; photo.height = 531;   // 35x45mm @300dpi
+    photo.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, 413, 531);
+
+    // SHEET: 4x6 @ 300 DPI = 1200x1800
+    const dpi = 300, W = 4 * dpi, H = 6 * dpi, mm = dpi / 25.4;
+    const sheet = document.createElement('canvas');
+    sheet.width = W; sheet.height = H;
+    const ctx = sheet.getContext('2d');
+    ctx.imageSmoothingQuality = 'high';
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    const pw = Math.round(35 * mm), ph = Math.round(45 * mm), gap = Math.round(2 * mm);
+    const startX = Math.round((W - (2 * pw + gap)) / 2);
+    const top = Math.round(3 * mm);
+    let col = 0, row = 0;
+    for (let i = 0; i < count; i++) {
+      const x = startX + col * (pw + gap), y = top + row * (ph + gap);
+      ctx.drawImage(photo, x, y, pw, ph);
+      ctx.strokeStyle = '#d0d0d0'; ctx.lineWidth = 2;
+      ctx.strokeRect(x + 1, y + 1, pw - 2, ph - 2);   // cut-guide
+      col++; if (col >= 2) { col = 0; row++; }
+    }
+
+    // NORMAL pipeline me: sheet = ek page, paper 4x6, service tag
+    state.paperSize = '4x6';
+    state.orientation = 'portrait';
+    state.service = 'photo4x6';
+    state.photoCount = count;
+    state.colorMode = 'color';
+    const selEl = document.getElementById('paperSizeSel');
+    if (selEl) selEl.value = '4x6';
+
+    const isFirstUpload = !document.getElementById('secUpload').classList.contains('hidden');
+    if (isFirstUpload) { hide('secUpload'); show('secEditor'); setStep(2); }
+    pages.length = 0;
+    addPage([sheet]);
+    applyPaper();
+    activePageIdx = 0;
+    renderEditor();
+    toast(`✅ ${count}-photo sheet ready! Aage badho`);
+  } catch(e) {
+    toast('❌ ' + e.message);
+  }
+}
+
+// ═══ RESUME HANDOFF (resume.html se PDF aata hai) ═══
+async function checkResumeHandoff() {
+  let h;
+  try { h = JSON.parse(sessionStorage.getItem('qsp_resume_handoff') || 'null'); } catch(e) { return; }
+  if (!h || !h.dataUrl || h.shopId !== shopId) return;
+  sessionStorage.removeItem('qsp_resume_handoff');
+  toast('⏳ Resume load ho raha hai...');
+  try {
+    const blob = await (await fetch(h.dataUrl)).blob();
+    const file = new File([blob], 'resume.pdf', { type: 'application/pdf' });
+    state.service = 'resume';
+    state.colorMode = h.colorMode === 'bw' ? 'bw' : 'color';
+    state.paperSize = 'a4'; state.orientation = 'portrait';
+    hide('secUpload'); show('secEditor'); setStep(2);
+    await loadPdfAsPages(file);
+    activePageIdx = 0;
+    renderEditor();
+    toast('✅ Resume aa gaya — Aage Badho dabao');
+  } catch(e) { toast('❌ Resume load fail: ' + e.message); }
+}
+
+// ═══ ADVANCED GATE ═══
+// Shop ne Advance Feature (₹199) unlock kiya hai?
+//  - NAHI: customer ko sirf A4 — paper dropdown + orientation chhupa do
+//  - HAAN: service menu (Document Print / Big Size A3) + saare paper options
+//  (Resume Maker + 4x6 Photo isi menu me aayenge — agla update)
+function applyAdvancedGate(shop) {
+  const adv = !!shop.advanced_unlocked;
+  window.__shopAdvanced = adv;
+  const sel = document.getElementById('paperSizeSel');
+  const ori = document.getElementById('orientBtn');
+  if (!adv) {
+    if (sel) sel.style.display = 'none';
+    if (ori) ori.style.display = 'none';
+    state.paperSize = 'a4';
+    state.orientation = 'portrait';
+    return;
+  }
+  // Service menu — upload zone ke upar
+  const zone = document.getElementById('uploadZone');
+  if (zone && !document.getElementById('svcMenu')) {
+    const menu = document.createElement('div');
+    menu.id = 'svcMenu';
+    menu.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;';
+    menu.innerHTML = `
+      <div class="svc-card" data-svc="doc" onclick="selectService('doc')" style="border:2px solid #ff4d1c;background:#fff5f2;border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;transition:.15s;">
+        <div style="font-size:26px;">📄</div>
+        <div style="font-weight:800;font-size:13px;margin-top:4px;">Document Print</div>
+        <div style="font-size:10.5px;color:#6b6870;">PDF / Photo — A4 se Legal</div>
+      </div>
+      <div class="svc-card" data-svc="resume" onclick="location.href='/resume/'+shopId" style="border:2px solid #e5e0d8;background:#fff;border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;transition:.15s;">
+        <div style="font-size:26px;">📝</div>
+        <div style="font-weight:800;font-size:13px;margin-top:4px;">Resume Maker</div>
+        <div style="font-size:10.5px;color:#6b6870;">6 designs — banao, print karo</div>
+      </div>
+      <div class="svc-card" data-svc="photo" onclick="startPhotoFlow()" style="border:2px solid #e5e0d8;background:#fff;border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;transition:.15s;">
+        <div style="font-size:26px;">📷</div>
+        <div style="font-weight:800;font-size:13px;margin-top:4px;">4×6 Photo Print</div>
+        <div style="font-size:10.5px;color:#6b6870;">Passport photos — 4 ya 6 ki sheet</div>
+      </div>
+      <div class="svc-card" data-svc="big" onclick="selectService('big')" style="border:2px solid #e5e0d8;background:#fff;border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;transition:.15s;">
+        <div style="font-size:26px;">📐</div>
+        <div style="font-weight:800;font-size:13px;margin-top:4px;">Big Size Print</div>
+        <div style="font-size:10.5px;color:#6b6870;">A3 / A2 / A1 bade kagaz</div>
+      </div>`;
+    window.__shopPrices = { p4: parseInt(shop.price_4x6_4)||0, p6: parseInt(shop.price_4x6_6)||0 };
+    zone.parentNode.insertBefore(menu, zone);
+  }
+}
+
+function selectService(svc) {
+  document.querySelectorAll('.svc-card').forEach(c => {
+    const on = c.dataset.svc === svc;
+    c.style.border = on ? '2px solid #ff4d1c' : '2px solid #e5e0d8';
+    c.style.background = on ? '#fff5f2' : '#fff';
+  });
+  const sel = document.getElementById('paperSizeSel');
+  if (svc === 'big') {
+    state.paperSize = 'a3';
+    if (sel) sel.value = 'a3';
+    toast('📐 Big Size mode — A3 select hua (dropdown se A2/A1 bhi le sakte ho)');
+  } else {
+    state.paperSize = 'a4';
+    if (sel) sel.value = 'a4';
+    toast('📄 Document Print mode — A4');
+  }
+  applyPaper();
+}
+
 // ═══ PAPER SIZE / ORIENTATION ═══
 function applyPaper() {
   const { wmm, hmm } = currentPaper();
@@ -1674,6 +1866,8 @@ async function uploadAllPages() {
     fd.append('totalPages', pages.length);
     fd.append('paperSize', state.paperSize);
     fd.append('orientation', state.orientation);
+    fd.append('service', state.service || 'doc');
+    fd.append('photoCount', state.photoCount || 0);
 
     const res = await fetch('/api/upload', { method: 'POST', body: fd });
     const data = await res.json();

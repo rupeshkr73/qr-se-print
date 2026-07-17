@@ -567,6 +567,36 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
             </div>
           </div>
         </div>
+
+        <div class="form-group full" style="margin-top:10px;background:#fdf4ff;border:1.5px solid #f0abfc;border-radius:14px;padding:14px;">
+          <label style="font-weight:800;font-size:13px;color:#86198f;">📷 4×6 PHOTO SHEET PRICING (₹ per sheet)</label>
+          <p style="font-size:11px;color:#a21caf;margin:4px 0 10px;">Ek 4×6 sheet par kitni photos — uske hisaab se rate</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label style="font-size:11px;">4 Photo wali sheet (₹)</label>
+              <input type="number" id="setPrice4x6_4" min="0" placeholder="e.g. 30">
+            </div>
+            <div>
+              <label style="font-size:11px;">6 Photo wali sheet (₹)</label>
+              <input type="number" id="setPrice4x6_6" min="0" placeholder="e.g. 40">
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group full" style="margin-top:10px;background:#eff6ff;border:1.5px solid #93c5fd;border-radius:14px;padding:14px;">
+          <label style="font-weight:800;font-size:13px;color:#1e40af;">📝 RESUME MAKER PRICING (₹ per resume)</label>
+          <p style="font-size:11px;color:#1d4ed8;margin:4px 0 10px;">Customer QR se resume banayega — print ka rate</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label style="font-size:11px;">Color Resume (₹)</label>
+              <input type="number" id="setPriceResumeColor" min="0" placeholder="e.g. 20">
+            </div>
+            <div>
+              <label style="font-size:11px;">B&W Resume (₹)</label>
+              <input type="number" id="setPriceResumeBw" min="0" placeholder="e.g. 10">
+            </div>
+          </div>
+        </div>
             </div>
             <!-- LOCK OVERLAY -->
             <div id="advLock" style="position:absolute;inset:0;top:56px;background:rgba(250,245,255,.82);backdrop-filter:blur(4px);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;">
@@ -974,6 +1004,10 @@ async function loadAdminPanel() {
     await loadPrinterModelsAdmin(shop.printer_model);
     await loadColorPrinterDropdowns(shop.printer_name_bw, shop.printer_name_color, shop.printer_name_4x6, shop.printer_name_a3);
     document.getElementById('setDuplexMode').value = shop.duplex_mode || '';
+    document.getElementById('setPrice4x6_4').value = shop.price_4x6_4 || '';
+    document.getElementById('setPrice4x6_6').value = shop.price_4x6_6 || '';
+    document.getElementById('setPriceResumeColor').value = shop.price_resume_color || '';
+    document.getElementById('setPriceResumeBw').value = shop.price_resume_bw || '';
     document.getElementById('setPriceBwDuplex').value    = shop.price_bw_duplex    || '';
     document.getElementById('setPriceColorDuplex').value = shop.price_color_duplex || '';
     toggleDuplexPrices();
@@ -1549,6 +1583,10 @@ async function saveSettings() {
     printer_name_color: document.getElementById('setPrinterColor').value,
       printer_name_4x6: document.getElementById('setPrinter4x6').value,
       printer_name_a3: document.getElementById('setPrinterA3').value,
+      price_4x6_4: document.getElementById('setPrice4x6_4').value,
+      price_4x6_6: document.getElementById('setPrice4x6_6').value,
+      price_resume_color: document.getElementById('setPriceResumeColor').value,
+      price_resume_bw: document.getElementById('setPriceResumeBw').value,
       duplex_mode: document.getElementById('setDuplexMode').value,
       price_bw_duplex:    document.getElementById('setPriceBwDuplex').value    || 0,
       price_color_duplex: document.getElementById('setPriceColorDuplex').value || 0,
