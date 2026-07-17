@@ -334,11 +334,17 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS renewal_order_id VARCHAR(200) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS advanced_unlocked BOOLEAN DEFAULT false;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS advanced_order_id VARCHAR(200) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_4x6_4 INTEGER DEFAULT 0;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_4x6_6 INTEGER DEFAULT 0;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_resume_color INTEGER DEFAULT 0;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_resume_bw INTEGER DEFAULT 0;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS duplex BOOLEAN DEFAULT false;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS failure_reason VARCHAR(200) DEFAULT '';
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS file_deleted BOOLEAN DEFAULT false;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS paper_size VARCHAR(12) DEFAULT 'a4';
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS orientation VARCHAR(12) DEFAULT 'portrait';
+      ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS service VARCHAR(16) DEFAULT 'doc';
+      ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS photo_count INTEGER DEFAULT 0;
       CREATE TABLE IF NOT EXISTS demo_registrations (
         id SERIAL PRIMARY KEY,
         phone VARCHAR(15) UNIQUE,
@@ -1343,7 +1349,7 @@ app.post('/api/shop/set-password', async (req, res) => {
 app.get('/api/shop/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until FROM shops WHERE id=$1',
+      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_resume_color,price_resume_bw FROM shops WHERE id=$1',
       [req.params.shopId]
     );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
@@ -1375,7 +1381,7 @@ app.get('/api/shop/:shopId/stats', async (req, res) => {
 app.get('/api/admin/profile', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT id,name,address,phone,demo,plan_type,paid_until,advanced_unlocked,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
+      `SELECT id,name,address,phone,demo,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_resume_color,price_resume_bw,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
               payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
               CASE WHEN phonepe_salt_key != '' THEN true ELSE false END as has_phonepe_salt
@@ -1458,6 +1464,14 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
         await pool.query('UPDATE shops SET printer_name_4x6=$1 WHERE id=$2', [req.body.printer_name_4x6.slice(0,300), req.shopId]);
       if (typeof req.body.printer_name_a3 === 'string')
         await pool.query('UPDATE shops SET printer_name_a3=$1 WHERE id=$2', [req.body.printer_name_a3.slice(0,300), req.shopId]);
+      // Advance pricing (4x6 sheet: 4-photo/6-photo; resume: color/bw)
+      for (const [key, col] of [['price_4x6_4','price_4x6_4'],['price_4x6_6','price_4x6_6'],
+                                ['price_resume_color','price_resume_color'],['price_resume_bw','price_resume_bw']]) {
+        const v = parseInt(req.body[key]);
+        if (!isNaN(v) && v >= 0 && v <= 100000) {
+          await pool.query(`UPDATE shops SET ${col}=$1 WHERE id=$2`, [v, req.shopId]);
+        }
+      }
     }
     // Duplex prices — sirf tab store jab valid non-negative int mile
     const pbwd = parseInt(req.body.price_bw_duplex);
@@ -1520,10 +1534,12 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     console.log(`Cloudinary: ${cloudResult.url}`);
 
     await pool.query(
-      'INSERT INTO print_jobs (id,shop_id,file_name,file_url,file_public_id,file_type,total_pages,copies,color_mode,amount,paper_size,orientation) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)',
+      'INSERT INTO print_jobs (id,shop_id,file_name,file_url,file_public_id,file_type,total_pages,copies,color_mode,amount,paper_size,orientation,service,photo_count) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)',
       [jobId, shopId, req.file.originalname, cloudResult.url, cloudResult.publicId, fileType, numPages, numCopies, colorMode||'bw', amount,
        ['4x6','a4','a5','letter','legal','a3','a2','a1'].includes(req.body.paperSize) ? req.body.paperSize : 'a4',
-       ['portrait','landscape'].includes(req.body.orientation) ? req.body.orientation : 'portrait']
+       ['portrait','landscape'].includes(req.body.orientation) ? req.body.orientation : 'portrait',
+       ['doc','resume','photo4x6'].includes(req.body.service) ? req.body.service : 'doc',
+       [4,6].includes(parseInt(req.body.photoCount)) ? parseInt(req.body.photoCount) : 0]
     );
     res.json({ success:true, jobId, fileName:req.file.originalname, fileType, amount, copies:numCopies, totalPages:numPages, colorMode:colorMode||'bw' });
   } catch(err) {
@@ -1547,7 +1563,7 @@ app.post('/api/payment/online/create', async (req, res) => {
     const { jobId, colorMode, copies, totalPages, selectedPages } = req.body;
 
     const jobCheck = await pool.query(
-      `SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.payment_mode, s.payment_gateway, s.paused, s.plan_type, s.paid_until,
+      `SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.price_4x6_4, s.price_4x6_6, s.price_resume_color, s.price_resume_bw, s.payment_mode, s.payment_gateway, s.paused, s.plan_type, s.paid_until,
               s.razorpay_key_id, s.razorpay_key_secret,
               s.phonepe_merchant_id, s.phonepe_salt_key, s.phonepe_salt_index
        FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1`, [jobId]
@@ -1584,7 +1600,17 @@ app.post('/api/payment/online/create', async (req, res) => {
     const _rateBw    = (finalDuplex && parseInt(job.price_bw_duplex) > 0)    ? job.price_bw_duplex    : job.price_bw;
     const _rateColor = (finalDuplex && parseInt(job.price_color_duplex) > 0) ? job.price_color_duplex : job.price_color;
     const pricePerPage = finalColorMode === 'color' ? _rateColor : _rateBw;
-    const amount = pricePerPage * finalPages * effCopies;
+    // ── ADVANCE SERVICE PRICING ── resume: owner ka resume rate (color/bw)
+    // x copies; photo4x6: sheet rate (4/6 photo) x copies; rate 0 ho to
+    // normal per-page pricing fallback
+    let amount = pricePerPage * finalPages * effCopies;
+    if (job.service === 'resume') {
+      const rRate = finalColorMode === 'color' ? (parseInt(job.price_resume_color) || 0) : (parseInt(job.price_resume_bw) || 0);
+      if (rRate > 0) amount = rRate * effCopies;
+    } else if (job.service === 'photo4x6') {
+      const pRate = job.photo_count === 6 ? (parseInt(job.price_4x6_6) || 0) : (parseInt(job.price_4x6_4) || 0);
+      if (pRate > 0) amount = pRate * effCopies;
+    }
 
     // Common job update (gateway se pehle)
     await pool.query(
@@ -1826,7 +1852,7 @@ app.post('/api/payment/counter', async (req, res) => {
     if (!jobId) return res.status(400).json({ error:'Job ID required' });
 
     const jobCheck = await pool.query(
-      'SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.payment_mode, s.paused, s.plan_type, s.paid_until FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1', [jobId]
+      'SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.price_4x6_4, s.price_4x6_6, s.price_resume_color, s.price_resume_bw, s.payment_mode, s.paused, s.plan_type, s.paid_until FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1', [jobId]
     );
     if (!jobCheck.rows.length) return res.status(404).json({ error:'Job not found' });
 
@@ -1868,7 +1894,17 @@ app.post('/api/payment/counter', async (req, res) => {
     const _rateBw    = (finalDuplex && parseInt(job.price_bw_duplex) > 0)    ? job.price_bw_duplex    : job.price_bw;
     const _rateColor = (finalDuplex && parseInt(job.price_color_duplex) > 0) ? job.price_color_duplex : job.price_color;
     const pricePerPage = finalColorMode === 'color' ? _rateColor : _rateBw;
-    const amount = pricePerPage * finalPages * effCopies;
+    // ── ADVANCE SERVICE PRICING ── resume: owner ka resume rate (color/bw)
+    // x copies; photo4x6: sheet rate (4/6 photo) x copies; rate 0 ho to
+    // normal per-page pricing fallback
+    let amount = pricePerPage * finalPages * effCopies;
+    if (job.service === 'resume') {
+      const rRate = finalColorMode === 'color' ? (parseInt(job.price_resume_color) || 0) : (parseInt(job.price_resume_bw) || 0);
+      if (rRate > 0) amount = rRate * effCopies;
+    } else if (job.service === 'photo4x6') {
+      const pRate = job.photo_count === 6 ? (parseInt(job.price_4x6_6) || 0) : (parseInt(job.price_4x6_4) || 0);
+      if (pRate > 0) amount = pRate * effCopies;
+    }
     const txnId = 'COUNTER_' + uuidv4().substring(0,10).toUpperCase();
 
     await pool.query(
@@ -2720,6 +2756,7 @@ app.get('/sitemap.xml', (req, res) => {
 });
 
 app.get('/setup-payment/:shopId', (req,res) => res.sendFile(path.join(__dirname,'public','setup-payment.html')));
+app.get('/resume/:shopId', (req,res) => res.sendFile(path.join(__dirname,'public','resume.html')));
 
 initDB().then(() => {
   app.listen(PORT, () => {
