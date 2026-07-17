@@ -150,6 +150,29 @@ const PRINTER_MODELS = [
   'Other (Manually Type Below)'
 ];
 
+async function uploadImageToCloudinary(fileBuffer, mimeType) {
+  if (!CLOUD_NAME || !CLD_API_KEY || !CLD_API_SECRET) return Promise.reject(new Error('Cloudinary configured nahi'));
+  return new Promise((resolve, reject) => {
+    const timestamp = Math.round(Date.now() / 1000);
+    const publicId = 'qsp_logo_' + uuidv4().substring(0,8);
+    const signStr = `public_id=${publicId}&timestamp=${timestamp}${CLD_API_SECRET}`;
+    const signature = crypto.createHash('sha256').update(signStr).digest('hex');
+    const dataUri = `data:${mimeType};base64,${fileBuffer.toString('base64')}`;
+    const postData = new URLSearchParams({
+      file: dataUri, api_key: CLD_API_KEY, timestamp: timestamp.toString(),
+      public_id: publicId, signature, resource_type: 'image'
+    }).toString();
+    const req = https.request({
+      hostname: 'api.cloudinary.com', path: `/v1_1/${CLOUD_NAME}/image/upload`, method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(postData) }
+    }, (resp) => {
+      let data = ''; resp.on('data', c => data += c);
+      resp.on('end', () => { try { const j = JSON.parse(data); j.secure_url ? resolve(j.secure_url) : reject(new Error(j.error?.message || 'Upload fail')); } catch(e) { reject(e); } });
+    });
+    req.on('error', reject); req.write(postData); req.end();
+  });
+}
+
 async function uploadToCloudinary(fileBuffer, fileType) {
   if (!CLOUD_NAME || !CLD_API_KEY || !CLD_API_SECRET) {
     return Promise.reject(new Error('Cloudinary configured nahi hai — Render environment variables check karo (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET)'));
@@ -404,6 +427,7 @@ async function initDB() {
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_minutes','120') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('monthly_fee','399') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('advanced_fee','199') ON CONFLICT DO NOTHING");
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('homepage_config', $1) ON CONFLICT DO NOTHING", ["{\"logoUrl\": \"\", \"statShops\": \"\", \"statPrints\": \"\", \"showStats\": true, \"supportEmail\": \"mahatonetcafe@gmail.com\", \"supportPhone\": \"9999999999\", \"planDemo\": [\"Demo Auto Print Software\", \"Personalize QR For Shop\", \"Unlimited Print 24/Hrs\", \"Setup Guide (README) included\"], \"planMonthly\": [\"Auto Print Software\", \"Personalize QR For Shop\", \"Unlimited Print\", \"Advance Feature (4x6 Photo, Resume, A3, Duplex) \\u2014 sab included\", \"Assistant in Setup\", \"On Demand Service will be added\", \"Bug fix on update\", \"WhatsApp Assistant\"], \"planOnetime\": [\"Sab kuch Monthly wala\", \"Assistant in Online Payment Gateway Setup\", \"Bug Fix Within 2Hr\", \"AnyDesk Remote Support\", \"Lifetime Access & Update\", \"No renewal \\u2014 ek baar pay\"]}"]);
 
     // Broken demo logins repair (bcrypt hash galti se gaya tha; login sha256
     // expect karta hai). Idempotent — sirf $2 (bcrypt) wale demo shops.
@@ -2357,6 +2381,47 @@ app.get('/api/superadmin/shop/:shopId/earnings', verifySuperAdmin, async (req, r
 });
 
 // ─── Setup Fee / Offer Price Management — Super Admin live change kar sake ───
+app.get('/api/superadmin/homepage-config', verifySuperAdmin, async (req, res) => {
+  try {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key='homepage_config'");
+    res.json(r.rows.length ? JSON.parse(r.rows[0].value) : {});
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/superadmin/homepage-config', verifySuperAdmin, async (req, res) => {
+  try {
+    // Sanitize: sirf known keys, arrays ko string-array me force
+    const cur = await pool.query("SELECT value FROM system_settings WHERE key='homepage_config'");
+    const cfg = cur.rows.length ? JSON.parse(cur.rows[0].value) : {};
+    const b = req.body || {};
+    const strKeys = ['logoUrl','statShops','statPrints','supportEmail','supportPhone'];
+    for (const k of strKeys) if (typeof b[k] === 'string') cfg[k] = b[k].slice(0, 300);
+    if (typeof b.showStats === 'boolean') cfg.showStats = b.showStats;
+    for (const k of ['planDemo','planMonthly','planOnetime']) {
+      if (Array.isArray(b[k])) cfg[k] = b[k].filter(x => typeof x === 'string').map(x => x.slice(0,120)).slice(0, 20);
+    }
+    await pool.query("UPDATE system_settings SET value=$1 WHERE key='homepage_config'", [JSON.stringify(cfg)]);
+    _hpCfgCache = { t: 0, data: null };  // cache bust
+    res.json({ success: true, config: cfg });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/superadmin/upload-logo', verifySuperAdmin, upload.single('logo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Koi file nahi' });
+    if (!['image/png','image/jpeg','image/webp','image/svg+xml'].includes(req.file.mimetype))
+      return res.status(400).json({ error: 'Sirf PNG/JPG/WEBP/SVG' });
+    if (req.file.size > 2 * 1024 * 1024) return res.status(400).json({ error: 'Logo 2MB se kam ho' });
+    const url = await uploadImageToCloudinary(req.file.buffer, req.file.mimetype);
+    const cur = await pool.query("SELECT value FROM system_settings WHERE key='homepage_config'");
+    const cfg = cur.rows.length ? JSON.parse(cur.rows[0].value) : {};
+    cfg.logoUrl = url;
+    await pool.query("UPDATE system_settings SET value=$1 WHERE key='homepage_config'", [JSON.stringify(cfg)]);
+    _hpCfgCache = { t: 0, data: null };
+    res.json({ success: true, logoUrl: url });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
   try {
     const pricing = await getSetupPricing();
@@ -2745,6 +2810,17 @@ app.use((req, res, next) => {
 
 // Homepage social-proof — ASLI numbers, 5 min cache
 let _statsCache = { t: 0, data: null };
+let _hpCfgCache = { t: 0, data: null };
+app.get('/api/homepage-config', async (req, res) => {
+  try {
+    if (Date.now() - _hpCfgCache.t < 60000 && _hpCfgCache.data) return res.json(_hpCfgCache.data);
+    const r = await pool.query("SELECT value FROM system_settings WHERE key='homepage_config'");
+    const cfg = r.rows.length ? JSON.parse(r.rows[0].value) : {};
+    _hpCfgCache = { t: Date.now(), data: cfg };
+    res.json(cfg);
+  } catch(e) { res.json({}); }
+});
+
 app.get('/api/public-stats', async (req, res) => {
   try {
     if (Date.now() - _statsCache.t < 300000 && _statsCache.data) return res.json(_statsCache.data);
