@@ -59,6 +59,16 @@ app.use(cors());
 // HMAC hota hai, parsed JSON par nahi
 app.use(express.json({ limit: '50mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// HTML pages HAMESHA fresh — bina iske phone Chrome purani HTML ghanton
+// tak cache se dikhata hai (har push ke baad "fix nahi hua" ka asli karan).
+// Sirf pages (extension-less routes + .html) — images/assets cache rehte hain.
+app.use((req, res, next) => {
+  const p = req.path.toLowerCase();
+  if (!p.startsWith('/api/') && (p.endsWith('.html') || !p.slice(1).includes('.'))) {
+    res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+  }
+  next();
+});
 app.use(express.static('public'));
 
 // ─── Canonical host redirect ───
@@ -73,8 +83,10 @@ if (PRIMARY_HOST) {
     // (clients POST ko GET bana dete hain) aur field ke saare agents
     // 404 khane lagte hain (printer list, complete/failed reports sab).
     if (req.path.startsWith('/api/')) return next();
-    const host = (req.headers.host || '').toLowerCase();
-    if (host && host !== PRIMARY_HOST && host.endsWith('onrender.com')) {
+    const host = (req.headers.host || '').toLowerCase().split(':')[0];
+    // www.qrseprint.in, onrender.com — sab canonical par (SEO: ek hi domain
+    // rank kare, duplicate content na bane)
+    if (host && host !== PRIMARY_HOST && host !== 'localhost' && host !== '127.0.0.1') {
       return res.redirect(301, 'https://' + PRIMARY_HOST + req.originalUrl);
     }
     next();
@@ -2249,7 +2261,8 @@ app.get('/api/superadmin/shops', verifySuperAdmin, async (req, res) => {
   try {
     const r = await pool.query(`
       SELECT id, name, address, phone, printer_model, price_bw, price_color,
-             payment_mode, payment_gateway, setup_paid, setup_amount, created_at
+             payment_mode, payment_gateway, setup_paid, setup_amount, created_at,
+             demo, plan_type, paid_until, advanced_unlocked
       FROM shops ORDER BY created_at DESC
     `);
     res.json({ shops: r.rows });
@@ -2672,6 +2685,40 @@ app.get('/dashboard', (req,res) => res.sendFile(path.join(__dirname,'public','da
 app.get('/admin', (req,res) => res.sendFile(path.join(__dirname,'public','admin.html')));
 app.get('/superadmin', (req,res) => res.sendFile(path.join(__dirname,'public','superadmin.html')));
 app.get('/print-success', (req,res) => res.sendFile(path.join(__dirname,'public','success.html')));
+// ═══ SEO: robots.txt + sitemap.xml + private-page noindex ═══
+app.use((req, res, next) => {
+  const p = req.path.toLowerCase();
+  if (p.startsWith('/admin') || p.startsWith('/superadmin') || p.startsWith('/dashboard')
+      || p.startsWith('/success') || p.startsWith('/setup-payment') || p.startsWith('/print/')) {
+    res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  }
+  next();
+});
+
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain').send(`User-agent: *
+Allow: /$
+Allow: /register
+Disallow: /admin
+Disallow: /superadmin
+Disallow: /dashboard
+Disallow: /success
+Disallow: /setup-payment
+Disallow: /print/
+Disallow: /api/
+
+Sitemap: https://qrseprint.in/sitemap.xml
+`);
+});
+
+app.get('/sitemap.xml', (req, res) => {
+  res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://qrseprint.in/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
+  <url><loc>https://qrseprint.in/register</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+</urlset>`);
+});
+
 app.get('/setup-payment/:shopId', (req,res) => res.sendFile(path.join(__dirname,'public','setup-payment.html')));
 
 initDB().then(() => {
