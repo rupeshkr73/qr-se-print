@@ -931,6 +931,21 @@ function applyPaper() {
   pages.forEach(pg => {
     if (pg.items.length === 1) {
       const it = pg.items[0];
+      // PAGE PALTA TO DOCUMENT BHI PALTE — jaise printer landscape mode me
+      // portrait doc ko ghuma deta hai. Aspect mismatch (portrait doc,
+      // landscape page ya ulta) par document 90° auto-rotate hota hai,
+      // phir page bhar ke fit. Sirf tab jab:
+      //  - document seedha ho (0/90/180/270 — free-rotate wale ko mat chhedo)
+      //  - document square na ho (usme rotate ka matlab nahi)
+      const pageLand = A4_DISPLAY_W > A4_DISPLAY_H;
+      const iw = it.workingCanvas.width, ih = it.workingCanvas.height;
+      const itemLand = iw > ih;
+      const notSquare = Math.abs(iw - ih) / Math.max(iw, ih) > 0.05;
+      if (pageLand !== itemLand && notSquare && ((it.rotation || 0) % 90 === 0)) {
+        it.rotation = (((it.rotation || 0) + 90) % 360);
+        renderWorking(it);
+        if (typeof _syncRotUI === 'function') _syncRotUI(it);
+      }
       const ratio = it.workingCanvas.width / it.workingCanvas.height;
       let nw = A4_DISPLAY_W * 0.96;
       let nh = nw / ratio;
