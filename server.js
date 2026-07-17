@@ -361,6 +361,8 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_4x6_6 INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_resume_color INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_resume_bw INTEGER DEFAULT 0;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS shop_notice VARCHAR(200) DEFAULT '';
+      ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS feedback SMALLINT DEFAULT 0;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS duplex BOOLEAN DEFAULT false;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS failure_reason VARCHAR(200) DEFAULT '';
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS file_deleted BOOLEAN DEFAULT false;
@@ -504,6 +506,39 @@ app.post('/api/shop/supply-warning', verifyToken, async (req, res) => {
 });
 
 // ── 7-din earning breakdown (sirf paid) ──
+// Owner: customer ko dikhne wala notice set/clear
+app.post('/api/shop/notice', verifyToken, async (req, res) => {
+  try {
+    const notice = typeof req.body.notice === 'string' ? req.body.notice.slice(0, 200) : '';
+    await pool.query('UPDATE shops SET shop_notice=$1 WHERE id=$2', [notice, req.shopId]);
+    res.json({ success: true, notice });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Owner: busy-time + feedback summary insights
+app.get('/api/shop/insights', verifyToken, async (req, res) => {
+  try {
+    // Busy hours (last 30 din, IST = UTC+5:30)
+    const hours = await pool.query(
+      `SELECT EXTRACT(HOUR FROM created_at + INTERVAL '5 hours 30 minutes') as hr, COUNT(*) as n
+       FROM print_jobs WHERE shop_id=$1 AND payment_status='paid' AND created_at > NOW() - INTERVAL '30 days'
+       GROUP BY hr ORDER BY n DESC LIMIT 1`, [req.shopId]);
+    // Feedback tally
+    const fb = await pool.query(
+      `SELECT COALESCE(SUM(CASE WHEN feedback=1 THEN 1 ELSE 0 END),0) as up,
+              COALESCE(SUM(CASE WHEN feedback=-1 THEN 1 ELSE 0 END),0) as down
+       FROM print_jobs WHERE shop_id=$1`, [req.shopId]);
+    let peak = null;
+    if (hours.rows.length) {
+      const h = parseInt(hours.rows[0].hr);
+      const ampm = h < 12 ? 'AM' : 'PM';
+      const h12 = h % 12 === 0 ? 12 : h % 12;
+      peak = `${h12} ${ampm} - ${(h12 % 12) + 1} ${h < 11 || h >= 23 ? ampm : (h+1 < 12 ? 'AM' : 'PM')}`;
+    }
+    res.json({ peakHour: peak, feedbackUp: parseInt(fb.rows[0].up), feedbackDown: parseInt(fb.rows[0].down) });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/shop/earnings-breakdown', verifyToken, async (req, res) => {
   try {
     const daily = await pool.query(
@@ -1385,7 +1420,7 @@ app.post('/api/shop/set-password', async (req, res) => {
 app.get('/api/shop/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_resume_color,price_resume_bw FROM shops WHERE id=$1',
+      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_resume_color,price_resume_bw,shop_notice FROM shops WHERE id=$1',
       [req.params.shopId]
     );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
@@ -1396,6 +1431,19 @@ app.get('/api/shop/:shopId', async (req, res) => {
     shopInfo.subscription_expired = !isSubscriptionActive(shopInfo);
     delete shopInfo.paid_until; // customer ko exact date nahi dikhani
     res.json(shopInfo);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Customer: print ke baad thumbs up/down (public, ek baar)
+app.post('/api/jobs/:jobId/feedback', async (req, res) => {
+  try {
+    const v = req.body.up === true ? 1 : req.body.up === false ? -1 : 0;
+    if (!v) return res.status(400).json({ error: 'up boolean chahiye' });
+    // Sirf printed job, aur sirf jab feedback abhi 0 hai (ek baar)
+    const r = await pool.query(
+      "UPDATE print_jobs SET feedback=$1 WHERE id=$2 AND status='printed' AND feedback=0 RETURNING id",
+      [v, req.params.jobId]);
+    res.json({ success: true, recorded: r.rows.length > 0 });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1417,7 +1465,7 @@ app.get('/api/shop/:shopId/stats', async (req, res) => {
 app.get('/api/admin/profile', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT id,name,address,phone,demo,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_resume_color,price_resume_bw,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
+      `SELECT id,name,address,phone,demo,plan_type,paid_until,advanced_unlocked,shop_notice,price_4x6_4,price_4x6_6,price_resume_color,price_resume_bw,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
               payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
               CASE WHEN phonepe_salt_key != '' THEN true ELSE false END as has_phonepe_salt
