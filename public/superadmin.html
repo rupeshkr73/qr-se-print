@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Super Admin - QR Se Print</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
@@ -196,6 +197,9 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <div class="side-role">Role<b>Super Admin</b></div>
     <button class="nav-it active" data-nav="overview" onclick="navTo('overview',this)"><span class="ico">📊</span> Overview</button>
     <button class="nav-it" data-nav="shops"       onclick="navTo('shops',this)"><span class="ico">🏪</span> Shops</button>
+    <button class="nav-it" data-nav="shops-lifetime" onclick="navShops('lifetime',this)"><span class="ico">💎</span> Lifetime Shops</button>
+    <button class="nav-it" data-nav="shops-monthly"  onclick="navShops('monthly',this)"><span class="ico">📅</span> Monthly Shops</button>
+    <button class="nav-it" data-nav="shops-pending"  onclick="navShops('pending',this)"><span class="ico">⏳</span> Pending Payment</button>
     <button class="nav-it" data-nav="demos"       onclick="navTo('demos',this)"><span class="ico">🎯</span> Demo Accounts</button>
     <button class="nav-it" data-nav="withdrawals" onclick="navTo('withdrawals',this)"><span class="ico">💸</span> Withdrawals</button>
     <button class="nav-it" data-nav="agent"       onclick="navTo('agent',this)"><span class="ico">🔄</span> Agent Software</button>
@@ -811,6 +815,16 @@ async function updateSetupFee() {
   }
 }
 
+// Sidebar se seedha filtered shops view (alag 'card' feel)
+function navShops(f, el) {
+  // shops section dikhaao, sidebar active state el par
+  document.querySelectorAll('[data-sect]').forEach(d => d.classList.remove('show'));
+  document.querySelector('[data-sect="shops"]').classList.add('show');
+  document.querySelectorAll('.nav-it').forEach(n => n.classList.remove('active'));
+  if (el) el.classList.add('active');
+  setFilter(f);
+}
+
 function setFilter(f) {
   currentFilter = f;
   ['All','Active','Pending','Monthly','Expired'].forEach(x =>
@@ -826,17 +840,20 @@ async function renderShops() {
   const _isMonthly = s => (s.plan_type === 'monthly');
   const _isExpired = s => _isMonthly(s) && s.setup_paid && (!s.paid_until || new Date(s.paid_until).getTime() <= _now);
 
-  let filtered = allShops;
-  if (currentFilter === 'active') filtered = allShops.filter(s => s.setup_paid);
-  if (currentFilter === 'pending') filtered = allShops.filter(s => !s.setup_paid);
-  if (currentFilter === 'monthly') filtered = allShops.filter(_isMonthly);
-  if (currentFilter === 'expired') filtered = allShops.filter(_isExpired);
+  // Demo shops yahan NAHI — unka apna 'Demo Accounts' section hai
+  const realShops = allShops.filter(s => !s.demo);
+  let filtered = realShops;
+  if (currentFilter === 'active') filtered = realShops.filter(s => s.setup_paid);
+  if (currentFilter === 'pending') filtered = realShops.filter(s => !s.setup_paid);
+  if (currentFilter === 'lifetime') filtered = realShops.filter(s => s.setup_paid && !_isMonthly(s));
+  if (currentFilter === 'monthly') filtered = realShops.filter(_isMonthly);
+  if (currentFilter === 'expired') filtered = realShops.filter(_isExpired);
 
   // Monthly summary (MRR estimate) — sirf monthly filter par
   const summaryEl = document.getElementById('monthlySummary');
   if (summaryEl) {
     if (currentFilter === 'monthly' || currentFilter === 'expired') {
-      const monthlies = allShops.filter(_isMonthly);
+      const monthlies = allShops.filter(s => !s.demo).filter(_isMonthly);
       const activeM = monthlies.filter(s => s.setup_paid && s.paid_until && new Date(s.paid_until).getTime() > _now);
       const expiredM = monthlies.filter(_isExpired);
       const soon = activeM.filter(s => (new Date(s.paid_until).getTime() - _now) < 5*86400000);

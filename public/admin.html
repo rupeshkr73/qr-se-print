@@ -2,6 +2,7 @@
 <html lang="hi">
 <head>
 <meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>QR Se Print - Admin Panel</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
@@ -261,6 +262,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <button class="nav-it" data-nav="orders" onclick="navTo('orders',this)"><span class="ico">📋</span> Orders</button>
     <button class="nav-it" data-nav="settings" onclick="navTo('settings',this)"><span class="ico">⚙️</span> Settings</button>
     <button class="nav-it" data-nav="advance" onclick="navTo('advance',this)"><span class="ico">⚡</span> Advance Feature</button>
+    <button class="nav-it" data-nav="payment" onclick="navTo('payment',this)"><span class="ico">💳</span> Payment Setup</button>
     <button class="nav-it" data-nav="support" id="navSupport" onclick="navTo('support',this)"><span class="ico">💬</span> Support</button>
     <div class="side-foot"><button class="side-lg" onclick="logout()"><span>🚪</span> Logout</button></div>
   </aside>
@@ -465,82 +467,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         </div>
       </div>
 
-      <label style="margin-bottom:8px;display:block;">Payment Mode</label>
-      <div class="payment-opts">
-        <label class="payment-opt" id="setOptBoth">
-          <input type="radio" name="setPaymentMode" value="both" onchange="onAdminPaymentModeChange('both')">
-          <div class="payment-opt-text"><strong>💳 Online + Counter</strong><span>Dono option customer ko milega</span></div>
-        </label>
-        <label class="payment-opt" id="setOptOnline">
-          <input type="radio" name="setPaymentMode" value="online_only" onchange="onAdminPaymentModeChange('online_only')">
-          <div class="payment-opt-text"><strong>🌐 Sirf Online</strong><span>Sirf online payment, counter nahi</span></div>
-        </label>
-        <label class="payment-opt" id="setOptCounter">
-          <input type="radio" name="setPaymentMode" value="counter_only" onchange="onAdminPaymentModeChange('counter_only')">
-          <div class="payment-opt-text"><strong>💵 Sirf Counter</strong><span>Sirf cash counter pe</span></div>
-        </label>
-      </div>
 
-      <div class="gateway-section" id="gatewaySectionAdmin">
-        <label style="margin:14px 0 10px;display:block;">Payment Gateway</label>
-        <div class="gateway-tabs">
-          <div class="gateway-tab active" id="adminTabRazorpay" onclick="selectGatewayAdmin('razorpay')">Razorpay</div>
-          <div class="gateway-tab" id="adminTabPhonepe" onclick="selectGatewayAdmin('phonepe')">PhonePe</div>
-        </div>
-        <div class="gateway-fields show" id="adminFieldsRazorpay">
-          <div class="rzp-guide-box">
-            <div class="rzp-guide-header" onclick="toggleRzpGuideAdmin()">
-              <span>📖 Keys Kaise Milegi? (Step-by-Step)</span>
-              <span id="rzpGuideArrowAdmin">▼</span>
-            </div>
-            <div class="rzp-guide-body" id="rzpGuideBodyAdmin">
-              <ol class="rzp-steps">
-                <li style="background:#fef3c7;border-radius:6px;padding:2px 8px;"><b>Business/Website URL puchhe to likho: qrseprint.in</b></li>
-                <li>Niche button se Razorpay Dashboard kholo (agar account nahi hai, "Sign Up" karo)</li>
-                <li>Dashboard khulne par left menu mein <strong>"Account & Settings"</strong> pe click karo</li>
-                <li>Usme <strong>"API Keys"</strong> option dhundo aur click karo</li>
-                <li>Upar right corner mein <strong>"Live Mode"</strong> select karo</li>
-                <li><strong>"Generate Key"</strong> button dabao</li>
-                <li>Mobile pe OTP aayega, daal do</li>
-                <li>Ek popup khulega jisme <strong>Key Id</strong> aur <strong>Key Secret</strong> dikhega — <u>turant copy kar lo, Key Secret dobara nahi dikhega!</u></li>
-                <li>Dono yahan paste kar do neeche</li>
-              </ol>
-              <a href="https://dashboard.razorpay.com" target="_blank" rel="noopener" class="rzp-open-btn">🔗 Razorpay Dashboard Kholo</a>
-              <p class="rzp-note-warn">⚠️ Pehli baar Live keys banane se pehle Razorpay aapki shop/business details verify kar sakta hai (1-3 din lag sakte hain). Tab tak "Sirf Counter Payment" mode use kar sakte ho.</p>
-            </div>
-          </div>
-          <div class="form-grid">
-            <div class="form-group full"><label>Razorpay Key ID</label><input id="adminRzpKeyId" placeholder="rzp_live_xxxxxxxxxx"></div>
-            <div class="form-group full"><label>Razorpay Key Secret</label><input type="password" id="adminRzpKeySecret" placeholder="Naya secret daalo ya khali chodo agar change nahi karna"></div>
-          </div>
-          <div class="key-status" id="rzpKeyStatus"></div>
-        </div>
-        <div class="gateway-fields" id="adminFieldsPhonepe">
-          <div class="rzp-guide-box">
-            <div class="rzp-guide-header" onclick="togglePpGuideAdmin()">
-              <span>📖 Keys Kaise Milegi? (Step-by-Step)</span>
-              <span id="ppGuideArrowAdmin">▼</span>
-            </div>
-            <div class="rzp-guide-body" id="ppGuideBodyAdmin">
-              <ol class="rzp-steps">
-                <li style="background:#fef3c7;border-radius:6px;padding:2px 8px;"><b>Business/Website URL puchhe to likho: qrseprint.in</b></li>
-                <li>Niche button se PhonePe Business Dashboard kholo</li>
-                <li>Apne business account se login karo</li>
-                <li>Left menu mein <strong>"Developer Settings"</strong> ya <strong>"API & Webhooks"</strong> dhundo</li>
-                <li><strong>Merchant ID</strong> aur <strong>Salt Key</strong> wahan milegi</li>
-                <li>Dono yahan paste kar do neeche</li>
-              </ol>
-              <a href="https://business.phonepe.com" target="_blank" rel="noopener" class="rzp-open-btn">🔗 PhonePe Business Kholo</a>
-            </div>
-          </div>
-          <div class="form-grid">
-            <div class="form-group full"><label>PhonePe Merchant ID</label><input id="adminPpMerchantId" placeholder="MERCHANTUAT"></div>
-            <div class="form-group full"><label>PhonePe Salt Key</label><input type="password" id="adminPpSaltKey" placeholder="Naya salt key daalo ya khali chodo"></div>
-            <div class="form-group"><label>Salt Index</label><input id="adminPpSaltIndex" value="1"></div>
-          </div>
-          <div class="key-status" id="ppKeyStatus"></div>
-        </div>
-      </div>
 
       <button class="btn-save" onclick="saveSettings()">💾 Settings Save Karo</button>
       <p style="font-size:11px;color:#6b6870;margin-top:8px;text-align:center;">✅ QR Code change nahi hoga — sirf naya price/printer turant apply ho jayega, server automatically update ho jata hai</p>
@@ -663,6 +590,99 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       </div>
     </div>
     </div><!-- /advance -->
+
+    <div data-sect="payment">
+    <div class="card" style="overflow:hidden;padding:0;">
+      <div style="background:linear-gradient(135deg,#065f46 0%,#059669 50%,#10b981 100%);padding:24px 20px;text-align:center;color:#fff;position:relative;">
+        <div style="position:absolute;top:-25px;right:-25px;width:110px;height:110px;background:rgba(255,255,255,.08);border-radius:50%;"></div>
+        <div style="font-size:38px;position:relative;">💳</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:22px;margin:6px 0 4px;color:#fff;position:relative;">Payment Setup</h2>
+        <p style="font-size:12px;opacity:.92;margin:0;position:relative;">Customer se paisa kaise loge — counter, online ya dono</p>
+      </div>
+      <div style="padding:18px;">
+      <label style="margin-bottom:8px;display:block;">Payment Mode</label>
+      <div class="payment-opts">
+        <label class="payment-opt" id="setOptBoth">
+          <input type="radio" name="setPaymentMode" value="both" onchange="onAdminPaymentModeChange('both')">
+          <div class="payment-opt-text"><strong>💳 Online + Counter</strong><span>Dono option customer ko milega</span></div>
+        </label>
+        <label class="payment-opt" id="setOptOnline">
+          <input type="radio" name="setPaymentMode" value="online_only" onchange="onAdminPaymentModeChange('online_only')">
+          <div class="payment-opt-text"><strong>🌐 Sirf Online</strong><span>Sirf online payment, counter nahi</span></div>
+        </label>
+        <label class="payment-opt" id="setOptCounter">
+          <input type="radio" name="setPaymentMode" value="counter_only" onchange="onAdminPaymentModeChange('counter_only')">
+          <div class="payment-opt-text"><strong>💵 Sirf Counter</strong><span>Sirf cash counter pe</span></div>
+        </label>
+      </div>
+
+      <div class="gateway-section" id="gatewaySectionAdmin">
+        <label style="margin:14px 0 10px;display:block;">Payment Gateway</label>
+        <div class="gateway-tabs">
+          <div class="gateway-tab active" id="adminTabRazorpay" onclick="selectGatewayAdmin('razorpay')">Razorpay</div>
+          <div class="gateway-tab" id="adminTabPhonepe" onclick="selectGatewayAdmin('phonepe')">PhonePe</div>
+        </div>
+        <div class="gateway-fields show" id="adminFieldsRazorpay">
+          <div class="rzp-guide-box">
+            <div class="rzp-guide-header" onclick="toggleRzpGuideAdmin()">
+              <span>📖 Keys Kaise Milegi? (Step-by-Step)</span>
+              <span id="rzpGuideArrowAdmin">▼</span>
+            </div>
+            <div class="rzp-guide-body" id="rzpGuideBodyAdmin">
+              <ol class="rzp-steps">
+                <li style="background:#fef3c7;border-radius:6px;padding:2px 8px;"><b>Business/Website URL puchhe to likho: qrseprint.in</b></li>
+                <li>Niche button se Razorpay Dashboard kholo (agar account nahi hai, "Sign Up" karo)</li>
+                <li>Dashboard khulne par left menu mein <strong>"Account & Settings"</strong> pe click karo</li>
+                <li>Usme <strong>"API Keys"</strong> option dhundo aur click karo</li>
+                <li>Upar right corner mein <strong>"Live Mode"</strong> select karo</li>
+                <li><strong>"Generate Key"</strong> button dabao</li>
+                <li>Mobile pe OTP aayega, daal do</li>
+                <li>Ek popup khulega jisme <strong>Key Id</strong> aur <strong>Key Secret</strong> dikhega — <u>turant copy kar lo, Key Secret dobara nahi dikhega!</u></li>
+                <li>Dono yahan paste kar do neeche</li>
+              </ol>
+              <a href="https://dashboard.razorpay.com" target="_blank" rel="noopener" class="rzp-open-btn">🔗 Razorpay Dashboard Kholo</a>
+              <p class="rzp-note-warn">⚠️ Pehli baar Live keys banane se pehle Razorpay aapki shop/business details verify kar sakta hai (1-3 din lag sakte hain). Tab tak "Sirf Counter Payment" mode use kar sakte ho.</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group full"><label>Razorpay Key ID</label><input id="adminRzpKeyId" placeholder="rzp_live_xxxxxxxxxx"></div>
+            <div class="form-group full"><label>Razorpay Key Secret</label><input type="password" id="adminRzpKeySecret" placeholder="Naya secret daalo ya khali chodo agar change nahi karna"></div>
+          </div>
+          <div class="key-status" id="rzpKeyStatus"></div>
+        </div>
+        <div class="gateway-fields" id="adminFieldsPhonepe">
+          <div class="rzp-guide-box">
+            <div class="rzp-guide-header" onclick="togglePpGuideAdmin()">
+              <span>📖 Keys Kaise Milegi? (Step-by-Step)</span>
+              <span id="ppGuideArrowAdmin">▼</span>
+            </div>
+            <div class="rzp-guide-body" id="ppGuideBodyAdmin">
+              <ol class="rzp-steps">
+                <li style="background:#fef3c7;border-radius:6px;padding:2px 8px;"><b>Business/Website URL puchhe to likho: qrseprint.in</b></li>
+                <li>Niche button se PhonePe Business Dashboard kholo</li>
+                <li>Apne business account se login karo</li>
+                <li>Left menu mein <strong>"Developer Settings"</strong> ya <strong>"API & Webhooks"</strong> dhundo</li>
+                <li><strong>Merchant ID</strong> aur <strong>Salt Key</strong> wahan milegi</li>
+                <li>Dono yahan paste kar do neeche</li>
+              </ol>
+              <a href="https://business.phonepe.com" target="_blank" rel="noopener" class="rzp-open-btn">🔗 PhonePe Business Kholo</a>
+            </div>
+          </div>
+          <div class="form-grid">
+            <div class="form-group full"><label>PhonePe Merchant ID</label><input id="adminPpMerchantId" placeholder="MERCHANTUAT"></div>
+            <div class="form-group full"><label>PhonePe Salt Key</label><input type="password" id="adminPpSaltKey" placeholder="Naya salt key daalo ya khali chodo"></div>
+            <div class="form-group"><label>Salt Index</label><input id="adminPpSaltIndex" value="1"></div>
+          </div>
+          <div class="key-status" id="ppKeyStatus"></div>
+        </div>
+      </div>
+
+        <button class="btn-save" style="margin-top:16px;" onclick="savePaymentSettings()">💾 Payment Settings Save Karo</button>
+        <div class="success-msg" id="paySaveOk">✅ Payment settings save ho gayi!</div>
+        <div class="err-msg" id="paySaveErr"></div>
+      </div>
+    </div>
+    </div><!-- /payment -->
 
     <div data-sect="support">
     <div class="card" style="overflow:hidden;padding:0;">
@@ -1165,6 +1185,21 @@ async function openWithdraw(){
 function toggleDuplexPrices(){
   const on = !!document.getElementById('setDuplexMode').value;
   document.getElementById('duplexPricesRow').style.display = on ? 'block' : 'none';
+}
+
+// ===== PAYMENT SETUP TAB =====
+async function savePaymentSettings() {
+  await saveSettings();
+  // saveSettings apne msg settings-tab wale divs me dikhata hai —
+  // unka state yahan ke divs par mirror karo
+  const src_ok = document.getElementById('settingsSuccess');
+  const src_er = document.getElementById('settingsErr');
+  const ok = document.getElementById('paySaveOk');
+  const er = document.getElementById('paySaveErr');
+  ok.style.display = src_ok.style.display;
+  er.style.display = src_er.style.display;
+  er.textContent = src_er.textContent;
+  setTimeout(() => { ok.style.display = 'none'; er.style.display = 'none'; }, 4000);
 }
 
 // ===== ADVANCED PRINTING UNLOCK =====
