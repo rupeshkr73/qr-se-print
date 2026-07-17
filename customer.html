@@ -1,0 +1,1952 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>QR Se Print</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;-webkit-tap-highlight-color:transparent}
+.wrap{max-width:480px;margin:0 auto;padding:16px}
+
+/* ── Shop header ── */
+.shop-header{background:#0a0a0f;border-radius:18px;padding:18px;color:#fff;display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.shop-icon{width:52px;height:52px;border-radius:14px;background:#ff4d1c;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.shop-info{flex:1;min-width:0}
+.shop-info h2{font-family:'Syne',sans-serif;font-size:17px;font-weight:800;margin-bottom:2px}
+.shop-info p{font-size:12px;color:rgba(255,255,255,0.5);margin-bottom:6px}
+.price-badges{display:flex;gap:6px;flex-wrap:wrap}
+.price-badge{background:rgba(255,255,255,0.1);padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.price-badge.color{background:#ff4d1c}
+
+/* ── Steps indicator ── */
+.steps{display:flex;margin-bottom:18px}
+.step{flex:1;text-align:center;position:relative}
+.step .dot{width:28px;height:28px;border-radius:50%;background:#e2ddd6;color:#9b968d;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;margin:0 auto 4px;transition:all 0.2s}
+.step.active .dot{background:#ff4d1c;color:#fff}
+.step.done .dot{background:#00c853;color:#fff}
+.step-lbl{font-size:10px;color:#6b6870;font-weight:600}
+.step.active .step-lbl{color:#ff4d1c}
+
+/* ── Generic card ── */
+.card{background:#fff;border-radius:18px;padding:18px;box-shadow:0 2px 12px rgba(0,0,0,0.06);margin-bottom:14px}
+.card h3{font-family:'Syne',sans-serif;font-size:16px;font-weight:800;margin-bottom:10px}
+.hidden{display:none !important}
+
+/* ── Upload zone ── */
+.upload-zone{background:#fff;border:2.5px dashed #d9d2c5;border-radius:20px;padding:48px 20px;text-align:center;cursor:pointer;position:relative;transition:all 0.2s}
+.upload-zone:active{border-color:#ff4d1c;background:#fff8f5}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.upload-icon{font-size:46px;margin-bottom:10px}
+.upload-zone h3{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;margin-bottom:4px}
+.upload-zone p{font-size:13px;color:#6b6870;margin-bottom:14px}
+.ftypes{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.ft{background:#f0ebe3;color:#6b6870;font-size:10px;font-weight:700;padding:4px 10px;border-radius:8px}
+
+/* ── A4 Canvas Editor ── */
+.a4-canvas-wrap{background:#e8e6e1;border-radius:14px;padding:18px;display:flex;justify-content:center;overflow:hidden}
+.a4-canvas{position:relative;width:280px;height:396px;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,0.15);border-radius:4px;overflow:hidden;touch-action:none}
+.canvas-doc{position:absolute;cursor:move;touch-action:none;user-select:none;border:2px solid transparent;box-sizing:border-box}
+.canvas-doc.active{border-color:#ff4d1c}
+.canvas-doc img{width:100%;height:100%;display:block;pointer-events:none;object-fit:contain}
+.resize-handle{position:absolute;width:22px;height:22px;background:#ff4d1c;border:3px solid #fff;border-radius:50%;bottom:-11px;right:-11px;cursor:nwse-resize;display:none;box-shadow:0 2px 6px rgba(0,0,0,0.35);touch-action:none}
+.canvas-doc.active .resize-handle{display:block}
+.remove-item-handle{position:absolute;width:22px;height:22px;background:#ff4d1c;border:3px solid #fff;border-radius:50%;top:-11px;right:-11px;display:none;align-items:center;justify-content:center;color:#fff;font-size:12px;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.35);cursor:pointer}
+.canvas-doc.active .remove-item-handle{display:flex}
+
+.page-indicator-row{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:10px}
+.page-indicator{font-size:12px;font-weight:700;color:#6b6870;text-align:center}
+.page-nav-btn{width:30px;height:30px;border-radius:50%;border:1.5px solid #e2ddd6;background:#fff;font-size:15px;cursor:pointer;flex-shrink:0}
+.page-nav-btn:disabled{opacity:0.3;cursor:not-allowed}
+.page-nav-btn.hidden-btn{visibility:hidden}
+
+.add-doc-btn{width:100%;padding:11px;border-radius:10px;border:1.5px dashed #1c6fff;background:#f0f4ff;color:#1c6fff;font-size:13px;font-weight:700;cursor:pointer;font-family:'Space Grotesk',sans-serif;margin-top:12px}
+
+/* ── Edit toolbar ── */
+.edit-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;justify-content:center}
+.edit-btn{padding:10px 14px;border-radius:10px;border:1.5px solid #e2ddd6;background:#fff;color:#0a0a0f;font-size:12px;font-weight:700;cursor:pointer;font-family:'Space Grotesk',sans-serif;transition:all 0.2s;display:flex;align-items:center;gap:5px}
+.edit-btn:active{transform:scale(0.96)}
+.edit-btn.active{background:#ff4d1c;color:#fff;border-color:#ff4d1c}
+.edit-btn.green{background:#00c853;color:#fff;border-color:#00c853}
+
+/* ── Adjust panel (Brightness/Contrast) ── */
+.adjust-panel{background:#f8f7f5;border-radius:14px;padding:16px;margin-top:12px}
+.adjust-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.adjust-row:last-of-type{margin-bottom:0}
+.adjust-row label{font-size:12px;font-weight:700;width:90px;flex-shrink:0}
+.adjust-row input[type="range"]{flex:1;accent-color:#ff4d1c;height:6px}
+.adjust-row span{font-size:11px;color:#6b6870;width:36px;text-align:right;flex-shrink:0}
+
+/* ── Perspective Crop overlay ── */
+.crop-overlay{position:fixed;inset:0;background:#0a0a0f;z-index:1000;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top)}
+.crop-header{padding:14px 16px 10px;color:#fff}
+.crop-header .crop-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:800}
+.crop-header .crop-sub{font-size:11px;color:rgba(255,255,255,0.55);margin-top:2px}
+.crop-stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:none;padding:8px}
+#cropCanvas{display:block;touch-action:none}
+.crop-toolbar{display:flex;gap:10px;padding:12px 14px calc(14px + env(safe-area-inset-bottom));background:#16161d}
+.crop-btn{flex:1;padding:14px 8px;border-radius:12px;border:none;font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;cursor:pointer}
+.crop-btn.grey{background:#2a2a33;color:#c9cdd8}
+.crop-btn.primary{background:#ff4d1c;color:#fff}
+.crop-btn:active{transform:scale(0.96)}
+
+/* ── Buttons ── */
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.btn{padding:15px;border-radius:14px;border:none;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:14px;cursor:pointer;text-align:center;transition:all 0.15s}
+.btn:active{transform:scale(0.97)}
+.btn-full{grid-column:1/-1}
+.btn-grey{background:#f0ebe3;color:#0a0a0f}
+.btn-green{background:#00c853;color:#fff}
+.btn-red{background:#ff4d1c;color:#fff}
+.btn-primary{background:#ff4d1c;color:#fff;width:100%;padding:16px;border-radius:14px;border:none;font-family:'Syne',sans-serif;font-weight:800;font-size:15px;cursor:pointer;margin-top:14px}
+.btn-primary:disabled{background:#c9c4ba;cursor:not-allowed}
+
+/* ── Final preview ── */
+.final-preview-wrap{background:#f8f7f5;border-radius:14px;padding:16px;text-align:center;margin-bottom:14px}
+.final-preview-wrap img{max-width:100%;max-height:340px;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,0.12)}
+.page-range-box{background:#f8f7f5;border-radius:14px;padding:14px;margin-bottom:14px}
+.page-range-box label{font-size:12px;font-weight:700;display:block;margin-bottom:8px}
+.range-toggle{display:flex;gap:8px;margin-bottom:10px}
+.tog-btn{flex:1;padding:9px;border-radius:9px;border:1.5px solid #e2ddd6;background:#fff;font-size:12px;font-weight:700;cursor:pointer}
+.tog-btn.on{background:#0a0a0f;color:#fff;border-color:#0a0a0f}
+.range-input{width:100%;padding:11px;border-radius:9px;border:1.5px solid #e2ddd6;font-size:13px;font-family:'Space Grotesk',sans-serif}
+.range-hint{font-size:10px;color:#6b6870;margin-top:6px}
+
+/* ── Options screen ── */
+.opt-toggle{display:flex;gap:10px;margin-bottom:14px}
+.opt-card{flex:1;border:2px solid #e2ddd6;border-radius:14px;padding:16px;text-align:center;cursor:pointer;transition:all 0.2s}
+.opt-card.sel{border-color:#ff4d1c;background:#fff8f5}
+.opt-card .ic{font-size:26px;margin-bottom:6px}
+.opt-card .lbl{font-size:13px;font-weight:700}
+.opt-card .pr{font-size:11px;color:#6b6870;margin-top:2px}
+.copies-row{display:flex;align-items:center;justify-content:space-between;background:#f8f7f5;border-radius:14px;padding:14px 16px;margin-bottom:14px}
+.copies-row .lbl{font-size:13px;font-weight:700}
+.copies-ctrl{display:flex;align-items:center;gap:14px}
+.copies-ctrl button{width:34px;height:34px;border-radius:50%;border:1.5px solid #e2ddd6;background:#fff;font-size:18px;font-weight:700;cursor:pointer}
+.copies-ctrl span{font-size:16px;font-weight:800;min-width:24px;text-align:center}
+.price-summary{background:#0a0a0f;border-radius:14px;padding:18px;color:#fff;margin-bottom:14px}
+.price-row{display:flex;justify-content:space-between;font-size:13px;color:rgba(255,255,255,0.7);margin-bottom:6px}
+.price-total{display:flex;justify-content:space-between;align-items:center;border-top:1px dashed rgba(255,255,255,0.2);margin-top:10px;padding-top:10px}
+.price-total span{font-size:14px;font-weight:700}
+.price-total strong{font-family:'Syne',sans-serif;font-size:24px;color:#ff4d1c}
+
+/* ── Success screen ── */
+.success-screen{display:none;background:#fff;border-radius:20px;padding:36px 20px;text-align:center;box-shadow:0 8px 40px rgba(0,0,0,0.08)}
+.thank-you-emoji{font-size:60px;display:inline-block;animation:bounce 1.2s ease-in-out infinite}
+.thank-you-text{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:#ff4d1c;margin:4px 0 16px}
+@keyframes bounce{0%,100%{transform:translateY(0) rotate(0)}25%{transform:translateY(-10px) rotate(-8deg)}50%{transform:translateY(0)}75%{transform:translateY(-6px) rotate(8deg)}}
+.sicon{width:64px;height:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 14px;color:#fff}
+.sicon.online{background:#00c853}
+.sicon.counter{background:#ff4d1c}
+.success-screen h2{font-family:'Syne',sans-serif;font-size:20px;margin-bottom:6px}
+.order-id{font-size:12px;color:#6b6870;background:#f5f0e8;display:inline-block;padding:6px 14px;border-radius:8px;margin-bottom:16px}
+.collect-box{border-radius:14px;padding:16px;margin-bottom:16px;text-align:left}
+.collect-box.online{background:#e8f9ef}
+.collect-box.counter{background:#fff5f0}
+.collect-box h3{font-size:14px;margin-bottom:4px}
+.collect-box p{font-size:12px;color:#555;line-height:1.5}
+.amount-box{display:flex;justify-content:space-between;align-items:center;background:#f5f0e8;border-radius:12px;padding:14px 16px;margin-bottom:6px}
+.amount-box span{font-size:12px;color:#6b6870}
+.amount-box strong{font-family:'Syne',sans-serif;font-size:22px}
+
+/* ── Payment screen ── */
+.pay-btn{width:100%;padding:18px;border-radius:14px;border:none;font-family:'Syne',sans-serif;font-size:16px;font-weight:800;cursor:pointer;margin-bottom:10px;display:flex;align-items:center;justify-content:center;gap:8px}
+.pay-online-btn{background:linear-gradient(135deg,#00c853,#00a844);color:#fff}
+.pay-counter-btn{background:linear-gradient(135deg,#ff4d1c,#e03d0e);color:#fff}
+.pay-note{font-size:12px;color:#6b6870;text-align:center;margin-bottom:14px}
+
+.footer{text-align:center;margin-top:24px;padding-top:16px}
+.footer p{font-size:11px;color:#9b968d;line-height:1.6;margin-bottom:8px}
+.footer-insta{display:inline-flex;align-items:center;justify-content:center;color:#ff4d1c;text-decoration:none}
+
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#0a0a0f;color:#fff;padding:12px 22px;border-radius:30px;font-size:13px;font-weight:700;opacity:0;transition:all 0.3s;z-index:999;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,0.3)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.page-nav{display:flex;align-items:center;justify-content:center;gap:14px;margin-top:8px}
+.page-nav-btn{width:34px;height:34px;border-radius:50%;border:1.5px solid #e2ddd6;background:#fff;font-size:16px;cursor:pointer}
+.page-nav-btn:disabled{opacity:0.3}
+.page-info{font-size:12px;font-weight:700;color:#6b6870}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="shop-header">
+    <div class="shop-icon">🖨️</div>
+    <div class="shop-info">
+      <h2 id="shopName">Loading...</h2>
+      <p id="shopAddr"></p>
+      <div class="price-badges">
+        <span class="price-badge" id="priceBWBadge">B&W: ₹-/page</span>
+        <span class="price-badge color" id="priceColorBadge">Color: ₹-/page</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="steps">
+    <div class="step active" id="s1"><div class="dot">1</div><div class="step-lbl">Upload</div></div>
+    <div class="step" id="s2"><div class="dot">2</div><div class="step-lbl">Edit</div></div>
+    <div class="step" id="s3"><div class="dot">3</div><div class="step-lbl">Preview</div></div>
+    <div class="step" id="s4"><div class="dot">4</div><div class="step-lbl">Pay</div></div>
+  </div>
+
+  <!-- STEP 1: Upload -->
+  <div id="secUpload">
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" multiple onchange="handleFileUpload(this)">
+      <div class="upload-icon">📄</div>
+      <h3>Document Upload Karo</h3>
+      <p>PDF, JPG, PNG — sab supported<br><b>📚 Ek saath kai files select kar sakte ho</b> — sab ek hi order me print hongi</p>
+      <div class="ftypes">
+        <span class="ft">PDF</span><span class="ft">JPG</span><span class="ft">PNG</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2: A4 Canvas Editor -->
+  <div id="secEditor" class="hidden">
+    <div class="card">
+      <h3>📋 Document Adjust Karo</h3>
+      <p style="font-size:12px;color:#6b6870;margin-bottom:10px;">Drag karke move karo, corner se size badlo/chhota karo</p>
+      <div class="a4-canvas-wrap">
+        <div class="a4-canvas" id="a4Canvas"></div>
+      </div>
+
+      <div class="page-indicator-row">
+        <button class="page-nav-btn hidden-btn" id="editorPrevBtn" onclick="changeEditorPage(-1)">‹</button>
+        <p class="page-indicator" id="pageIndicator">Showing Page 1 of 1 Pages</p>
+        <button class="page-nav-btn hidden-btn" id="editorNextBtn" onclick="changeEditorPage(1)">›</button>
+      </div>
+
+      <button class="add-doc-btn" onclick="triggerAddDocument()">➕ Add Document (Back Side, etc.)</button>
+      <input type="file" id="addDocInput" accept=".jpg,.jpeg,.png,.pdf" multiple class="hidden" onchange="handleAddDocument(this)">
+
+      <div class="edit-toolbar">
+        <select class="edit-btn" id="paperSizeSel" onchange="changePaperSize()" style="appearance:auto;font-family:'Inter',sans-serif;">
+          <option value="4x6">📷 4×6 Photo</option>
+          <option value="a4" selected>📄 A4</option>
+          <option value="a5">📄 A5</option>
+          <option value="letter">📄 Letter</option>
+          <option value="legal">📄 Legal</option>
+          <option value="a3">📄 A3</option>
+          <option value="a2">📄 A2</option>
+          <option value="a1">📄 A1</option>
+        </select>
+        <button class="edit-btn" id="orientBtn" onclick="toggleOrientation()">📄 Portrait</button>
+        <button class="edit-btn" onclick="toolAutoA4()">🤖 Auto Fit</button>
+        <button class="edit-btn" id="rotateBtn" onclick="toolToggleRotate()">🔄 Rotate</button>
+        <button class="edit-btn" id="adjustBtn" onclick="toolToggleAdjust()">🎨 Brightness/Contrast</button>
+        <button class="edit-btn" onclick="toolPerspectiveCrop()">📐 Perspective Crop</button>
+      </div>
+
+      <div id="rotatePanel" class="adjust-panel hidden">
+        <div class="adjust-row">
+          <label>🎛️ Free Rotate</label>
+          <input type="range" id="rotSlider" min="-180" max="180" value="0" oninput="onRotateSlider()">
+          <span id="rotVal">0°</span>
+        </div>
+        <div class="adjust-row" style="justify-content:center;gap:8px;flex-wrap:wrap;">
+          <button class="edit-btn" onclick="nudgeRotation(-90)">↺ Left 90°</button>
+          <button class="edit-btn" onclick="nudgeRotation(90)">↻ Right 90°</button>
+          <button class="edit-btn" onclick="nudgeRotation(180)">🔃 180°</button>
+        </div>
+        <button class="edit-btn" style="width:100%;justify-content:center;background:#f0ebe3;" onclick="resetRotation()">↺ Seedha Karo (0°)</button>
+      </div>
+
+      <div id="adjustPanel" class="adjust-panel hidden">
+        <div class="adjust-row">
+          <label>☀️ Brightness</label>
+          <input type="range" id="adjBrightness" min="-100" max="100" value="0" oninput="applyAdjustments()">
+          <span id="adjBrightnessVal">0</span>
+        </div>
+        <div class="adjust-row">
+          <label>🎨 Contrast</label>
+          <input type="range" id="adjContrast" min="-100" max="100" value="0" oninput="applyAdjustments()">
+          <span id="adjContrastVal">0</span>
+        </div>
+        <button class="edit-btn" style="width:100%;justify-content:center;background:#f0ebe3;" onclick="resetAdjustments()">↺ Reset</button>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-grey" onclick="backToUpload()">← Back</button>
+      <button class="btn btn-green" onclick="goToPreview()">✅ Thik Hai, Aage Bado</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: Print Preview + Page Range -->
+  <div id="secPreviewStep" class="hidden">
+    <div class="card">
+      <h3>👀 Print Preview</h3>
+      <div class="final-preview-wrap">
+        <img id="finalPreviewImg" alt="preview">
+      </div>
+      <div class="page-nav" id="previewPageNav" style="display:none;">
+        <button class="page-nav-btn" id="prevPgBtn" onclick="changePreviewPage(-1)">‹</button>
+        <span class="page-info">Page <span id="curPgNum">1</span> / <span id="totalPgNum">1</span></span>
+        <button class="page-nav-btn" id="nextPgBtn" onclick="changePreviewPage(1)">›</button>
+      </div>
+    </div>
+
+    <div class="page-range-box" id="pageRangeBox" style="display:none;">
+      <label>📄 Kaunse Pages Print Karne Hain?</label>
+      <div class="range-toggle">
+        <button class="tog-btn on" id="rangeAllBtn" onclick="setPageRangeMode('all')">Sab Pages</button>
+        <button class="tog-btn" id="rangeCustomBtn" onclick="setPageRangeMode('custom')">Specific Pages</button>
+      </div>
+      <input type="text" class="range-input hidden" id="rangeInput" placeholder="jaise: 1,3,5-7" oninput="updateRangeFromInput()">
+      <div class="range-hint">Total <span id="rangeTotalPages">1</span> pages hain</div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-grey" onclick="backToEditor()">← Back</button>
+      <button class="btn btn-green" onclick="goToOptions()">✅ Aage Bado</button>
+    </div>
+  </div>
+
+  <!-- STEP 4a: Options (B&W/Color, Copies, Price) -->
+  <div id="secOptions" class="hidden">
+    <div class="card">
+      <h3>⚙️ Print Options</h3>
+      <div class="opt-toggle">
+        <div class="opt-card sel" id="optBW" onclick="setColorMode('bw')">
+          <div class="ic">⬛</div>
+          <div class="lbl">Black & White</div>
+          <div class="pr" id="optBWPrice">₹-/page</div>
+        </div>
+        <div class="opt-card" id="optColor" onclick="setColorMode('color')">
+          <div class="ic">🌈</div>
+          <div class="lbl">Color</div>
+          <div class="pr" id="optColorPrice">₹-/page</div>
+        </div>
+      </div>
+
+      <div id="duplexRow" style="display:none;margin-top:12px;">
+        <div class="opt-card" id="optDuplex" onclick="toggleDuplex()" style="width:100%;">
+          <div class="ic">📄</div>
+          <div class="lbl">Dual-Side (Duplex) Print</div>
+          <div class="pr" id="duplexNote">Dono side print hoga</div>
+        </div>
+        <p id="duplexCopyNote" style="display:none;font-size:11px;color:#c2410c;margin:6px 0 0;">✋ Manual duplex mein copies 1 hi rahegi</p>
+      </div>
+      <div class="copies-row">
+        <span class="lbl">📑 Copies</span>
+        <div class="copies-ctrl">
+          <button onclick="changeCopies(-1)">−</button>
+          <span id="copiesNum">1</span>
+          <button onclick="changeCopies(1)">+</button>
+        </div>
+      </div>
+      <div class="price-summary">
+        <div class="price-row"><span id="sumType">B&W Print</span><span id="sumPerPage">₹0/page</span></div>
+        <div class="price-row"><span id="sumPages">1 page × 1 copy</span><span id="sumPagesAmt">₹0</span></div>
+        <div class="price-total"><span>Total</span><strong id="sumTotal">₹0</strong></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-grey" onclick="backToPreviewStep()">← Back</button>
+      <button class="btn btn-green" onclick="goToPayment()">💳 Payment Pe Jao</button>
+    </div>
+  </div>
+
+  <!-- STEP 4b: Payment -->
+  <div id="secPayment" class="hidden">
+    <div class="card">
+      <h3>💳 Payment Karo</h3>
+      <button class="pay-btn pay-online-btn" id="onlineBtn" onclick="payOnline()">💳 Online Pay Karo</button>
+      <button class="pay-btn pay-counter-btn" id="counterBtn" onclick="payCounter()">💵 Pay at Counter (Cash)</button>
+      <div class="pay-note" id="payNote">Loading...</div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-full btn-grey" onclick="backToOptions()">← Back</button>
+    </div>
+  </div>
+
+  <!-- SUCCESS -->
+  <div class="success-screen" id="secSuccess">
+    <div class="thank-you-emoji">🎉</div>
+    <h2 class="thank-you-text">Thank You!</h2>
+    <div class="sicon" id="successIcon">✓</div>
+    <h2 id="successTitle">Print Shuru!</h2>
+    <div class="order-id" id="orderId">ORDER #...</div>
+    <div class="collect-box" id="collectBox">
+      <h3 id="collectTitle">🖨️ Print Ho Raha Hai!</h3>
+      <p id="collectMsg">Aapka document print ho raha hai.</p>
+    </div>
+    <div class="amount-box">
+      <span id="amountLabel">Amount</span>
+      <strong id="finalAmount">₹5</strong>
+    </div>
+    <button class="btn-primary" onclick="location.reload()">Naya Print Karo</button>
+  </div>
+
+  <div class="footer">
+    <p>© 2026 All Rights Reserved | This System is Developed by Rupesh Kumar Mahato</p>
+    <a href="https://instagram.com/rupeshkr73" target="_blank" rel="noopener" class="footer-insta" aria-label="Instagram">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="2" width="20" height="20" rx="5" stroke="currentColor" stroke-width="2"/>
+        <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/>
+        <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor"/>
+      </svg>
+    </a>
+  </div>
+
+</div>
+
+<!-- Perspective Crop full-screen overlay -->
+<div class="crop-overlay hidden" id="cropOverlay">
+  <div class="crop-header">
+    <div class="crop-title">📐 Perspective Crop</div>
+    <div class="crop-sub">4 corners ko document ke corners par drag karo — tirchha photo bhi seedha ho jayega</div>
+  </div>
+  <div class="crop-stage" id="cropStage">
+    <canvas id="cropCanvas"></canvas>
+  </div>
+  <div class="crop-toolbar">
+    <button class="crop-btn grey" onclick="cropCancel()">✕ Cancel</button>
+    <button class="crop-btn grey" onclick="cropFullPhoto()">↺ Full Photo</button>
+    <button class="crop-btn primary" onclick="cropApply()">✂️ Crop</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const shopId = location.pathname.split('/').pop();
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let state = {
+  priceBW: 5, priceColor: 10,
+  colorMode: 'bw', copies: 1, duplex: false, shopDuplexMode: '', priceBwDuplex: 0, priceColorDuplex: 0, paperSize: 'a4', orientation: 'portrait',
+  jobId: null,
+  shopPaymentMode: 'both', shopGateway: '', razorpayKeyId: '',
+  onlineAllowed: false, counterAllowed: true,
+  pageRangeMode: 'all', selectedPages: []
+};
+
+// pages: array of A4 sheets. Har page ke andar EK YA ZYADA "items" ho sakte
+// hain (jaise Aadhaar Front + Back same A4 page pe). Har item independently
+// drag/resize/edit hota hai.
+// page = { id, items: [item, ...], activeItemId }
+// item = { id, originalCanvas (kabhi change nahi hota), sourceCanvas (crop ke baad),
+//          workingCanvas (brightness/contrast ke baad), x, y, w, h,
+//          brightness, contrast, cropPoints (normalized 0-1, re-edit ke liye) }
+// Chain: originalCanvas --perspective crop--> sourceCanvas --brightness/contrast--> workingCanvas
+// Isliye crop aur adjustments ek dusre ko kabhi overwrite nahi karte.
+let pages = [];
+let activePageIdx = 0;
+let currentPreviewPageIdx = 0;
+
+// A4 canvas ka CSS dimension FIXED hai (.a4-canvas{width:280px;height:396px}),
+// isliye hamesha hardcode karte hain — kabhi bhi a4.clientWidth/clientHeight
+// directly measure NAHI karte. Yeh isliye zaroori hai kyunki agar koi
+// function tab call ho jab secEditor "hidden" ho (display:none), to
+// clientWidth/clientHeight 0 milta hai — jisse layout calculations
+// Infinity/NaN ban jaate aur cheezein silently fail ho jaati (blank preview
+// jaisa bug isi wajah se aaya tha).
+// ═══ PAPER SIZES ═══ (mm me; display/output/PDF sab isi se derive)
+const PAPER_SIZES = {
+  '4x6':    { label: '4×6 Photo', wmm: 101.6, hmm: 152.4 },
+  'a4':     { label: 'A4',        wmm: 210,   hmm: 297   },
+  'a5':     { label: 'A5',        wmm: 148,   hmm: 210   },
+  'letter': { label: 'Letter',    wmm: 215.9, hmm: 279.4 },
+  'legal':  { label: 'Legal',     wmm: 215.9, hmm: 355.6 },
+  'a3':     { label: 'A3',        wmm: 297,   hmm: 420   },
+  'a2':     { label: 'A2',        wmm: 420,   hmm: 594   },
+  'a1':     { label: 'A1',        wmm: 594,   hmm: 841   }
+};
+function currentPaper() {
+  const p = PAPER_SIZES[state.paperSize] || PAPER_SIZES.a4;
+  let w = p.wmm, h = p.hmm;
+  if (state.orientation === 'landscape') { const t = w; w = h; h = t; }
+  return { wmm: w, hmm: h };
+}
+// Display dims — paper/orientation ke saath badalte hain (isliye let)
+let A4_DISPLAY_W = 280, A4_DISPLAY_H = 396;
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+function show(id) { document.getElementById(id).classList.remove('hidden'); }
+function hide(id) { document.getElementById(id).classList.add('hidden'); }
+function setStep(n) {
+  for (let i=1;i<=4;i++) {
+    const s = document.getElementById('s'+i);
+    s.className = 'step' + (i<n?' done':i===n?' active':'');
+    s.querySelector('.dot').textContent = i<n?'✓':i;
+  }
+  // Step 2 (Edit) par shop header hide — document adjust area + buttons ko
+  // poori screen mile. Baaki har step par header wapas.
+  const hdr = document.querySelector('.shop-header');
+  if (hdr) hdr.style.display = (n === 2) ? 'none' : 'flex';
+}
+
+// ═══════════════════════════════════════════════
+// INIT — load shop info
+// ═══════════════════════════════════════════════
+async function init() {
+  try {
+    const shopRes = await fetch(`/api/shop/${shopId}`);
+
+    if (shopRes.status === 403) {
+      const errData = await shopRes.json();
+      document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Space Grotesk',sans-serif;">
+        <div style="font-size:48px;margin-bottom:16px;">⚠️</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:20px;margin-bottom:10px;">Shop Abhi Active Nahi Hai</h2>
+        <p style="color:#6b6870;font-size:14px;">${errData.error}</p>
+      </div>`;
+      return;
+    }
+    if (shopRes.status === 404) {
+      document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Space Grotesk',sans-serif;">
+        <div style="font-size:48px;margin-bottom:16px;">❌</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:20px;">Shop Nahi Mila</h2>
+      </div>`;
+      return;
+    }
+
+    const shop = await shopRes.json();
+
+    // ── Subscription khatam? Poora block ──
+    if (shop.subscription_expired) {
+      document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Space Grotesk',sans-serif;">
+        <div style="font-size:52px;margin-bottom:16px;">⏸️</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:22px;margin-bottom:10px;">Shop Abhi Inactive Hai</h2>
+        <p style="color:#6b6870;font-size:14px;line-height:1.6;">${shop.name} ki online print service abhi inactive hai.<br>Shop owner se counter par baat karo.</p>
+      </div>`;
+      return;
+    }
+
+    // ── Shop band hai? Poora block — order flow shuru hi nahi hoga ──
+    if (shop.paused) {
+      document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Space Grotesk',sans-serif;">
+        <div style="font-size:52px;margin-bottom:16px;">🏪</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:22px;margin-bottom:10px;">Shop Abhi Band Hai</h2>
+        <p style="color:#6b6870;font-size:14px;line-height:1.6;">${shop.name} abhi temporarily band hai.<br>Thodi der baad dobara QR scan karo.</p>
+      </div>`;
+      return;
+    }
+
+    // ── Ink/paper warning banner (order allowed, bas heads-up) ──
+    if (shop.supply_warning) {
+      const w = shop.supply_warning;
+      const banner = document.createElement('div');
+      banner.style.cssText = 'position:sticky;top:0;z-index:200;padding:10px 16px;text-align:center;font-size:13px;font-weight:700;font-family:sans-serif;' +
+        (w === 'no_paper' ? 'background:#fee2e2;color:#b91c1c;' : 'background:#fef3c7;color:#92400e;');
+      banner.textContent = w === 'no_paper'
+        ? '🔴 Shop mein paper khatam hai — print milne mein deri ho sakti hai, counter par puchh lo'
+        : '🟡 Shop mein ink kam hai — print quality halki ho sakti hai';
+      document.body.prepend(banner);
+    }
+
+    state.shopDuplexMode = shop.duplex_mode || '';
+    state.priceBwDuplex    = parseInt(shop.price_bw_duplex)    || 0;
+    state.priceColorDuplex = parseInt(shop.price_color_duplex) || 0;
+    if (state.shopDuplexMode) {
+      const dr = document.getElementById('duplexRow');
+      if (dr) dr.style.display = 'block';
+    }
+    document.getElementById('shopName').textContent = shop.name;
+    document.getElementById('shopAddr').textContent = '📍 ' + (shop.address || '');
+    document.getElementById('priceBWBadge').textContent = `B&W: ₹${shop.price_bw}/page`;
+    document.getElementById('priceColorBadge').textContent = `Color: ₹${shop.price_color}/page`;
+    document.getElementById('optBWPrice').textContent = `₹${shop.price_bw}/page`;
+    document.getElementById('optColorPrice').textContent = `₹${shop.price_color}/page`;
+    state.priceBW = shop.price_bw;
+    state.priceColor = shop.price_color;
+    state.shopPaymentMode = shop.payment_mode || 'both';
+    state.shopGateway = shop.payment_gateway || '';
+    state.razorpayKeyId = shop.razorpay_key_id || '';
+    state.onlineAllowed = (state.shopPaymentMode === 'both' || state.shopPaymentMode === 'online_only') && !!state.shopGateway;
+    state.counterAllowed = (state.shopPaymentMode === 'both' || state.shopPaymentMode === 'counter_only');
+  } catch(e) { toast('Shop load nahi hua'); }
+}
+init();
+
+// ═══════════════════════════════════════════════
+// FILE UPLOAD — converts PDF/image into one or more "pages"
+// ═══════════════════════════════════════════════
+async function handleFileUpload(input) {
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
+  input.value = ''; // allow re-selecting the same files later
+
+  // secEditor PEHLE show karo, item add hone se pehle — warna a4Canvas
+  // abhi tak "display:none" hota hai jab clientWidth/clientHeight measure
+  // hoga (jo 0 milta hai display:none par)
+  const isFirstUpload = !document.getElementById('secUpload').classList.contains('hidden');
+  if (isFirstUpload) {
+    hide('secUpload');
+    show('secEditor');
+    setStep(2);
+  }
+
+  // Saari files EK-EK karke, selection ke order me — PDF ke saare pages,
+  // images apne-apne A4 page par. Sab milke aage EK hi PDF banti hai
+  // (ek job, ek payment) — flow me aage kuch nahi badla.
+  let failed = 0;
+  for (let fi = 0; fi < files.length; fi++) {
+    const file = files[fi];
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (files.length > 1) toast(`⏳ File ${fi + 1}/${files.length}: ${file.name}`);
+    else toast('⏳ Document load ho raha hai...');
+
+    try {
+      if (ext === 'pdf') {
+        await loadPdfAsPages(file);
+      } else {
+        const srcCanvas = await fileToCanvas(file);
+        addPage([srcCanvas]); // naya page, ek hi item ke saath
+      }
+    } catch(e) {
+      failed++;
+      toast(`❌ ${file.name} load nahi hui: ` + e.message);
+    }
+  }
+
+  if (files.length > 1 && !failed) toast(`✅ ${files.length} files load ho gayi!`);
+  if (isFirstUpload && pages.length) activePageIdx = 0;  // pehla page samne
+  renderEditor();
+}
+
+async function fileToCanvas(file) {
+  const dataUrl = await new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.readAsDataURL(file);
+  });
+  const img = await new Promise((resolve) => {
+    const im = new Image();
+    im.onload = () => resolve(im);
+    im.src = dataUrl;
+  });
+  const canvas = document.createElement('canvas');
+  canvas.width = img.naturalWidth;
+  canvas.height = img.naturalHeight;
+  canvas.getContext('2d').drawImage(img, 0, 0);
+  return canvas;
+}
+
+async function loadPdfAsPages(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+
+  // Print-grade rasterization. Pehle 1.3-1.5 tha (~100 DPI) — text print
+  // par dhundhla/draft jaisa dikhta tha. Ab 2.4 (~173 DPI). Zyada pages par
+  // scale ghatate hain warna low-end phone par memory crash.
+  // QUALITY-FIRST: flat high scale (~245 DPI source, 300 DPI output ke liye).
+  // 15+ pages par halka step-down (2.8 = ~200 DPI, phir bhi purane 1.6-2.0
+  // se bahut upar) — ye sasta-phone hedge nahi, browser ki memory-wall hai:
+  // 20 pages x full-res canvas = tab crash KISI bhi phone par.
+  const RENDER_SCALE = pdf.numPages > 15 ? 2.8 : 3.4;
+  let loadedCount = 0;
+
+  for (let i = 1; i <= pdf.numPages; i++) {
+    toast(`⏳ Page ${i} / ${pdf.numPages} load ho raha hai...`);
+    try {
+      const page = await pdf.getPage(i);
+      const vp = page.getViewport({ scale: RENDER_SCALE });
+      const canvas = document.createElement('canvas');
+      canvas.width = vp.width;
+      canvas.height = vp.height;
+      await page.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+      addPage([canvas], true);
+      loadedCount++;
+      await new Promise(resolve => setTimeout(resolve, 30));
+    } catch(pageErr) {
+      console.error(`Page ${i} render error:`, pageErr);
+      toast(`⚠️ Page ${i} load nahi hui, baaki pages continue ho rahe hain...`);
+    }
+  }
+
+  if (loadedCount === 0) {
+    throw new Error('Koi bhi page load nahi hui — PDF corrupt ho sakta hai');
+  }
+  toast(`✅ ${loadedCount} pages load ho gaye!`);
+}
+
+function createItemFromCanvas(sourceCanvas, isSecondaryItem) {
+  const a4W = A4_DISPLAY_W, a4H = A4_DISPLAY_H;
+  const srcRatio = sourceCanvas.width / sourceCanvas.height;
+
+  const maxWPercent = isSecondaryItem ? 0.65 : 0.92;
+  let w = a4W * maxWPercent;
+  let h = w / srcRatio;
+  if (h > a4H * 0.9) { h = a4H * 0.9; w = h * srcRatio; }
+
+  return {
+    id: 'item_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+    originalCanvas: sourceCanvas,
+    sourceCanvas, workingCanvas: sourceCanvas,
+    brightness: 0, contrast: 0, rotation: 0, cropPoints: null,
+    x: isSecondaryItem ? a4W * 0.3 : (a4W - w) / 2,
+    y: isSecondaryItem ? a4H * 0.35 : (a4H - h) / 2,
+    w, h
+  };
+}
+
+function addPage(sourceCanvases, skipUIRender) {
+  const items = sourceCanvases.map((c, idx) => createItemFromCanvas(c, idx > 0));
+  const pageObj = {
+    id: 'page_' + Date.now() + '_' + Math.random().toString(36).slice(2,6),
+    items,
+    activeItemId: items[0].id
+  };
+  pages.push(pageObj);
+  activePageIdx = pages.length - 1;
+
+  if (!skipUIRender) {
+    renderEditor();
+  }
+}
+
+function triggerAddPage() {
+  document.getElementById('fileInput').click();
+}
+
+function triggerAddDocument() {
+  document.getElementById('addDocInput').click();
+}
+
+async function handleAddDocument(input) {
+  const files = Array.from(input.files || []);
+  if (!files.length) return;
+  input.value = '';
+
+  const page = getActivePageObj();
+  if (!page) { toast('⚠️ Pehle koi document upload karo'); return; }
+
+  for (let fi = 0; fi < files.length; fi++) {
+    const file = files[fi];
+    if (files.length > 1) toast(`⏳ File ${fi + 1}/${files.length}: ${file.name}`);
+    else toast('⏳ Document load ho raha hai...');
+    try {
+      const ext = file.name.split('.').pop().toLowerCase();
+      if (ext === 'pdf') {
+        // Add Document = ISI canvas par add. PDF ke SAARE pages current
+        // page par items ban ke aate hain (image ki tarah) — naye pages
+        // NAHI. High-res render (3.4) taaki quality image jaisi sharp ho;
+        // pehle 1.5 tha isliye PDF add "kaam nahi kar raha" jaisa dikhta tha.
+        const buf = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+        for (let pg = 1; pg <= pdf.numPages; pg++) {
+          const pdfPage = await pdf.getPage(pg);
+          const vp = pdfPage.getViewport({ scale: 3.4 });
+          const canvas = document.createElement('canvas');
+          canvas.width = vp.width; canvas.height = vp.height;
+          await pdfPage.render({ canvasContext: canvas.getContext('2d'), viewport: vp }).promise;
+          const newItem = createItemFromCanvas(canvas, true);
+          page.items.push(newItem);
+          page.activeItemId = newItem.id;
+        }
+        if (pdf.numPages > 1) toast(`✅ ${pdf.numPages} pages isi canvas par add ho gaye`);
+      } else {
+        const canvas = await fileToCanvas(file);
+        const newItem = createItemFromCanvas(canvas, true);
+        page.items.push(newItem);
+        page.activeItemId = newItem.id;
+      }
+    } catch(e) {
+      toast(`❌ ${file.name} load nahi hua: ` + e.message);
+    }
+  }
+  renderEditor();
+  toast('✅ Add ho gaya!');
+}
+
+// ═══════════════════════════════════════════════
+// A4 CANVAS — render active page, drag/resize
+// ═══════════════════════════════════════════════
+function getActivePageObj() {
+  return pages[activePageIdx] || null;
+}
+function getActiveItem() {
+  const page = getActivePageObj();
+  if (!page) return null;
+  return page.items.find(i => i.id === page.activeItemId) || page.items[0] || null;
+}
+function setActiveItem(itemId) {
+  const page = getActivePageObj();
+  if (!page) return;
+  page.activeItemId = itemId;
+  renderEditor();
+}
+
+function renderEditor() {
+  renderCanvasItems();
+  renderPageIndicator();
+}
+
+function renderCanvasItems() {
+  const a4 = document.getElementById('a4Canvas');
+  a4.innerHTML = '';
+  const page = getActivePageObj();
+  if (!page) return;
+
+  page.items.forEach(item => {
+    const isActive = item.id === page.activeItemId;
+    const div = document.createElement('div');
+    div.className = 'canvas-doc' + (isActive ? ' active' : '');
+    div.style.left = item.x + 'px';
+    div.style.top = item.y + 'px';
+    div.style.width = item.w + 'px';
+    div.style.height = item.h + 'px';
+    div.style.zIndex = isActive ? 5 : 1;
+
+    const img = document.createElement('img');
+    img.src = item.workingCanvas.toDataURL('image/jpeg', 0.92);
+    div.appendChild(img);
+
+    const resizeHandle = document.createElement('div');
+    resizeHandle.className = 'resize-handle';
+    div.appendChild(resizeHandle);
+
+    if (page.items.length > 1) {
+      const removeHandle = document.createElement('div');
+      removeHandle.className = 'remove-item-handle';
+      removeHandle.textContent = '\u2715';
+      removeHandle.onclick = (e) => { e.stopPropagation(); removeItem(item.id); };
+      div.appendChild(removeHandle);
+    }
+
+    div.addEventListener('pointerdown', (e) => {
+      if (e.target === resizeHandle) return;
+      setActiveItem(item.id);
+      onItemPointerDown(e, item.id, 'move');
+    });
+    resizeHandle.addEventListener('pointerdown', (e) => {
+      e.stopPropagation();
+      setActiveItem(item.id);
+      onItemPointerDown(e, item.id, 'resize');
+    });
+
+    a4.appendChild(div);
+  });
+}
+
+function removeItem(itemId) {
+  const page = getActivePageObj();
+  if (!page || page.items.length <= 1) return;
+  page.items = page.items.filter(i => i.id !== itemId);
+  if (page.activeItemId === itemId) {
+    page.activeItemId = page.items[0].id;
+  }
+  renderEditor();
+  toast('\uD83D\uDDD1\uFE0F Document hata diya');
+}
+
+let dragState = null;
+function onItemPointerDown(e, itemId, mode) {
+  e.preventDefault();
+  const page = getActivePageObj();
+  const item = page.items.find(i => i.id === itemId);
+  if (!item) return;
+  dragState = {
+    itemId, mode, startX: e.clientX, startY: e.clientY,
+    startPX: item.x, startPY: item.y, startW: item.w, startH: item.h
+  };
+  document.addEventListener('pointermove', onItemPointerMove);
+  document.addEventListener('pointerup', onItemPointerUp);
+}
+function onItemPointerMove(e) {
+  if (!dragState) return;
+  const page = getActivePageObj();
+  if (!page) return;
+  const item = page.items.find(i => i.id === dragState.itemId);
+  if (!item) return;
+  const dx = e.clientX - dragState.startX;
+  const dy = e.clientY - dragState.startY;
+
+  if (dragState.mode === 'move') {
+    item.x = dragState.startPX + dx;
+    item.y = dragState.startPY + dy;
+  } else {
+    const newW = Math.max(40, dragState.startW + dx);
+    const ratio = dragState.startW / dragState.startH;
+    item.w = newW;
+    item.h = newW / ratio;
+  }
+  renderCanvasItems();
+}
+function onItemPointerUp() {
+  dragState = null;
+  document.removeEventListener('pointermove', onItemPointerMove);
+  document.removeEventListener('pointerup', onItemPointerUp);
+}
+
+// ══════════════════════════════════════════════════
+// PAGE NAVIGATION (multi-page PDFs ke liye)
+// ══════════════════════════════════════════════════
+function renderPageIndicator() {
+  const indicator = document.getElementById('pageIndicator');
+  indicator.textContent = `Showing Page ${activePageIdx + 1} of ${pages.length} Pages`;
+
+  const prevBtn = document.getElementById('editorPrevBtn');
+  const nextBtn = document.getElementById('editorNextBtn');
+  const showNav = pages.length > 1;
+  prevBtn.classList.toggle('hidden-btn', !showNav);
+  nextBtn.classList.toggle('hidden-btn', !showNav);
+  prevBtn.disabled = activePageIdx <= 0;
+  nextBtn.disabled = activePageIdx >= pages.length - 1;
+}
+
+function changeEditorPage(delta) {
+  const newIdx = activePageIdx + delta;
+  if (newIdx < 0 || newIdx >= pages.length) return;
+  activePageIdx = newIdx;
+  renderEditor();
+}
+
+// ═══════════════════════════════════════════════
+// ═══ PAPER SIZE / ORIENTATION ═══
+function applyPaper() {
+  const { wmm, hmm } = currentPaper();
+  // Display: paper ko 300x420 box me fit karo (phone-friendly)
+  const k = Math.min(300 / wmm, 420 / hmm);
+  const oldW = A4_DISPLAY_W, oldH = A4_DISPLAY_H;
+  A4_DISPLAY_W = Math.round(wmm * k);
+  A4_DISPLAY_H = Math.round(hmm * k);
+  const el = document.getElementById('a4Canvas');
+  el.style.width = A4_DISPLAY_W + 'px';
+  el.style.height = A4_DISPLAY_H + 'px';
+
+  // CONTENT bhi page ke saath adjust ho:
+  // - EK item wala page (aam case): item ko naye page par AUTO-FIT + center
+  //   karo — page landscape hua to photo bhi naye layout me poora baithe.
+  //   (Pehle relative remap tha — item purani jagah chipka rehta tha,
+  //    user ko lagta tha orientation kaam hi nahi kar raha.)
+  // - Multiple items: relative remap — unka aapas ka layout na bigde.
+  pages.forEach(pg => {
+    if (pg.items.length === 1) {
+      const it = pg.items[0];
+      const ratio = it.workingCanvas.width / it.workingCanvas.height;
+      let nw = A4_DISPLAY_W * 0.96;
+      let nh = nw / ratio;
+      if (nh > A4_DISPLAY_H * 0.96) { nh = A4_DISPLAY_H * 0.96; nw = nh * ratio; }
+      it.w = nw; it.h = nh;
+      it.x = (A4_DISPLAY_W - nw) / 2;
+      it.y = (A4_DISPLAY_H - nh) / 2;
+      return;
+    }
+    pg.items.forEach(it => {
+      const cxr = (it.x + it.w / 2) / oldW;
+      const cyr = (it.y + it.h / 2) / oldH;
+      const wr  = it.w / oldW;
+      let nw = wr * A4_DISPLAY_W;
+      const ratio = it.workingCanvas.width / it.workingCanvas.height;
+      let nh = nw / ratio;
+      const sc = Math.min(1, (A4_DISPLAY_W * 0.98) / nw, (A4_DISPLAY_H * 0.98) / nh);
+      nw *= sc; nh *= sc;
+      it.w = nw; it.h = nh;
+      it.x = Math.max(0, Math.min(cxr * A4_DISPLAY_W - nw / 2, A4_DISPLAY_W - nw));
+      it.y = Math.max(0, Math.min(cyr * A4_DISPLAY_H - nh / 2, A4_DISPLAY_H - nh));
+    });
+  });
+  renderEditor();
+}
+
+function changePaperSize() {
+  state.paperSize = document.getElementById('paperSizeSel').value;
+  applyPaper();
+  toast('📐 ' + (PAPER_SIZES[state.paperSize] || {}).label + ' select hua — print isi size par niklega');
+}
+
+function toggleOrientation() {
+  state.orientation = state.orientation === 'portrait' ? 'landscape' : 'portrait';
+  document.getElementById('orientBtn').textContent =
+    state.orientation === 'portrait' ? '📄 Portrait' : '📃 Landscape';
+  applyPaper();
+  toast(state.orientation === 'portrait' ? '📄 Portrait mode' : '📃 Landscape mode');
+}
+
+// TOOL: Auto A4 Fit
+// ═══════════════════════════════════════════════
+function toolAutoA4() {
+  const item = getActiveItem();
+  if (!item) { toast('⚠️ Pehle koi document select karo'); return; }
+  const a4W = A4_DISPLAY_W, a4H = A4_DISPLAY_H;
+  const ratio = item.workingCanvas.width / item.workingCanvas.height;
+
+  let w = a4W * 0.92, h = w / ratio;
+  if (h > a4H * 0.92) { h = a4H * 0.92; w = h * ratio; }
+  item.x = (a4W - w) / 2;
+  item.y = (a4H - h) / 2;
+  item.w = w; item.h = h;
+  renderCanvasItems();
+  toast('🤖 A4 mein fit ho gaya!');
+}
+
+// ══════════════════════════════════════════════════
+// TOOL: Brightness / Contrast
+// ══════════════════════════════════════════════════
+function toolToggleAdjust() {
+  const item = getActiveItem();
+  if (!item) { toast('⚠️ Pehle koi document select karo'); return; }
+
+  const panel = document.getElementById('adjustPanel');
+  const btn = document.getElementById('adjustBtn');
+  document.getElementById('rotatePanel').classList.add('hidden');
+  document.getElementById('rotateBtn').classList.remove('active');
+  panel.classList.toggle('hidden');
+  btn.classList.toggle('active', !panel.classList.contains('hidden'));
+  if (!panel.classList.contains('hidden')) {
+    document.getElementById('adjBrightness').value = item.brightness;
+    document.getElementById('adjContrast').value = item.contrast;
+    document.getElementById('adjBrightnessVal').textContent = item.brightness;
+    document.getElementById('adjContrastVal').textContent = item.contrast;
+  }
+}
+
+function applyAdjustments() {
+  const item = getActiveItem();
+  if (!item) return;
+  const b = parseInt(document.getElementById('adjBrightness').value);
+  const c = parseInt(document.getElementById('adjContrast').value);
+  document.getElementById('adjBrightnessVal').textContent = b;
+  document.getElementById('adjContrastVal').textContent = c;
+  item.brightness = b; item.contrast = c;
+  renderWorking(item);
+  renderCanvasItems();
+}
+
+// sourceCanvas (cropped ya original) par brightness/contrast apply karke
+// workingCanvas banata hai. Crop apply hone ke baad bhi yahi chalta hai
+// taaki existing brightness/contrast settings crop ke upar preserve rahein.
+// Kisi bhi angle par rotate. Bounding box: |w·cosθ|+|h·sinθ| — poori image
+// hamesha dikhе, kuch katta nahi. 90° steps par exact swap (quality loss 0).
+// Hamesha SOURCE se render hota hai (renderWorking chain), isliye baar-baar
+// ghumane par bhi quality kharab nahi hoti — ek hi baar resample.
+function rotateCanvas(src, deg) {
+  const rad = deg * Math.PI / 180;
+  const cos = Math.abs(Math.cos(rad)), sin = Math.abs(Math.sin(rad));
+  const out = document.createElement('canvas');
+  out.width  = Math.max(1, Math.round(src.width * cos + src.height * sin));
+  out.height = Math.max(1, Math.round(src.width * sin + src.height * cos));
+  const ctx = out.getContext('2d');
+  // Corners WHITE — transparent chhodne par JPEG-export me black ho jate
+  // hain (JPEG me alpha nahi hota). White = kagaz ka rang, har jagah sahi.
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, out.width, out.height);
+  ctx.translate(out.width / 2, out.height / 2);
+  ctx.rotate(rad);
+  ctx.drawImage(src, -src.width / 2, -src.height / 2);
+  return out;
+}
+
+function renderWorking(item) {
+  let cur = item.sourceCanvas;
+  const b = item.brightness, c = item.contrast;
+
+  if (b !== 0 || c !== 0) {
+    const out = document.createElement('canvas');
+    out.width = cur.width; out.height = cur.height;
+    const ctx = out.getContext('2d');
+    ctx.drawImage(cur, 0, 0);
+
+    const id = ctx.getImageData(0, 0, out.width, out.height);
+    const d = id.data;
+    const brightAmt = b * 2.55;
+    const contrastFactor = (259 * (c + 255)) / (255 * (259 - c));
+    for (let i = 0; i < d.length; i += 4) {
+      for (let ch = 0; ch < 3; ch++) {
+        let v = d[i+ch] + brightAmt;
+        v = contrastFactor * (v - 128) + 128;
+        d[i+ch] = Math.max(0, Math.min(255, v));
+      }
+    }
+    ctx.putImageData(id, 0, 0);
+    cur = out;
+  }
+
+  if ((item.rotation || 0) % 360 !== 0) {
+    cur = rotateCanvas(cur, item.rotation);
+  }
+
+  item.workingCanvas = cur;
+}
+
+// ═══ ROTATION CORE ═══
+// Absolute set — image ka on-screen SCALE preserve hota hai (box bounding
+// ke hisaab se badhta/ghata hai, image ka size nahi badalta). Center fixed,
+// page ke andar clamp. 0° par wapas aao to original size wapas.
+function setItemRotation(item, deg) {
+  deg = ((deg % 360) + 360) % 360;
+  const prevScale = item.w / item.workingCanvas.width;   // display px / canvas px
+  const cx = item.x + item.w / 2, cy = item.y + item.h / 2;
+
+  item.rotation = deg;
+  renderWorking(item);
+
+  item.w = item.workingCanvas.width  * prevScale;
+  item.h = item.workingCanvas.height * prevScale;
+  // Page se bahar na jaye — pehle shrink, phir clamp
+  const sc = Math.min(1, (A4_DISPLAY_W * 0.98) / item.w, (A4_DISPLAY_H * 0.98) / item.h);
+  item.w *= sc; item.h *= sc;
+  item.x = Math.max(0, Math.min(cx - item.w / 2, A4_DISPLAY_W - item.w));
+  item.y = Math.max(0, Math.min(cy - item.h / 2, A4_DISPLAY_H - item.h));
+
+  renderCanvasItems();
+  _syncRotUI(item);
+}
+
+// Quick buttons — current rotation me jodo
+function nudgeRotation(delta) {
+  const item = getActiveItem();
+  if (!item) { toast('⚠️ Pehle koi document select karo'); return; }
+  setItemRotation(item, (item.rotation || 0) + delta);
+  toast(item.rotation === 0 ? '↺ Seedha ho gaya' : `🔄 ${_rotDisplay(item.rotation)}°`);
+}
+
+// Free slider — rAF throttle (har pixel-move par heavy render na chale)
+let _rotPending = false;
+function onRotateSlider() {
+  const v = parseInt(document.getElementById('rotSlider').value);
+  document.getElementById('rotVal').textContent = v + '°';
+  if (_rotPending) return;
+  _rotPending = true;
+  requestAnimationFrame(() => {
+    _rotPending = false;
+    const item = getActiveItem();
+    if (!item) return;
+    setItemRotation(item, parseInt(document.getElementById('rotSlider').value));
+  });
+}
+
+function resetRotation() {
+  const item = getActiveItem();
+  if (!item) return;
+  setItemRotation(item, 0);
+  toast('↺ Seedha ho gaya');
+}
+
+// -180..180 display form (170° dikhane se -10° zyada samajh aata hai... nahi,
+// slider -180..180 hai to wahi form use karo)
+function _rotDisplay(r) { r = ((r % 360) + 360) % 360; return r > 180 ? r - 360 : r; }
+function _syncRotUI(item) {
+  const sl = document.getElementById('rotSlider');
+  const tv = document.getElementById('rotVal');
+  if (sl) sl.value = _rotDisplay(item.rotation || 0);
+  if (tv) tv.textContent = _rotDisplay(item.rotation || 0) + '°';
+}
+
+function toolToggleRotate() {
+  const item = getActiveItem();
+  if (!item) { toast('⚠️ Pehle koi document select karo'); return; }
+  const panel = document.getElementById('rotatePanel');
+  const btn = document.getElementById('rotateBtn');
+  // adjust panel band karo — ek waqt me ek hi panel
+  document.getElementById('adjustPanel').classList.add('hidden');
+  document.getElementById('adjustBtn').classList.remove('active');
+  panel.classList.toggle('hidden');
+  btn.classList.toggle('active', !panel.classList.contains('hidden'));
+  if (!panel.classList.contains('hidden')) _syncRotUI(item);
+}
+
+function resetAdjustments() {
+  const item = getActiveItem();
+  if (!item) return;
+  document.getElementById('adjBrightness').value = 0;
+  document.getElementById('adjContrast').value = 0;
+  document.getElementById('adjBrightnessVal').textContent = 0;
+  document.getElementById('adjContrastVal').textContent = 0;
+  item.brightness = 0; item.contrast = 0;
+  renderWorking(item);   // rotation preserve — sirf b/c hata
+  renderCanvasItems();
+  toast('↺ Brightness/Contrast reset');
+}
+
+// ══════════════════════════════════════════════════
+// TOOL: Perspective Crop (Photoshop-style, 4-point)
+// Hamesha originalCanvas se crop hota hai — non-destructive.
+// Dobara kholne par pichle points wapas milte hain (cropPoints).
+// ══════════════════════════════════════════════════
+const CROP_MAX_SRC = 2400;   // isse bade photos warp se pehle downscale — warna low-end phone freeze
+const CROP_HANDLE_R = 13, CROP_HIT_R = 34, CROP_LOUPE_R = 52, CROP_LOUPE_ZOOM = 2.5;
+
+let crop = null; // active crop session state
+
+function toolPerspectiveCrop() {
+  const item = getActiveItem();
+  if (!item) { toast('⚠️ Pehle koi document select karo'); return; }
+
+  const orig = item.originalCanvas;
+  let src = orig;
+  const longest = Math.max(orig.width, orig.height);
+  if (longest > CROP_MAX_SRC) {
+    const s = CROP_MAX_SRC / longest;
+    src = document.createElement('canvas');
+    src.width = Math.round(orig.width * s);
+    src.height = Math.round(orig.height * s);
+    src.getContext('2d').drawImage(orig, 0, 0, src.width, src.height);
+  }
+
+  let pts;
+  if (item.cropPoints) {
+    pts = item.cropPoints.map(p => ({ x: p.x * src.width, y: p.y * src.height }));
+  } else {
+    const ix = src.width * 0.12, iy = src.height * 0.12;
+    pts = [{x:ix,y:iy},{x:src.width-ix,y:iy},{x:src.width-ix,y:src.height-iy},{x:ix,y:src.height-iy}];
+  }
+
+  crop = {
+    item, src, pts, dragIdx: -1, raf: 0, lastPointer: null,
+    dpr: Math.min(window.devicePixelRatio || 1, 2)
+  };
+  show('cropOverlay');
+  document.body.style.overflow = 'hidden';
+  cropLayout();
+  cropDraw();
+}
+
+function cropLayout() {
+  if (!crop) return;
+  const stage = document.getElementById('cropStage');
+  const cv = document.getElementById('cropCanvas');
+  const sw = Math.max(50, stage.clientWidth - 16), sh = Math.max(50, stage.clientHeight - 16);
+  const scale = Math.min(sw / crop.src.width, sh / crop.src.height);
+  const vw = Math.max(1, Math.round(crop.src.width * scale));
+  const vh = Math.max(1, Math.round(crop.src.height * scale));
+  cv.style.width = vw + 'px'; cv.style.height = vh + 'px';
+  cv.width = vw * crop.dpr; cv.height = vh * crop.dpr;
+  crop.scale = scale;
+  // Fitted image ek baar offscreen render — har drag frame me sirf yeh
+  // cheap drawImage hota hai, poora source dobara scale nahi hota.
+  // Yahi smooth 60fps drag ka raaz hai.
+  crop.bmp = document.createElement('canvas');
+  crop.bmp.width = cv.width; crop.bmp.height = cv.height;
+  crop.bmp.getContext('2d').drawImage(crop.src, 0, 0, cv.width, cv.height);
+}
+
+window.addEventListener('resize', () => {
+  if (crop && !document.getElementById('cropOverlay').classList.contains('hidden')) {
+    cropLayout(); cropDraw();
+  }
+});
+
+function cropDraw(loupeAt) {
+  if (!crop) return;
+  const cv = document.getElementById('cropCanvas');
+  const ctx = cv.getContext('2d');
+  const k = crop.scale * crop.dpr;
+  const v = crop.pts.map(p => ({ x: p.x * k, y: p.y * k }));
+
+  ctx.clearRect(0, 0, cv.width, cv.height);
+  ctx.drawImage(crop.bmp, 0, 0);
+
+  // bahar ka area dark mask
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, cv.width, cv.height);
+  ctx.moveTo(v[0].x, v[0].y);
+  for (let i = 3; i >= 0; i--) ctx.lineTo(v[i].x, v[i].y);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fill('evenodd');
+  ctx.restore();
+
+  // quad outline + grid line (Photoshop jaisa feel)
+  ctx.beginPath();
+  ctx.moveTo(v[0].x, v[0].y);
+  for (let i = 1; i < 4; i++) ctx.lineTo(v[i].x, v[i].y);
+  ctx.closePath();
+  ctx.strokeStyle = '#ff4d1c';
+  ctx.lineWidth = 2 * crop.dpr;
+  ctx.stroke();
+
+  // handles
+  for (let i = 0; i < 4; i++) {
+    ctx.beginPath();
+    ctx.arc(v[i].x, v[i].y, CROP_HANDLE_R * crop.dpr, 0, Math.PI * 2);
+    ctx.fillStyle = i === crop.dragIdx ? '#ff4d1c' : 'rgba(255,77,28,0.4)';
+    ctx.fill();
+    ctx.lineWidth = 2.5 * crop.dpr;
+    ctx.strokeStyle = '#fff';
+    ctx.stroke();
+  }
+
+  // loupe (magnifier) — dragging ke time corner ka zoomed view, warna
+  // finger ke neeche exact corner dikhta hi nahi ("cropping bilkul wahi
+  // point" requirement isi se solve hoti hai)
+  if (loupeAt && crop.dragIdx >= 0) {
+    const p = crop.pts[crop.dragIdx];
+    const r = CROP_LOUPE_R * crop.dpr;
+    const lx = (loupeAt.x < cv.width / 2) ? cv.width - r - 10 * crop.dpr : r + 10 * crop.dpr;
+    const ly = r + 10 * crop.dpr;
+    const srcR = r / (k * CROP_LOUPE_ZOOM);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(lx, ly, r, 0, Math.PI * 2); ctx.clip();
+    ctx.fillStyle = '#000'; ctx.fillRect(lx - r, ly - r, r * 2, r * 2);
+    ctx.drawImage(crop.src, p.x - srcR, p.y - srcR, srcR * 2, srcR * 2, lx - r, ly - r, r * 2, r * 2);
+    ctx.strokeStyle = '#ff4d1c'; ctx.lineWidth = 1.5 * crop.dpr;
+    ctx.beginPath();
+    ctx.moveTo(lx - r, ly); ctx.lineTo(lx + r, ly);
+    ctx.moveTo(lx, ly - r); ctx.lineTo(lx, ly + r);
+    ctx.stroke();
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(lx, ly, r, 0, Math.PI * 2);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * crop.dpr; ctx.stroke();
+  }
+}
+
+function cropEventPos(e) {
+  const cv = document.getElementById('cropCanvas');
+  const rect = cv.getBoundingClientRect();
+  return { x: (e.clientX - rect.left) * crop.dpr, y: (e.clientY - rect.top) * crop.dpr };
+}
+
+document.getElementById('cropCanvas').addEventListener('pointerdown', (e) => {
+  if (!crop) return;
+  e.preventDefault();
+  const p = cropEventPos(e);
+  const k = crop.scale * crop.dpr;
+  let best = -1, bestD = (CROP_HIT_R * crop.dpr) ** 2;
+  crop.pts.forEach((pt, i) => {
+    const d = (pt.x * k - p.x) ** 2 + (pt.y * k - p.y) ** 2;
+    if (d < bestD) { bestD = d; best = i; }
+  });
+  if (best >= 0) {
+    crop.dragIdx = best;
+    e.target.setPointerCapture(e.pointerId);
+    cropDraw(p);
+  }
+});
+
+document.getElementById('cropCanvas').addEventListener('pointermove', (e) => {
+  if (!crop || crop.dragIdx < 0) return;
+  e.preventDefault();
+  crop.lastPointer = cropEventPos(e);
+  // rAF throttle — pointermove events frame-rate se zyada fire hote hain,
+  // bina throttle ke low-end phones par drag laggy ho jata hai
+  if (!crop.raf) {
+    crop.raf = requestAnimationFrame(() => {
+      if (!crop) return;
+      crop.raf = 0;
+      const p = crop.lastPointer;
+      const k = crop.scale * crop.dpr;
+      crop.pts[crop.dragIdx] = {
+        x: Math.max(0, Math.min(crop.src.width, p.x / k)),
+        y: Math.max(0, Math.min(crop.src.height, p.y / k))
+      };
+      cropDraw(p);
+    });
+  }
+});
+
+function cropEndDrag() {
+  if (crop && crop.dragIdx >= 0) { crop.dragIdx = -1; cropDraw(); }
+}
+document.getElementById('cropCanvas').addEventListener('pointerup', cropEndDrag);
+document.getElementById('cropCanvas').addEventListener('pointercancel', cropEndDrag);
+
+function cropClose() {
+  hide('cropOverlay');
+  document.body.style.overflow = '';
+  crop = null;
+}
+function cropCancel() { cropClose(); }
+
+// Crop hatao — original photo full wapas
+function cropFullPhoto() {
+  if (!crop) return;
+  const item = crop.item;
+  item.sourceCanvas = item.originalCanvas;
+  item.cropPoints = null;
+  const ratio = item.sourceCanvas.width / item.sourceCanvas.height;
+  item.h = item.w / ratio;
+  if (item.h > A4_DISPLAY_H * 0.92) { item.h = A4_DISPLAY_H * 0.92; item.w = item.h * ratio; }
+  renderWorking(item);
+  cropClose();
+  renderCanvasItems();
+  toast('↺ Full photo wapas aa gaya');
+}
+
+function cropApply() {
+  if (!crop) return;
+  if (!isConvexQuad(crop.pts)) {
+    toast('⚠️ Points cross ho gaye hain — corners theek se set karo');
+    return;
+  }
+  toast('⏳ Crop ho raha hai...');
+  const { item, src, pts } = crop;
+  // do rAF — pehle toast paint ho jaye, phir heavy warp chale
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    const warped = perspectiveWarp(src, pts);
+    item.cropPoints = pts.map(p => ({ x: p.x / src.width, y: p.y / src.height }));
+    item.sourceCanvas = warped;
+    renderWorking(item); // brightness/contrast + rotation crop ke upar dobara apply
+    // A4 par aspect ratio WORKING canvas se — rotation 90/270 par bhi sahi
+    const ratio = item.workingCanvas.width / item.workingCanvas.height;
+    item.h = item.w / ratio;
+    if (item.h > A4_DISPLAY_H * 0.92) { item.h = A4_DISPLAY_H * 0.92; item.w = item.h * ratio; }
+    cropClose();
+    renderCanvasItems();
+    toast('✂️ Crop ho gaya!');
+  }));
+}
+
+// Self-intersecting quad (points cross) par homography garbage output deti
+// hai — pehle hi rok do
+function isConvexQuad(p) {
+  let sign = 0;
+  for (let i = 0; i < 4; i++) {
+    const a = p[i], b = p[(i + 1) % 4], c = p[(i + 2) % 4];
+    const cross = (b.x - a.x) * (c.y - b.y) - (b.y - a.y) * (c.x - b.x);
+    if (cross !== 0) {
+      const s = Math.sign(cross);
+      if (sign === 0) sign = s;
+      else if (s !== sign) return false;
+    }
+  }
+  return true;
+}
+
+// Homography solve: output-rect ke corners ko source quad par map karne
+// wala 3x3 matrix (8 unknowns, Gaussian elimination). Photoshop ka
+// perspective crop bhi yahi math use karta hai.
+function computeHomography(srcPts, dstPts) {
+  const A = [], b = [];
+  for (let i = 0; i < 4; i++) {
+    const { x, y } = srcPts[i], { x: X, y: Y } = dstPts[i];
+    A.push([x, y, 1, 0, 0, 0, -X * x, -X * y]); b.push(X);
+    A.push([0, 0, 0, x, y, 1, -Y * x, -Y * y]); b.push(Y);
+  }
+  for (let c = 0; c < 8; c++) {
+    let piv = c;
+    for (let r = c + 1; r < 8; r++) if (Math.abs(A[r][c]) > Math.abs(A[piv][c])) piv = r;
+    [A[c], A[piv]] = [A[piv], A[c]]; [b[c], b[piv]] = [b[piv], b[c]];
+    for (let r = 0; r < 8; r++) {
+      if (r === c) continue;
+      const f = A[r][c] / A[c][c];
+      for (let k = c; k < 8; k++) A[r][k] -= f * A[c][k];
+      b[r] -= f * b[c];
+    }
+  }
+  const h = b.map((v, i) => v / A[i][i]);
+  return [h[0], h[1], h[2], h[3], h[4], h[5], h[6], h[7], 1];
+}
+
+// Inverse mapping + bilinear sampling: har output pixel ke liye source me
+// exact sub-pixel position nikaal ke smooth sample karta hai — isi se
+// "bilkul wahi point tak crop" milta hai, koi jagged edges nahi.
+function perspectiveWarp(source, quad) {
+  const [tl, tr, br, bl] = quad;
+  const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  const W = Math.max(8, Math.round(Math.max(dist(tl, tr), dist(bl, br))));
+  const Hh = Math.max(8, Math.round(Math.max(dist(tl, bl), dist(tr, br))));
+
+  const H = computeHomography(
+    [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: Hh }, { x: 0, y: Hh }],
+    [tl, tr, br, bl]
+  );
+
+  const sctx = source.getContext('2d');
+  const sdata = sctx.getImageData(0, 0, source.width, source.height).data;
+  const sw = source.width, sh = source.height;
+
+  const out = document.createElement('canvas');
+  out.width = W; out.height = Hh;
+  const octx = out.getContext('2d');
+  const odata = octx.createImageData(W, Hh);
+  const o = odata.data;
+
+  let idx = 0;
+  for (let y = 0; y < Hh; y++) {
+    for (let x = 0; x < W; x++) {
+      const d = H[6] * x + H[7] * y + 1;
+      const sx = (H[0] * x + H[1] * y + H[2]) / d;
+      const sy = (H[3] * x + H[4] * y + H[5]) / d;
+      if (sx >= 0 && sy >= 0 && sx < sw - 1 && sy < sh - 1) {
+        const x0 = sx | 0, y0 = sy | 0;
+        const fx = sx - x0, fy = sy - y0;
+        const i00 = (y0 * sw + x0) * 4, i10 = i00 + 4;
+        const i01 = i00 + sw * 4, i11 = i01 + 4;
+        for (let ch = 0; ch < 3; ch++) {
+          o[idx + ch] =
+            sdata[i00 + ch] * (1 - fx) * (1 - fy) + sdata[i10 + ch] * fx * (1 - fy) +
+            sdata[i01 + ch] * (1 - fx) * fy + sdata[i11 + ch] * fx * fy;
+        }
+        o[idx + 3] = 255;
+      } else {
+        o[idx] = o[idx + 1] = o[idx + 2] = 255; o[idx + 3] = 255;
+      }
+      idx += 4;
+    }
+  }
+  octx.putImageData(odata, 0, 0);
+  return out;
+}
+
+// ═══════════════════════════════════════════════
+// NAVIGATION between steps
+// ═══════════════════════════════════════════════
+function backToUpload() {
+  if (!confirm('Wapas jaane se abhi tak ke saare pages hat jaayenge. Confirm karo?')) return;
+  pages = [];
+  activePageIdx = 0;
+  hide('secEditor');
+  show('secUpload');
+  setStep(1);
+}
+
+// Page ke andar saare items (front+back, etc.) ko ek SINGLE A4-size
+// canvas mein merge karte hain — yahi final print/preview image hai.
+// CRITICAL BUG fix: goToPreview() pehle secEditor ko "hide" karta hai
+// (display:none), USKE BAAD renderPreviewImage() -> renderMergedPageCanvas()
+// chalता hai. Hidden element ka clientWidth/clientHeight hamesha 0 hota
+// hai — jisse scaleX/scaleY Infinity/NaN ban jaate the, aur drawImage()
+// silently fail ho jaata, poori preview BLANK WHITE reh jaati thi (jaisa
+// screenshot mein dikha). Fix: A4_DISPLAY_W/H (fixed constants, top of
+// file) use karte hain, kabhi bhi clientWidth measure nahi karte yahan.
+function renderMergedPageCanvas(page) {
+  // Output px selected paper se. DPI size ke hisaab se — bade paper par
+  // DPI ghatate hain warna A1 ka canvas (~125MB) phone crash kar dega.
+  const { wmm, hmm } = currentPaper();
+  const area = wmm * hmm;
+  // 300 DPI normal papers ke liye (4x6/A5/A4/Letter/Legal — Legal bhi
+  // normal desktop printer ka kagaz hai isliye included). Bade sizes
+  // (A3/A2/A1) wahi purane tiers — warna canvas memory phone crash karegi.
+  const dpi = area <= 216*356*1.02 ? 300 : (area <= 297*420*1.05 ? 150 : (area <= 420*594*1.05 ? 120 : 96));
+  const A4_W = Math.round(wmm / 25.4 * dpi), A4_H = Math.round(hmm / 25.4 * dpi);
+  const out = document.createElement('canvas');
+  out.width = A4_W; out.height = A4_H;
+  const ctx = out.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';   // camera photos ke downscale crisp rahen
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, A4_W, A4_H);
+
+  const scaleX = A4_W / A4_DISPLAY_W;
+  const scaleY = A4_H / A4_DISPLAY_H;
+
+  page.items.forEach(item => {
+    ctx.drawImage(item.workingCanvas, item.x * scaleX, item.y * scaleY, item.w * scaleX, item.h * scaleY);
+  });
+  return out;
+}
+
+async function goToPreview() {
+  if (!pages.length) { toast('⚠️ Koi document upload karo pehle'); return; }
+  hide('secEditor');
+  show('secPreviewStep');
+  setStep(3);
+
+  currentPreviewPageIdx = 0;
+  if (pages.length > 1) {
+    document.getElementById('previewPageNav').style.display = 'flex';
+    document.getElementById('pageRangeBox').style.display = 'block';
+    document.getElementById('totalPgNum').textContent = pages.length;
+    document.getElementById('rangeTotalPages').textContent = pages.length;
+    setPageRangeMode('all');
+  } else {
+    document.getElementById('previewPageNav').style.display = 'none';
+    document.getElementById('pageRangeBox').style.display = 'none';
+    state.selectedPages = [1];
+  }
+  renderPreviewImage();
+  toast('⏳ Upload ho raha hai...');
+  await uploadAllPages();
+}
+
+function renderPreviewImage() {
+  const page = pages[currentPreviewPageIdx];
+  if (!page) return;
+  const merged = renderMergedPageCanvas(page);
+  document.getElementById('finalPreviewImg').src = merged.toDataURL('image/jpeg', 0.9);
+  document.getElementById('curPgNum').textContent = currentPreviewPageIdx + 1;
+  document.getElementById('prevPgBtn').disabled = currentPreviewPageIdx <= 0;
+  document.getElementById('nextPgBtn').disabled = currentPreviewPageIdx >= pages.length - 1;
+}
+function changePreviewPage(delta) {
+  const newIdx = currentPreviewPageIdx + delta;
+  if (newIdx < 0 || newIdx >= pages.length) return;
+  currentPreviewPageIdx = newIdx;
+  renderPreviewImage();
+}
+
+function backToEditor() {
+  hide('secPreviewStep');
+  show('secEditor');
+  setStep(2);
+}
+
+function setPageRangeMode(mode) {
+  state.pageRangeMode = mode;
+  document.getElementById('rangeAllBtn').classList.toggle('on', mode === 'all');
+  document.getElementById('rangeCustomBtn').classList.toggle('on', mode === 'custom');
+  document.getElementById('rangeInput').classList.toggle('hidden', mode === 'all');
+  if (mode === 'all') {
+    state.selectedPages = Array.from({length: pages.length}, (_, i) => i + 1);
+  } else {
+    document.getElementById('rangeInput').focus();
+  }
+}
+
+function parsePageRangeString(str, maxPages) {
+  const result = new Set();
+  str.split(',').forEach(part => {
+    part = part.trim();
+    if (!part) return;
+    if (part.includes('-')) {
+      const [a, b] = part.split('-').map(n => parseInt(n.trim()));
+      if (!isNaN(a) && !isNaN(b)) {
+        for (let i = Math.min(a,b); i <= Math.max(a,b); i++) {
+          if (i >= 1 && i <= maxPages) result.add(i);
+        }
+      }
+    } else {
+      const n = parseInt(part);
+      if (!isNaN(n) && n >= 1 && n <= maxPages) result.add(n);
+    }
+  });
+  return Array.from(result).sort((a,b) => a-b);
+}
+
+function updateRangeFromInput() {
+  const str = document.getElementById('rangeInput').value;
+  state.selectedPages = parsePageRangeString(str, pages.length);
+}
+
+// ═══════════════════════════════════════════════
+// UPLOAD — merge all pages into ONE file and send to server
+// ═══════════════════════════════════════════════
+async function buildOutputFile() {
+  // HAMESHA PDF — single page bhi. Pehle 1-page par JPG jata tha, par
+  // JPG me physical size nahi hoti — 4x6 job printer par A4 me stretch
+  // ho jata tha. PDF ke page-pt me asli size embedded rehti hai.
+  const { jsPDF } = window.jspdf;
+  // PDF page selected paper size + orientation me — print isi par niklega
+  const { wmm, hmm } = currentPaper();
+  const wpt = wmm * 72 / 25.4, hpt = hmm * 72 / 25.4;
+  const pdf = new jsPDF({
+    unit: 'pt',
+    format: [wpt, hpt],
+    orientation: wpt > hpt ? 'landscape' : 'portrait'
+  });
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+
+  pages.forEach((page, idx) => {
+    if (idx > 0) pdf.addPage();
+    const canvas = renderMergedPageCanvas(page);
+    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    pdf.addImage(imgData, 'JPEG', 0, 0, pageW, pageH);
+  });
+
+  const blob = pdf.output('blob');
+  return { blob, fileName: 'document.pdf' };
+}
+
+async function uploadAllPages() {
+  try {
+    const { blob, fileName } = await buildOutputFile();
+    const fd = new FormData();
+    fd.append('file', blob, fileName);
+    fd.append('shopId', shopId);
+    fd.append('copies', state.copies);
+    fd.append('colorMode', state.colorMode);
+    fd.append('totalPages', pages.length);
+    fd.append('paperSize', state.paperSize);
+    fd.append('orientation', state.orientation);
+
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.success) {
+      state.jobId = data.jobId;
+      toast('✅ File ready!');
+    } else {
+      toast('❌ Upload failed: ' + data.error);
+    }
+  } catch(e) {
+    toast('❌ Upload error: ' + e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// OPTIONS — B&W/Color, Copies, Price
+// ═══════════════════════════════════════════════
+function goToOptions() {
+  hide('secPreviewStep');
+  show('secOptions');
+  setStep(4);
+  updatePriceSummary();
+}
+function backToOptions() {
+  hide('secPayment');
+  show('secOptions');
+}
+function backToPreviewStep() {
+  hide('secOptions');
+  show('secPreviewStep');
+  setStep(3);
+}
+
+function toggleDuplex() {
+  state.duplex = !state.duplex;
+  document.getElementById('optDuplex').classList.toggle('sel', state.duplex);
+  const note = document.getElementById('duplexCopyNote');
+  if (state.duplex && state.shopDuplexMode === 'manual') {
+    state.copies = 1;
+    note.style.display = 'block';
+    const ce = document.getElementById('copiesVal');
+    if (ce) ce.textContent = '1';
+  } else {
+    note.style.display = 'none';
+  }
+  updateSummary();
+}
+
+function setColorMode(mode) {
+  state.colorMode = mode;
+  document.getElementById('optBW').classList.toggle('sel', mode === 'bw');
+  document.getElementById('optColor').classList.toggle('sel', mode === 'color');
+  updatePriceSummary();
+}
+function changeCopies(delta) {
+  if (state.duplex && state.shopDuplexMode === 'manual') { state.copies = 1; }
+  state.copies = Math.max(1, Math.min(50, state.copies + delta));
+  document.getElementById('copiesNum').textContent = state.copies;
+  updatePriceSummary();
+}
+
+function getEffectivePageCount() {
+  return (state.selectedPages && state.selectedPages.length) ? state.selectedPages.length : pages.length;
+}
+function getTotal() {
+  const pricePerPage = state.colorMode === 'bw' ? state.priceBW : state.priceColor;
+  return pricePerPage * getEffectivePageCount() * state.copies;
+}
+function updatePriceSummary() {
+  const pricePerPage = state.colorMode === 'bw' ? state.priceBW : state.priceColor;
+  const printPages = getEffectivePageCount();
+  const total = pricePerPage * printPages * state.copies;
+  document.getElementById('sumType').textContent = (state.colorMode === 'bw' ? 'B&W' : 'Color') + ' Print';
+  document.getElementById('sumPerPage').textContent = '₹' + pricePerPage + '/page';
+  document.getElementById('sumPages').textContent = printPages + ' page' + (printPages>1?'s':'') + ' × ' + state.copies + ' cop' + (state.copies>1?'ies':'y');
+  document.getElementById('sumPagesAmt').textContent = '₹' + total;
+  document.getElementById('sumTotal').textContent = '₹' + total;
+}
+
+// ═══════════════════════════════════════════════
+// PAYMENT
+// ═══════════════════════════════════════════════
+function goToPayment() {
+  if (!state.jobId) { toast('❌ Pehle file upload karo!'); return; }
+  hide('secOptions');
+  show('secPayment');
+
+  const note = document.getElementById('payNote');
+  const onlineBtn = document.getElementById('onlineBtn');
+  const counterBtn = document.getElementById('counterBtn');
+
+  onlineBtn.style.display = state.onlineAllowed ? 'flex' : 'none';
+  counterBtn.style.display = state.counterAllowed ? 'flex' : 'none';
+
+  if (state.shopPaymentMode === 'counter_only') {
+    note.textContent = '💵 Yeh shop sirf Counter Payment accept karta hai';
+  } else if (state.shopPaymentMode === 'online_only') {
+    if (state.onlineAllowed) {
+      note.textContent = '🌐 Yeh shop sirf Online Payment accept karta hai';
+    } else {
+      note.textContent = '⚠️ Online payment abhi setup nahi hua hai, shop owner se contact karo';
+      onlineBtn.style.display = 'flex';
+      onlineBtn.disabled = true;
+      onlineBtn.style.opacity = '0.5';
+    }
+  } else {
+    if (state.onlineAllowed) {
+      note.textContent = '✅ Online ya Counter — jo chahiye chuno';
+    } else {
+      note.textContent = '⚠️ Online payment abhi available nahi — Counter pe pay karo';
+      onlineBtn.style.display = 'flex';
+      onlineBtn.disabled = true;
+      onlineBtn.style.opacity = '0.5';
+    }
+  }
+}
+
+async function payOnline() {
+  if (!state.jobId) { toast('❌ File upload karo pehle!'); return; }
+  toast('💳 Payment create ho raha hai...');
+  try {
+    const res = await fetch('/api/payment/online/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jobId: state.jobId,
+        colorMode: state.colorMode,
+        copies: state.copies,
+        totalPages: getEffectivePageCount(),
+        selectedPages: state.selectedPages
+      , duplex: state.duplex })
+    });
+    const data = await res.json();
+    if (!data.success) { toast('❌ ' + (data.error || 'Payment create failed')); return; }
+
+    if (data.gateway === 'razorpay') {
+      const options = {
+        key: data.keyId,
+        amount: data.amount,
+        currency: 'INR',
+        name: 'QR Se Print',
+        description: `Print Job - ${getEffectivePageCount()} pages`,
+        order_id: data.orderId,
+        handler: async function(response) {
+          const verifyRes = await fetch('/api/payment/razorpay/verify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              jobId: state.jobId
+            })
+          });
+          const verifyData = await verifyRes.json();
+          if (verifyData.success) {
+            showSuccess('online', getTotal());
+          } else {
+            toast('❌ Payment verify nahi hua!');
+          }
+        },
+        prefill: {},
+        theme: { color: '#ff4d1c' }
+      };
+      const rzp = new Razorpay(options);
+      rzp.on('payment.failed', () => toast('❌ Payment failed! Try again.'));
+      rzp.open();
+    } else if (data.gateway === 'phonepe') {
+      window.location.href = data.paymentUrl;
+    }
+  } catch(e) {
+    toast('❌ Network error: ' + e.message);
+  }
+}
+
+async function payCounter() {
+  if (!state.jobId) { toast('❌ File upload karo pehle!'); return; }
+  try {
+    const res = await fetch('/api/payment/counter', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jobId: state.jobId,
+        colorMode: state.colorMode,
+        copies: state.copies,
+        totalPages: getEffectivePageCount(),
+        selectedPages: state.selectedPages
+      , duplex: state.duplex })
+    });
+    const data = await res.json();
+    if (data.success) {
+      showSuccess('counter', data.amount);
+    } else {
+      toast('❌ Error: ' + (data.error || 'Try again'));
+    }
+  } catch(e) {
+    toast('❌ Network error');
+  }
+}
+
+function showSuccess(method, amount) {
+  hide('secPayment');
+  const successScreen = document.getElementById('secSuccess');
+  successScreen.style.display = 'block';
+  setStep(4);
+
+  document.getElementById('orderId').textContent = 'ORDER #' + state.jobId;
+  document.getElementById('finalAmount').textContent = '₹' + amount;
+
+  const icon = document.getElementById('successIcon');
+  const collectBox = document.getElementById('collectBox');
+
+  if (method === 'online') {
+    icon.className = 'sicon online';
+    icon.textContent = '✓';
+    document.getElementById('successTitle').textContent = 'Payment Ho Gaya!';
+    collectBox.className = 'collect-box online';
+    document.getElementById('collectTitle').textContent = '🖨️ Print Ho Raha Hai!';
+    document.getElementById('collectMsg').textContent = 'Payment verify ho gayi. Printer se aapka document print ho raha hai. Thodi der mein print nikal aayega!';
+    document.getElementById('amountLabel').textContent = 'Paid Online';
+  } else {
+    icon.className = 'sicon counter';
+    icon.textContent = '🖨️';
+    document.getElementById('successTitle').textContent = 'Print Shuru!';
+    collectBox.className = 'collect-box counter';
+    document.getElementById('collectTitle').textContent = '💵 Counter Pe Jao!';
+    document.getElementById('collectMsg').textContent = 'Aapka document print ho raha hai. Counter pe jaake yeh amount pay karein aur apna print collect karein!';
+    document.getElementById('amountLabel').textContent = 'Counter Pe Dena Hai';
+  }
+}
+</script>
+
+<div id="langSwitch" style="position:fixed;bottom:14px;left:12px;z-index:400;opacity:.9;">
+  <select id="langSel" onchange="setLang(this.value)" style="border:1.5px solid #d9d4cc;border-radius:10px;padding:6px 8px;font-size:12px;font-weight:700;background:#fff;color:#111;">
+    <option value="hi">🇮🇳 हिंदी</option>
+    <option value="en">EN English</option>
+    <option value="bn">🇧🇩 বাংলা</option>
+  </select>
+</div>
+<script>
+// ── Lightweight i18n: key visible strings hi/en/bn ──
+const I18N = {
+  en: {
+    'Document Adjust Karo':'Adjust Document','Drag karke move karo, corner se size badlo/chhota karo':'Drag to move, resize from corner',
+    'Upload':'Upload','Edit':'Edit','Preview':'Preview','Pay':'Pay',
+    'File Upload Karo':'Upload File','Aage Badho':'Continue','Wapas':'Back',
+    'Print Preview':'Print Preview','Payment Karo':'Make Payment','Copies':'Copies',
+    'Kitne Copies?':'How many copies?','B&W':'B&W','Color':'Color',
+    'Pay at Counter':'Pay at Counter','Online Pay Karo':'Pay Online',
+    'Loading...':'Loading...','Print ho raha hai...':'Printing...',
+  },
+  bn: {
+    'Document Adjust Karo':'ডকুমেন্ট ঠিক করুন','Drag karke move karo, corner se size badlo/chhota karo':'টেনে সরান, কোণা থেকে সাইজ বদলান',
+    'Upload':'আপলোড','Edit':'এডিট','Preview':'প্রিভিউ','Pay':'পেমেন্ট',
+    'File Upload Karo':'ফাইল আপলোড করুন','Aage Badho':'এগিয়ে যান','Wapas':'পিছনে',
+    'Print Preview':'প্রিন্ট প্রিভিউ','Payment Karo':'পেমেন্ট করুন','Copies':'কপি',
+    'Kitne Copies?':'কয়টি কপি?','B&W':'সাদা-কালো','Color':'রঙিন',
+    'Pay at Counter':'কাউন্টারে পেমেন্ট','Online Pay Karo':'অনলাইন পেমেন্ট',
+    'Loading...':'লোড হচ্ছে...','Print ho raha hai...':'প্রিন্ট হচ্ছে...',
+  }
+};
+let _origText = new Map();
+function setLang(lang){
+  try{ localStorage.setItem('qsp_lang', lang); }catch(e){}
+  const dict = I18N[lang];
+  // Sab text nodes walk karo — original save, translate ya restore
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+  nodes.forEach(node=>{
+    const t = node.textContent.trim();
+    if (!t) return;
+    if (!_origText.has(node)) _origText.set(node, node.textContent);
+    const orig = _origText.get(node).trim();
+    if (!dict) { node.textContent = _origText.get(node); return; }  // hi = original
+    if (dict[orig]) node.textContent = node.textContent.replace(orig, dict[orig]);
+    else node.textContent = _origText.get(node);
+  });
+  const sel = document.getElementById('langSel');
+  if (sel) sel.value = lang;
+}
+window.addEventListener('load', ()=>{
+  let saved = 'hi';
+  try{ saved = localStorage.getItem('qsp_lang') || 'hi'; }catch(e){}
+  if (saved !== 'hi') setTimeout(()=>setLang(saved), 400);
+  const sel = document.getElementById('langSel');
+  if (sel) sel.value = saved;
+});
+</script>
+</body>
+</html>
