@@ -382,6 +382,14 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
       <span id="amountLabel">Amount</span>
       <strong id="finalAmount">₹5</strong>
     </div>
+    <div id="fbBox" style="text-align:center;margin:16px 0;padding:14px;background:#f7f7f9;border-radius:14px;">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px;">Print kaisa laga?</div>
+      <div style="display:flex;gap:12px;justify-content:center;">
+        <button onclick="sendFeedback(true)" style="background:#dcfce7;border:1.5px solid #86efac;border-radius:14px;padding:12px 22px;font-size:24px;cursor:pointer;">👍</button>
+        <button onclick="sendFeedback(false)" style="background:#fee2e2;border:1.5px solid #fca5a5;border-radius:14px;padding:12px 22px;font-size:24px;cursor:pointer;">👎</button>
+      </div>
+      <div id="fbThanks" style="display:none;font-size:13px;color:#16a34a;font-weight:700;margin-top:8px;">🙏 Shukriya!</div>
+    </div>
     <button class="btn-primary" onclick="location.reload()">Naya Print Karo</button>
   </div>
 
@@ -552,6 +560,14 @@ async function init() {
     }
 
     state.shopDuplexMode = shop.duplex_mode || '';
+    // Owner ka notice (offer/soochna) — top strip
+    if (shop.shop_notice && shop.shop_notice.trim()) {
+      const n = document.createElement('div');
+      n.style.cssText = 'background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff;padding:12px 16px;border-radius:14px;margin:0 0 14px;font-weight:700;font-size:13.5px;text-align:center;box-shadow:0 4px 14px rgba(245,158,11,.3);';
+      n.textContent = '📢 ' + shop.shop_notice.trim();
+      const host = document.getElementById('secUpload') || document.body;
+      host.insertBefore(n, host.firstChild);
+    }
     applyAdvancedGate(shop);
     checkResumeHandoff();
     state.priceBwDuplex    = parseInt(shop.price_bw_duplex)    || 0;
@@ -2066,6 +2082,19 @@ async function payCounter() {
   } catch(e) {
     toast('❌ Network error');
   }
+}
+
+async function sendFeedback(up) {
+  try {
+    await fetch('/api/jobs/' + state.jobId + '/feedback', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ up })
+    });
+  } catch(e) {}
+  // Thumbs chhupao, shukriya dikhao (chahe network fail — user ko farq nahi)
+  document.querySelectorAll('#fbBox button').forEach(b => b.style.display='none');
+  document.querySelector('#fbBox > div:first-child').style.display='none';
+  document.getElementById('fbThanks').style.display='block';
 }
 
 function showSuccess(method, amount) {

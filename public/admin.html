@@ -321,12 +321,31 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       <div class="stat"><div class="stat-lbl">💰 Overall Total Kamai</div><div class="stat-val green" id="totalEarn">₹0</div></div>
     </div>
 
+    <!-- CUSTOMER NOTICE -->
+    <div class="card" style="margin-top:20px;background:linear-gradient(180deg,#fffbeb,#fff);border:1.5px solid #fcd34d;">
+      <h2 style="margin-top:0;">📢 Customer Ko Message</h2>
+      <p style="font-size:12px;color:#92400e;margin-top:-4px;">Ye QR page par customer ko dikhega — offer, "aaj color band", chhutti, kuch bhi</p>
+      <input type="text" id="noticeInput" maxlength="200" placeholder='e.g. "Aaj sirf B&W" ya "Holi offer: sab ₹2"' style="width:100%;padding:12px;border:1.5px solid #e2ddd6;border-radius:12px;font-size:14px;box-sizing:border-box;">
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button onclick="saveNotice()" style="flex:1;background:#f59e0b;color:#fff;border:none;border-radius:12px;padding:12px;font-weight:800;font-size:14px;cursor:pointer;">💾 Message Dikhao</button>
+        <button onclick="clearNotice()" style="background:#f4f5f8;color:#6b6870;border:none;border-radius:12px;padding:12px 16px;font-weight:700;font-size:13px;cursor:pointer;">✖️ Hatao</button>
+      </div>
+      <div id="noticeMsg" style="font-size:12px;margin-top:8px;text-align:center;"></div>
+    </div>
+
+    <!-- INSIGHTS: busy time + feedback -->
+    <div class="stats" style="margin-top:16px;">
+      <div class="stat"><div class="stat-lbl">🕐 Sabse Busy Time</div><div class="stat-val" id="peakHour" style="font-size:16px;">—</div></div>
+      <div class="stat"><div class="stat-lbl">😊 Customer Khush</div><div class="stat-val green" id="fbUp">—</div></div>
+      <div class="stat"><div class="stat-lbl">😐 Complaint</div><div class="stat-val" id="fbDown" style="color:#dc2626;">—</div></div>
+    </div>
+
     <!-- 7-DIN EARNING -->
     <div class="card" style="margin-top:20px;">
       <h2>📅 Pichle 7 Din</h2>
       <div style="display:flex;gap:12px;margin:10px 0 14px;flex-wrap:wrap;">
         <div style="flex:1;min-width:120px;background:#f3ecff;border-radius:12px;padding:12px;">
-          <div style="font-size:11px;color:#7c3aed;font-weight:700;">Is Hafte</div>
+          <div style="font-size:11px;color:#7c3aed;font-weight:700;">Is Hafte <span id="weekTrend" style="font-size:11px;"></span></div>
           <div style="font-size:22px;font-weight:800;" id="bkThisWeek">₹0</div>
         </div>
         <div style="flex:1;min-width:120px;background:#f4f5f8;border-radius:12px;padding:12px;">
@@ -833,6 +852,16 @@ async function loadBreakdown(){
     const d = await r.json();
     document.getElementById('bkThisWeek').textContent = '₹' + (d.this_week||0);
     document.getElementById('bkLastWeek').textContent = '₹' + (d.last_week||0);
+    // Trend %: is hafte vs pichle
+    const tw = parseFloat(d.this_week)||0, lw = parseFloat(d.last_week)||0;
+    const tr = document.getElementById('weekTrend');
+    if (tr) {
+      if (lw > 0) {
+        const pct = Math.round((tw - lw) / lw * 100);
+        tr.textContent = pct >= 0 ? `📈 +${pct}%` : `📉 ${pct}%`;
+        tr.style.color = pct >= 0 ? '#16a34a' : '#dc2626';
+      } else if (tw > 0) { tr.textContent = '📈 Naya!'; tr.style.color = '#16a34a'; }
+    }
     const rows = (d.daily||[]).map(x=>{
       const dt = new Date(x.day);
       const dn = dt.toLocaleDateString('en-IN',{weekday:'short',day:'numeric',month:'short'});
@@ -1037,6 +1066,8 @@ async function loadAdminPanel() {
     loadAgentVersion();
     renderSubscription(shop);
     initSupport(shop);
+    initNotice(shop);
+    loadInsights();
     applyAdvancedLock(shop);
     loadAdvancedFee();
     shopPaused = !!shop.paused; shopSupply = shop.supply_warning || '';
@@ -1339,6 +1370,35 @@ function sendWhatsApp() {
 }
 
 // ===== SUBSCRIPTION (monthly plan) =====
+// ═══ NOTICE + INSIGHTS ═══
+function initNotice(shop) {
+  const inp = document.getElementById('noticeInput');
+  if (inp) inp.value = shop.shop_notice || '';
+}
+async function saveNotice() {
+  const val = document.getElementById('noticeInput').value.trim();
+  const msg = document.getElementById('noticeMsg');
+  try {
+    const r = await fetch('/api/shop/notice', { method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},
+      body: JSON.stringify({ notice: val }) });
+    const d = await r.json();
+    if (d.success) { msg.style.color='#16a34a'; msg.textContent = val ? '✅ Customer ko ab ye message dikhega' : '✅ Message hata diya'; }
+    else { msg.style.color='#dc2626'; msg.textContent='❌ '+(d.error||'Fail'); }
+  } catch(e) { msg.style.color='#dc2626'; msg.textContent='❌ '+e.message; }
+}
+function clearNotice() { document.getElementById('noticeInput').value=''; saveNotice(); }
+
+async function loadInsights() {
+  try {
+    const r = await fetch('/api/shop/insights', { headers:{'Authorization':'Bearer '+authToken} });
+    const d = await r.json();
+    document.getElementById('peakHour').textContent = d.peakHour || 'Abhi data kam';
+    document.getElementById('fbUp').textContent = d.feedbackUp || 0;
+    document.getElementById('fbDown').textContent = d.feedbackDown || 0;
+  } catch(e) {}
+}
+
 function renderSubscription(shop) {
   const el = document.getElementById('subBanner');
   if (!el || (shop.plan_type || 'onetime') !== 'monthly') return;
