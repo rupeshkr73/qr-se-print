@@ -229,7 +229,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <button class="btn-primary" id="loginBtn" onclick="doLogin()">Login Karo</button>
     <div class="err-msg" id="loginErr"></div>
     <div class="help-text">
-      Purana shop hai jiska password nahi set hai? <a onclick="showSetPassword()">Yahan click karo</a>
+      Password bhool gaye ya pehli baar set karna hai? <a onclick="showSetPassword()">Yahan se reset/set karo</a>
     </div>
 
     <div id="setPasswordSection" class="hidden" style="margin-top:20px;border-top:1px solid #f0ebe3;padding-top:20px;">
@@ -260,6 +260,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <button class="nav-it" data-nav="qr" onclick="navTo('qr',this)"><span class="ico">📱</span> QR &amp; Downloads</button>
     <button class="nav-it" data-nav="orders" onclick="navTo('orders',this)"><span class="ico">📋</span> Orders</button>
     <button class="nav-it" data-nav="settings" onclick="navTo('settings',this)"><span class="ico">⚙️</span> Settings</button>
+    <button class="nav-it" data-nav="advance" onclick="navTo('advance',this)"><span class="ico">⚡</span> Advance Feature</button>
     <button class="nav-it" data-nav="support" id="navSupport" onclick="navTo('support',this)"><span class="ico">💬</span> Support</button>
     <div class="side-foot"><button class="side-lg" onclick="logout()"><span>🚪</span> Logout</button></div>
   </aside>
@@ -446,68 +447,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
             <option value="">System Default Printer (auto)</option>
           </select>
         </div>
-        <!-- ═══ ADVANCED PRINTING (locked) ═══ -->
-        <div class="form-group full" style="margin-top:6px;">
-          <div id="advCard" style="position:relative;border:2px solid #e9d5ff;border-radius:18px;overflow:hidden;background:linear-gradient(180deg,#faf5ff,#fff);">
-            <div style="background:linear-gradient(135deg,#7c3aed,#a855f7);padding:16px 18px;color:#fff;display:flex;align-items:center;gap:10px;">
-              <span style="font-size:24px;">⚡</span>
-              <div>
-                <div style="font-weight:800;font-size:15px;">Advanced Printing Setting</div>
-                <div style="font-size:11px;opacity:.9;">4×6 Photo · A3/A2/A1 · Duplex (dual-side)</div>
-              </div>
-            </div>
-            <div id="advInner" style="padding:16px;position:relative;">
-        <div class="form-group full">
-          <label>📷 4×6 PHOTO print kis printer se nikle? (photo printer ho to)</label>
-          <select id="setPrinter4x6">
-            <option value="">— Nahi hai / Color-B&W wala hi use karo —</option>
-          </select>
-        </div>
-        <div class="form-group full">
-          <label>📐 A3 (bade size) print kis printer se nikle? (A3 printer ho to)</label>
-          <select id="setPrinterA3">
-            <option value="">— Nahi hai / Color-B&W wala hi use karo —</option>
-          </select>
-          <p style="font-size:11px;color:#6b6870;margin:4px 0 0;">A2/A1 jobs bhi isi printer par jaayengi. Ye set karne ke liye Agent v15+ chahiye.</p>
-        </div>
-        <div class="form-group full">
-          <label>📄 Duplex (Dual-Side) Printing</label>
-          <select id="setDuplexMode" onchange="toggleDuplexPrices()">
-            <option value="">❌ Nahi — single side only</option>
-            <option value="auto">🔁 Auto Duplex — printer khud dono side chhapta hai</option>
-            <option value="manual">✋ Manual Duplex — front ke baad popup, page palat ke back print</option>
-          </select>
-          <p style="font-size:11px;color:#c2410c;margin:4px 0 0;">⚠️ Duplex ke liye Print Agent v10+ chahiye — pehle agent update karo, tabhi ye enable karna.</p>
-        </div>
-        <div class="form-group full" id="duplexPricesRow" style="display:none;background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:12px;padding:12px;margin-top:4px;">
-          <label style="color:#7c3aed;">💰 Duplex Prices (per page — dono side milaake)</label>
-          <p style="font-size:11px;color:#6b6870;margin:0 0 8px;">Blank rakho ya 0 daalo to normal B&W/Color rate hi lagega. Duplex ka alag rate chahiye to yahan set karo.</p>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            <div>
-              <label style="font-size:11px;">B&W Duplex (₹/page)</label>
-              <input type="number" id="setPriceBwDuplex" min="0" placeholder="e.g. 8">
-            </div>
-            <div>
-              <label style="font-size:11px;">Color Duplex (₹/page)</label>
-              <input type="number" id="setPriceColorDuplex" min="0" placeholder="e.g. 15">
-            </div>
-          </div>
-        </div>
-            </div>
-            <!-- LOCK OVERLAY -->
-            <div id="advLock" style="position:absolute;inset:0;top:56px;background:rgba(250,245,255,.82);backdrop-filter:blur(4px);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;">
-              <div style="font-size:44px;margin-bottom:8px;">🔒</div>
-              <div style="font-weight:800;font-size:16px;color:#6b21a8;">Ye Feature Lock Hai</div>
-              <div style="font-size:12px;color:#7c3aed;margin:6px 0 14px;max-width:280px;line-height:1.6;">
-                4×6 photo, A3 bade size, aur duplex (dual-side) printing unlock karo — <b>ek baar</b> pay karo, <b>lifetime</b> chalega.
-              </div>
-              <button onclick="unlockAdvanced()" id="advPayBtn" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:14px;padding:15px 28px;font-weight:800;font-size:15px;cursor:pointer;font-family:'Syne',sans-serif;box-shadow:0 6px 20px rgba(124,58,237,.35);">
-                🔓 Pay ₹<span id="advFeeAmt">199</span> — Unlock Karo
-              </button>
-              <div style="font-size:10.5px;color:#9b7cc4;margin-top:10px;">One-Time Fee · Lifetime Access</div>
-            </div>
-          </div>
-        </div>
+
         <div class="form-group full">
           <p style="font-size:12px;color:#6b6870;margin:-8px 0 0;">
             ℹ️ Yeh list aapke PC pe chal rahe Print Agent se aati hai. Agar list khaali hai ya naya printer
@@ -618,6 +558,111 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     </div>
 
     </div><!-- /settings -->
+
+    <div data-sect="advance">
+    <div class="card" style="overflow:hidden;padding:0;">
+      <div style="background:linear-gradient(135deg,#4c1d95 0%,#7c3aed 50%,#a855f7 100%);padding:26px 20px;text-align:center;color:#fff;position:relative;">
+        <div style="position:absolute;top:-25px;right:-25px;width:110px;height:110px;background:rgba(255,255,255,.08);border-radius:50%;"></div>
+        <div style="position:absolute;bottom:-35px;left:-15px;width:90px;height:90px;background:rgba(255,255,255,.06);border-radius:50%;"></div>
+        <div style="font-size:40px;position:relative;">⚡</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:23px;margin:6px 0 4px;color:#fff;position:relative;">Advance Feature</h2>
+        <p style="font-size:12px;opacity:.92;margin:0;position:relative;">Exclusive printing powers — sirf unlock karne walon ke liye</p>
+      </div>
+
+      <div style="padding:18px;">
+        <div style="display:grid;gap:10px;margin-bottom:18px;">
+          <div style="display:flex;gap:12px;align-items:flex-start;background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:14px;padding:12px 14px;">
+            <span style="font-size:24px;">📷</span>
+            <div><b style="font-size:13.5px;">4×6 Photo Printing</b><br>
+            <span style="font-size:11.5px;color:#6b6870;">Passport photo, ID photo — dedicated photo printer se exact 4×6 size par. Customer QR se bhejta hai, photo printer se nikalta hai.</span></div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start;background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:14px;padding:12px 14px;">
+            <span style="font-size:24px;">📐</span>
+            <div><b style="font-size:13.5px;">A3 / A2 / A1 Bade Size</b><br>
+            <span style="font-size:11.5px;color:#6b6870;">Naksha, banner, project chart — bade printer par bada print. Har bade size ka apna printer set karo, routing automatic.</span></div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start;background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:14px;padding:12px 14px;">
+            <span style="font-size:24px;">📄</span>
+            <div><b style="font-size:13.5px;">Duplex — Dono Side Print</b><br>
+            <span style="font-size:11.5px;color:#6b6870;">Aage-peeche print (auto ya manual palat ke) + duplex ka apna alag rate set karo — kagaz bachao, extra kamao.</span></div>
+          </div>
+          <div style="display:flex;gap:12px;align-items:flex-start;background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:14px;padding:12px 14px;">
+            <span style="font-size:24px;">🎯</span>
+            <div><b style="font-size:13.5px;">Smart Printer Routing</b><br>
+            <span style="font-size:11.5px;color:#6b6870;">4×6 job photo printer par, A3 job bade printer par, baaki B&W/Color apne printer par — sab automatic, bina chhue.</span></div>
+          </div>
+        </div>
+
+        <!-- ═══ ADVANCED PRINTING (locked) ═══ -->
+        <div class="form-group full" style="margin-top:6px;">
+          <div id="advCard" style="position:relative;border:2px solid #e9d5ff;border-radius:18px;overflow:hidden;background:linear-gradient(180deg,#faf5ff,#fff);">
+            <div style="background:linear-gradient(135deg,#7c3aed,#a855f7);padding:16px 18px;color:#fff;display:flex;align-items:center;gap:10px;">
+              <span style="font-size:24px;">⚡</span>
+              <div>
+                <div style="font-weight:800;font-size:15px;">Advanced Printing Setting</div>
+                <div style="font-size:11px;opacity:.9;">4×6 Photo · A3/A2/A1 · Duplex (dual-side)</div>
+              </div>
+            </div>
+            <div id="advInner" style="padding:16px;position:relative;">
+        <div class="form-group full">
+          <label>📷 4×6 PHOTO print kis printer se nikle? (photo printer ho to)</label>
+          <select id="setPrinter4x6">
+            <option value="">— Nahi hai / Color-B&W wala hi use karo —</option>
+          </select>
+        </div>
+        <div class="form-group full">
+          <label>📐 A3 (bade size) print kis printer se nikle? (A3 printer ho to)</label>
+          <select id="setPrinterA3">
+            <option value="">— Nahi hai / Color-B&W wala hi use karo —</option>
+          </select>
+          <p style="font-size:11px;color:#6b6870;margin:4px 0 0;">A2/A1 jobs bhi isi printer par jaayengi. Ye set karne ke liye Agent v15+ chahiye.</p>
+        </div>
+        <div class="form-group full">
+          <label>📄 Duplex (Dual-Side) Printing</label>
+          <select id="setDuplexMode" onchange="toggleDuplexPrices()">
+            <option value="">❌ Nahi — single side only</option>
+            <option value="auto">🔁 Auto Duplex — printer khud dono side chhapta hai</option>
+            <option value="manual">✋ Manual Duplex — front ke baad popup, page palat ke back print</option>
+          </select>
+          <p style="font-size:11px;color:#c2410c;margin:4px 0 0;">⚠️ Duplex ke liye Print Agent v10+ chahiye — pehle agent update karo, tabhi ye enable karna.</p>
+        </div>
+        <div class="form-group full" id="duplexPricesRow" style="display:none;background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:12px;padding:12px;margin-top:4px;">
+          <label style="color:#7c3aed;">💰 Duplex Prices (per page — dono side milaake)</label>
+          <p style="font-size:11px;color:#6b6870;margin:0 0 8px;">Blank rakho ya 0 daalo to normal B&W/Color rate hi lagega. Duplex ka alag rate chahiye to yahan set karo.</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label style="font-size:11px;">B&W Duplex (₹/page)</label>
+              <input type="number" id="setPriceBwDuplex" min="0" placeholder="e.g. 8">
+            </div>
+            <div>
+              <label style="font-size:11px;">Color Duplex (₹/page)</label>
+              <input type="number" id="setPriceColorDuplex" min="0" placeholder="e.g. 15">
+            </div>
+          </div>
+        </div>
+            </div>
+            <!-- LOCK OVERLAY -->
+            <div id="advLock" style="position:absolute;inset:0;top:56px;background:rgba(250,245,255,.82);backdrop-filter:blur(4px);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;">
+              <div style="font-size:44px;margin-bottom:8px;">🔒</div>
+              <div style="font-weight:800;font-size:16px;color:#6b21a8;">Ye Feature Lock Hai</div>
+              <div style="font-size:12px;color:#7c3aed;margin:6px 0 14px;max-width:280px;line-height:1.6;">
+                4×6 photo, A3 bade size, aur duplex (dual-side) printing unlock karo — <b>ek baar</b> pay karo, <b>lifetime</b> chalega.
+              </div>
+              <button onclick="unlockAdvanced()" id="advPayBtn" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:14px;padding:15px 28px;font-weight:800;font-size:15px;cursor:pointer;font-family:'Syne',sans-serif;box-shadow:0 6px 20px rgba(124,58,237,.35);">
+                🔓 Pay ₹<span id="advFeeAmt">199</span> — Unlock Karo
+              </button>
+              <div style="font-size:10.5px;color:#9b7cc4;margin-top:10px;">One-Time Fee · Lifetime Access</div>
+            </div>
+          </div>
+        </div>
+
+        <button id="advSaveBtn" onclick="saveSettings()" style="width:100%;margin-top:14px;background:#1b1b1f;color:#fff;border:none;border-radius:14px;padding:15px;font-weight:800;font-size:14px;cursor:pointer;font-family:'Syne',sans-serif;">
+          💾 Advance Settings Save Karo
+        </button>
+        <p style="font-size:11px;color:#9b9690;text-align:center;margin-top:10px;">Printer select karne ke baad yahin se save karo — Settings tab jaane ki zaroorat nahi</p>
+      </div>
+    </div>
+    </div><!-- /advance -->
 
     <div data-sect="support">
     <div class="card" style="overflow:hidden;padding:0;">
@@ -1130,6 +1175,8 @@ function applyAdvancedLock(shop) {
   if (lock) lock.style.display = locked ? 'flex' : 'none';
   // Locked par andar ke controls disable (double safety — server bhi guard karta hai)
   if (inner) inner.querySelectorAll('select,input').forEach(el => { el.disabled = locked; });
+  const saveBtn = document.getElementById('advSaveBtn');
+  if (saveBtn) { saveBtn.disabled = locked; saveBtn.style.opacity = locked ? '.45' : '1'; }
 }
 async function loadAdvancedFee() {
   try {

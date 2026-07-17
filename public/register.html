@@ -141,7 +141,7 @@ h1 .mark{background:linear-gradient(transparent 62%,var(--yellow) 62%);padding:0
       </div>
 
   <!-- 4: Gateway (conditional) -->
-    <div class="hint">💡 Keys abhi nahi hain? Upar <b>"Sirf Counter Cash"</b> select karo — baad mein Shop Login ke settings se gateway add kar sakte ho.</div>
+    <div class="hint">💡 <b>Payment kaise receive karna hai (Counter/Online), kaun sa printer B&W ke liye, kaun sa Color, kaun sa Duplex</b> — ye saari settings register ke baad <b>Shop Login → Settings</b> mein milengi.<br><br>Register karne ke baad: <b>pehle Software Download karo</b>, phir Settings mein jaake Printer aur Payment options update karo.</div>
   </div>
 
   <button class="cta" id="regBtn" onclick="doRegister()">Register Karo — Agla Step: Setup Fee ›</button>
@@ -188,7 +188,8 @@ function selPlan(p) {
     if (d.actualPrice) document.getElementById('planCutPrice').textContent = '₹' + d.actualPrice;
     if (d.monthlyFee) {
       document.getElementById('planMonthlyPrice').textContent = d.monthlyFee;
-      document.getElementById('planMonthlyPrice2').textContent = d.monthlyFee;
+      const p2 = document.getElementById('planMonthlyPrice2');
+      if (p2) p2.textContent = d.monthlyFee;  // purane card me tha, revamp me nahi — null-crash guard
     }
   } catch(e) {}
 })();
