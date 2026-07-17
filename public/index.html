@@ -483,7 +483,7 @@ body{
   <!-- ═══ FAQ (SEO content — real search queries) ═══ -->
   <div style="margin-top:34px;">
     <h2 style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;text-align:center;margin-bottom:14px;">❓ Aksar Puchhe Jaane Wale Sawal</h2>
-    <div style="display:grid;gap:8px;">
+    <div style="display:grid;gap:8px;" id="faqList">
       <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
         <summary style="font-weight:800;font-size:14px;cursor:pointer;">QR Se Print kya hai?</summary>
         <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">QR Se Print cyber cafe aur print shop ke liye ek automatic print software hai. Aap apni shop ka QR code lagate ho — customer apne phone se scan karke file upload karta hai, payment karta hai, aur print aapke printer se automatic nikal jata hai. Na WhatsApp pe file mangni padti hai, na pendrive, na email.</p>
@@ -606,6 +606,23 @@ loadPrices();
   fillPlan('planDemoList', cfg.planDemo);
   fillPlan('planMonthlyList', cfg.planMonthly);
   fillPlan('planOnetimeList', cfg.planOnetime);
+  // FAQ — config se (visible + SEO schema dono)
+  if (Array.isArray(cfg.faqs) && cfg.faqs.length) {
+    const esc = t => String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const list = document.getElementById('faqList');
+    if (list) list.innerHTML = cfg.faqs.map(f => `
+      <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
+        <summary style="font-weight:800;font-size:14px;cursor:pointer;">${esc(f.q)}</summary>
+        <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">${esc(f.a)}</p>
+      </details>`).join('');
+    // SEO FAQPage schema live update — Google ko sahi Q&A mile
+    const ld = { "@context":"https://schema.org", "@type":"FAQPage",
+      mainEntity: cfg.faqs.map(f => ({ "@type":"Question", name: f.q,
+        acceptedAnswer: { "@type":"Answer", text: f.a } })) };
+    let tag = document.getElementById('faqSchema');
+    if (!tag) { tag = document.createElement('script'); tag.type='application/ld+json'; tag.id='faqSchema'; document.head.appendChild(tag); }
+    tag.textContent = JSON.stringify(ld);
+  }
   // Stats — manual override ya DB, showStats ke hisaab se
   if (cfg.showStats !== false) {
     let shops = cfg.statShops, prints = cfg.statPrints;

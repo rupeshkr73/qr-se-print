@@ -302,6 +302,14 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
             <textarea id="hpPlanOnetime" rows="7" style="width:100%;padding:10px;border:1.5px solid #fca5a5;border-radius:10px;font-size:12px;font-family:inherit;"></textarea></div>
         </div>
 
+        <div style="margin-top:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <label style="font-weight:800;font-size:13px;">❓ FAQ — Sawal & Jawab</label>
+            <button onclick="addFaq()" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">+ Naya Sawal</button>
+          </div>
+          <div id="faqEditor" style="display:grid;gap:10px;"></div>
+        </div>
+
         <button onclick="saveHomepage()" style="width:100%;margin-top:16px;background:#16a34a;color:#fff;border:none;border-radius:12px;padding:14px;font-weight:800;font-size:15px;cursor:pointer;">💾 Homepage Update Karo</button>
         <div id="hpSaveMsg" style="text-align:center;margin-top:8px;font-size:13px;"></div>
       </div>
@@ -987,10 +995,30 @@ async function loadHomepageConfig() {
     g('hpPlanDemo').value = (_hpCfg.planDemo || []).join('\n');
     g('hpPlanMonthly').value = (_hpCfg.planMonthly || []).join('\n');
     g('hpPlanOnetime').value = (_hpCfg.planOnetime || []).join('\n');
+    _faqs = Array.isArray(_hpCfg.faqs) ? JSON.parse(JSON.stringify(_hpCfg.faqs)) : [];
+    renderFaqEditor();
     const lp = g('hpLogoPreview');
     if (_hpCfg.logoUrl) { lp.src = _hpCfg.logoUrl; lp.style.display = 'block'; }
   } catch(e) {}
 }
+let _faqs = [];
+function renderFaqEditor() {
+  const box = document.getElementById('faqEditor');
+  if (!box) return;
+  if (!_faqs.length) { box.innerHTML = '<p style="font-size:12px;color:#9b9690;text-align:center;padding:10px;">Koi FAQ nahi — "+ Naya Sawal" dabao</p>'; return; }
+  box.innerHTML = _faqs.map((f, i) => `
+    <div style="background:#f7f7f9;border:1.5px solid #e2ddd6;border-radius:12px;padding:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <b style="font-size:11px;color:#7c3aed;">Sawal ${i+1}</b>
+        <button onclick="removeFaq(${i})" style="background:#fee2e2;color:#dc2626;border:none;border-radius:6px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer;">🗑️ Delete</button>
+      </div>
+      <input type="text" value="${(f.q||'').replace(/"/g,'&quot;')}" oninput="_faqs[${i}].q=this.value" placeholder="Sawal likho" style="width:100%;padding:8px;border:1.5px solid #e2ddd6;border-radius:8px;font-weight:700;font-size:13px;margin-bottom:6px;">
+      <textarea oninput="_faqs[${i}].a=this.value" rows="3" placeholder="Jawab likho" style="width:100%;padding:8px;border:1.5px solid #e2ddd6;border-radius:8px;font-size:12px;font-family:inherit;">${(f.a||'').replace(/</g,'&lt;')}</textarea>
+    </div>`).join('');
+}
+function addFaq() { _faqs.push({ q:'', a:'' }); renderFaqEditor(); }
+function removeFaq(i) { if(confirm('Ye sawal delete karein?')) { _faqs.splice(i,1); renderFaqEditor(); } }
+
 async function uploadHpLogo() {
   const f = document.getElementById('hpLogoFile').files[0];
   if (!f) { alert('Pehle file chuno'); return; }
@@ -1016,7 +1044,8 @@ async function saveHomepage() {
     youtube: g('hpYt').value.trim(),
     planDemo: lines('hpPlanDemo'),
     planMonthly: lines('hpPlanMonthly'),
-    planOnetime: lines('hpPlanOnetime')
+    planOnetime: lines('hpPlanOnetime'),
+    faqs: _faqs.filter(f => (f.q||'').trim())
   };
   const msg = g('hpSaveMsg');
   try {
