@@ -650,9 +650,11 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           </div>
         </div>
 
-        <button id="advSaveBtn" onclick="saveSettings()" style="width:100%;margin-top:14px;background:#1b1b1f;color:#fff;border:none;border-radius:14px;padding:15px;font-weight:800;font-size:14px;cursor:pointer;font-family:'Syne',sans-serif;">
+        <button id="advSaveBtn" onclick="saveAdvanceSettings()" style="width:100%;margin-top:14px;background:#1b1b1f;color:#fff;border:none;border-radius:14px;padding:15px;font-weight:800;font-size:14px;cursor:pointer;font-family:'Syne',sans-serif;">
           💾 Advance Settings Save Karo
         </button>
+        <div class="success-msg" id="advSaveOk">✅ Advance settings save ho gayi!</div>
+        <div class="err-msg" id="advSaveErr"></div>
         <p style="font-size:11px;color:#9b9690;text-align:center;margin-top:10px;">Printer select karne ke baad yahin se save karo — Settings tab jaane ki zaroorat nahi</p>
       </div>
     </div>
@@ -1271,6 +1273,26 @@ function toggleDuplexPrices(){
 }
 
 // ===== PAYMENT SETUP TAB =====
+async function saveAdvanceSettings() {
+  await saveSettings();
+  const src_ok = document.getElementById('settingsSuccess');
+  const src_er = document.getElementById('settingsErr');
+  const ok = document.getElementById('advSaveOk');
+  const er = document.getElementById('advSaveErr');
+  ok.style.display = src_ok.style.display;
+  er.style.display = src_er.style.display;
+  er.textContent = src_er.textContent;
+  // Save button pe bhi turant confirm (scroll na karna pade)
+  const btn = document.getElementById('advSaveBtn');
+  if (src_ok.style.display !== 'none' && btn) {
+    const orig = btn.innerHTML;
+    btn.innerHTML = '✅ Save Ho Gaya!';
+    btn.style.background = '#16a34a';
+    setTimeout(() => { btn.innerHTML = orig; btn.style.background = '#1b1b1f'; }, 2500);
+  }
+  setTimeout(() => { ok.style.display = 'none'; er.style.display = 'none'; }, 4000);
+}
+
 async function savePaymentSettings() {
   await saveSettings();
   // saveSettings apne msg settings-tab wale divs me dikhata hai —
