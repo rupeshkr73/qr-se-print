@@ -362,6 +362,7 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_resume_color INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_resume_bw INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS shop_notice VARCHAR(200) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS advanced_active BOOLEAN DEFAULT true;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS feedback SMALLINT DEFAULT 0;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS duplex BOOLEAN DEFAULT false;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS failure_reason VARCHAR(200) DEFAULT '';
@@ -507,6 +508,18 @@ app.post('/api/shop/supply-warning', verifyToken, async (req, res) => {
 
 // ── 7-din earning breakdown (sirf paid) ──
 // Owner: customer ko dikhne wala notice set/clear
+// Owner: advance feature khud on/off (sirf unlocked shop)
+app.post('/api/shop/advance-active', verifyToken, async (req, res) => {
+  try {
+    const chk = await pool.query('SELECT advanced_unlocked FROM shops WHERE id=$1', [req.shopId]);
+    if (!chk.rows.length || !chk.rows[0].advanced_unlocked)
+      return res.status(403).json({ error: 'Advance feature unlock nahi hai' });
+    const active = req.body.active === true;
+    await pool.query('UPDATE shops SET advanced_active=$1 WHERE id=$2', [active, req.shopId]);
+    res.json({ success: true, active });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/shop/notice', verifyToken, async (req, res) => {
   try {
     const notice = typeof req.body.notice === 'string' ? req.body.notice.slice(0, 200) : '';
@@ -1420,7 +1433,7 @@ app.post('/api/shop/set-password', async (req, res) => {
 app.get('/api/shop/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_resume_color,price_resume_bw,shop_notice FROM shops WHERE id=$1',
+      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_resume_color,price_resume_bw,shop_notice,advanced_active FROM shops WHERE id=$1',
       [req.params.shopId]
     );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
@@ -1428,6 +1441,8 @@ app.get('/api/shop/:shopId', async (req, res) => {
       return res.status(403).json({ error: 'Shop ka setup abhi incomplete hai. Shop owner ko setup fee complete karna hoga.' });
     }
     const shopInfo = r.rows[0];
+    // Customer ke liye advance tabhi ON jab kharida (unlocked) AUR owner ne active rakha
+    shopInfo.advanced_unlocked = !!(shopInfo.advanced_unlocked && shopInfo.advanced_active !== false);
     shopInfo.subscription_expired = !isSubscriptionActive(shopInfo);
     delete shopInfo.paid_until; // customer ko exact date nahi dikhani
     res.json(shopInfo);
@@ -1465,7 +1480,7 @@ app.get('/api/shop/:shopId/stats', async (req, res) => {
 app.get('/api/admin/profile', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT id,name,address,phone,demo,plan_type,paid_until,advanced_unlocked,shop_notice,price_4x6_4,price_4x6_6,price_resume_color,price_resume_bw,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
+      `SELECT id,name,address,phone,demo,plan_type,paid_until,advanced_unlocked,advanced_active,shop_notice,price_4x6_4,price_4x6_6,price_resume_color,price_resume_bw,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
               payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
               CASE WHEN phonepe_salt_key != '' THEN true ELSE false END as has_phonepe_salt
