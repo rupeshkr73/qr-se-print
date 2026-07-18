@@ -280,6 +280,30 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 
     <div data-sect="overview" class="show">
 
+    <!-- DEMO SUPPORT CARD (sirf demo accounts ko dikhta hai) -->
+    <div id="demoSupportCard" class="card" style="display:none;overflow:hidden;padding:0;margin-bottom:20px;">
+      <div style="background:linear-gradient(135deg,#25D366 0%,#128C7E 100%);padding:22px;text-align:center;color:#fff;">
+        <div style="font-size:38px;">💬</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:20px;margin:6px 0 4px;color:#fff;">Any Problem in Setup?</h2>
+        <p style="font-size:13px;opacity:.95;margin:0;">Ya Print Nahi Nikal Raha Hai? — Abhi message likho, WhatsApp par help milega</p>
+      </div>
+      <div style="padding:18px;">
+        <label style="font-size:12px;font-weight:700;color:#128C7E;display:block;margin-bottom:6px;">🏪 Aapki Shop ID</label>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:14px;">
+          <input id="demoSupShopId" readonly style="flex:1;padding:11px 14px;border:1.5px solid #e2ddd6;border-radius:12px;font-family:monospace;font-weight:700;font-size:14px;background:#f7f7f9;">
+          <button onclick="copyDemoShopId()" style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:11px 14px;cursor:pointer;font-size:16px;">📋</button>
+        </div>
+        <label style="font-size:12px;font-weight:700;color:#128C7E;display:block;margin-bottom:6px;">✍️ Apni problem likho</label>
+        <textarea id="demoSupMsg" rows="3" placeholder="Jaise: Print nahi nikal raha / Printer list nahi dikh rahi / Setup me dikkat..." style="width:100%;padding:12px 14px;border:1.5px solid #e2ddd6;border-radius:12px;font-family:'Inter',sans-serif;font-size:14px;resize:vertical;box-sizing:border-box;"></textarea>
+        <button onclick="sendDemoWhatsApp()" style="width:100%;margin-top:14px;background:linear-gradient(135deg,#25D366,#128C7E);color:#fff;border:none;border-radius:14px;padding:15px;font-weight:800;font-size:15px;cursor:pointer;font-family:'Syne',sans-serif;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 20px rgba(37,211,102,.3);">
+          <span style="font-size:20px;">📱</span> WhatsApp Par Bhejo
+        </button>
+        <div style="text-align:center;margin-top:12px;">
+          <a href="https://wa.me/918404832414" target="_blank" style="font-family:'Syne',sans-serif;font-weight:800;font-size:17px;color:#128C7E;text-decoration:none;">📞 84048 32414</a>
+        </div>
+      </div>
+    </div>
+
     <!-- SHOP STATUS: pause + supply -->
     <div class="card" style="margin-bottom:20px;">
       <h2>🏪 Shop Status</h2>
@@ -1441,6 +1465,11 @@ function initSupport(shop) {
   const nav = document.getElementById('navSupport');
   const isDemo = !!(shop && shop.demo);
   if (nav) nav.style.display = isDemo ? 'none' : 'flex';
+  // Demo accounts: support card Overview ke top par (unhe setup-help sabse zyada chahiye)
+  const dsc = document.getElementById('demoSupportCard');
+  if (dsc) dsc.style.display = isDemo ? 'block' : 'none';
+  const dsId = document.getElementById('demoSupShopId');
+  if (dsId && shop) dsId.value = shop.id;
   const idField = document.getElementById('supShopId');
   if (idField && shop) idField.value = shop.id;
 }
@@ -1449,6 +1478,18 @@ function copySupShopId() {
   navigator.clipboard?.writeText(v).then(() => toast('📋 Shop ID copy ho gayi'))
     .catch(() => toast('Copy nahi hua — manually select karo'));
 }
+function copyDemoShopId() {
+  const v = document.getElementById('demoSupShopId').value;
+  navigator.clipboard?.writeText(v).then(() => toast('📋 Shop ID copy ho gayi'))
+    .catch(() => toast('Copy nahi hua'));
+}
+function sendDemoWhatsApp() {
+  const sid = document.getElementById('demoSupShopId').value;
+  const msg = document.getElementById('demoSupMsg').value.trim();
+  const text = `Hello, QR Se Print Support 🙏%0A%0AShop ID: ${sid}%0A%0AProblem: ${encodeURIComponent(msg || '(likha nahi)')}`;
+  window.open(`https://wa.me/${SUPPORT_WA}?text=${text}`, '_blank');
+}
+
 function sendWhatsApp() {
   const sid = document.getElementById('supShopId').value;
   const msg = document.getElementById('supMsg').value.trim();
