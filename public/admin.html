@@ -580,6 +580,17 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
               </div>
             </div>
             <div id="advInner" style="padding:16px;position:relative;">
+        <div id="advActiveRow" style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:14px;padding:14px 16px;margin-bottom:16px;">
+          <div>
+            <div style="font-weight:800;font-size:14px;" id="advActiveLabel">🟢 Advance Feature CHALU</div>
+            <div style="font-size:11px;color:#6b6870;margin-top:2px;">Off karoge to customer ko sirf normal print dikhega (Photo/Resume/A3 chhup jayenge)</div>
+          </div>
+          <label style="position:relative;display:inline-block;width:52px;height:30px;flex-shrink:0;">
+            <input type="checkbox" id="advActiveToggle" onchange="toggleAdvanceActive()" style="opacity:0;width:0;height:0;">
+            <span id="advActiveSlider" style="position:absolute;cursor:pointer;inset:0;background:#16a34a;border-radius:30px;transition:.2s;"></span>
+            <span id="advActiveKnob" style="position:absolute;height:24px;width:24px;left:25px;bottom:3px;background:#fff;border-radius:50%;transition:.2s;"></span>
+          </label>
+        </div>
         <div class="form-group full">
           <label>📷 4×6 PHOTO print kis printer se nikle? (photo printer ho to)</label>
           <select id="setPrinter4x6">
@@ -1321,6 +1332,42 @@ function applyAdvancedLock(shop) {
   if (inner) inner.querySelectorAll('select,input').forEach(el => { el.disabled = locked; });
   const saveBtn = document.getElementById('advSaveBtn');
   if (saveBtn) { saveBtn.style.display = locked ? 'none' : 'block'; }
+  // Active toggle sirf unlocked shops ke liye
+  if (!locked) setAdvActiveUI(shop.advanced_active !== false);
+}
+
+function setAdvActiveUI(active) {
+  const t = document.getElementById('advActiveToggle');
+  const slider = document.getElementById('advActiveSlider');
+  const knob = document.getElementById('advActiveKnob');
+  const label = document.getElementById('advActiveLabel');
+  const row = document.getElementById('advActiveRow');
+  const inner = document.getElementById('advInner');
+  if (!t) return;
+  t.checked = active;
+  slider.style.background = active ? '#16a34a' : '#cbd5e1';
+  knob.style.left = active ? '25px' : '3px';
+  label.textContent = active ? '🟢 Advance Feature CHALU' : '🔴 Advance Feature BAND';
+  row.style.background = active ? '#f0fdf4' : '#fef2f2';
+  row.style.borderColor = active ? '#86efac' : '#fca5a5';
+  // Band hai to printer/price controls faded (par toggle chalu rahe)
+  if (inner) inner.querySelectorAll('select,input:not(#advActiveToggle)').forEach(el => {
+    el.disabled = !active; el.style.opacity = active ? '1' : '.5';
+  });
+  const saveBtn = document.getElementById('advSaveBtn');
+  if (saveBtn) { saveBtn.disabled = !active; saveBtn.style.opacity = active ? '1' : '.5'; }
+}
+
+async function toggleAdvanceActive() {
+  const active = document.getElementById('advActiveToggle').checked;
+  setAdvActiveUI(active);
+  try {
+    const r = await fetch('/api/shop/advance-active', { method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},
+      body: JSON.stringify({ active }) });
+    const d = await r.json();
+    if (!d.success) { setAdvActiveUI(!active); alert('❌ '+(d.error||'Fail')); }
+  } catch(e) { setAdvActiveUI(!active); alert('❌ '+e.message); }
 }
 async function loadAdvancedFee() {
   try {
