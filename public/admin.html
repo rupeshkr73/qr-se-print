@@ -432,6 +432,23 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     </div>
 
     <div class="card">
+      <h2>🎨 Apni Shop Ka Logo</h2>
+      <p style="font-size:12px;color:#6b6870;margin-top:-4px;">Customer jab QR scan karega, aapka logo dikhega (nahi lagaya to default 🖨️ icon)</p>
+      <div style="display:flex;align-items:center;gap:14px;margin-top:12px;flex-wrap:wrap;">
+        <div id="shopLogoPreview" style="width:56px;height:56px;border-radius:14px;background:#ff4d1c;display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;flex-shrink:0;">🖨️</div>
+        <div style="flex:1;min-width:160px;">
+          <input type="file" id="shopLogoFile" accept="image/png" style="font-size:12px;width:100%;">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button onclick="uploadShopLogo()" style="flex:1;background:#ff4d1c;color:#fff;border:none;border-radius:12px;padding:12px;font-weight:800;font-size:14px;cursor:pointer;">⬆️ Logo Upload Karo</button>
+        <button onclick="removeShopLogo()" style="background:#f4f5f8;color:#6b6870;border:none;border-radius:12px;padding:12px 16px;font-weight:700;font-size:13px;cursor:pointer;">🗑️ Hatao</button>
+      </div>
+      <p style="font-size:10.5px;color:#9b9690;margin-top:8px;">⚠️ <b>Sirf PNG (transparent background)</b>, <b>50 KB tak</b>. Square (1:1) logo best. JPG ya bhaari file nahi chalegi.</p>
+      <div id="shopLogoMsg" style="font-size:12px;margin-top:6px;text-align:center;"></div>
+    </div>
+
+    <div class="card">
       <h2>📌 Zaroori Instructions</h2>
       <div style="font-size:13px;color:#333;line-height:2;margin-top:8px;">
         1️⃣ <b>Hamesha latest version install rakho</b> — upar wale green button se. Naye features (duplex, counter approval) aur bug fixes latest version mein hi milte hain.<br>
@@ -1081,6 +1098,7 @@ async function loadAdminPanel() {
     initSupport(shop);
     initNotice(shop);
     loadInsights();
+    initShopLogo(shop);
     applyAdvancedLock(shop);
     loadAdvancedFee();
     shopPaused = !!shop.paused; shopSupply = shop.supply_warning || '';
@@ -1539,6 +1557,45 @@ async function loadAgentVersion(){
     const b1 = document.getElementById('verBannerNum'); if(b1) b1.textContent = v;
     const b2 = document.getElementById('latestVerBtn'); if(b2) b2.textContent = v;
   }catch(e){}
+}
+
+function initShopLogo(shop) {
+  const p = document.getElementById('shopLogoPreview');
+  if (p && shop.shop_logo) {
+    p.innerHTML = '<img src="'+shop.shop_logo+'" style="width:100%;height:100%;object-fit:cover;">';
+    p.style.background = '#fff';
+  }
+}
+async function uploadShopLogo() {
+  const f = document.getElementById('shopLogoFile').files[0];
+  const msg = document.getElementById('shopLogoMsg');
+  if (!f) { msg.style.color='#dc2626'; msg.textContent='Pehle file chuno'; return; }
+  // Client pre-check — server bhi check karta hai, par yahan turant bata do
+  if (f.type !== 'image/png') { msg.style.color='#dc2626'; msg.textContent='❌ Sirf PNG file chalegi (transparent background wali)'; return; }
+  if (f.size > 50 * 1024) { msg.style.color='#dc2626'; msg.textContent='❌ Logo 50 KB se chhota ho (abhi '+Math.round(f.size/1024)+' KB hai)'; return; }
+  const fd = new FormData(); fd.append('logo', f);
+  msg.style.color='#6b6870'; msg.textContent='⏳ Upload ho raha hai...';
+  try {
+    const r = await fetch('/api/shop/upload-logo', { method:'POST', headers:{'Authorization':'Bearer '+authToken}, body: fd });
+    const d = await r.json();
+    if (d.success) {
+      const p = document.getElementById('shopLogoPreview');
+      p.innerHTML = '<img src="'+d.logoUrl+'" style="width:100%;height:100%;object-fit:cover;">'; p.style.background='#fff';
+      msg.style.color='#16a34a'; msg.textContent='✅ Logo lag gaya! Customer ko ab ye dikhega';
+    } else { msg.style.color='#dc2626'; msg.textContent='❌ '+(d.error||'Fail'); }
+  } catch(e) { msg.style.color='#dc2626'; msg.textContent='❌ '+e.message; }
+}
+async function removeShopLogo() {
+  const msg = document.getElementById('shopLogoMsg');
+  try {
+    const r = await fetch('/api/shop/remove-logo', { method:'POST', headers:{'Authorization':'Bearer '+authToken} });
+    const d = await r.json();
+    if (d.success) {
+      const p = document.getElementById('shopLogoPreview');
+      p.innerHTML = '🖨️'; p.style.background='#ff4d1c';
+      msg.style.color='#16a34a'; msg.textContent='✅ Logo hata diya — ab default icon dikhega';
+    }
+  } catch(e) { msg.style.color='#dc2626'; msg.textContent='❌ '+e.message; }
 }
 
 function downloadReadme(){

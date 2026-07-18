@@ -177,7 +177,7 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
 <div class="wrap">
 
   <div class="shop-header">
-    <div class="shop-icon">🖨️</div>
+    <div class="shop-icon" id="shopIconBox">🖨️</div>
     <div class="shop-info">
       <h2 id="shopName">Loading...</h2>
       <p id="shopAddr"></p>
@@ -394,14 +394,8 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
   </div>
 
   <div class="footer">
-    <p>© 2026 All Rights Reserved | This System is Developed by Rupesh Kumar Mahato</p>
-    <a href="https://instagram.com/rupeshkr73" target="_blank" rel="noopener" class="footer-insta" aria-label="Instagram">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect x="2" y="2" width="20" height="20" rx="5" stroke="currentColor" stroke-width="2"/>
-        <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"/>
-        <circle cx="17.5" cy="6.5" r="1.2" fill="currentColor"/>
-      </svg>
-    </a>
+    <p style="font-weight:700;color:#6b6870;">⚡ Powered by <b style="color:#ff4d1c;">QR Se Print</b></p>
+    <p style="font-size:10px;color:#b8b3aa;">© 2026 QR Se Print · All Rights Reserved<br>Developed by Rupesh Kumar Mahato</p>
   </div>
 
 </div>
@@ -560,6 +554,16 @@ async function init() {
     }
 
     state.shopDuplexMode = shop.duplex_mode || '';
+    // Owner ka logo — orange box ke andar (nahi hai to default 🖨️ rehta hai)
+    if (shop.shop_logo && shop.shop_logo.trim()) {
+      const box = document.getElementById('shopIconBox');
+      if (box) {
+        box.innerHTML = '<img src="' + shop.shop_logo + '" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:14px;">';
+        box.style.background = '#fff';
+        box.style.padding = '0';
+        box.style.overflow = 'hidden';
+      }
+    }
     // Owner ka notice (offer/soochna) — top strip
     if (shop.shop_notice && shop.shop_notice.trim()) {
       const n = document.createElement('div');
