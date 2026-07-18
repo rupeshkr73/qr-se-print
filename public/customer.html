@@ -227,7 +227,7 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
       <input type="file" id="addDocInput" accept=".jpg,.jpeg,.png,.pdf" multiple class="hidden" onchange="handleAddDocument(this)">
 
       <div class="edit-toolbar">
-        <select class="edit-btn" id="paperSizeSel" onchange="changePaperSize()" style="appearance:auto;font-family:'Inter',sans-serif;">
+        <select class="edit-btn" id="paperSizeSel" onchange="changePaperSize()" style="appearance:auto;font-family:'Inter',sans-serif;display:none;">
           <option value="4x6">📷 4×6 Photo</option>
           <option value="a4" selected>📄 A4</option>
           <option value="a5">📄 A5</option>
@@ -237,7 +237,7 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
           <option value="a2">📄 A2</option>
           <option value="a1">📄 A1</option>
         </select>
-        <button class="edit-btn" id="orientBtn" onclick="toggleOrientation()">📄 Portrait</button>
+        <button class="edit-btn" id="orientBtn" onclick="toggleOrientation()" style="display:none;">📄 Portrait</button>
         <button class="edit-btn" onclick="toolAutoA4()">🤖 Auto Fit</button>
         <button class="edit-btn" id="rotateBtn" onclick="toolToggleRotate()">🔄 Rotate</button>
         <button class="edit-btn" id="adjustBtn" onclick="toolToggleAdjust()">🎨 Brightness/Contrast</button>
@@ -1056,17 +1056,22 @@ async function checkResumeHandoff() {
 //  - HAAN: service menu (Document Print / Big Size A3) + saare paper options
 //  (Resume Maker + 4x6 Photo isi menu me aayenge — agla update)
 function applyAdvancedGate(shop) {
+  // Server ne advanced_unlocked ko (unlocked AND active) bana ke bheja hai —
+  // to off/locked dono case me yahan false milega, dropdown chhupa rahega
   const adv = !!shop.advanced_unlocked;
   window.__shopAdvanced = adv;
   const sel = document.getElementById('paperSizeSel');
   const ori = document.getElementById('orientBtn');
   if (!adv) {
-    if (sel) sel.style.display = 'none';
+    if (sel) sel.style.display = 'none';   // A4-only, koi dropdown nahi
     if (ori) ori.style.display = 'none';
     state.paperSize = 'a4';
     state.orientation = 'portrait';
     return;
   }
+  // Advance ON — ab dikhaao
+  if (sel) sel.style.display = '';
+  if (ori) ori.style.display = '';
   // Service menu — upload zone ke upar
   const zone = document.getElementById('uploadZone');
   if (zone && !document.getElementById('svcMenu')) {
