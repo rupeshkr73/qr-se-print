@@ -150,6 +150,30 @@ const PRINTER_MODELS = [
   'Other (Manually Type Below)'
 ];
 
+// PNG signature check (magic bytes)
+function isPng(buf) {
+  return buf && buf.length > 8 &&
+    buf[0]===0x89 && buf[1]===0x50 && buf[2]===0x4E && buf[3]===0x47 &&
+    buf[4]===0x0D && buf[5]===0x0A && buf[6]===0x1A && buf[7]===0x0A;
+}
+
+// PNG me transparency hai? IHDR color type padho (offset 25):
+//  type 4 = grayscale+alpha, 6 = RGBA -> alpha channel hai.
+//  type 3 (palette) me tRNS chunk ho to bhi transparent ho sakta hai.
+function pngHasAlpha(buf) {
+  try {
+    if (!isPng(buf) || buf.length < 26) return false;
+    const colorType = buf[25];   // IHDR: width(4)+height(4)+bitdepth(1)+colortype(1) => index 25
+    if (colorType === 4 || colorType === 6) return true;   // alpha channel present
+    if (colorType === 3) {
+      // palette PNG: tRNS chunk dhundo
+      const s = buf.toString('latin1');
+      return s.includes('tRNS');
+    }
+    return false;
+  } catch(e) { return false; }
+}
+
 async function uploadImageToCloudinary(fileBuffer, mimeType) {
   if (!CLOUD_NAME || !CLD_API_KEY || !CLD_API_SECRET) return Promise.reject(new Error('Cloudinary configured nahi'));
   return new Promise((resolve, reject) => {
@@ -363,6 +387,7 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_resume_bw INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS shop_notice VARCHAR(200) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS advanced_active BOOLEAN DEFAULT true;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS shop_logo VARCHAR(400) DEFAULT '';
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS feedback SMALLINT DEFAULT 0;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS duplex BOOLEAN DEFAULT false;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS failure_reason VARCHAR(200) DEFAULT '';
@@ -509,6 +534,33 @@ app.post('/api/shop/supply-warning', verifyToken, async (req, res) => {
 // ── 7-din earning breakdown (sirf paid) ──
 // Owner: customer ko dikhne wala notice set/clear
 // Owner: advance feature khud on/off (sirf unlocked shop)
+// Owner: apni shop ka logo upload (customer QR page par dikhega)
+app.post('/api/shop/upload-logo', verifyToken, upload.single('logo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Koi file nahi' });
+    // SIRF PNG (transparent background ke liye) — JPG/WEBP allowed nahi
+    if (req.file.mimetype !== 'image/png' || !isPng(req.file.buffer))
+      return res.status(400).json({ error: 'Sirf PNG file chalegi (transparent background wali)' });
+    // Max 50 KB
+    if (req.file.size > 50 * 1024)
+      return res.status(400).json({ error: `Logo 50 KB se chhota hona chahiye (abhi ${Math.round(req.file.size/1024)} KB hai)` });
+    // Transparency check — PNG me alpha channel hona chahiye
+    if (!pngHasAlpha(req.file.buffer))
+      return res.status(400).json({ error: 'PNG transparent background wali honi chahiye (abhi solid background hai)' });
+    const url = await uploadImageToCloudinary(req.file.buffer, req.file.mimetype);
+    await pool.query('UPDATE shops SET shop_logo=$1 WHERE id=$2', [url, req.shopId]);
+    res.json({ success: true, logoUrl: url });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Owner: logo hatao
+app.post('/api/shop/remove-logo', verifyToken, async (req, res) => {
+  try {
+    await pool.query("UPDATE shops SET shop_logo='' WHERE id=$1", [req.shopId]);
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/shop/advance-active', verifyToken, async (req, res) => {
   try {
     const chk = await pool.query('SELECT advanced_unlocked FROM shops WHERE id=$1', [req.shopId]);
@@ -1433,7 +1485,7 @@ app.post('/api/shop/set-password', async (req, res) => {
 app.get('/api/shop/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_resume_color,price_resume_bw,shop_notice,advanced_active FROM shops WHERE id=$1',
+      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_resume_color,price_resume_bw,shop_notice,advanced_active,shop_logo FROM shops WHERE id=$1',
       [req.params.shopId]
     );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
@@ -1480,7 +1532,7 @@ app.get('/api/shop/:shopId/stats', async (req, res) => {
 app.get('/api/admin/profile', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT id,name,address,phone,demo,plan_type,paid_until,advanced_unlocked,advanced_active,shop_notice,price_4x6_4,price_4x6_6,price_resume_color,price_resume_bw,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
+      `SELECT id,name,address,phone,demo,plan_type,paid_until,advanced_unlocked,advanced_active,shop_notice,shop_logo,price_4x6_4,price_4x6_6,price_resume_color,price_resume_bw,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
               payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
               CASE WHEN phonepe_salt_key != '' THEN true ELSE false END as has_phonepe_salt
