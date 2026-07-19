@@ -43,6 +43,7 @@
   <div id="goBox" class="hidden">
     <p style="color:#16a34a;font-weight:700;text-align:center;">✅ Login ho gaya</p>
     <button class="btn-go" id="goBtn" onclick="migrate()">📦 Data Copy Karo (Railway → Supabase)</button>
+    <button style="background:#2563eb;color:#fff;margin-top:12px;" onclick="checkCounts()">🔍 Check Karo — Supabase me kitna data aaya</button>
     <div class="msg" id="goMsg"></div>
     <div class="report hidden" id="report"></div>
   </div>
@@ -72,6 +73,26 @@ async function login() {
       msg.textContent = '❌ ' + (d.error || 'Login fail');
       msg.style.color = '#dc2626';
     }
+  } catch(e) {
+    msg.textContent = '❌ ' + e.message;
+    msg.style.color = '#dc2626';
+  }
+}
+
+async function checkCounts() {
+  const msg = document.getElementById('goMsg');
+  const report = document.getElementById('report');
+  msg.textContent = '⏳ Supabase me count check ho raha hai...';
+  msg.style.color = '#6b6870';
+  try {
+    const r = await fetch('/api/superadmin/db-counts', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const d = await r.json();
+    msg.textContent = '✅ Supabase (naya database) me abhi itna data hai:';
+    msg.style.color = '#2563eb';
+    report.classList.remove('hidden');
+    report.textContent = JSON.stringify(d, null, 2);
   } catch(e) {
     msg.textContent = '❌ ' + e.message;
     msg.style.color = '#dc2626';
