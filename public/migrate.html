@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Data Migration — QR Se Print</title>
+<style>
+  body{font-family:system-ui,-apple-system,sans-serif;background:#f4f4f7;margin:0;padding:20px;color:#1b1b1f}
+  .card{max-width:440px;margin:30px auto;background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 20px rgba(0,0,0,.08)}
+  h1{font-size:20px;margin:0 0 4px}
+  p.sub{color:#6b6870;font-size:13px;margin:0 0 20px}
+  label{display:block;font-weight:700;font-size:13px;margin:14px 0 6px}
+  input{width:100%;padding:12px 14px;border:1.5px solid #e2ddd6;border-radius:12px;font-size:15px;box-sizing:border-box}
+  button{width:100%;margin-top:20px;padding:15px;border:none;border-radius:12px;font-weight:800;font-size:15px;cursor:pointer}
+  .btn-login{background:#1b1b1f;color:#fff}
+  .btn-go{background:#16a34a;color:#fff}
+  .btn-go:disabled{opacity:.5}
+  .msg{margin-top:14px;font-size:14px;line-height:1.7;text-align:center}
+  .hidden{display:none}
+  .report{margin-top:16px;background:#f7f7f9;border-radius:12px;padding:14px;font-size:13px;font-family:monospace;white-space:pre-wrap;max-height:300px;overflow:auto}
+  .warn{background:#fffbeb;border:1.5px solid #fcd34d;border-radius:12px;padding:12px;font-size:12px;color:#92400e;margin-bottom:16px}
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🚚 Data Migration</h1>
+  <p class="sub">Railway database ka data Supabase me copy karo</p>
+
+  <div class="warn">
+    ⚠️ Ye button Railway (purana) se Supabase (naya) me sab data copy karega. Ek se zyada baar dabana safe hai — dobara wahi data copy nahi hoga (skip ho jayega).
+  </div>
+
+  <div id="loginBox">
+    <label>Super Admin ID</label>
+    <input id="adminId" placeholder="Super Admin ID">
+    <label>Password</label>
+    <input id="password" type="password" placeholder="Password">
+    <button class="btn-login" onclick="login()">Login Karo</button>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+
+  <div id="goBox" class="hidden">
+    <p style="color:#16a34a;font-weight:700;text-align:center;">✅ Login ho gaya</p>
+    <button class="btn-go" id="goBtn" onclick="migrate()">📦 Data Copy Karo (Railway → Supabase)</button>
+    <div class="msg" id="goMsg"></div>
+    <div class="report hidden" id="report"></div>
+  </div>
+</div>
+
+<script>
+let token = '';
+
+async function login() {
+  const adminId = document.getElementById('adminId').value.trim();
+  const password = document.getElementById('password').value;
+  const msg = document.getElementById('loginMsg');
+  msg.textContent = '⏳ Login ho raha hai...';
+  msg.style.color = '#6b6870';
+  try {
+    const r = await fetch('/api/superadmin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ adminId, password })
+    });
+    const d = await r.json();
+    if (d.success && d.token) {
+      token = d.token;
+      document.getElementById('loginBox').classList.add('hidden');
+      document.getElementById('goBox').classList.remove('hidden');
+    } else {
+      msg.textContent = '❌ ' + (d.error || 'Login fail');
+      msg.style.color = '#dc2626';
+    }
+  } catch(e) {
+    msg.textContent = '❌ ' + e.message;
+    msg.style.color = '#dc2626';
+  }
+}
+
+async function migrate() {
+  const btn = document.getElementById('goBtn');
+  const msg = document.getElementById('goMsg');
+  const report = document.getElementById('report');
+  btn.disabled = true;
+  msg.textContent = '⏳ Data copy ho raha hai... 1-2 minute lag sakte hain, page band mat karo.';
+  msg.style.color = '#6b6870';
+  try {
+    const r = await fetch('/api/superadmin/migrate-db', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    const d = await r.json();
+    if (d.success) {
+      msg.textContent = '✅ Data copy ho gaya! Neeche dekho kitne rows aaye:';
+      msg.style.color = '#16a34a';
+      report.classList.remove('hidden');
+      report.textContent = JSON.stringify(d.report, null, 2);
+    } else {
+      msg.textContent = '❌ ' + (d.error || 'Fail');
+      msg.style.color = '#dc2626';
+      btn.disabled = false;
+    }
+  } catch(e) {
+    msg.textContent = '❌ ' + e.message;
+    msg.style.color = '#dc2626';
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>
