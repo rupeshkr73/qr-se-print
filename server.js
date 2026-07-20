@@ -954,9 +954,12 @@ app.post('/api/demo/create', async (req, res) => {
     if (!name) return res.status(400).json({ error: 'Naam daalo' });
     if (!phone) return res.status(400).json({ error: 'Sahi 10-digit mobile number daalo' });
 
-    // Layer 1: phone permanent lock
+    // Layer 1: phone permanent lock — demo_registrations AUR shops dono check
+    // karo. (Migration me demo_registrations khali reh gaya tha to ye double
+    // safety hai — duplicate demo shops nahi banenge.)
     const dup = await pool.query('SELECT id FROM demo_registrations WHERE phone=$1', [phone]);
-    if (dup.rows.length)
+    const dupShop = await pool.query('SELECT id FROM shops WHERE phone=$1 AND demo=true', [phone]);
+    if (dup.rows.length || dupShop.rows.length)
       return res.status(400).json({ error: 'Is number par demo pehle liya ja chuka hai. Pasand aaya tha? Ab register karo 🙂' });
 
     // Layer 2: IP — max 2 demo/din
@@ -973,7 +976,17 @@ app.post('/api/demo/create', async (req, res) => {
                           setup_paid, setup_amount, demo, demo_expires_at)
        VALUES ($1,$2,$3,5,10,'counter_only',$4,true,0,true,NOW() + ($5 || ' minutes')::INTERVAL)`,
       [shopId, name + ' (Demo)', phone, passwordHash, String(cfg.minutes)]);
-    await pool.query('INSERT INTO demo_registrations (phone, ip, shop_id) VALUES ($1,$2,$3)', [phone, ip, shopId]);
+    // Unique index (uniq_demo_reg_phone) DB pe race ko bhi rok deta hai —
+    // agar do request ek saath aaye to doosri yahan safely fail hogi.
+    try {
+      await pool.query('INSERT INTO demo_registrations (phone, ip, shop_id) VALUES ($1,$2,$3)', [phone, ip, shopId]);
+    } catch (e) {
+      if (e.code === '23505') { // unique_violation — phone pehle se locked
+        await pool.query('DELETE FROM shops WHERE id=$1', [shopId]); // abhi bana shop rollback
+        return res.status(400).json({ error: 'Is number par demo pehle liya ja chuka hai. Ab register karo 🙂' });
+      }
+      throw e;
+    }
 
     const qrUrl = `${BASE_URL}/print/${shopId}`;
     const qrCode = await QRCode.toDataURL(qrUrl, { width: 300, margin: 2 });
