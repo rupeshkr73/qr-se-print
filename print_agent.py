@@ -257,36 +257,55 @@ def resolve_shop_id():
 
     return shop_id
 
-# ─── SINGLE INSTANCE LOCK ─────────────────────────────────────────────
-# Startup-registry + owner ka manually exe kholna = 2 agents ek saath =
-# dono same pending jobs poll karke DOUBLE PRINT nikaalte — customer ka
-# paisa ek copy ka, paper/ink do ka. Mutex se sirf pehla instance chalta
-# hai, baaki chupchaap exit ho jaate hain.
-# NOTE: yeh check module-level pe hai (resolve_shop_id se PEHLE) taaki
-# duplicate instance Shop ID popup tak bhi na pahunche.
-_mutex_handle = [None]
+# ─── SINGLE INSTANCE LOCK (crash-safe, PID based) ─────────────────────
+# Purana Windows Mutex crash/sleep/force-kill pe orphan reh jaata tha —
+# phir naya agent "already exists" samajh ke chupchaap exit ho jaata,
+# tray me kuch nahi aata. Ab PID lockfile use karte hain: agar lock file
+# me likha process ZINDA hai tabhi exit karo; warna (crash ho chuka hai)
+# lock ko apne naam kar lo. Isse double-print bhi rukta hai aur silent
+# exit wala bug bhi khatam.
+_LOCK_FILE = os.path.join(_APPDATA_DIR, "agent.lock")
+
+def _pid_alive(pid):
+    """Kya is PID ka process abhi chal raha hai?"""
+    try:
+        import ctypes
+        PROCESS_QUERY = 0x1000
+        h = ctypes.windll.kernel32.OpenProcess(PROCESS_QUERY, False, pid)
+        if not h:
+            return False
+        exit_code = ctypes.c_ulong(0)
+        ctypes.windll.kernel32.GetExitCodeProcess(h, ctypes.byref(exit_code))
+        ctypes.windll.kernel32.CloseHandle(h)
+        return exit_code.value == 259  # STILL_ACTIVE
+    except Exception:
+        return False
 
 def _ensure_single_instance():
     try:
-        import ctypes
-        ERROR_ALREADY_EXISTS = 183
-        handle = ctypes.windll.kernel32.CreateMutexW(
-            None, False, "Global\\QRSePrint_Agent_SingleInstance")
-        if ctypes.windll.kernel32.GetLastError() == ERROR_ALREADY_EXISTS:
-            return False
-        _mutex_handle[0] = handle
+        if os.path.exists(_LOCK_FILE):
+            try:
+                with open(_LOCK_FILE, "r", encoding="utf-8") as f:
+                    old_pid = int(f.read().strip() or "0")
+            except Exception:
+                old_pid = 0
+            # Purana PID abhi bhi zinda + wo hum khud nahi = sach me duplicate
+            if old_pid and old_pid != os.getpid() and _pid_alive(old_pid):
+                return False
+            # warna lock stale hai (crash/sleep ke baad bacha hua) — reclaim
+        with open(_LOCK_FILE, "w", encoding="utf-8") as f:
+            f.write(str(os.getpid()))
         return True
     except Exception as e:
-        log(f"⚠️  Mutex check fail (fail-open): {e}", "WARN")
-        return True
+        log(f"⚠️  Lock check fail (fail-open): {e}", "WARN")
+        return True  # kabhi block mat karo agar lock hi fail ho jaaye
 
 def _release_mutex():
     try:
-        import ctypes
-        if _mutex_handle[0]:
-            ctypes.windll.kernel32.ReleaseMutex(_mutex_handle[0])
-            ctypes.windll.kernel32.CloseHandle(_mutex_handle[0])
-            _mutex_handle[0] = None
+        if os.path.exists(_LOCK_FILE):
+            with open(_LOCK_FILE, "r", encoding="utf-8") as f:
+                if f.read().strip() == str(os.getpid()):
+                    os.remove(_LOCK_FILE)
     except Exception:
         pass
 
