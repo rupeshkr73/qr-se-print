@@ -340,6 +340,7 @@ textarea.fi{resize:vertical;min-height:65px}
     <button class="btn btn-p" onclick="goForm()" id="tplBtn" style="box-shadow:0 4px 20px rgba(37,99,235,.4)">
       ✅ Aage Badhein → <span id="tplSelName" style="font-size:11px;opacity:.8;font-weight:400"></span>
     </button>
+    <button class="btn" onclick="demoPrintCheck()" style="width:100%;margin-top:8px;background:#fff;border:2px dashed #2563eb;color:#2563eb;font-weight:800;">🖨️ Demo Print Check</button>
   </div>
 </div>
 </div>
@@ -1119,6 +1120,27 @@ function retakePhoto() {
 // COLLECT DATA
 // ══════════════════════════════════════════════
 function gv(id){return(document.getElementById(id)?.value||'').trim();}
+
+// Demo Print Check — placeholder-filled resume, print quality test ke liye
+function demoPrintCheck() {
+  const set = (id, v) => { const e = document.getElementById(id); if (e) e.value = v; };
+  set('f_name','NAME'); set('f_father','FATHER NAME');
+  set('f_dob','2000-01-01'); set('f_phone','0000000000');
+  const g = document.getElementById('f_gender'); if (g && !g.value) g.selectedIndex = 1;
+  set('f_skills','SKILL 1, SKILL 2'); set('f_stream','STREAM');
+  set('e10_board','BOARD NAME'); set('e10_year','0000');
+  ['a_vill','a_po','a_ps','a_dist','a_state'].forEach(id => set(id,'ADDRESS'));
+  set('a_pin','000000'); set('a_city','CITY');
+  ['a_cpo','a_cps','a_cdist','a_cstate'].forEach(id => set(id,'ADDRESS'));
+  set('a_cpin','000000');
+  // Photo ki jagah sirf gray box
+  const pc = document.createElement('canvas'); pc.width = 413; pc.height = 531;
+  const px = pc.getContext('2d'); px.fillStyle = '#c8c8c8'; px.fillRect(0,0,413,531);
+  photoURL = pc.toDataURL('image/png');
+  // Poora flow auto — template se seedha preview/print tak
+  goForm(); nxt('A'); nxt('B'); nxt('C'); nxt('D');
+  toast('🖨️ Demo resume ready — payment karke print quality check karo');
+}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 
 function collect() {
