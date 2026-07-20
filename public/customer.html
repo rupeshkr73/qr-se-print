@@ -799,6 +799,25 @@ function setServiceBadge() {
   if (state.service === 'photo4x6') { t.textContent = '📷 4×6 Photo — ' + (state.photoCount||4) + ' Photos'; b.style.display='block'; }
   else if (state.service === 'resume') { t.textContent = '📄 Resume Print'; b.style.display='block'; }
   else b.style.display = 'none';
+  // Upar header ke price chips bhi service ke hisaab se badlo —
+  // photo/resume mode me normal ₹/page chips misleading hain
+  const bw = document.getElementById('priceBWBadge');
+  const cl = document.getElementById('priceColorBadge');
+  if (bw && cl) {
+    const rate = (typeof getServiceRate === 'function') ? getServiceRate() : 0;
+    if (state.service === 'photo4x6' && rate > 0) {
+      bw.style.display = 'none';
+      cl.textContent = '📷 ' + state.photoCount + ' Photos: ₹' + rate + '/sheet';
+    } else if (state.service === 'resume' && rate > 0) {
+      bw.style.display = 'none';
+      cl.textContent = '📄 Resume: ₹' + rate;
+    } else {
+      bw.style.display = '';
+      // original chips wapas (shop prices se)
+      if (state.priceBW) bw.textContent = 'B&W: ₹' + state.priceBW + '/page';
+      if (state.priceColor) cl.textContent = 'Color: ₹' + state.priceColor + '/page';
+    }
+  }
 }
 
 // ═══ ZOOM: slider (center se) + do-ungli pinch ═══
@@ -2174,6 +2193,7 @@ function getTotal() {
   return pricePerPage * getEffectivePageCount() * state.copies;
 }
 function updatePriceSummary() {
+  setServiceBadge();
   const rate = getServiceRate();
   const printPages = getEffectivePageCount();
   const bwCard = document.getElementById('optBW');
