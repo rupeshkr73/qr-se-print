@@ -227,6 +227,17 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       <div id="installerUrlMsg" style="font-size:12px;margin-top:6px;display:none;"></div>
     </div>
 
+    <div class="card" style="margin-bottom:20px;border:1.5px solid #fcd34d !important;background:#fffdf5 !important;">
+      <h2><span>📢 Important Message (Sabhi Shops ko dikhega)</span></h2>
+      <p style="font-size:12px;color:#6b6870;margin-bottom:12px;">Ye message har shop ke login Overview par top pe dikhega. Khali chhod ke Save karoge to message hat jayega.</p>
+      <textarea id="broadcastInput" rows="3" placeholder="Jaise: Kal server maintenance rahega 2-3 baje / Naya update aa gaya, install karo..." style="width:100%;padding:12px 14px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:13px;font-family:'Inter',sans-serif;resize:vertical;box-sizing:border-box;"></textarea>
+      <div style="display:flex;gap:10px;margin-top:12px;">
+        <button class="filter-tab" style="flex:1;padding:12px;background:#f59e0b;color:#fff;border-color:#f59e0b;font-size:14px;font-weight:800;" onclick="saveBroadcast()">💾 Message Save Karo</button>
+        <button class="filter-tab" style="padding:12px 20px;background:#fff;color:#b91c1c;border-color:#fca5a5;font-size:13px;font-weight:700;" onclick="clearBroadcast()">🗑️ Hatao</button>
+      </div>
+      <div id="broadcastMsg" style="font-size:12px;margin-top:8px;display:none;"></div>
+    </div>
+
     <div class="card" style="margin-bottom:20px;">
       <h2><span>🔄 Print Agent Auto-Update</span></h2>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:#f8f7f5;border-radius:14px;padding:16px 20px;margin-bottom:14px;">
@@ -711,6 +722,7 @@ async function completeWithdrawal(id, amount){
 
 async function loadPanel() {
   loadHomepageConfig();
+  loadBroadcast();
   loadWithdrawals();
   loadDemos();
   loadDemoConfig();
@@ -979,6 +991,35 @@ async function renderShops() {
 
 // ═══ HOMEPAGE EDIT ═══
 let _hpCfg = {};
+async function loadBroadcast() {
+  try {
+    const r = await fetch('/api/admin-broadcast');
+    const d = await r.json();
+    document.getElementById('broadcastInput').value = d.message || '';
+  } catch(e) {}
+}
+
+async function saveBroadcast() {
+  const msg = document.getElementById('broadcastMsg');
+  const val = document.getElementById('broadcastInput').value.trim();
+  try {
+    const r = await fetch('/api/superadmin/admin-broadcast', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},
+      body: JSON.stringify({ message: val })
+    });
+    const d = await r.json();
+    msg.style.display = 'block';
+    if (d.success) { msg.style.color='#16a34a'; msg.textContent = val ? '✅ Save ho gaya — ab sabhi shops ko dikhega' : '✅ Message hata diya'; }
+    else { msg.style.color='#dc2626'; msg.textContent='❌ '+(d.error||'Fail'); }
+  } catch(e) { msg.style.display='block'; msg.style.color='#dc2626'; msg.textContent='❌ '+e.message; }
+}
+
+function clearBroadcast() {
+  document.getElementById('broadcastInput').value = '';
+  saveBroadcast();
+}
+
 async function loadHomepageConfig() {
   try {
     const r = await fetch('/api/superadmin/homepage-config', { headers:{'Authorization':'Bearer '+authToken} });

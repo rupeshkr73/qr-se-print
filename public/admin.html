@@ -280,6 +280,15 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 
     <div data-sect="overview" class="show">
 
+    <!-- ADMIN BROADCAST — superadmin ka message, sabhi shops ko dikhta hai -->
+    <div id="adminBroadcastCard" style="display:none;margin-bottom:20px;border:1.5px solid #fcd34d;border-radius:16px;background:linear-gradient(135deg,#fffbeb,#fef3c7);padding:18px 20px;box-shadow:0 4px 14px rgba(251,191,36,.15);">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:20px;">📢</span>
+        <span style="font-family:'Syne',sans-serif;font-weight:800;font-size:15px;color:#92400e;">Important Message — Admin ki taraf se</span>
+      </div>
+      <div id="adminBroadcastText" style="font-size:14px;color:#78350f;line-height:1.6;white-space:pre-wrap;word-break:break-word;"></div>
+    </div>
+
     <!-- DEMO SUPPORT CARD (sirf demo accounts ko dikhta hai) -->
     <div id="demoSupportCard" class="card" style="display:none;overflow:hidden;padding:0;margin-bottom:20px;">
       <div style="background:linear-gradient(135deg,#25D366 0%,#128C7E 100%);padding:22px;text-align:center;color:#fff;">
@@ -1121,6 +1130,7 @@ async function loadAdminPanel() {
     renderSubscription(shop);
     initSupport(shop);
     initNotice(shop);
+    loadAdminBroadcast();
     loadInsights();
     initShopLogo(shop);
     applyAdvancedLock(shop);
@@ -1302,6 +1312,21 @@ async function loadReferral(shopId) {
   } catch(e) { console.error('referral load', e); }
 }
 function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+async function loadAdminBroadcast() {
+  try {
+    const r = await fetch('/api/admin-broadcast');
+    const d = await r.json();
+    const card = document.getElementById('adminBroadcastCard');
+    const txt = document.getElementById('adminBroadcastText');
+    if (d.message && d.message.trim()) {
+      txt.textContent = d.message;   // textContent = XSS-safe, esc ki zaroorat nahi
+      card.style.display = 'block';
+    } else {
+      card.style.display = 'none';
+    }
+  } catch(e) {}
+}
 function copyRefLink(){
   const inp = document.getElementById('refLink');
   navigator.clipboard.writeText(inp.value).then(()=>toast('📋 Referral link copied!'));
