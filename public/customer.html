@@ -1268,7 +1268,12 @@ async function checkResumeHandoff() {
     await loadPdfAsPages(file);
     activePageIdx = 0;
     renderEditor();
-    toast('✅ Resume aa gaya — Aage Badho dabao');
+    // Resume tool me template/preview/price sab ho chuka — canvas dobara
+    // dikhana confusion hai. Seedha Payment step pe jao.
+    hide('secEditor'); hide('secPreviewStep');
+    show('secPayment'); setStep(4);
+    updatePriceSummary();
+    toast('✅ Resume ready — bas payment karo, print automatic');
   } catch(e) { toast('❌ Resume load fail: ' + e.message); }
 }
 
