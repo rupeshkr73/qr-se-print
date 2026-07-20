@@ -2199,6 +2199,19 @@ function updatePriceSummary() {
   const bwCard = document.getElementById('optBW');
   // 4x6 photo hamesha color — B&W card chhupao taaki galat option na dikhe
   if (bwCard) bwCard.style.display = (state.service === 'photo4x6' && rate > 0) ? 'none' : '';
+  // Cards ke price labels bhi service ke hisaab se (₹/page ki jagah asli rate)
+  const bwP = document.getElementById('optBWPrice');
+  const clP = document.getElementById('optColorPrice');
+  const P2 = window.__shopPrices || {};
+  if (clP) {
+    if (state.service === 'photo4x6' && rate > 0) clP.textContent = '₹' + rate + '/sheet';
+    else if (state.service === 'resume' && (P2.rc || 0) > 0) clP.textContent = '₹' + P2.rc + '/resume';
+    else clP.textContent = '₹' + state.priceColor + '/page';
+  }
+  if (bwP) {
+    if (state.service === 'resume' && (P2.rb || 0) > 0) bwP.textContent = '₹' + P2.rb + '/resume';
+    else bwP.textContent = '₹' + state.priceBW + '/page';
+  }
   if (rate > 0) {
     const total = rate * state.copies;
     const label = state.service === 'photo4x6'
