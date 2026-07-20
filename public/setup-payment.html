@@ -84,7 +84,7 @@ nav{background:#0a0a0f;padding:16px 24px}
       <li>✅ <span>Unlimited print orders, koi commission nahi</span></li>
     </ul>
 
-    <button class="pay-btn" id="payBtn" onclick="initiatePayment()">Pay ₹499 Karke Setup Complete Karo</button>
+    <button class="pay-btn" id="payBtn" onclick="initiatePayment()">Pay Karke Setup Complete Karo</button>
     <div class="err-msg" id="errMsg"></div>
   </div>
 
@@ -130,6 +130,8 @@ nav{background:#0a0a0f;padding:16px 24px}
 
 <script>
 const shopId = location.pathname.split('/').pop();
+let CURRENT_AMOUNT = null; // DB se aayi actual price — single source of truth
+function payLabel(){ return CURRENT_AMOUNT ? ('Pay ₹' + CURRENT_AMOUNT + ' Karke Setup Complete Karo') : 'Pay Karke Setup Complete Karo'; }
 
 // Plan-aware header — monthly par LIFETIME kabhi nahi likhna (galat promise)
 (async () => {
@@ -140,7 +142,10 @@ const shopId = location.pathname.split('/').pop();
     const lbl = document.getElementById('feeLabel');
     const amt = document.getElementById('feeAmount');
     const sub = document.getElementById('feeSub');
+    CURRENT_AMOUNT = d.amount || null;
     amt.textContent = '₹' + (d.amount || 0);
+    const payBtn = document.getElementById('payBtn');
+    if (d.amount) payBtn.textContent = 'Pay ₹' + d.amount + ' Karke Setup Complete Karo';
     if (d.plan === 'monthly') {
       lbl.textContent = '📅 Monthly Plan — Pehla Mahina';
       sub.innerHTML = '<b>₹' + d.amount + ' har mahine</b> — service active rakhne ke liye time par renew karna hoga.<br>Ye one-time/lifetime NAHI hai.';
@@ -178,10 +183,10 @@ async function initiatePayment() {
     });
     const data = await res.json();
     if (!data.success) {
-      errEl.textContent = '❌ ' + (data.error || 'Payment create nahi hua');
+      errEl.textContent = '❌ ' + (data.error || (data.details && data.details.error && data.details.error.description) || 'Payment create nahi hua');
       errEl.style.display = 'block';
       btn.disabled = false;
-      btn.textContent = 'Pay ₹499 Karke Setup Complete Karo';
+      btn.textContent = payLabel();
       return;
     }
 
@@ -214,7 +219,7 @@ async function initiatePayment() {
       modal: {
         ondismiss: function() {
           btn.disabled = false;
-          btn.textContent = 'Pay ₹499 Karke Setup Complete Karo';
+          btn.textContent = payLabel();
         }
       },
       theme: { color: '#ff4d1c' }
@@ -224,14 +229,14 @@ async function initiatePayment() {
       errEl.textContent = '❌ Payment failed! Dobara try karo.';
       errEl.style.display = 'block';
       btn.disabled = false;
-      btn.textContent = 'Pay ₹499 Karke Setup Complete Karo';
+      btn.textContent = payLabel();
     });
     rzp.open();
   } catch(e) {
     errEl.textContent = '❌ Network error: ' + e.message;
     errEl.style.display = 'block';
     btn.disabled = false;
-    btn.textContent = 'Pay ₹499 Karke Setup Complete Karo';
+    btn.textContent = payLabel();
   }
 }
 
