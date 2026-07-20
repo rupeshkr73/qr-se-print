@@ -2856,8 +2856,14 @@ async function backgroundMaintenance() {
       try {
         const order = await razorpayOrderStatus(job.razorpay_order_id, job.razorpay_key_id, job.razorpay_key_secret);
         if (order && order.status === 'paid') {
+          // payment_status ke saath status bhi 'queued' karo — warna agent
+          // (jo queued+paid uthata hai) is job ko KABHI nahi uthata aur
+          // customer ka paisa kat ke bhi print nahi nikalta.
           await pool.query(
-            `UPDATE print_jobs SET payment_status='paid' WHERE id=$1 AND payment_status='pending'`,
+            `UPDATE print_jobs
+             SET payment_status='paid',
+                 status = CASE WHEN status='pending' THEN 'queued' ELSE status END
+             WHERE id=$1 AND payment_status='pending'`,
             [job.id]);
           console.log('💰 Reconciled payment for job:', job.id);
         }
