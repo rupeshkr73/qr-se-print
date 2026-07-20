@@ -2476,6 +2476,31 @@ app.post('/api/superadmin/admin-broadcast', verifySuperAdmin, async (req, res) =
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ═══ QR REGENERATE (sabhi shops ke QR current BASE_URL se naye banao) ═══
+// Kyun: purane QR tab bane the jab BASE_URL onrender.com tha — us image ke
+// andar purana URL encode hai. Ye route har shop ka QR dobara banata hai
+// current BASE_URL se. Jinke QR pehle se sahi (qrseprint.in) hain, unka
+// naya QR bilkul same banega — koi nuksaan nahi. Jinke purane onrender
+// wale hain, wo sahi ho jayenge.
+app.post('/api/superadmin/regenerate-qrs', verifySuperAdmin, async (req, res) => {
+  try {
+    const shops = await pool.query('SELECT id FROM shops');
+    let done = 0, failed = 0;
+    for (const row of shops.rows) {
+      try {
+        const qrUrl = `${BASE_URL}/print/${row.id}`;
+        const qrCode = await QRCode.toDataURL(qrUrl, { width: 300, margin: 2 });
+        await pool.query('UPDATE shops SET qr_code=$1 WHERE id=$2', [qrCode, row.id]);
+        done++;
+      } catch (e) {
+        failed++;
+        console.error(`QR regen fail for ${row.id}:`, e.message);
+      }
+    }
+    res.json({ success: true, total: shops.rows.length, regenerated: done, failed, base_url: BASE_URL });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/superadmin/overview', verifySuperAdmin, async (req, res) => {
   try {
     const shopCount = await pool.query('SELECT COUNT(*) as total, COUNT(CASE WHEN setup_paid THEN 1 END) as active FROM shops');
