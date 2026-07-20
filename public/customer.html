@@ -828,7 +828,7 @@ function syncZoomSlider() {
 }
 let _pinch = null;
 document.addEventListener('touchstart', (e) => {
-  if (e.touches.length === 2 && _activeItem() && !document.getElementById('secEditor').classList.contains('hidden')) {
+  if (!document.getElementById('photoCropModal') && e.touches.length === 2 && _activeItem() && !document.getElementById('secEditor').classList.contains('hidden')) {
     const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
     const item = _activeItem();
     _pinch = { d, w: item.w, h: item.h };
@@ -1037,7 +1037,6 @@ function askPhotoCount(file) {
 
 async function buildPhotoSheet(count) {
   document.getElementById('photoCountModal')?.remove();
-  toast('⏳ Photo sheet ban rahi hai...');
   try {
     const img = await new Promise((res, rej) => {
       const i = new Image();
@@ -1045,18 +1044,123 @@ async function buildPhotoSheet(count) {
       i.onerror = () => rej(new Error('Photo load nahi hui'));
       i.src = URL.createObjectURL(window.__photoFile);
     });
+    openPhotoCrop(img, count);   // Pehle CROP window — confirm par sheet banegi
+  } catch(e) {
+    toast('❌ ' + e.message);
+  }
+}
 
-    // AUTO CENTER-CROP 37:28 — photo size 28x37mm (studio-sheet layout se
-    // naapa hua). Cover style, stretch kabhi nahi.
-    const RATIO = 37 / 28;
-    let sw = img.width, sh = img.height, sx = 0, sy = 0;
-    if (sh / sw > RATIO) { sh = sw * RATIO; sy = (img.height - sh) * 0.35; } // face upar hota hai
-    else { sw = sh / RATIO; sx = (img.width - sw) / 2; }
+// ═══ PHOTO CROP WINDOW (sirf passport-photo flow) ═══
+// Fixed 28:37 frame — photo ko drag karo, pinch/slider se zoom karo.
+// Jo frame ke andar dikhega, wahi har photo me aayega.
+let __crop = null;
+function openPhotoCrop(img, count) {
+  const fw = Math.min(Math.round(window.innerWidth * 0.62), 252);
+  const fh = Math.round(fw * 37 / 28);
+  const s0 = Math.max(fw / img.width, fh / img.height);   // cover
+  __crop = { img, count, fw, fh, minS: s0, s: s0,
+             tx: (fw - img.width * s0) / 2, ty: (fh - img.height * s0) / 2,
+             drag: null, pinch: null };
+  const ov = document.createElement('div');
+  ov.id = 'photoCropModal';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
+  ov.innerHTML = `
+    <div style="color:#fff;font-family:'Syne',sans-serif;font-weight:800;font-size:16px;margin-bottom:4px;">✂️ Photo Crop Karo</div>
+    <div style="color:#ccc;font-size:12px;margin-bottom:14px;">Photo ko ungli se ghumao, do ungli/slider se zoom karo</div>
+    <div id="cropFrame" style="width:${fw}px;height:${fh}px;overflow:hidden;position:relative;border:3px solid #ff4d1c;border-radius:8px;touch-action:none;background:#222;">
+      <img id="cropImg" src="${img.src}" draggable="false" style="position:absolute;transform-origin:0 0;user-select:none;-webkit-user-drag:none;">
+    </div>
+    <input type="range" id="cropZoom" min="0" max="100" value="0" style="width:${fw}px;margin-top:14px;accent-color:#ff4d1c;">
+    <div style="display:flex;gap:12px;margin-top:16px;">
+      <button onclick="cancelPhotoCrop()" style="background:#333;color:#fff;border:none;border-radius:12px;padding:12px 22px;font-weight:700;cursor:pointer;font-family:inherit;">Cancel</button>
+      <button onclick="finishPhotoCrop()" style="background:#ff4d1c;color:#fff;border:none;border-radius:12px;padding:12px 26px;font-weight:800;cursor:pointer;font-family:inherit;">✂️ Crop & Aage Badho</button>
+    </div>`;
+  document.body.appendChild(ov);
+  __cropApply();
+
+  const frame = document.getElementById('cropFrame');
+  frame.addEventListener('pointerdown', (e) => {
+    if (__crop.pinch) return;
+    __crop.drag = { x: e.clientX, y: e.clientY, tx: __crop.tx, ty: __crop.ty };
+    frame.setPointerCapture(e.pointerId);
+  });
+  frame.addEventListener('pointermove', (e) => {
+    if (!__crop || !__crop.drag || __crop.pinch) return;
+    __crop.tx = __crop.drag.tx + (e.clientX - __crop.drag.x);
+    __crop.ty = __crop.drag.ty + (e.clientY - __crop.drag.y);
+    __cropApply();
+  });
+  frame.addEventListener('pointerup', () => { if (__crop) __crop.drag = null; });
+  frame.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 2) {
+      __crop.drag = null;
+      __crop.pinch = { d: Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY), s: __crop.s };
+    }
+  }, { passive: true });
+  frame.addEventListener('touchmove', (e) => {
+    if (__crop && __crop.pinch && e.touches.length === 2) {
+      e.preventDefault();
+      const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+      __cropSetScale(__crop.pinch.s * d / __crop.pinch.d);
+    }
+  }, { passive: false });
+  frame.addEventListener('touchend', () => {
+    if (__crop && __crop.pinch) {
+      __crop.pinch = null;
+      document.getElementById('cropZoom').value = Math.round((__crop.s / __crop.minS - 1) / 3 * 100);
+    }
+  });
+  document.getElementById('cropZoom').addEventListener('input', (e) => {
+    __cropSetScale(__crop.minS * (1 + (e.target.value / 100) * 3));   // 1x..4x
+  });
+}
+function __cropSetScale(ns) {
+  const c2 = __crop;
+  ns = Math.max(c2.minS, Math.min(c2.minS * 4, ns));
+  // frame ke center wala point wahi rahe
+  const cx = (c2.fw / 2 - c2.tx) / c2.s, cy = (c2.fh / 2 - c2.ty) / c2.s;
+  c2.s = ns;
+  c2.tx = c2.fw / 2 - cx * ns;
+  c2.ty = c2.fh / 2 - cy * ns;
+  __cropApply();
+}
+function __cropApply() {
+  const c2 = __crop;
+  // Image hamesha frame ko poora cover kare
+  c2.tx = Math.min(0, Math.max(c2.fw - c2.img.width * c2.s, c2.tx));
+  c2.ty = Math.min(0, Math.max(c2.fh - c2.img.height * c2.s, c2.ty));
+  const el = document.getElementById('cropImg');
+  el.style.width = (c2.img.width * c2.s) + 'px';
+  el.style.height = (c2.img.height * c2.s) + 'px';
+  el.style.left = c2.tx + 'px';
+  el.style.top = c2.ty + 'px';
+}
+function cancelPhotoCrop() {
+  document.getElementById('photoCropModal')?.remove();
+  __crop = null;
+}
+function finishPhotoCrop() {
+  const c2 = __crop;
+  const dpi = 300, mm = dpi / 25.4;
+  const pw = Math.round(28 * mm), ph = Math.round(37 * mm);  // 331 x 437 px
+  const sx = -c2.tx / c2.s, sy = -c2.ty / c2.s;
+  const sw = c2.fw / c2.s, sh = c2.fh / c2.s;
+  const photo = document.createElement('canvas');
+  photo.width = pw; photo.height = ph;
+  const pctx = photo.getContext('2d');
+  pctx.imageSmoothingQuality = 'high';
+  pctx.drawImage(c2.img, sx, sy, sw, sh, 0, 0, pw, ph);
+  const count = c2.count;
+  document.getElementById('photoCropModal')?.remove();
+  __crop = null;
+  buildSheetFromPhoto(photo, count);
+}
+
+function buildSheetFromPhoto(photo, count) {
+  toast('⏳ Photo sheet ban rahi hai...');
+  try {
     const dpi = 300, mm = dpi / 25.4;
-    const pw = Math.round(28 * mm), ph = Math.round(37 * mm);  // 331 x 437 px
-    const photo = document.createElement('canvas');
-    photo.width = pw; photo.height = ph;
-    photo.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, pw, ph);
+    const pw = photo.width, ph = photo.height;
 
     // SHEET: 4x6 @ 300 DPI = 1200x1800
     const W = 4 * dpi, H = 6 * dpi;
@@ -1067,13 +1171,11 @@ async function buildPhotoSheet(count) {
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
     const gap = Math.round(4 * mm), top = Math.round(5 * mm);
 
-    // Seedhi (portrait) photo — cut-guide border ke saath
     const drawP = (x, y) => {
       ctx.drawImage(photo, x, y, pw, ph);
       ctx.strokeStyle = '#d0d0d0'; ctx.lineWidth = 2;
       ctx.strokeRect(x + 1, y + 1, pw - 2, ph - 2);
     };
-    // Leti (landscape) photo — wahi photo 90° ghuma ke (chaudai=ph, unchai=pw)
     const drawL = (x, y) => {
       ctx.save();
       ctx.translate(x + ph / 2, y + pw / 2);
@@ -1083,7 +1185,6 @@ async function buildPhotoSheet(count) {
       ctx.strokeStyle = '#d0d0d0'; ctx.lineWidth = 2;
       ctx.strokeRect(x + 1, y + 1, ph - 2, pw - 2);
     };
-    // Ek row ke n portrait photos ko center karke banao
     const pRow = (n, y) => {
       const x0 = Math.round((W - (n * pw + (n - 1) * gap)) / 2);
       for (let i = 0; i < n; i++) drawP(x0 + i * (pw + gap), y);
@@ -1093,13 +1194,13 @@ async function buildPhotoSheet(count) {
       for (let i = 0; i < n; i++) drawL(x0 + i * (ph + gap), y);
     };
 
-    if (count === 4) {           // 2 + 2 seedhi
+    if (count === 4) {
       pRow(2, top);
       pRow(2, top + ph + gap);
-    } else if (count === 6) {    // 3 + 3 seedhi
+    } else if (count === 6) {
       pRow(3, top);
       pRow(3, top + ph + gap);
-    } else {                     // 10: 3 + 3 seedhi, phir 2 + 2 leti
+    } else {
       pRow(3, top);
       pRow(3, top + ph + gap);
       const yL = top + 2 * (ph + gap);
