@@ -681,7 +681,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         <div class="form-group full" style="margin-top:10px;background:#fdf4ff;border:1.5px solid #f0abfc;border-radius:14px;padding:14px;">
           <label style="font-weight:800;font-size:13px;color:#86198f;">📷 4×6 PHOTO SHEET PRICING (₹ per sheet)</label>
           <p style="font-size:11px;color:#a21caf;margin:4px 0 10px;">Ek 4×6 sheet par kitni photos — uske hisaab se rate</p>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
             <div>
               <label style="font-size:11px;">4 Photo wali sheet (₹)</label>
               <input type="number" id="setPrice4x6_4" min="0" placeholder="e.g. 30">
@@ -689,6 +689,10 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
             <div>
               <label style="font-size:11px;">6 Photo wali sheet (₹)</label>
               <input type="number" id="setPrice4x6_6" min="0" placeholder="e.g. 40">
+            </div>
+            <div>
+              <label style="font-size:11px;">10 Photo wali sheet (₹)</label>
+              <input type="number" id="setPrice4x6_10" min="0" placeholder="e.g. 60">
             </div>
           </div>
         </div>
@@ -1116,6 +1120,7 @@ async function loadAdminPanel() {
     document.getElementById('setDuplexMode').value = shop.duplex_mode || '';
     document.getElementById('setPrice4x6_4').value = shop.price_4x6_4 || '';
     document.getElementById('setPrice4x6_6').value = shop.price_4x6_6 || '';
+    document.getElementById('setPrice4x6_10').value = shop.price_4x6_10 || '';
     document.getElementById('setPriceResumeColor').value = shop.price_resume_color || '';
     document.getElementById('setPriceResumeBw').value = shop.price_resume_bw || '';
     document.getElementById('setPriceBwDuplex').value    = shop.price_bw_duplex    || '';
@@ -1863,6 +1868,7 @@ async function saveSettings() {
       printer_name_a3: document.getElementById('setPrinterA3').value,
       price_4x6_4: document.getElementById('setPrice4x6_4').value,
       price_4x6_6: document.getElementById('setPrice4x6_6').value,
+      price_4x6_10: document.getElementById('setPrice4x6_10').value,
       price_resume_color: document.getElementById('setPriceResumeColor').value,
       price_resume_bw: document.getElementById('setPriceResumeBw').value,
       duplex_mode: document.getElementById('setDuplexMode').value,

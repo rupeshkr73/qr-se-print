@@ -948,7 +948,7 @@ function startPhotoFlow() {
 }
 
 function askPhotoCount(file) {
-  const P = window.__shopPrices || { p4: 0, p6: 0 };
+  const P = window.__shopPrices || { p4: 0, p6: 0, p10: 0 };
   const ov = document.createElement('div');
   ov.id = 'photoCountModal';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:24px;';
@@ -956,14 +956,18 @@ function askPhotoCount(file) {
     <div style="font-size:34px;">📷</div>
     <h3 style="font-family:'Syne',sans-serif;margin:8px 0 4px;">Kitni photos chahiye?</h3>
     <p style="font-size:12px;color:#6b6870;margin:0 0 16px;">Ek 4×6 sheet par — passport size (35×45mm)</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-      <button onclick="buildPhotoSheet(4)" style="border:2px solid #ff4d1c;background:#fff5f2;border-radius:14px;padding:16px 10px;cursor:pointer;font-family:inherit;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+      <button onclick="buildPhotoSheet(4)" style="border:2px solid #ff4d1c;background:#fff5f2;border-radius:14px;padding:16px 8px;cursor:pointer;font-family:inherit;">
         <div style="font-size:22px;font-weight:800;">4</div><div style="font-size:11px;">Photos</div>
         ${P.p4 > 0 ? `<div style="font-weight:800;color:#ff4d1c;margin-top:4px;">₹${P.p4}</div>` : ''}
       </button>
-      <button onclick="buildPhotoSheet(6)" style="border:2px solid #e5e0d8;background:#fff;border-radius:14px;padding:16px 10px;cursor:pointer;font-family:inherit;">
+      <button onclick="buildPhotoSheet(6)" style="border:2px solid #e5e0d8;background:#fff;border-radius:14px;padding:16px 8px;cursor:pointer;font-family:inherit;">
         <div style="font-size:22px;font-weight:800;">6</div><div style="font-size:11px;">Photos</div>
         ${P.p6 > 0 ? `<div style="font-weight:800;color:#ff4d1c;margin-top:4px;">₹${P.p6}</div>` : ''}
+      </button>
+      <button onclick="buildPhotoSheet(10)" style="border:2px solid #e5e0d8;background:#fff;border-radius:14px;padding:16px 8px;cursor:pointer;font-family:inherit;">
+        <div style="font-size:22px;font-weight:800;">10</div><div style="font-size:11px;">Photos</div>
+        ${P.p10 > 0 ? `<div style="font-weight:800;color:#ff4d1c;margin-top:4px;">₹${P.p10}</div>` : ''}
       </button>
     </div>
     <button onclick="document.getElementById('photoCountModal').remove()" style="margin-top:12px;background:none;border:none;color:#9b9690;font-size:12px;cursor:pointer;">Cancel</button>
@@ -983,32 +987,65 @@ async function buildPhotoSheet(count) {
       i.src = URL.createObjectURL(window.__photoFile);
     });
 
-    // AUTO CENTER-CROP 45:35 — cover style, stretch kabhi nahi
-    const RATIO = 45 / 35;
+    // AUTO CENTER-CROP 37:28 — photo size 28x37mm (studio-sheet layout se
+    // naapa hua). Cover style, stretch kabhi nahi.
+    const RATIO = 37 / 28;
     let sw = img.width, sh = img.height, sx = 0, sy = 0;
     if (sh / sw > RATIO) { sh = sw * RATIO; sy = (img.height - sh) * 0.35; } // face upar hota hai
     else { sw = sh / RATIO; sx = (img.width - sw) / 2; }
+    const dpi = 300, mm = dpi / 25.4;
+    const pw = Math.round(28 * mm), ph = Math.round(37 * mm);  // 331 x 437 px
     const photo = document.createElement('canvas');
-    photo.width = 413; photo.height = 531;   // 35x45mm @300dpi
-    photo.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, 413, 531);
+    photo.width = pw; photo.height = ph;
+    photo.getContext('2d').drawImage(img, sx, sy, sw, sh, 0, 0, pw, ph);
 
     // SHEET: 4x6 @ 300 DPI = 1200x1800
-    const dpi = 300, W = 4 * dpi, H = 6 * dpi, mm = dpi / 25.4;
+    const W = 4 * dpi, H = 6 * dpi;
     const sheet = document.createElement('canvas');
     sheet.width = W; sheet.height = H;
     const ctx = sheet.getContext('2d');
     ctx.imageSmoothingQuality = 'high';
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
-    const pw = Math.round(35 * mm), ph = Math.round(45 * mm), gap = Math.round(2 * mm);
-    const startX = Math.round((W - (2 * pw + gap)) / 2);
-    const top = Math.round(3 * mm);
-    let col = 0, row = 0;
-    for (let i = 0; i < count; i++) {
-      const x = startX + col * (pw + gap), y = top + row * (ph + gap);
+    const gap = Math.round(4 * mm), top = Math.round(5 * mm);
+
+    // Seedhi (portrait) photo — cut-guide border ke saath
+    const drawP = (x, y) => {
       ctx.drawImage(photo, x, y, pw, ph);
       ctx.strokeStyle = '#d0d0d0'; ctx.lineWidth = 2;
-      ctx.strokeRect(x + 1, y + 1, pw - 2, ph - 2);   // cut-guide
-      col++; if (col >= 2) { col = 0; row++; }
+      ctx.strokeRect(x + 1, y + 1, pw - 2, ph - 2);
+    };
+    // Leti (landscape) photo — wahi photo 90° ghuma ke (chaudai=ph, unchai=pw)
+    const drawL = (x, y) => {
+      ctx.save();
+      ctx.translate(x + ph / 2, y + pw / 2);
+      ctx.rotate(Math.PI / 2);
+      ctx.drawImage(photo, -pw / 2, -ph / 2, pw, ph);
+      ctx.restore();
+      ctx.strokeStyle = '#d0d0d0'; ctx.lineWidth = 2;
+      ctx.strokeRect(x + 1, y + 1, ph - 2, pw - 2);
+    };
+    // Ek row ke n portrait photos ko center karke banao
+    const pRow = (n, y) => {
+      const x0 = Math.round((W - (n * pw + (n - 1) * gap)) / 2);
+      for (let i = 0; i < n; i++) drawP(x0 + i * (pw + gap), y);
+    };
+    const lRow = (n, y) => {
+      const x0 = Math.round((W - (n * ph + (n - 1) * gap)) / 2);
+      for (let i = 0; i < n; i++) drawL(x0 + i * (ph + gap), y);
+    };
+
+    if (count === 4) {           // 2 + 2 seedhi
+      pRow(2, top);
+      pRow(2, top + ph + gap);
+    } else if (count === 6) {    // 3 + 3 seedhi
+      pRow(3, top);
+      pRow(3, top + ph + gap);
+    } else {                     // 10: 3 + 3 seedhi, phir 2 + 2 leti
+      pRow(3, top);
+      pRow(3, top + ph + gap);
+      const yL = top + 2 * (ph + gap);
+      lRow(2, yL);
+      lRow(2, yL + pw + gap);
     }
 
     // NORMAL pipeline me: sheet = ek page, paper 4x6, service tag
@@ -1103,7 +1140,7 @@ function applyAdvancedGate(shop) {
         <div style="font-weight:800;font-size:13px;margin-top:4px;">Big Size Print</div>
         <div style="font-size:10.5px;color:#6b6870;">A3 / A2 / A1 bade kagaz</div>
       </div>`;
-    window.__shopPrices = { p4: parseInt(shop.price_4x6_4)||0, p6: parseInt(shop.price_4x6_6)||0 };
+    window.__shopPrices = { p4: parseInt(shop.price_4x6_4)||0, p6: parseInt(shop.price_4x6_6)||0, p10: parseInt(shop.price_4x6_10)||0 };
     zone.parentNode.insertBefore(menu, zone);
   }
 }
