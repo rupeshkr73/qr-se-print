@@ -2451,6 +2451,31 @@ app.post('/api/superadmin/login', async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// ═══ ADMIN BROADCAST (superadmin → sabhi shops ko dikhne wala message) ═══
+// Superadmin ek message likhta hai, wo har shop ke Overview par dikhta hai.
+// system_settings (key/value) table reuse — koi nayi table nahi.
+
+// Shop panel isse fetch karta hai (public, token nahi chahiye)
+app.get('/api/admin-broadcast', async (req, res) => {
+  try {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key='admin_broadcast'");
+    res.json({ message: r.rows.length ? r.rows[0].value : '' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Superadmin isse save karta hai (khali bhejo to message hat jayega)
+app.post('/api/superadmin/admin-broadcast', verifySuperAdmin, async (req, res) => {
+  try {
+    const message = (req.body && typeof req.body.message === 'string') ? req.body.message.trim().slice(0, 500) : '';
+    await pool.query(
+      `INSERT INTO system_settings (key, value) VALUES ('admin_broadcast', $1)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [message]
+    );
+    res.json({ success: true, message });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/superadmin/overview', verifySuperAdmin, async (req, res) => {
   try {
     const shopCount = await pool.query('SELECT COUNT(*) as total, COUNT(CASE WHEN setup_paid THEN 1 END) as active FROM shops');
