@@ -42,7 +42,8 @@ SHOP_ID_TEMPLATE   = "AAPKA_SHOP_ID"
 SERVER_URL         = "https://qrseprint.in"
 CHECK_INTERVAL     = 5          # Print jobs check karne ka interval (seconds)
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 17           # Integer version number — server ke agent_version se compare hota hai
+VERSION            = 18           # Integer version number — server ke agent_version se compare hota hai
+SUPPORT_WA         = "918404832414"  # Admin WhatsApp (shop-login Support jaisa) — Contact Admin isi par khulega
 
 # Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
 # kyunki .exe install hone par Program Files mein likhna permission-denied
@@ -1516,6 +1517,26 @@ def open_logs(icon=None, item=None):
     except Exception as e:
         log(f"Logs open karne mein error: {e}", "ERROR")
 
+def contact_admin(icon=None, item=None):
+    """
+    Tray se 'Contact Admin' — WhatsApp browser me khulta hai, Shop ID
+    pehle se message me bhara hua. Bilkul shop-login ke Support button
+    jaisa. Owner ko sirf apni problem type karke send karni hai.
+    """
+    try:
+        import webbrowser, urllib.parse
+        # admin.html ke sendWhatsApp() jaisa hi format
+        text = (
+            "Hello, QR Se Print Support \U0001F64F\n\n"
+            f"Shop ID: {SHOP_ID}\n\n"
+            "Problem: "
+        )
+        url = f"https://wa.me/{SUPPORT_WA}?text=" + urllib.parse.quote(text)
+        webbrowser.open(url)
+        log("\U0001F4AC Contact Admin — WhatsApp khola gaya")
+    except Exception as e:
+        log(f"Contact Admin error: {e}", "ERROR")
+
 def change_shop_id(icon=None, item=None):
     """
     Tray se 'Shop ID Change Karo' click karne par config file delete karo
@@ -1584,6 +1605,7 @@ def run_tray_icon():
             pystray.Menu.SEPARATOR,
             Item(lambda item: f"🔔 Counter Approval: {'ON' if approval_enabled() else 'OFF'}", toggle_approval),
             Item("📋 Logs Dekho", open_logs),
+            Item("💬 Contact Admin", contact_admin),
             Item("⬆️ Check for Update", manual_update_check),
             Item("🔄 Shop ID Change Karo", change_shop_id),
             Item("❌ Exit", quit_agent),
