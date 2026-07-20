@@ -205,6 +205,9 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <button class="nav-it" data-nav="agent"       onclick="navTo('agent',this)"><span class="ico">🔄</span> Agent Software</button>
     <button class="nav-it" data-nav="pricing"     onclick="navTo('pricing',this)"><span class="ico">💰</span> Setup Fee</button>
     <button class="nav-it" data-nav="homepage"    onclick="navTo('homepage',this)"><span class="ico">🎨</span> Homepage Edit</button>
+    <button class="nav-it" data-nav="broadcast"   onclick="navTo('broadcast',this)"><span class="ico">📢</span> Broadcast Message</button>
+    <button class="nav-it" data-nav="qrtools"     onclick="navTo('qrtools',this)"><span class="ico">🔲</span> QR Tools</button>
+    <button class="nav-it" data-nav="database"    onclick="navTo('database',this)"><span class="ico">🗄️</span> Database</button>
     <div class="side-foot"><button class="side-lg" onclick="logout()"><span>🚪</span> Logout</button></div>
   </aside>
   <div class="app-main">
@@ -487,6 +490,9 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 
     </div><!-- /shops -->
 
+    <div data-sect="broadcast"></div>
+    <div data-sect="qrtools"></div>
+    <div data-sect="database"></div>
     </div><!-- /sectionHost -->
     </div><!-- /app-content -->
   </div><!-- /app-main -->
@@ -727,7 +733,23 @@ async function completeWithdrawal(id, amount){
   }catch(e){ alert('❌ '+e.message); }
 }
 
+function organizeSections() {
+  // Card ko uske sahi section me le jao (id -> section)
+  const moves = [
+    ['broadcastMsg', 'broadcast'],   // 📢 Important Message
+    ['qrRegenMsg',   'qrtools'],     // 🔲 QR Regenerate
+    ['dbCounts',     'database'],    // 🗄️ DB Backup & Migration
+    ['cldStatus',    'database'],    // ☁️ Cloudinary Storage
+  ];
+  for (const [id, sect] of moves) {
+    const el = document.getElementById(id);
+    const host = document.querySelector('[data-sect="' + sect + '"]');
+    if (el && host) { const card = el.closest('.card'); if (card) host.appendChild(card); }
+  }
+}
+
 async function loadPanel() {
+  organizeSections();
   loadHomepageConfig();
   loadBroadcast();
   loadWithdrawals();
