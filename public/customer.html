@@ -212,6 +212,7 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
   <div id="secEditor" class="hidden">
     <div class="card">
       <h3>📋 Document Adjust Karo</h3>
+      <div id="serviceBadge" style="display:none;margin:6px 0 2px;"><span id="serviceBadgeTxt" style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;font-weight:800;font-size:13px;padding:6px 14px;border-radius:999px;"></span></div>
       <p style="font-size:12px;color:#6b6870;margin-bottom:10px;">Drag karke move karo, corner se size badlo/chhota karo</p>
       <div class="a4-canvas-wrap">
         <div class="a4-canvas" id="a4Canvas"></div>
@@ -238,6 +239,7 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
           <option value="a1">📄 A1</option>
         </select>
         <button class="edit-btn" id="orientBtn" onclick="toggleOrientation()" style="display:none;">📄 Portrait</button>
+        <span id="zoomWrap" style="display:inline-flex;align-items:center;gap:6px;background:#fff;border:1.5px solid #e5e0d8;border-radius:12px;padding:6px 10px;">🔍<input type="range" id="zoomSlider" min="0" max="100" value="26" oninput="zoomSliderInput(this.value)" style="width:110px;accent-color:#ff4d1c;"></span>
         <button class="edit-btn" onclick="toolAutoA4()">🤖 Auto Fit</button>
         <button class="edit-btn" id="rotateBtn" onclick="toolToggleRotate()">🔄 Rotate</button>
         <button class="edit-btn" id="adjustBtn" onclick="toolToggleAdjust()">🎨 Brightness/Contrast</button>
@@ -791,6 +793,62 @@ async function handleAddDocument(input) {
 // ═══════════════════════════════════════════════
 // A4 CANVAS — render active page, drag/resize
 // ═══════════════════════════════════════════════
+function setServiceBadge() {
+  const b = document.getElementById('serviceBadge'), t = document.getElementById('serviceBadgeTxt');
+  if (!b) return;
+  if (state.service === 'photo4x6') { t.textContent = '📷 4×6 Photo — ' + (state.photoCount||4) + ' Photos'; b.style.display='block'; }
+  else if (state.service === 'resume') { t.textContent = '📄 Resume Print'; b.style.display='block'; }
+  else b.style.display = 'none';
+}
+
+// ═══ ZOOM: slider (center se) + do-ungli pinch ═══
+function _activeItem() {
+  const page = getActivePageObj();
+  return page ? page.items.find(i => i.id === page.activeItemId) : null;
+}
+function _scaleItem(item, f) {
+  if (!item._baseW) { item._baseW = item.w; item._baseH = item.h; }
+  const cx = item.x + item.w/2, cy = item.y + item.h/2;
+  item.w = Math.max(40, item._baseW * f);
+  item.h = Math.max(40, item._baseH * f);
+  item.x = cx - item.w/2; item.y = cy - item.h/2;
+}
+// slider 0..100 → 0.3x..3x (26 ≈ 1x, default)
+function zoomSliderInput(v) {
+  const item = _activeItem(); if (!item) return;
+  if (!item._baseW) { item._baseW = item.w; item._baseH = item.h; }
+  _scaleItem(item, 0.3 + (v/100) * 2.7);
+  renderEditor();
+}
+function syncZoomSlider() {
+  const item = _activeItem(), s = document.getElementById('zoomSlider');
+  if (!item || !s) return;
+  if (!item._baseW) { item._baseW = item.w; item._baseH = item.h; }
+  s.value = Math.max(0, Math.min(100, Math.round(((item.w/item._baseW) - 0.3) / 2.7 * 100)));
+}
+let _pinch = null;
+document.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 2 && _activeItem() && !document.getElementById('secEditor').classList.contains('hidden')) {
+    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    const item = _activeItem();
+    _pinch = { d, w: item.w, h: item.h };
+  }
+}, { passive: true });
+document.addEventListener('touchmove', (e) => {
+  if (_pinch && e.touches.length === 2) {
+    e.preventDefault();   // page zoom nahi, sirf document zoom
+    const item = _activeItem(); if (!item) return;
+    const d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
+    const f = d / _pinch.d;
+    const cx = item.x + item.w/2, cy = item.y + item.h/2;
+    item.w = Math.max(40, _pinch.w * f);
+    item.h = Math.max(40, _pinch.h * f);
+    item.x = cx - item.w/2; item.y = cy - item.h/2;
+    if (!window.__pinchRaf) window.__pinchRaf = requestAnimationFrame(() => { renderEditor(); window.__pinchRaf = null; });
+  }
+}, { passive: false });
+document.addEventListener('touchend', () => { if (_pinch) { _pinch = null; syncZoomSlider(); } });
+
 function getActivePageObj() {
   return pages[activePageIdx] || null;
 }
@@ -804,6 +862,7 @@ function setActiveItem(itemId) {
   if (!page) return;
   page.activeItemId = itemId;
   renderEditor();
+  syncZoomSlider();
 }
 
 function renderEditor() {
@@ -1053,6 +1112,7 @@ async function buildPhotoSheet(count) {
     state.orientation = 'portrait';
     state.service = 'photo4x6';
     state.photoCount = count;
+    setServiceBadge();
     state.colorMode = 'color';
     const selEl = document.getElementById('paperSizeSel');
     if (selEl) selEl.value = '4x6';
@@ -1081,6 +1141,7 @@ async function checkResumeHandoff() {
     const blob = await (await fetch(h.dataUrl)).blob();
     const file = new File([blob], 'resume.pdf', { type: 'application/pdf' });
     state.service = 'resume';
+    setTimeout(setServiceBadge, 50);
     state.colorMode = h.colorMode === 'bw' ? 'bw' : 'color';
     state.paperSize = 'a4'; state.orientation = 'portrait';
     hide('secUpload'); show('secEditor'); setStep(2);
@@ -1140,7 +1201,7 @@ function applyAdvancedGate(shop) {
         <div style="font-weight:800;font-size:13px;margin-top:4px;">Big Size Print</div>
         <div style="font-size:10.5px;color:#6b6870;">A3 / A2 / A1 bade kagaz</div>
       </div>`;
-    window.__shopPrices = { p4: parseInt(shop.price_4x6_4)||0, p6: parseInt(shop.price_4x6_6)||0, p10: parseInt(shop.price_4x6_10)||0 };
+    window.__shopPrices = { p4: parseInt(shop.price_4x6_4)||0, p6: parseInt(shop.price_4x6_6)||0, p10: parseInt(shop.price_4x6_10)||0, rc: parseInt(shop.price_resume_color)||0, rb: parseInt(shop.price_resume_bw)||0 };
     zone.parentNode.insertBefore(menu, zone);
   }
 }
@@ -1994,13 +2055,42 @@ function changeCopies(delta) {
 function getEffectivePageCount() {
   return (state.selectedPages && state.selectedPages.length) ? state.selectedPages.length : pages.length;
 }
+// Service rate: photo4x6 => sheet rate (4/6/10), resume => resume rate.
+// Rate 0 ho to normal per-page fallback — SERVER bhi yahi logic use karta
+// hai, isliye jo yahan dikhega wahi charge hoga.
+function getServiceRate() {
+  const P = window.__shopPrices || {};
+  if (state.service === 'photo4x6')
+    return state.photoCount === 10 ? (P.p10||0) : state.photoCount === 6 ? (P.p6||0) : (P.p4||0);
+  if (state.service === 'resume')
+    return state.colorMode === 'bw' ? (P.rb||0) : (P.rc||0);
+  return 0;
+}
 function getTotal() {
+  const rate = getServiceRate();
+  if (rate > 0) return rate * state.copies;
   const pricePerPage = state.colorMode === 'bw' ? state.priceBW : state.priceColor;
   return pricePerPage * getEffectivePageCount() * state.copies;
 }
 function updatePriceSummary() {
-  const pricePerPage = state.colorMode === 'bw' ? state.priceBW : state.priceColor;
+  const rate = getServiceRate();
   const printPages = getEffectivePageCount();
+  const bwCard = document.getElementById('optBW');
+  // 4x6 photo hamesha color — B&W card chhupao taaki galat option na dikhe
+  if (bwCard) bwCard.style.display = (state.service === 'photo4x6' && rate > 0) ? 'none' : '';
+  if (rate > 0) {
+    const total = rate * state.copies;
+    const label = state.service === 'photo4x6'
+      ? ('4×6 Photo Sheet (' + state.photoCount + ' photos)')
+      : ('Resume ' + (state.colorMode === 'bw' ? 'B&W' : 'Color'));
+    document.getElementById('sumType').textContent = label;
+    document.getElementById('sumPerPage').textContent = '₹' + rate + '/sheet';
+    document.getElementById('sumPages').textContent = '1 sheet × ' + state.copies + ' cop' + (state.copies>1?'ies':'y');
+    document.getElementById('sumPagesAmt').textContent = '₹' + total;
+    document.getElementById('sumTotal').textContent = '₹' + total;
+    return;
+  }
+  const pricePerPage = state.colorMode === 'bw' ? state.priceBW : state.priceColor;
   const total = pricePerPage * printPages * state.copies;
   document.getElementById('sumType').textContent = (state.colorMode === 'bw' ? 'B&W' : 'Color') + ' Print';
   document.getElementById('sumPerPage').textContent = '₹' + pricePerPage + '/page';
