@@ -104,9 +104,38 @@ h1 .mark{background:linear-gradient(transparent 62%,var(--yellow) 62%);padding:0
     <h3><span class="n">1</span> Shop Details</h3>
     <div class="fg"><label class="fl">Shop ka Naam *</label><input class="fi" id="f_name" placeholder="Sharma Cyber Cafe"></div>
     <div class="fg"><label class="fl">Address</label><input class="fi" id="f_addr" placeholder="Main Road, Khowai"></div>
+    <div class="fg"><label class="fl">Phone</label><input class="fi" id="f_phone" type="tel" placeholder="98XXXXXXXX"></div>
     <div class="row2">
-      <div class="fg"><label class="fl">Phone</label><input class="fi" id="f_phone" type="tel" placeholder="98XXXXXXXX"></div>
-      <div class="fg"><label class="fl">Printer Model</label><input class="fi" id="f_printer" placeholder="Epson L3210"></div>
+      <div class="fg">
+        <label class="fl">Printer Brand</label>
+        <select class="fi" id="f_printer_brand" onchange="updatePrinterModelPlaceholder()">
+          <option value="">-- Brand select karo --</option>
+          <option value="HP">HP</option>
+          <option value="Epson">Epson</option>
+          <option value="Canon">Canon</option>
+          <option value="Brother">Brother</option>
+          <option value="Samsung">Samsung</option>
+          <option value="Xerox">Xerox</option>
+          <option value="Ricoh">Ricoh</option>
+          <option value="Panasonic">Panasonic</option>
+          <option value="Konica Minolta">Konica Minolta</option>
+          <option value="Kyocera">Kyocera</option>
+          <option value="Lexmark">Lexmark</option>
+          <option value="Dell">Dell</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="fg"><label class="fl">Printer Model</label><input class="fi" id="f_printer_model" placeholder="e.g. L3210"></div>
+    </div>
+    <div class="fg">
+      <label class="fl">Print Output Printer</label>
+      <select class="fi" id="f_printer_default" disabled
+        style="background:#f4f5f8;color:var(--muted);cursor:not-allowed;font-weight:600">
+        <option value="system_default" selected>🖨️ System Default Printer (Auto-selected)</option>
+      </select>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5">
+        ✅ Print Agent aapke PC ke <b>default printer</b> par automatically print karega — koi manual setup nahi.
+      </div>
     </div>
     <div class="fg"><label class="fl">Login Password * <small>(kam se kam 4 characters)</small></label><input class="fi" id="f_pass" type="password" placeholder="••••••"></div>
   </div>
@@ -178,6 +207,27 @@ function gwTab(g){
 
 const gv = id => document.getElementById(id).value.trim();
 
+// Brand ke hisaab se model ka example placeholder badal do (helpful hint)
+function updatePrinterModelPlaceholder(){
+  const map = {
+    'HP':'e.g. LaserJet M1005','Epson':'e.g. L3210','Canon':'e.g. PIXMA G2010',
+    'Brother':'e.g. DCP-T420W','Samsung':'e.g. M2020','Xerox':'e.g. B210',
+    'Ricoh':'e.g. SP 210','Panasonic':'e.g. KX-MB2170','Konica Minolta':'e.g. Bizhub 225i',
+    'Kyocera':'e.g. ECOSYS M2040','Lexmark':'e.g. MB2236','Dell':'e.g. E310dw','Other':'Model likho'
+  };
+  const brand = gv('f_printer_brand');
+  document.getElementById('f_printer_model').placeholder = map[brand] || 'e.g. L3210';
+}
+
+// Brand + Model ko ek readable label me jodo. Ye sirf display/record ke liye hai —
+// actual printing hamesha PC ke system default printer se hoti hai (Print Agent auto-detect).
+function buildPrinterModel(){
+  const brand = gv('f_printer_brand');
+  const model = gv('f_printer_model');
+  if(brand && model) return (brand + ' ' + model).trim();
+  return (brand || model || '').trim();
+}
+
 let selectedPlan = 'onetime';
 function selPlan(p) {
   selectedPlan = p;
@@ -216,7 +266,7 @@ async function doRegister(){
   const body = {
     plan: selectedPlan,
     name: gv('f_name'), address: gv('f_addr'), phone: gv('f_phone'),
-    printer_model: gv('f_printer'),
+    printer_model: buildPrinterModel(),
     price_bw: parseInt(gv('f_bw'))||5, price_color: parseInt(gv('f_color'))||10,
     payment_mode: paymode, password: document.getElementById('f_pass').value,
     ref: new URLSearchParams(location.search).get('ref') || ''
