@@ -1180,6 +1180,13 @@ app.post('/api/setup-fee/create', async (req, res) => {
     if (!shopResult.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
     if (shopResult.rows[0].setup_paid) return res.status(400).json({ error: 'Setup fee already paid hai' });
 
+    // Owner Razorpay keys missing hain to Razorpay 'Authentication failed'
+    // dega aur order.id kabhi nahi aayega — isse pehle hi clear error do.
+    if (!OWNER_RAZORPAY_KEY_ID || !OWNER_RAZORPAY_KEY_SECRET) {
+      console.error('Setup fee create error: OWNER_RAZORPAY_KEY_ID/SECRET missing in environment');
+      return res.status(500).json({ error: 'Payment gateway configure nahi hai. Admin ko OWNER_RAZORPAY keys set karni hongi.' });
+    }
+
     const amount = shopResult.rows[0].setup_amount || SETUP_FEE_AMOUNT;
     const amountInPaise = amount * 100;
 
@@ -1213,7 +1220,15 @@ app.post('/api/setup-fee/create', async (req, res) => {
       r.end();
     });
 
-    if (!razorpayOrder.id) return res.status(400).json({ error: 'Setup fee order create nahi hua', details: razorpayOrder });
+    if (!razorpayOrder.id) {
+      // Razorpay ka asli reason (galat key, amount, etc.) yahi aata hai —
+      // isko log bhi karo aur frontend ko bhejo taaki debug ho sake.
+      const rzpReason = razorpayOrder && razorpayOrder.error && razorpayOrder.error.description
+        ? razorpayOrder.error.description
+        : 'Razorpay ne order reject kiya';
+      console.error('Setup fee create error — Razorpay:', JSON.stringify(razorpayOrder));
+      return res.status(400).json({ error: 'Setup fee order create nahi hua: ' + rzpReason, details: razorpayOrder });
+    }
 
     await pool.query('UPDATE shops SET setup_order_id=$1 WHERE id=$2', [razorpayOrder.id, shopId]);
 
