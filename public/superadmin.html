@@ -665,6 +665,17 @@ async function saveDemoMinutes(){
   }catch(e){ alert('❌ '+e.message); }
 }
 
+async function notifyShop(shopId) {
+  if (!confirm('Is shop ke PC par notification bhejein? (Contact Admin / No Problem popup)')) return;
+  try {
+    const r = await fetch('/api/superadmin/notify-shop', { method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},
+      body: JSON.stringify({ shop_id: shopId, message: 'Any Problem in Printing? Contact Admin' }) });
+    const d = await r.json();
+    alert(d.success ? '✅ Notification bheja — agent 30 sec me dikhayega' : '❌ ' + (d.error||'Fail'));
+  } catch(e) { alert('❌ ' + e.message); }
+}
+
 async function loadDemos(){
   try{
     const res = await fetch('/api/superadmin/demos', { headers:{'Authorization':'Bearer '+authToken} });
@@ -686,10 +697,11 @@ async function loadDemos(){
       return `<div style="border:1.5px solid ${expired?'#e2e2e2':'#bbf7d0'};border-radius:12px;padding:12px 14px;margin-bottom:8px;background:${expired?'#fafafa':'#f0fdf4'};">
         <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:8px;">
           <div>
-            <div style="font-weight:800;font-size:14px;">${sanitize(d.name||'-')} <span style="font-family:monospace;font-size:11px;color:#6b6870;">${d.id}</span></div>
+            <div style="font-weight:800;font-size:14px;">${(d.agent_last_seen && (Date.now()-new Date(d.agent_last_seen).getTime())<120000) ? '🟢' : '🔴'} ${sanitize(d.name||'-')} <span style="font-family:monospace;font-size:11px;color:#6b6870;">${d.id}</span></div>
             <div style="font-size:12px;color:#6b6870;margin-top:3px;">📱 ${sanitize(d.phone||'-')} &nbsp;|&nbsp; 🖨️ ${d.prints} paid prints (${d.total_jobs} total jobs)</div>
             <div style="font-size:11px;color:#9a9aa0;margin-top:3px;">Shuru: ${createdStr} &nbsp;|&nbsp; ${statusHtml}</div>
           </div>
+          <button onclick="notifyShop('${d.id}')" style="background:#f59e0b;color:#fff;border:none;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔔 Notify</button>
           <button onclick="deletePendingShop('${d.id}','${sanitize(d.name||'')}' )" style="background:#ff3b3b;color:#fff;border:none;border-radius:10px;padding:9px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🗑️ Delete</button>
         </div>
       </div>`;
@@ -988,7 +1000,7 @@ async function renderShops() {
 
     tr.innerHTML = `
       <td>
-        <div class="shop-name">${shop.name}${shop.plan_type === 'monthly' ? `<br><span style="font-size:10px;font-weight:700;color:${shop.paid_until && new Date(shop.paid_until) > new Date() ? '#0ea5e9' : '#dc2626'};">📅 Monthly ${shop.paid_until ? (new Date(shop.paid_until) > new Date() ? '· till ' + new Date(shop.paid_until).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : '· ❌ EXPIRED') : ''}</span>` : ''}</div>
+        <div class="shop-name">${(shop.agent_last_seen && (Date.now()-new Date(shop.agent_last_seen).getTime())<120000) ? '🟢' : '🔴'} ${shop.name}${shop.plan_type === 'monthly' ? `<br><span style="font-size:10px;font-weight:700;color:${shop.paid_until && new Date(shop.paid_until) > new Date() ? '#0ea5e9' : '#dc2626'};">📅 Monthly ${shop.paid_until ? (new Date(shop.paid_until) > new Date() ? '· till ' + new Date(shop.paid_until).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : '· ❌ EXPIRED') : ''}</span>` : ''}</div>
         <div class="shop-id-mono">${shop.id}</div>
       </td>
       <td class="contact-cell">
