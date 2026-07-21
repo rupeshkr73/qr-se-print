@@ -1133,6 +1133,17 @@ function demoPrintCheck() {
   set('a_pin','000000'); set('a_city','CITY');
   ['a_cpo','a_cps','a_cdist','a_cstate'].forEach(id => set(id,'ADDRESS'));
   set('a_cpin','000000');
+  // BAAKI HAR khali field bhi bhar do — demo me kuch blank na rahe
+  document.querySelectorAll('input.fi, select.fi, textarea.fi, input, select, textarea').forEach(el => {
+    if (!el.id || el.value) return;
+    if (el.tagName === 'SELECT') { if (el.options.length > 1) el.selectedIndex = 1; return; }
+    if (el.type === 'date') el.value = '2000-01-01';
+    else if (el.type === 'tel') el.value = '0000000000';
+    else if (el.type === 'number') el.value = '0';
+    else if (el.type === 'email') el.value = 'email@demo.com';
+    else if (el.type === 'file' || el.type === 'hidden' || el.type === 'checkbox' || el.type === 'radio') return;
+    else el.value = el.id.startsWith('e1') ? '0000' : 'DEMO';
+  });
   // Photo ki jagah sirf gray box
   const pc = document.createElement('canvas'); pc.width = 413; pc.height = 531;
   const px = pc.getContext('2d'); px.fillStyle = '#c8c8c8'; px.fillRect(0,0,413,531);
