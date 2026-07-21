@@ -1273,6 +1273,10 @@ async function checkResumeHandoff() {
     hide('secEditor'); hide('secPreviewStep');
     show('secPayment'); setStep(4);
     updatePriceSummary();
+    // File server par upload karna zaroori hai — iske bina payment
+    // "File upload karo pehle!" pe atkega
+    toast('⏳ Resume upload ho raha hai...');
+    await uploadAllPages();
     toast('✅ Resume ready — bas payment karo, print automatic');
   } catch(e) { toast('❌ Resume load fail: ' + e.message); }
 }
