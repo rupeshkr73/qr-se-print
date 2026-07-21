@@ -895,7 +895,7 @@ app.put('/api/superadmin/demo-config', verifySuperAdmin, async (req, res) => {
 app.get('/api/superadmin/demos', verifySuperAdmin, async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT s.id, s.name, s.phone, s.created_at, s.demo_expires_at,
+      `SELECT s.id, s.name, s.phone, s.created_at, s.demo_expires_at, s.agent_last_seen,
               (SELECT COUNT(*) FROM print_jobs j WHERE j.shop_id = s.id) as total_jobs,
               (SELECT COUNT(*) FROM print_jobs j WHERE j.shop_id = s.id AND j.payment_status='paid') as prints
        FROM shops s WHERE s.demo = true
@@ -2506,6 +2506,32 @@ app.post('/api/superadmin/regenerate-qrs', verifySuperAdmin, async (req, res) =>
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Superadmin -> shop agent notification (counter-popup jaisa)
+app.post('/api/superadmin/notify-shop', verifySuperAdmin, async (req, res) => {
+  try {
+    const { shop_id, message } = req.body || {};
+    if (!shop_id) return res.status(400).json({ error: 'shop_id chahiye' });
+    await pool.query(
+      `INSERT INTO system_settings (key, value) VALUES ($1, $2)
+       ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      ['notify_' + shop_id, message || 'Any Problem in Printing? Contact Admin']);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+// Agent isse poll ke saath uthata hai, dikha ke ack karta hai
+app.get('/api/agent/notification/:shopId', async (req, res) => {
+  try {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key=$1", ['notify_' + req.params.shopId]);
+    res.json({ message: r.rows.length ? r.rows[0].value : '' });
+  } catch (err) { res.json({ message: '' }); }
+});
+app.post('/api/agent/notification-ack/:shopId', async (req, res) => {
+  try {
+    await pool.query("DELETE FROM system_settings WHERE key=$1", ['notify_' + req.params.shopId]);
+    res.json({ success: true });
+  } catch (err) { res.json({ success: false }); }
+});
+
 app.get('/api/superadmin/overview', verifySuperAdmin, async (req, res) => {
   try {
     const shopCount = await pool.query('SELECT COUNT(*) as total, COUNT(CASE WHEN setup_paid THEN 1 END) as active FROM shops');
@@ -2532,7 +2558,7 @@ app.get('/api/superadmin/shops', verifySuperAdmin, async (req, res) => {
     const r = await pool.query(`
       SELECT id, name, address, phone, printer_model, price_bw, price_color,
              payment_mode, payment_gateway, setup_paid, setup_amount, created_at,
-             demo, plan_type, paid_until, advanced_unlocked
+             demo, plan_type, paid_until, advanced_unlocked, agent_last_seen
       FROM shops ORDER BY created_at DESC
     `);
     res.json({ shops: r.rows });
