@@ -50,383 +50,1372 @@
 }
 </script>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>document.documentElement.className += ' js';</script>
 <style>
+/* ══════════════════════════════════════════════════════════════
+   QR SE PRINT — Premium redesign (light paper + yellow/pink brand)
+   Same content • Same IDs • Same scripts — sirf design/layout naya
+   ══════════════════════════════════════════════════════════════ */
 :root{
-  --ink:#111111;
+  --ink:#111114;
   --muted:#6b7280;
   --yellow:#ffd22e;
   --pink:#ff2e63;
-  --paper:#ffffff;
+  --orange:#ff6b35;
+  --violet:#7c3aed;
+  --paper:#fffdf8;
   --tint:#fff9ec;
+  --line:#ece3d2;
+  --card:#ffffff;
+  --dark:#17171b;
+  --ease:cubic-bezier(.22,.61,.36,1);
+  --shadow-sm:0 2px 6px rgba(17,17,20,.05);
+  --shadow-md:0 10px 30px rgba(17,17,20,.08);
+  --shadow-pink:0 14px 34px rgba(255,46,99,.28);
 }
 *{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
 body{
   font-family:'Inter',sans-serif;color:var(--ink);background:var(--paper);
   min-height:100vh;overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+img,svg{display:block;max-width:100%}
+a{color:inherit}
+::selection{background:var(--yellow);color:var(--ink)}
+
+/* ── Ambient background: soft glows + faint dot-grid (doodles ki jagah, subtle) ── */
+.bg-ambient{
+  position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(560px 380px at 88% -60px, rgba(255,210,46,.16), transparent 65%),
+    radial-gradient(620px 420px at -80px 42%, rgba(255,46,99,.07), transparent 65%),
+    radial-gradient(rgba(17,17,20,.045) 1px, transparent 1.4px);
+  background-size:auto,auto,26px 26px;
 }
 
-/* ── Decorative outline squares (ad-style, floating) ── */
-.deco{position:fixed;border-radius:14px;pointer-events:none;z-index:0;opacity:.9}
-.deco.sq-y{border:3px solid var(--yellow)}
-.deco.sq-p{border:3px solid #ffb3c7}
-.d1{width:120px;height:120px;top:12%;left:-46px;transform:rotate(14deg)}
-.d2{width:74px;height:74px;top:20%;left:36px;transform:rotate(-9deg)}
-.d3{width:130px;height:130px;top:34%;right:-52px;transform:rotate(-12deg)}
-.d4{width:80px;height:80px;top:44%;right:30px;transform:rotate(18deg)}
-.d5{width:110px;height:110px;bottom:16%;left:-40px;transform:rotate(-16deg)}
-@media (prefers-reduced-motion:no-preference){
-  .deco{animation:drift 7s ease-in-out infinite alternate}
-  .d2,.d4{animation-duration:9s}
-  @keyframes drift{to{translate:0 -12px}}
+/* ── Container system: sections max-width 1200 ── */
+.container{max-width:1200px;margin:0 auto;padding:0 20px}
+.sec{margin:64px auto 0}
+@media(min-width:1000px){.sec{margin-top:92px}}
+
+/* ── Buttons: shared hover-lift / press system ── */
+.login-pill,.refer-strip,.cta-price,.cta-main,.cta-sub,.p3btn,.big-btn,.dm-btn,.demo-strip{
+  transition:transform .18s var(--ease),box-shadow .18s var(--ease),background .18s,color .18s,border-color .18s;
+  will-change:transform;
+}
+.login-pill:hover,.refer-strip:hover,.cta-price:hover,.cta-main:hover,.cta-sub:hover,.p3btn:hover,.big-btn:hover,.dm-btn:hover{transform:translateY(-2px)}
+.login-pill:active,.refer-strip:active,.cta-price:active,.cta-main:active,.cta-sub:active,.p3btn:active,.big-btn:active,.dm-btn:active{transform:translateY(0) scale(.97)}
+.cta-price,.cta-main,.big-btn.pink{position:relative;overflow:hidden}
+.cta-price::after,.cta-main::after,.big-btn.pink::after{
+  content:'';position:absolute;top:0;left:-70%;width:44%;height:100%;
+  background:linear-gradient(105deg,transparent,rgba(255,255,255,.42),transparent);
+  transform:skewX(-20deg);transition:left .55s var(--ease);pointer-events:none;
+}
+.cta-price:hover::after,.cta-main:hover::after,.big-btn.pink:hover::after{left:130%}
+.cta-main:focus-visible,.login-pill:focus-visible,.cta-sub:focus-visible,.cta-price:focus-visible,
+.p3btn:focus-visible,.big-btn:focus-visible,.dm-btn:focus-visible,.refer-strip:focus-visible{
+  outline:3px solid var(--ink);outline-offset:2px;
 }
 
-.wrap{position:relative;z-index:1;max-width:560px;margin:0 auto;padding:14px 20px 0;text-align:center}
-
-/* ── Topbar ── */
-.topbar{display:flex;justify-content:flex-end;padding-bottom:6px}
-.login-pill{
-  border:2px solid var(--ink);color:var(--ink);text-decoration:none;
-  padding:8px 18px;border-radius:22px;font-size:13px;font-weight:700;
-  background:#fff;transition:.15s;display:inline-block;
+/* ── Refer & Earn — full-width slim announcement bar ── */
+.refer-strip{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  text-decoration:none;padding:10px 16px;
+  background:linear-gradient(120deg,#7c3aed,#e0489f 60%,#ff2e63);color:#fff;
+  box-shadow:0 6px 16px rgba(124,58,237,.25);
+  position:relative;z-index:60;
 }
-.login-pill:hover{background:var(--ink);color:#fff}
+.refer-strip:hover{transform:none;filter:brightness(1.06)}
+.refer-strip:active{transform:none;filter:brightness(.97)}
+.rs-left{font-size:13px;font-weight:600}
+.rs-left b{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800}
+.rs-arrow{font-size:18px;font-weight:800;opacity:.9;transition:transform .18s var(--ease)}
+.refer-strip:hover .rs-arrow{transform:translateX(4px)}
 
-/* ── Brand row: printer-paper perforation dots flanking logo ── */
-.brand-row{display:flex;align-items:center;justify-content:center;gap:14px;margin:14px 0 26px}
-.perf{display:flex;gap:7px}
-.perf i{width:5px;height:5px;border-radius:50%;background:#d9dce3}
+/* ── Sticky glass header ── */
+.site-head{
+  position:sticky;top:0;z-index:50;
+  background:rgba(255,253,248,.86);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-bottom:1px solid transparent;
+  transition:box-shadow .25s,border-color .25s;
+}
+.site-head.scrolled{border-color:var(--line);box-shadow:0 8px 24px rgba(17,17,20,.06)}
+.head-inner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding-top:12px;padding-bottom:12px}
+.brand-row{display:flex;align-items:center;gap:12px}
+.perf{display:flex;gap:6px}
+.perf i{width:5px;height:5px;border-radius:50%;background:#d9d2c2}
 .brand{
   display:flex;align-items:center;gap:9px;
   font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:19px;letter-spacing:-.3px;
 }
 .brand-mark{
-  width:30px;height:30px;border-radius:9px;background:var(--pink);color:#fff;
-  display:flex;align-items:center;justify-content:center;font-size:15px;
+  width:32px;height:32px;border-radius:10px;background:var(--pink);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:16px;
+  box-shadow:0 4px 12px rgba(255,46,99,.35);
 }
+.login-pill{
+  border:2px solid var(--ink);color:var(--ink);text-decoration:none;
+  padding:8px 18px;border-radius:22px;font-size:13px;font-weight:700;
+  background:#fff;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;
+}
+.login-pill:hover{background:var(--ink);color:#fff}
+@media(max-width:520px){.perf{display:none}.login-pill{padding:7px 13px;font-size:12px}}
 
-/* ── Headline ── */
+/* ── HERO: desktop 2-column ── */
+.hero{padding:34px 0 8px}
+.hero-grid{display:grid;grid-template-columns:1fr;gap:40px;align-items:center}
+@media(min-width:1000px){
+  .hero{padding:52px 0 10px}
+  .hero-grid{grid-template-columns:1.04fr .96fr;gap:48px}
+}
+.hero-copy{text-align:center}
+@media(min-width:1000px){.hero-copy{text-align:left}}
 .h-top{
   font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;
-  font-size:clamp(30px,8vw,44px);line-height:1.05;letter-spacing:-1px;
+  font-size:clamp(28px,6.6vw,42px);line-height:1.06;letter-spacing:-1px;
 }
 .h-hero{
   font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;
-  font-size:clamp(64px,19vw,110px);line-height:.95;letter-spacing:-3px;
-  margin:2px 0 6px;
+  font-size:clamp(64px,17vw,126px);line-height:.92;letter-spacing:-4px;
+  margin:2px 0 8px;color:var(--ink);position:relative;
+}
+@supports ((-webkit-background-clip:text) or (background-clip:text)){
+  .h-hero{
+    background:linear-gradient(115deg,var(--ink) 55%,#43434c);
+    -webkit-background-clip:text;background-clip:text;
+    -webkit-text-fill-color:transparent;color:var(--ink);
+  }
 }
 .h-sub{
   font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;
-  font-size:clamp(16px,4.4vw,22px);color:var(--ink);margin-bottom:26px;
+  font-size:clamp(16px,4.2vw,23px);color:var(--ink);margin-bottom:18px;
 }
-.h-sub .mark{background:linear-gradient(transparent 62%,var(--yellow) 62%);padding:0 3px}
+.h-sub .mark{background:linear-gradient(transparent 60%,var(--yellow) 60%);padding:0 4px;border-radius:3px}
+.hero-para{
+  font-size:15px;color:#4b4852;line-height:1.85;max-width:540px;margin:0 auto 22px;
+}
+@media(min-width:1000px){.hero-para{margin:0 0 24px;font-size:15.5px}}
 
-/* ── Price sticker + save starburst ── */
-.price-wrap{position:relative;display:inline-block;margin:0 0 10px}
-.price-sticker{
-  background:var(--yellow);border-radius:14px;padding:14px 34px;
-  transform:rotate(-2deg);box-shadow:0 8px 22px rgba(255,210,46,.45);
-}
-.price-actual{font-size:14px;font-weight:600;color:rgba(17,17,17,.55);text-decoration:line-through}
-.price-offer{
-  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;
-  font-size:clamp(38px,11vw,52px);line-height:1;letter-spacing:-1.5px;
-}
-.price-offer small{font-size:16px;font-weight:700;letter-spacing:0}
-.starburst{
-  position:absolute;top:-22px;right:-34px;width:76px;height:76px;
-  background:var(--pink);color:#fff;border-radius:50%;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:14px;line-height:1.1;
-  transform:rotate(10deg);
-  -webkit-mask:radial-gradient(circle at 50% 50%,#000 98%,transparent);
-  box-shadow:0 6px 16px rgba(255,46,99,.4);
-}
-.starburst::before{
-  content:'';position:absolute;inset:-7px;border-radius:50%;z-index:-1;background:var(--pink);
-  -webkit-mask:repeating-conic-gradient(#000 0 10deg,transparent 10deg 20deg);
-          mask:repeating-conic-gradient(#000 0 10deg,transparent 10deg 20deg);
-}
-.starburst span{font-size:10px;font-weight:700;opacity:.9}
-.price-note{font-size:11px;color:var(--muted);margin-bottom:26px}
-
-/* ── Steps: process strip ── */
+/* Steps flow */
 .steps{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:22px}
+@media(min-width:1000px){.hero-copy .steps{justify-content:flex-start}}
 .step{
-  background:var(--tint);border:1.5px solid #f0e4c0;border-radius:12px;
-  padding:11px 13px;min-width:82px;
+  background:var(--tint);border:1.5px solid #f0e2ba;border-radius:14px;
+  padding:11px 13px;min-width:84px;text-align:center;
+  transition:transform .2s var(--ease),box-shadow .2s var(--ease),border-color .2s;
 }
+.step:hover{transform:translateY(-3px);border-color:var(--yellow);box-shadow:0 10px 22px rgba(255,210,46,.28)}
 .step b{display:block;font-size:21px;margin-bottom:3px}
 .step span{font-size:10.5px;font-weight:600;color:#54595f}
-.step-arrow{align-self:center;color:#c9ced8;font-weight:700}
+.step-arrow{align-self:center;color:#cdc6b6;font-weight:700}
 
-/* ── Feature pills ── */
-.pills{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:30px}
+/* Hero primary CTA (See Setup Price — original onclick same) */
+.cta-price{
+  width:100%;max-width:420px;margin:2px auto 18px;
+  background:linear-gradient(135deg,#ff2e63,#ff6b35);color:#fff;border:none;border-radius:16px;
+  padding:17px 22px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:17px;cursor:pointer;
+  box-shadow:0 10px 26px rgba(255,46,99,.35);
+  display:flex;align-items:center;justify-content:center;gap:8px;
+}
+.cta-price:hover{box-shadow:0 16px 36px rgba(255,46,99,.42)}
+.cta-price .arr{font-size:20px;transition:transform .2s var(--ease)}
+.cta-price:hover .arr{transform:translateY(3px)}
+@media(min-width:1000px){.cta-price{margin:2px 0 18px}}
+
+/* Feature pills */
+.pills{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+@media(min-width:1000px){.hero-copy .pills{justify-content:flex-start}}
 .pill{
   display:inline-flex;align-items:center;gap:6px;
-  background:#fff;border:1.5px solid #e7e9ef;border-radius:22px;
+  background:#fff;border:1.5px solid #e9e2d2;border-radius:22px;
   padding:7px 14px;font-size:11.5px;font-weight:600;color:#3a3f47;
-  box-shadow:0 2px 8px rgba(17,17,17,.05);
+  box-shadow:var(--shadow-sm);transition:transform .2s var(--ease),border-color .2s,box-shadow .2s;
+}
+.pill:hover{transform:translateY(-2px);border-color:var(--pink);box-shadow:0 8px 18px rgba(255,46,99,.12)}
+
+/* ══════════════════════════════════════════════════════════════
+   HERO VISUAL — Signature: Phone Scan → Files Fly → Printer Se
+   Xerox-style scan beam + paper nikalta hua (pure CSS/SVG)
+   ══════════════════════════════════════════════════════════════ */
+.hero-visual{display:flex;justify-content:center}
+.scene{
+  position:relative;width:100%;max-width:520px;aspect-ratio:520/540;
+  margin:6px auto 0;
+}
+.scene-blob{
+  position:absolute;inset:6% 2%;border-radius:40px;z-index:0;
+  background:
+    radial-gradient(60% 55% at 30% 20%, rgba(255,210,46,.30), transparent 70%),
+    radial-gradient(55% 50% at 78% 78%, rgba(255,46,99,.14), transparent 70%);
+  filter:blur(2px);
+}
+/* Rotated sticker badge — brand ki sticker vibe */
+.scene-badge{
+  position:absolute;top:1%;right:2%;z-index:6;
+  background:var(--yellow);color:var(--ink);
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:12.5px;
+  padding:9px 14px;border-radius:12px;transform:rotate(6deg);
+  box-shadow:0 8px 20px rgba(255,210,46,.5);
+}
+/* ── Phone (scanning QR) ── */
+.ph{
+  position:absolute;top:4%;left:2%;width:45%;z-index:4;
+  background:#fff;border:1.5px solid #ece1c8;border-radius:26px;
+  box-shadow:0 24px 50px rgba(17,17,20,.14);
+  transform:rotate(-5deg);padding:9px 9px 12px;
+}
+.ph-notch{width:38%;height:6px;border-radius:6px;background:#e8e2d4;margin:2px auto 8px}
+.ph-head{display:flex;align-items:center;gap:6px;padding:0 4px 7px}
+.ph-dot{width:8px;height:8px;border-radius:50%;background:var(--pink);flex:none}
+.ph-head b{font-family:'Plus Jakarta Sans',sans-serif;font-size:10px;letter-spacing:.2px}
+.qr-box{
+  position:relative;background:var(--tint);border:1.5px dashed #eeda9e;border-radius:14px;
+  padding:10%;overflow:hidden;
+}
+.qr-box svg{width:100%;height:auto;color:var(--ink)}
+.scan-laser{
+  position:absolute;left:6%;right:6%;top:12%;height:3px;border-radius:3px;
+  background:linear-gradient(90deg,transparent,var(--pink) 20%,#ff7aa0 50%,var(--pink) 80%,transparent);
+  box-shadow:0 0 14px 3px rgba(255,46,99,.55);
+}
+.scan-status{position:relative;height:16px;margin-top:9px;text-align:center}
+.scan-status span{
+  position:absolute;inset:0;font-size:10px;font-weight:700;color:#8a8577;letter-spacing:.3px;
+}
+.scan-status .st2{color:#15803d;opacity:0}
+/* ── Flying file chips: phone → printer ── */
+.fly{
+  position:absolute;z-index:5;display:inline-flex;align-items:center;gap:5px;
+  background:#fff;border:1.5px solid #ece1c8;border-radius:20px;
+  padding:5px 10px;font-size:10.5px;font-weight:700;color:#3a3f47;
+  box-shadow:0 8px 18px rgba(17,17,20,.12);white-space:nowrap;
+  opacity:0;
+}
+.fly.f1{top:30%;left:34%}
+.fly.f2{top:38%;left:30%}
+.fly.f3{top:46%;left:36%}
+/* ── Printer — proper printer: piche paper-hold tray, aage output tray,
+     aage se paper nikalta hua (pure CSS) ── */
+.printer{position:absolute;right:0;bottom:0;width:68%;z-index:3}
+/* Rear input tray + khada paper stack */
+.pr-rear{position:absolute;left:18%;right:24%;bottom:calc(100% - 16px);height:76px;z-index:1}
+.pr-rear-back{
+  position:absolute;inset:0;border-radius:10px 10px 0 0;
+  background:linear-gradient(172deg,#2b2b34,#191920);
+  transform:skewX(-3deg);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.07);
+}
+.rp{
+  position:absolute;bottom:8px;background:#fff;border:1px solid #e7e0cf;
+  border-radius:4px 4px 0 0;box-shadow:0 8px 16px rgba(17,17,20,.14);z-index:2;
+}
+.rp.p1{left:10%;width:32%;height:52px;transform:rotate(-4deg)}
+.rp.p2{left:33%;width:34%;height:62px;transform:rotate(1deg)}
+.rp.p3{left:58%;width:32%;height:48px;transform:rotate(5deg)}
+.pr-rear-lip{
+  position:absolute;left:-3%;right:-3%;bottom:-2px;height:26px;z-index:3;
+  border-radius:7px;background:linear-gradient(#1d1d24,#101015);
+  box-shadow:0 -2px 0 rgba(255,255,255,.05) inset, 0 8px 16px rgba(17,17,20,.25);
+}
+/* Main body */
+.pr-body{
+  position:relative;background:linear-gradient(160deg,#22222a,#131317 60%);
+  border-radius:20px 20px 14px 14px;padding:7% 7% 46px;
+  box-shadow:0 30px 60px rgba(17,17,20,.28), inset 0 1px 0 rgba(255,255,255,.09);
+  z-index:3;
+}
+.pr-glass{
+  position:relative;height:14px;border-radius:8px;overflow:hidden;
+  background:linear-gradient(#0a0a0d,#17171d);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);
+  margin-bottom:8%;
+}
+.pr-beam{
+  position:absolute;top:0;bottom:0;left:-24%;width:22%;
+  background:linear-gradient(90deg,transparent,rgba(255,236,150,.95),#fff,rgba(255,236,150,.95),transparent);
+  box-shadow:0 0 18px 5px rgba(255,220,90,.6);
+  border-radius:8px;opacity:0;
+}
+.pr-ctrl{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.pr-led-wrap{display:flex;align-items:center;gap:7px}
+.pr-led{width:9px;height:9px;border-radius:50%;background:var(--pink);box-shadow:0 0 10px 2px rgba(255,46,99,.8)}
+.pr-ctrl small{font-size:9px;font-weight:700;letter-spacing:2px;color:#9aa0ab}
+.pr-keys{display:flex;gap:6px}
+.pr-keys i{width:9px;height:9px;border-radius:3px;background:#2c2c34;box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+.pr-keys i:first-child{background:var(--yellow)}
+/* Front output slot (body ke face par) */
+.pr-frontslot{
+  position:absolute;left:17%;right:17%;bottom:14px;height:8px;border-radius:6px;
+  background:linear-gradient(#050507,#191920);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.85), 0 1px 0 rgba(255,255,255,.06);
+}
+/* Paper aage se niklta hua — slot ke theek niche mask me slide */
+.pr-out-mask{
+  position:relative;z-index:4;margin:-24px 20% 0;height:112px;
+  overflow:hidden;pointer-events:none;
+}
+.pr-sheet{
+  width:88%;margin:0 auto;background:#fff;border:1px solid #eee7d8;border-radius:5px;
+  box-shadow:0 14px 22px rgba(17,17,20,.22);
+  padding:7px 9px 6px;transform:translateY(-108%) scale(.92);
+}
+.sh-brand{display:flex;align-items:center;gap:4px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:8.5px;margin-bottom:6px}
+.sh-brand i{font-style:normal;font-size:9px}
+.sh-line{height:4px;border-radius:3px;background:#eceadf;margin-bottom:4px}
+.sh-line.w70{width:70%}.sh-line.w88{width:88%}.sh-line.w55{width:55%}
+.sh-qr{width:19%;margin:3px auto 5px}
+.sh-qr svg{width:100%;height:auto;color:var(--ink);display:block}
+.sh-cut{border-top:1.5px dashed #d8d2c2;position:relative;margin-top:1px}
+.sh-cut::before{content:'✂';position:absolute;left:-2px;top:-9px;font-size:9px;color:#b9b2a0}
+/* Output tray — aage nikla hua shelf */
+.pr-out-tray{
+  position:relative;z-index:2;margin:-88px 6% 0;height:78px;
+  border-radius:8px 8px 20px 20px;
+  background:linear-gradient(178deg,#26262f,#101014 72%);
+  box-shadow:0 20px 34px rgba(17,17,20,.32), inset 0 2px 0 rgba(255,255,255,.06);
+  transform:perspective(430px) rotateX(38deg);transform-origin:top center;
+}
+.pr-out-tray::after{
+  content:'';position:absolute;left:8%;right:8%;bottom:10px;height:5px;border-radius:4px;
+  background:rgba(255,255,255,.05);
+}
+/* ── Scene animations (ek orchestrated 6.5s loop) ── */
+@media (prefers-reduced-motion:no-preference){
+  .scan-laser{animation:laser 2.3s ease-in-out infinite alternate}
+  @keyframes laser{from{top:11%}to{top:82%}}
+  .scan-status .st1{animation:stA 4.6s infinite}
+  .scan-status .st2{animation:stB 4.6s infinite}
+  @keyframes stA{0%,42%{opacity:1}50%,92%{opacity:0}100%{opacity:1}}
+  @keyframes stB{0%,42%{opacity:0}50%,92%{opacity:1}100%{opacity:0}}
+  .fly{animation:flyGo 6.5s var(--ease) infinite}
+  .fly.f1{animation-delay:.3s}
+  .fly.f2{animation-delay:1.5s}
+  .fly.f3{animation-delay:2.7s}
+  @keyframes flyGo{
+    0%{opacity:0;transform:translate(0,0) scale(.85) rotate(-4deg)}
+    7%{opacity:1;transform:translate(6px,-4px) scale(1) rotate(-2deg)}
+    34%{opacity:1;transform:translate(118px,42px) scale(.95) rotate(3deg)}
+    44%{opacity:0;transform:translate(148px,64px) scale(.8) rotate(6deg)}
+    100%{opacity:0;transform:translate(148px,64px) scale(.8)}
+  }
+  /* Rear stack ka top sheet andar feed hota hua */
+  .rp.p2{animation:feedDip 6.5s var(--ease) infinite}
+  @keyframes feedDip{
+    0%,16%{transform:translateY(0) rotate(1deg)}
+    24%{transform:translateY(14px) rotate(1deg)}
+    32%,100%{transform:translateY(0) rotate(1deg)}
+  }
+  .pr-beam{animation:beamGo 6.5s var(--ease) infinite}
+  @keyframes beamGo{
+    0%,18%{left:-24%;opacity:0}
+    19%{opacity:1}
+    34%{left:102%;opacity:1}
+    35%,100%{left:102%;opacity:0}
+  }
+  /* Paper aage se slot se niklta hua, tray par aake rukta hai */
+  .pr-sheet{animation:sheetFront 6.5s var(--ease) infinite}
+  @keyframes sheetFront{
+    0%,38%{transform:translateY(-108%) scale(.92);opacity:1}
+    60%{transform:translateY(3%) scale(1)}
+    64%{transform:translateY(1%) scale(1)}
+    90%{transform:translateY(2%) scale(1);opacity:1}
+    96%,100%{transform:translateY(2%) scale(1);opacity:0}
+  }
+  .pr-led{animation:led 1.15s ease-in-out infinite}
+  @keyframes led{0%,100%{opacity:1}50%{opacity:.25}}
+  .scene-badge{animation:badgeBob 4.5s ease-in-out infinite alternate}
+  @keyframes badgeBob{from{transform:rotate(6deg) translateY(0)}to{transform:rotate(7deg) translateY(-7px)}}
+}
+@media(max-width:999px){.scene{max-width:430px}}
+@media(max-width:400px){
+  .fly{font-size:9.5px;padding:4px 8px}
+  .pr-rear{height:62px}
+  .rp.p1{height:42px}.rp.p2{height:50px}.rp.p3{height:38px}
+  .pr-out-mask{height:102px;margin-top:-22px}
+  .pr-out-tray{height:66px;margin-top:-80px}
 }
 
-/* ── CTA ── */
-.cta-main{
-  display:block;background:var(--pink);color:#fff;text-decoration:none;
-  border-radius:16px;padding:18px;margin-bottom:12px;
-  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:17px;
-  box-shadow:0 10px 26px rgba(255,46,99,.35);transition:.15s;
-  display:flex;align-items:center;justify-content:center;gap:10px;
+/* ── Stats: desktop pe wide horizontal band ── */
+.stats-strip{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin:44px 0 0}
+.stat-chip{
+  background:linear-gradient(160deg,#1f1f26,#131317);color:#fff;border-radius:18px;
+  padding:16px 22px;text-align:center;min-width:130px;flex:1 1 160px;max-width:300px;
+  box-shadow:0 14px 30px rgba(17,17,20,.18), inset 0 1px 0 rgba(255,255,255,.07);
+  transition:transform .2s var(--ease),box-shadow .2s var(--ease);
+  position:relative;overflow:hidden;
 }
-.cta-main:hover{transform:translateY(-2px)}
-.cta-main:focus-visible,.login-pill:focus-visible,.cta-sub:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
-.cta-main .arrow{font-size:20px}
+.stat-chip::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(120px 60px at 85% -10%,rgba(255,151,112,.22),transparent 70%);
+}
+.stat-chip:hover{transform:translateY(-4px);box-shadow:0 20px 40px rgba(17,17,20,.26)}
+.stat-chip b{display:block;font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(20px,2.4vw,28px);color:#ff9770;position:relative}
+.stat-chip span{font-size:11px;opacity:.85;position:relative}
+@media(min-width:1000px){.stats-strip{gap:18px}.stat-chip{padding:20px 26px}}
 
-/* Refer & Earn — slim top strip */
-.refer-strip{display:flex;align-items:center;justify-content:space-between;gap:10px;
-  text-decoration:none;border-radius:12px;padding:10px 16px;margin:0 0 14px;
-  background:linear-gradient(120deg,#7c3aed,#e0489f);color:#fff;
-  box-shadow:0 6px 16px rgba(124,58,237,.3);transition:.15s}
-.refer-strip:hover{transform:translateY(-1px)}
-.rs-left{font-size:13px;font-weight:600}
-.rs-left b{font-family:'Poppins','Plus Jakarta Sans',sans-serif;font-weight:800}
-.rs-arrow{font-size:20px;font-weight:800;opacity:.9}
-.demo-strip{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;
-  border:2px solid var(--ink);border-radius:12px;padding:10px 16px;margin:0 0 10px;cursor:pointer;
-  background:#fff;color:var(--ink);font-family:'Inter',sans-serif;transition:.15s}
-.demo-strip:hover{background:var(--ink);color:#fff}
-.plans-wrap{margin:28px 0}
-.plans-title{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;text-align:center;margin-bottom:16px}
-.plans3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-@media(max-width:760px){.plans3{grid-template-columns:1fr}}
-.plan3{border:2px solid #e5e0d8;border-radius:18px;padding:18px 16px;background:#fff;display:flex;flex-direction:column}
-.plan3.hot{border-color:#ff2e63;box-shadow:0 8px 26px rgba(255,46,99,.18);position:relative}
-.plan3.hot::before{content:'⭐ POPULAR';position:absolute;top:-11px;left:50%;transform:translateX(-50%);background:#ff2e63;color:#fff;font-size:10px;font-weight:800;padding:3px 12px;border-radius:20px}
-.plan3 .p3t{font-weight:800;font-size:15px;text-align:center}
-.plan3 .p3p{font-size:28px;font-weight:800;text-align:center;margin:6px 0;color:#ff2e63}
-.plan3 .p3p small{font-size:12px;color:#6b6870;font-weight:600}
-.plan3 .p3p .cut3{font-size:13px;color:#9b9690;text-decoration:line-through;margin-right:6px;font-weight:600}
-.plan3 .p3note{font-size:10.5px;text-align:center;font-weight:700;margin-bottom:10px}
-.plan3 ul{list-style:none;padding:0;margin:0 0 12px;font-size:12px;line-height:2;color:#333}
-.plan3 .p3btn{margin-top:auto;display:block;text-align:center;padding:12px;border-radius:12px;font-weight:800;font-size:13px;cursor:pointer;border:none;text-decoration:none;font-family:'Space Grotesk',sans-serif}
-.plans-cta{display:flex;gap:12px;justify-content:center;margin-top:18px;flex-wrap:wrap}
-.stats-strip{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;margin:18px 0 6px}
-.stat-chip{background:#1b1b1f;color:#fff;border-radius:14px;padding:10px 18px;text-align:center;min-width:100px}
-.stat-chip b{display:block;font-family:'Syne',sans-serif;font-size:20px;color:#ff9770}
-.stat-chip span{font-size:10.5px;opacity:.85}
-.sec-title{font-family:'Syne',sans-serif;font-size:22px;font-weight:800;text-align:center;margin:34px 0 6px}
-.sec-sub{text-align:center;font-size:12.5px;color:#6b6870;margin-bottom:16px}
-.pain-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-@media(max-width:560px){.pain-grid{grid-template-columns:1fr}}
-.pain-card{background:#fff;border:1.5px solid #fecaca;border-radius:16px;padding:14px}
-.pain-card .pi{font-size:22px}
-.pain-card b{display:block;font-size:13.5px;margin:6px 0 3px}
-.pain-card p{font-size:11.5px;color:#6b6870;line-height:1.7;margin:0}
-.ben-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-@media(max-width:560px){.ben-grid{grid-template-columns:1fr}}
-.ben-card{background:#fff;border:1.5px solid #e5e0d8;border-radius:16px;padding:14px}
-.ben-card .bi{font-size:22px}
-.ben-card b{display:block;font-size:13px;margin:6px 0 3px}
-.ben-card p{font-size:11.5px;color:#6b6870;line-height:1.7;margin:0}
-.cmp-table{width:100%;border-collapse:collapse;background:#fff;border-radius:16px;overflow:hidden;border:1.5px solid #e5e0d8;font-size:12px}
-.cmp-table th{background:#1b1b1f;color:#fff;padding:11px 10px;font-size:12px;text-align:left}
-.cmp-table th:first-child{width:34%}
-.cmp-table td{padding:10px;border-top:1px solid #f0ece5;vertical-align:top;line-height:1.55}
+/* ── Section headings + perforation divider ── */
+.sec-title{
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(22px,3.4vw,30px);
+  font-weight:800;text-align:center;letter-spacing:-.6px;
+}
+.sec-title::after{
+  content:'';display:block;width:46px;height:5px;border-radius:5px;
+  background:var(--yellow);margin:10px auto 0;
+}
+.sec-sub{text-align:center;font-size:13px;color:#6b6870;margin:8px 0 24px}
+.perf-divider{display:flex;justify-content:center;gap:9px;margin:64px 0 0}
+@media(min-width:1000px){.perf-divider{margin-top:92px}}
+.perf-divider i{width:5px;height:5px;border-radius:50%;background:#ddd5c2}
+
+/* ── Card system (premium): pain + benefits ── */
+.pain-grid{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:600px){.pain-grid{grid-template-columns:1fr 1fr}}
+@media(min-width:1020px){.pain-grid{grid-template-columns:repeat(4,1fr)}}
+.pain-card{
+  background:var(--card);border:1.5px solid #f6d5d5;border-radius:20px;padding:20px 18px;
+  box-shadow:var(--shadow-sm);
+  transition:transform .25s var(--ease),box-shadow .25s var(--ease),border-color .25s;
+}
+.pain-card:hover{transform:translateY(-5px);border-color:#f8b4b4;box-shadow:0 18px 40px rgba(220,38,38,.10)}
+.pain-card .pi,.ben-card .bi{
+  width:44px;height:44px;border-radius:13px;font-size:21px;
+  display:flex;align-items:center;justify-content:center;
+}
+.pain-card .pi{background:#fff1f1;border:1px solid #ffd9d9}
+.pain-card b{display:block;font-size:14.5px;margin:12px 0 5px;font-family:'Plus Jakarta Sans',sans-serif}
+.pain-card p{font-size:12px;color:#6b6870;line-height:1.75;margin:0}
+.ben-grid{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:560px){.ben-grid{grid-template-columns:1fr 1fr}}
+@media(min-width:1020px){.ben-grid{grid-template-columns:repeat(4,1fr)}}
+.ben-card{
+  background:var(--card);border:1.5px solid var(--line);border-radius:20px;padding:20px 18px;
+  box-shadow:var(--shadow-sm);
+  transition:transform .25s var(--ease),box-shadow .25s var(--ease),border-color .25s;
+}
+.ben-card:hover{transform:translateY(-5px);border-color:#ffd98f;box-shadow:0 18px 40px rgba(255,178,46,.16)}
+.ben-card .bi{background:var(--tint);border:1px solid #f2e4b8}
+.ben-card b{display:block;font-size:14px;margin:12px 0 5px;font-family:'Plus Jakarta Sans',sans-serif}
+.ben-card p{font-size:12px;color:#6b6870;line-height:1.75;margin:0}
+
+/* ── Solution band ── */
+.solution-band{
+  background:linear-gradient(160deg,#ffffff,#f4fef7);
+  border:2px solid #86efac;border-radius:24px;padding:26px 20px;
+  box-shadow:0 16px 40px rgba(21,128,61,.08);
+  max-width:900px;margin:0 auto;
+}
+.solution-band .steps{margin:0}
+.solution-band p{text-align:center;font-size:13px;color:#15803d;font-weight:700;margin:14px 0 0;line-height:1.7}
+
+/* ── Comparison table ── */
+.table-scroll{
+  border:1.5px solid var(--line);border-radius:20px;overflow:hidden;
+  box-shadow:var(--shadow-md);background:#fff;max-width:900px;margin:0 auto;
+}
+@media(max-width:640px){.table-scroll{overflow-x:auto}}
+.cmp-table{width:100%;border-collapse:collapse;background:#fff;font-size:12.5px;min-width:560px}
+.cmp-table th{background:var(--dark);color:#fff;padding:14px 14px;font-size:12.5px;text-align:left;font-family:'Plus Jakarta Sans',sans-serif}
+.cmp-table th:first-child{width:30%}
+.cmp-table td{padding:12px 14px;border-top:1px solid #f2ecdf;vertical-align:top;line-height:1.6}
+.cmp-table tr:nth-child(even) td{background:#fffdf6}
+.cmp-table tr:hover td{background:#fff8e8}
 .cmp-table .bad{color:#b91c1c}
 .cmp-table .good{color:#15803d;font-weight:700}
-.roi-card{background:linear-gradient(135deg,#1b1b1f,#3d3d46);color:#fff;border-radius:20px;padding:22px;margin-top:10px}
-.roi-card h3{font-family:'Syne',sans-serif;margin:0 0 10px;font-size:17px}
-.roi-line{display:flex;justify-content:space-between;font-size:13px;padding:7px 0;border-bottom:1px dashed rgba(255,255,255,.15)}
-.roi-line:last-child{border:none;font-weight:800;color:#ff9770;font-size:15px}
-.founder-card{background:#fff7ed;border:1.5px solid #fdba74;border-radius:20px;padding:20px;margin-top:12px}
-.founder-card p{font-size:13px;line-height:1.9;color:#4b4852;margin:8px 0 0}
-.plans-cta .big-btn{padding:15px 30px;border-radius:14px;font-weight:800;font-size:15px;cursor:pointer;border:none;font-family:'Syne',sans-serif;text-decoration:none;display:inline-block}
 
+/* ── ROI + Founder: desktop side-by-side ── */
+.duo-grid{display:grid;grid-template-columns:1fr;gap:18px;align-items:stretch}
+@media(min-width:900px){.duo-grid{grid-template-columns:1fr 1fr;gap:22px}}
+.roi-card{
+  background:linear-gradient(150deg,#1f1f26,#3a3a44);color:#fff;border-radius:24px;padding:26px 24px;
+  position:relative;overflow:hidden;
+  box-shadow:0 22px 48px rgba(17,17,20,.24);
+}
+.roi-card::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:
+    radial-gradient(240px 140px at 92% 0%,rgba(255,151,112,.18),transparent 70%),
+    radial-gradient(rgba(255,255,255,.05) 1px,transparent 1.3px);
+  background-size:auto,20px 20px;
+}
+.roi-card h3{font-family:'Plus Jakarta Sans',sans-serif;margin:0 0 12px;font-size:18px;position:relative}
+.roi-line{display:flex;justify-content:space-between;gap:14px;font-size:13px;padding:9px 0;border-bottom:1px dashed rgba(255,255,255,.16);position:relative}
+.roi-line:last-of-type{border:none;font-weight:800;color:#ff9770;font-size:15px}
+.roi-card p{position:relative}
+.founder-card{
+  background:linear-gradient(160deg,#fff9ed,#fff2da);
+  border:1.5px solid #f4c88b;border-radius:24px;padding:24px 22px;
+  box-shadow:0 16px 38px rgba(217,119,6,.10);
+}
+.founder-card p{font-size:13px;line-height:1.9;color:#4b4852;margin:10px 0 0}
+
+/* ── Plans (AI-Fiesta style premium pricing) ── */
+.plans-wrap{scroll-margin-top:86px}
+.plans-title{
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:clamp(22px,3.4vw,30px);font-weight:800;
+  text-align:center;letter-spacing:-.6px;margin-bottom:6px;
+}
+.plans-title::after{content:'';display:block;width:46px;height:5px;border-radius:5px;background:var(--yellow);margin:10px auto 0}
+.plans3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:26px;align-items:stretch}
+@media(max-width:860px){.plans3{grid-template-columns:1fr;max-width:440px;margin-left:auto;margin-right:auto}}
+.plan3{
+  border:1.5px solid var(--line);border-radius:22px;padding:24px 20px;background:#fff;
+  display:flex;flex-direction:column;box-shadow:var(--shadow-sm);
+  transition:transform .25s var(--ease),box-shadow .25s var(--ease),border-color .25s;
+}
+.plan3:hover{transform:translateY(-6px);box-shadow:0 22px 46px rgba(17,17,20,.10);border-color:#ddd2ba}
+.plan3.hot{
+  border:2px solid var(--pink);position:relative;
+  box-shadow:0 20px 50px rgba(255,46,99,.20);
+  background:linear-gradient(#fff,#fff) padding-box;
+}
+.plan3.hot:hover{transform:translateY(-8px);box-shadow:0 28px 60px rgba(255,46,99,.28)}
+@media(min-width:861px){.plan3.hot{transform:scale(1.035)}.plan3.hot:hover{transform:scale(1.035) translateY(-6px)}}
+.plan3.hot::before{
+  content:'⭐ POPULAR';position:absolute;top:-12px;left:50%;transform:translateX(-50%);
+  background:linear-gradient(120deg,var(--pink),var(--orange));color:#fff;
+  font-size:10px;font-weight:800;padding:4px 14px;border-radius:20px;letter-spacing:.6px;
+  box-shadow:0 6px 16px rgba(255,46,99,.4);
+}
+.plan3 .p3t{font-weight:800;font-size:15px;text-align:center;font-family:'Plus Jakarta Sans',sans-serif}
+.plan3 .p3p{font-size:32px;font-weight:800;text-align:center;margin:8px 0 4px;color:var(--pink);font-family:'Plus Jakarta Sans',sans-serif;letter-spacing:-1px}
+.plan3 .p3p small{font-size:12px;color:#6b6870;font-weight:600;letter-spacing:0}
+.plan3 .p3p .cut3{font-size:14px;color:#9b9690;text-decoration:line-through;margin-right:6px;font-weight:600;letter-spacing:0}
+.plan3 .p3note{font-size:10.5px;text-align:center;font-weight:700;margin-bottom:14px}
+.plan3 ul{list-style:none;padding:14px 0 0;margin:0 0 16px;font-size:12px;line-height:2.1;color:#333;border-top:1px dashed #ece3d2}
+.plan3 .p3btn{
+  margin-top:auto;display:block;text-align:center;padding:13px;border-radius:14px;
+  font-weight:800;font-size:13.5px;cursor:pointer;border:none;text-decoration:none;
+  font-family:'Plus Jakarta Sans',sans-serif;
+}
+.p3btn.dark{background:var(--dark);color:#fff}
+.p3btn.dark:hover{box-shadow:0 12px 26px rgba(17,17,20,.28)}
+.p3btn.violet{background:var(--violet);color:#fff}
+.p3btn.violet:hover{box-shadow:0 12px 26px rgba(124,58,237,.36)}
+.p3btn.pink{background:var(--pink);color:#fff}
+.p3btn.pink:hover{box-shadow:0 12px 26px rgba(255,46,99,.4)}
+.plans-cta{display:flex;gap:12px;justify-content:center;margin-top:26px;flex-wrap:wrap}
+.big-btn{
+  padding:15px 32px;border-radius:14px;font-weight:800;font-size:15px;cursor:pointer;border:none;
+  font-family:'Plus Jakarta Sans',sans-serif;text-decoration:none;display:inline-block;
+}
+.big-btn.pink{background:var(--pink);color:#fff;box-shadow:0 10px 26px rgba(255,46,99,.32)}
+.big-btn.ghost{background:#fff;color:var(--dark);border:2px solid var(--dark)}
+.big-btn.ghost:hover{background:var(--dark);color:#fff}
+
+/* ── Final CTA ── */
+.final-cta{max-width:560px;margin-top:44px}
+.cta-main{
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  background:var(--pink);color:#fff;text-decoration:none;
+  border-radius:18px;padding:19px;margin-bottom:12px;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:17px;
+  box-shadow:var(--shadow-pink);
+}
+.cta-main:hover{box-shadow:0 20px 44px rgba(255,46,99,.36)}
+.cta-main .arrow{font-size:20px;transition:transform .2s var(--ease)}
+.cta-main:hover .arrow{transform:translateX(4px)}
+.cta-sub{
+  display:block;text-decoration:none;color:var(--ink);text-align:center;
+  border:2px solid var(--ink);border-radius:18px;padding:15px;background:#fff;
+  font-weight:700;font-size:14px;
+}
+.cta-sub:hover{background:var(--ink);color:#fff}
+
+/* ── FAQ (config-injected inline-styled details ke saath bhi match kare) ── */
+.faq-sec{max-width:800px}
+#faqList{display:grid;gap:10px}
+#faqList details{transition:box-shadow .2s var(--ease),transform .2s var(--ease)}
+#faqList details:hover{box-shadow:0 12px 28px rgba(17,17,20,.07);transform:translateY(-2px)}
+#faqList details[open]{border-color:var(--yellow)!important;box-shadow:0 14px 32px rgba(255,210,46,.18)}
+#faqList summary{list-style:none;position:relative;padding-right:30px;user-select:none}
+#faqList summary::-webkit-details-marker{display:none}
+#faqList summary::after{
+  content:'›';position:absolute;right:4px;top:50%;
+  transform:translateY(-50%) rotate(90deg);
+  font-size:20px;font-weight:800;color:#b9b2a0;
+  transition:transform .25s var(--ease),color .25s;
+}
+#faqList details[open] summary::after{transform:translateY(-50%) rotate(-90deg);color:var(--pink)}
+
+/* ── (Hidden) price sticker — JS ke IDs ke liye, pehle jaise hidden ── */
+.price-wrap{position:relative;display:inline-block;margin:0 0 10px}
+.price-sticker{background:var(--yellow);border-radius:14px;padding:14px 34px;transform:rotate(-2deg)}
+.price-actual{font-size:14px;font-weight:600;color:rgba(17,17,17,.55);text-decoration:line-through}
+.price-offer{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:44px;line-height:1}
+.price-offer small{font-size:16px;font-weight:700}
+.starburst{position:absolute;top:-22px;right:-34px;width:76px;height:76px;background:var(--pink);color:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:14px;line-height:1.1;transform:rotate(10deg)}
+.starburst span{font-size:10px;font-weight:700;opacity:.9}
+
+/* ── Demo strip (config se enable ho to) ── */
+.demo-strip{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;
+  border:2px solid var(--ink);border-radius:14px;padding:11px 16px;margin:0 0 10px;cursor:pointer;
+  background:#fff;color:var(--ink);font-family:'Inter',sans-serif}
+.demo-strip:hover{background:var(--ink);color:#fff}
 .demo-strip .rs-left{font-size:13px;font-weight:600}
-/* Demo modal */
-.dm-overlay{display:none;position:fixed;inset:0;background:rgba(17,17,17,.55);z-index:500;
-  align-items:center;justify-content:center;padding:20px}
-.dm-overlay.open{display:flex}
-.dm-box{background:#fff;border-radius:20px;padding:26px 22px;width:100%;max-width:400px;text-align:center;
-  box-shadow:0 20px 60px rgba(0,0,0,.3)}
+
+/* ── Demo modal ── */
+.dm-overlay{
+  display:flex;position:fixed;inset:0;background:rgba(17,17,20,.55);z-index:500;
+  align-items:center;justify-content:center;padding:20px;
+  opacity:0;visibility:hidden;pointer-events:none;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  transition:opacity .25s var(--ease),visibility .25s;
+}
+.dm-overlay.open{opacity:1;visibility:visible;pointer-events:auto}
+.dm-box{
+  background:#fff;border-radius:24px;padding:28px 24px;width:100%;max-width:410px;text-align:center;
+  box-shadow:0 30px 80px rgba(0,0,0,.32);
+  transform:translateY(14px) scale(.97);transition:transform .3s var(--ease);
+}
+.dm-overlay.open .dm-box{transform:translateY(0) scale(1)}
 .dm-box h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:20px;margin-bottom:4px}
 .dm-box .dm-sub{font-size:12px;color:var(--muted);margin-bottom:16px}
-.dm-box input{width:100%;padding:12px 14px;border:1.5px solid #e3e5ec;border-radius:12px;
-  font-family:'Inter',sans-serif;font-size:14px;margin-bottom:10px}
-.dm-box input:focus{outline:none;border-color:var(--pink)}
-.dm-btn{width:100%;background:var(--pink);color:#fff;border:none;border-radius:14px;padding:14px;
-  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:15px;cursor:pointer}
-.dm-btn:disabled{background:#c6c9d2;cursor:not-allowed}
-.dm-close{background:none;border:none;font-size:13px;color:var(--muted);margin-top:10px;cursor:pointer}
+.dm-box input{
+  width:100%;padding:13px 14px;border:1.5px solid #e6e0d1;border-radius:13px;
+  font-family:'Inter',sans-serif;font-size:14px;margin-bottom:10px;background:#fffdf8;
+  transition:border-color .2s,box-shadow .2s;
+}
+.dm-box input:focus{outline:none;border-color:var(--pink);box-shadow:0 0 0 4px rgba(255,46,99,.12);background:#fff}
+.dm-btn{
+  width:100%;background:var(--pink);color:#fff;border:none;border-radius:14px;padding:14px;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:15px;cursor:pointer;
+  box-shadow:0 10px 24px rgba(255,46,99,.3);
+}
+.dm-btn:disabled{background:#c6c9d2;cursor:not-allowed;box-shadow:none;transform:none}
+.dm-close{background:none;border:none;font-size:13px;color:var(--muted);margin-top:12px;cursor:pointer}
+.dm-close:hover{color:var(--ink)}
 .dm-err{display:none;background:#fff1f1;border:1.5px solid #ffc9c9;color:#c22;border-radius:10px;
   padding:10px;font-size:12px;font-weight:600;margin-bottom:8px}
 .dm-result{display:none;text-align:left;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:12px;
   padding:14px;font-size:13px;line-height:1.8;margin-top:6px}
 .dm-result code{background:#fff;padding:2px 8px;border-radius:6px;font-weight:800;font-size:14px}
-.cta-sub{
-  display:block;text-decoration:none;color:var(--ink);
-  border:2px solid var(--ink);border-radius:16px;padding:14px;
-  font-weight:700;font-size:14px;margin-bottom:34px;transition:.15s;
-}
-.cta-sub:hover{background:var(--ink);color:#fff}
 
 /* ── Footer ── */
 .footer{
-  border-top:1.5px dashed #e2e5ec;
-  padding:18px 20px calc(20px + env(safe-area-inset-bottom));
+  border-top:1.5px dashed #e0d8c6;margin-top:70px;
+  padding:26px 20px calc(24px + env(safe-area-inset-bottom));
   font-size:11px;color:#9aa0ab;line-height:1.9;text-align:center;
 }
-.footer a{color:#6b7280;text-decoration:none}
+.footer a{color:#6b7280;text-decoration:none;transition:color .15s}
 .footer a:hover{color:var(--ink)}
-.super-link{display:block;margin-top:8px;font-size:10px;color:#e4e6eb;text-decoration:none}
+.super-link{display:block;margin-top:8px;font-size:10px;color:#eee8da;text-decoration:none}
 .super-link:hover{color:#9aa0ab}
+
+/* ── Lang switcher polish (markup/inline styles same) ── */
+#langSel{box-shadow:0 8px 20px rgba(17,17,20,.12);cursor:pointer}
+
+/* ── Scroll reveal (JS na ho to content kabhi hidden nahi rahega) ── */
+@media (prefers-reduced-motion:no-preference){
+  html.js .reveal{opacity:0;transform:translateY(26px);
+    transition:opacity .7s var(--ease),transform .7s var(--ease)}
+  html.js .reveal.in{opacity:1;transform:none}
+  html.js .stagger>*{opacity:0;transform:translateY(22px);
+    transition:opacity .6s var(--ease),transform .6s var(--ease);
+    transition-delay:calc(var(--i,0)*70ms)}
+  html.js .stagger.in>*{opacity:1;transform:none}
+  .stagger>*:nth-child(1){--i:0}.stagger>*:nth-child(2){--i:1}
+  .stagger>*:nth-child(3){--i:2}.stagger>*:nth-child(4){--i:3}
+  .stagger>*:nth-child(5){--i:4}.stagger>*:nth-child(6){--i:5}
+  .stagger>*:nth-child(7){--i:6}.stagger>*:nth-child(8){--i:7}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+  html{scroll-behavior:auto}
+}
+/* ══════════════════════════════════════════════════════════════
+   NAV — Features / Pricing / FAQ / Business Inquiry (AI-Fiesta style)
+   ══════════════════════════════════════════════════════════════ */
+html{scroll-behavior:smooth}
+#features,#faq{scroll-margin-top:86px}
+.main-nav{display:none;align-items:center;gap:2px}
+@media(min-width:900px){.main-nav{display:flex}}
+.nav-link{
+  position:relative;background:none;border:none;cursor:pointer;text-decoration:none;
+  color:#3a3f47;font-family:'Inter',sans-serif;font-weight:600;font-size:13.5px;
+  padding:9px 13px;border-radius:12px;transition:color .2s,background .2s;white-space:nowrap;
+}
+.nav-link::after{
+  content:'';position:absolute;left:13px;right:13px;bottom:5px;height:2.5px;border-radius:2px;
+  background:linear-gradient(90deg,var(--yellow),var(--pink));
+  transform:scaleX(0);transform-origin:left;transition:transform .25s var(--ease);
+}
+.nav-link:hover{color:var(--ink);background:rgba(255,210,46,.14);transform:none}
+.nav-link:hover::after,.nav-link.active::after{transform:scaleX(1)}
+.nav-link.active{color:var(--ink);font-weight:700}
+.nav-biz{color:var(--pink);font-weight:700}
+.head-right{display:flex;align-items:center;gap:10px}
+.nav-burger{
+  display:inline-flex;flex-direction:column;justify-content:center;gap:4px;
+  width:38px;height:38px;border-radius:11px;border:1.5px solid var(--line);
+  background:#fff;cursor:pointer;padding:0 9px;flex:none;
+}
+@media(min-width:900px){.nav-burger{display:none}}
+.nav-burger i{display:block;height:2px;border-radius:2px;background:var(--ink);transition:transform .28s var(--ease),opacity .2s}
+.nav-burger.open i:nth-child(1){transform:translateY(6px) rotate(45deg)}
+.nav-burger.open i:nth-child(2){opacity:0}
+.nav-burger.open i:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+.nav-drop{
+  position:absolute;left:12px;right:12px;top:calc(100% + 8px);z-index:60;
+  background:rgba(255,253,248,.97);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border:1.5px solid var(--line);border-radius:18px;
+  box-shadow:0 26px 60px rgba(17,17,20,.16);padding:10px;display:grid;gap:4px;
+  opacity:0;visibility:hidden;transform:translateY(-8px);pointer-events:none;
+  transition:opacity .25s var(--ease),transform .25s var(--ease),visibility .25s;
+}
+.nav-drop.open{opacity:1;visibility:visible;transform:none;pointer-events:auto}
+.nav-drop .nav-link{display:block;text-align:left;padding:13px 14px;font-size:14px;width:100%}
+@media(min-width:900px){.nav-drop{display:none}}
+@media(max-width:390px){.login-pill span{display:none}.login-pill{padding:8px 11px}}
+
+/* ══════════════════════════════════════════════════════════════
+   PREMIUM CARDS — glow ring + cursor spotlight + sheen +
+   title par yellow highlighter sweep (mouse jane par)
+   ══════════════════════════════════════════════════════════════ */
+.pain-card,.ben-card,.sol-card{position:relative;overflow:hidden;isolation:isolate}
+/* Gradient glow ring (border ke upar) */
+.pain-card::before,.ben-card::before,.sol-card::before{
+  content:'';position:absolute;inset:0;border-radius:inherit;padding:1.5px;z-index:2;
+  background:linear-gradient(135deg,rgba(255,210,46,.95),rgba(255,107,53,.7) 45%,rgba(255,46,99,.9));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor;mask-composite:exclude;
+  opacity:0;transition:opacity .3s var(--ease);pointer-events:none;
+}
+.pain-card:hover::before,.ben-card:hover::before,.sol-card:hover::before{opacity:1}
+/* Sheen sweep */
+.pain-card::after,.ben-card::after,.sol-card::after,.plan3::after,.stat-chip::after,.founder-card::after{
+  content:'';position:absolute;top:-10%;bottom:-10%;left:-70%;width:44%;z-index:3;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);
+  transform:skewX(-18deg);opacity:0;pointer-events:none;
+}
+.pain-card:hover::after,.ben-card:hover::after,.sol-card:hover::after,
+.plan3:hover::after,.stat-chip:hover::after,.founder-card:hover::after{
+  animation:cardSheen .85s var(--ease);
+}
+@keyframes cardSheen{0%{left:-70%;opacity:0}12%{opacity:1}100%{left:130%;opacity:0}}
+/* Cursor-follow spotlight (sirf mouse devices) */
+@media(hover:hover) and (pointer:fine){
+  .pain-card,.ben-card,.sol-card{--mx:50%;--my:30%}
+  .pain-card:hover,.ben-card:hover,.sol-card:hover{
+    background-image:radial-gradient(190px circle at var(--mx) var(--my),
+      rgba(255,210,46,.18),rgba(255,46,99,.05) 46%,transparent 72%);
+  }
+}
+/* Title par highlighter sweep + text deepen */
+.pain-card>b,.ben-card>b{
+  background-image:linear-gradient(transparent 62%,rgba(255,210,46,.9) 62%);
+  background-repeat:no-repeat;background-size:0% 100%;
+  transition:background-size .45s var(--ease),color .2s;
+  width:fit-content;padding:0 2px;
+}
+.pain-card:hover>b,.ben-card:hover>b{background-size:100% 100%}
+.pain-card:hover p,.ben-card:hover p{color:#443f49}
+.pain-card:hover .pmini,.ben-card:hover .bi{transform:translateY(-2px) scale(1.03)}
+.ben-card .bi{transition:transform .25s var(--ease)}
+/* Baaki cards ko bhi premium lift */
+.roi-card,.founder-card{transition:transform .25s var(--ease),box-shadow .25s var(--ease)}
+.roi-card:hover{transform:translateY(-5px);box-shadow:0 26px 56px rgba(17,17,20,.34)}
+.founder-card:hover{transform:translateY(-5px);box-shadow:0 24px 50px rgba(217,119,6,.18);border-color:#eeb35f}
+.founder-card,.stat-chip{position:relative;overflow:hidden}
+.plan3{position:relative;overflow:visible}
+.plan3::after{border-radius:inherit}
+.plan3 .p3t{transition:color .2s}
+.plan3:hover .p3t{color:var(--pink)}
+#faqList details:hover summary{
+  background-image:linear-gradient(transparent 66%,rgba(255,210,46,.55) 66%);
+  background-repeat:no-repeat;background-size:100% 100%;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PAIN CARDS — har dard ka apna mini animation
+   ══════════════════════════════════════════════════════════════ */
+.pmini{
+  position:relative;height:82px;border-radius:16px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+  transition:transform .25s var(--ease);
+}
+/* 1) WhatsApp — bar-bar file mangna (chat bubbles + typing + badge) */
+.mini-wa{background:linear-gradient(150deg,#e9fbeb,#d5f5da);border:1.5px solid #b9e9c1}
+.wa-ph{
+  position:relative;width:60px;height:64px;background:#fff;border:1.5px solid #cfe8d3;
+  border-radius:12px;box-shadow:0 8px 16px rgba(21,128,61,.16);
+}
+.wa-bub{
+  position:absolute;left:7px;background:#eef2ee;border-radius:8px 8px 8px 2px;
+  padding:2px 6px;font-size:9px;line-height:1.4;opacity:0;box-shadow:0 2px 5px rgba(0,0,0,.06);
+}
+.wa-bub i{display:inline-block;width:3px;height:3px;border-radius:50%;background:#7d9a81;margin:0 1px;vertical-align:middle}
+.wa-bub.b1{top:8px}
+.wa-bub.b2{top:24px;left:auto;right:7px;background:#d9fdd3;border-radius:8px 8px 2px 8px}
+.wa-bub.b3{top:41px}
+.wa-badge{
+  position:absolute;top:-6px;right:-6px;background:#e11d48;color:#fff;
+  font-size:9px;font-weight:800;min-width:17px;height:17px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 10px rgba(225,29,72,.5);
+}
+/* 2) Pendrive virus */
+.mini-usb{background:linear-gradient(150deg,#fff3ea,#ffe6dd);border:1.5px solid #ffd0c0}
+.usb{position:relative;width:56px;height:24px;background:linear-gradient(#3b4252,#2b303c);border-radius:6px;box-shadow:0 8px 16px rgba(59,66,82,.35)}
+.usb::before{content:'';position:absolute;right:-13px;top:5px;width:15px;height:14px;background:linear-gradient(#d3dae8,#aab2c5);border-radius:2px;box-shadow:inset 0 -3px 0 rgba(0,0,0,.12)}
+.usb::after{content:'';position:absolute;left:8px;top:8px;width:8px;height:8px;border-radius:50%;background:var(--yellow);box-shadow:0 0 8px 2px rgba(255,210,46,.7)}
+.bug{position:absolute;font-size:15px;filter:drop-shadow(0 3px 6px rgba(0,0,0,.22))}
+.warn{position:absolute;top:7px;right:11px;font-size:13px}
+/* 3) Hisaab — ₹ hai ya ? (flip) + ledger */
+.mini-cash{background:linear-gradient(150deg,#fff8e6,#ffefc4);border:1.5px solid #f1dea0}
+.ledger{
+  position:relative;width:54px;height:56px;background:#fff;border:1.5px solid #eadfbe;
+  border-radius:9px;padding:10px 8px;box-shadow:0 8px 16px rgba(180,140,20,.16);margin-right:26px;
+}
+.ledger i{display:block;height:4px;border-radius:3px;background:#efe6cd;margin-bottom:7px}
+.cash-flip{position:absolute;right:calc(50% - 46px);top:50%;width:30px;height:30px;transform-style:preserve-3d;transform:translateY(-50%)}
+.cash-flip span{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:17px;border-radius:50%;
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:0 6px 12px rgba(0,0,0,.12);
+}
+.cash-rs{background:#dcfce7;color:#15803d}
+.cash-qm{background:#fee2e2;color:#dc2626;transform:rotateY(180deg)}
+/* 4) Bheed — line me khade log + clock */
+.mini-q{background:linear-gradient(150deg,#eef2ff,#e2e8ff);border:1.5px solid #c9d1fb}
+.q-people{display:flex;align-items:flex-end;gap:8px;margin-top:12px}
+.q-man{width:15px;height:24px;position:relative;color:#6b7cf0;background:currentColor;border-radius:8px 8px 4px 4px}
+.q-man::before{content:'';position:absolute;top:-9px;left:50%;transform:translateX(-50%);width:11px;height:11px;border-radius:50%;background:currentColor}
+.q-man:nth-child(2){color:#8b5cf6}
+.q-man:nth-child(3){color:#f472b6}
+.q-man:nth-child(4){color:#fb923c}
+.q-clock{position:absolute;top:8px;right:11px;font-size:14px;display:inline-block}
+/* Pain mini animations */
+@media (prefers-reduced-motion:no-preference){
+  .wa-bub.b1{animation:waB1 4.2s var(--ease) infinite}
+  .wa-bub.b2{animation:waB2 4.2s var(--ease) infinite}
+  .wa-bub.b3{animation:waB3 4.2s var(--ease) infinite}
+  .wa-bub i{animation:waTy 1s ease-in-out infinite}
+  .wa-bub i:nth-child(2){animation-delay:.15s}
+  .wa-bub i:nth-child(3){animation-delay:.3s}
+  .wa-badge{animation:waBadge 2.1s ease-in-out infinite}
+  @keyframes waB1{0%{opacity:0;transform:translateY(4px)}6%,44%{opacity:1;transform:none}52%,100%{opacity:0}}
+  @keyframes waB2{0%,26%{opacity:0;transform:translateY(4px) scale(.9)}33%,86%{opacity:1;transform:none}94%,100%{opacity:0}}
+  @keyframes waB3{0%,50%{opacity:0;transform:translateY(4px) scale(.9)}57%,86%{opacity:1;transform:none}94%,100%{opacity:0}}
+  @keyframes waTy{0%,100%{transform:translateY(0)}50%{transform:translateY(-2.5px)}}
+  @keyframes waBadge{0%,100%{transform:scale(1)}12%{transform:scale(1.25)}24%{transform:scale(1)}}
+  .usb{animation:usbShake 3.4s var(--ease) infinite}
+  .bug{animation:bugMove 3.4s var(--ease) infinite}
+  .warn{animation:warnBlink 1.3s steps(2,jump-none) infinite}
+  @keyframes usbShake{0%,58%,100%{transform:rotate(0)}62%{transform:rotate(-2.5deg)}66%{transform:rotate(2.5deg)}70%{transform:rotate(-1.5deg)}74%{transform:rotate(0)}}
+  @keyframes bugMove{
+    0%{transform:translate(-38px,-20px) rotate(0);opacity:0}
+    10%{opacity:1}
+    35%{transform:translate(-6px,-14px) rotate(30deg)}
+    60%{transform:translate(16px,-2px) rotate(80deg);opacity:1}
+    78%{transform:translate(26px,10px) rotate(120deg);opacity:0}
+    100%{transform:translate(26px,10px);opacity:0}
+  }
+  @keyframes warnBlink{0%{opacity:1}50%{opacity:.15}100%{opacity:1}}
+  .cash-flip{animation:cashFlip 3s var(--ease) infinite}
+  .ledger i{transform-origin:left;animation:ledLine 3s var(--ease) infinite}
+  .ledger i:nth-child(1){width:82%}
+  .ledger i:nth-child(2){width:60%;animation-delay:.12s}
+  .ledger i:nth-child(3){width:72%;animation-delay:.24s}
+  @keyframes cashFlip{0%,32%{transform:translateY(-50%) rotateY(0)}48%,82%{transform:translateY(-50%) rotateY(180deg)}100%{transform:translateY(-50%) rotateY(360deg)}}
+  @keyframes ledLine{0%,100%{transform:scaleX(1)}50%{transform:scaleX(.62)}}
+  .q-man{animation:qBob 1.5s ease-in-out infinite}
+  .q-man:nth-child(2){animation-delay:.18s}
+  .q-man:nth-child(3){animation-delay:.36s}
+  .q-man:nth-child(4){animation-delay:.54s}
+  .q-man:nth-child(1){animation:qLeave 5.2s var(--ease) infinite}
+  .q-clock{animation:clockShake 2.4s var(--ease) infinite}
+  @keyframes qBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3.5px)}}
+  @keyframes qLeave{
+    0%,10%{transform:translate(0,0);opacity:1}
+    14%{transform:translate(0,-4px)}
+    24%{transform:translate(-30px,0);opacity:0}
+    58%{transform:translate(0,0);opacity:0}
+    66%,100%{transform:translate(0,0);opacity:1}
+  }
+  @keyframes clockShake{0%,74%,100%{transform:rotate(0)}80%{transform:rotate(-14deg)}86%{transform:rotate(12deg)}92%{transform:rotate(-7deg)}}
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SOLUTION — 3 premium cards, har step ka apna animation
+   ══════════════════════════════════════════════════════════════ */
+.sol-cards{display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:14px}
+@media(min-width:760px){.sol-cards{grid-template-columns:repeat(3,1fr)}}
+.sol-card{
+  background:#fff;border:1.5px solid #d9eee0;border-radius:20px;
+  padding:16px 14px 18px;text-align:center;
+  box-shadow:0 12px 28px rgba(22,101,52,.10);
+  transition:transform .22s var(--ease),box-shadow .22s var(--ease),border-color .22s;
+}
+.sol-card:hover{transform:translateY(-5px);border-color:#86efac;box-shadow:0 20px 44px rgba(22,101,52,.18)}
+.sol-card b{display:block;font-size:20px;margin:12px 0 3px}
+.sol-card>span{
+  display:inline-block;font-size:12.5px;font-weight:700;color:#2f4636;line-height:1.55;
+  background-image:linear-gradient(transparent 62%,rgba(255,210,46,.85) 62%);
+  background-repeat:no-repeat;background-size:0% 100%;transition:background-size .45s var(--ease);
+  padding:0 3px;
+}
+.sol-card:hover>span{background-size:100% 100%}
+.smini{
+  position:relative;height:88px;border-radius:16px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
+}
+/* Step 1 — QR sticker chipakna (slap + sparkle) */
+.mini-stick{background:linear-gradient(150deg,#f6fdf8,#e9faf0);border:1.5px solid #cdeeda}
+.stick-wall{
+  position:relative;width:66px;height:60px;background:#fff;border:1.5px solid #dfeadf;border-radius:10px;
+  box-shadow:inset 0 0 0 5px #f5faf4, 0 8px 16px rgba(22,101,52,.10);
+}
+.stick-qr{
+  position:absolute;inset:0;margin:auto;width:36px;height:36px;
+  background:var(--tint);border:1.5px dashed #e3cf8f;border-radius:7px;
+  display:flex;align-items:center;justify-content:center;padding:5px;
+}
+.stick-qr svg{width:100%;height:100%;color:var(--ink)}
+.stick-spark{position:absolute;top:6px;right:9px;font-size:12px;opacity:0}
+/* Step 2 — phone: scan → upload → pay cycle */
+.mini-scanflow{background:linear-gradient(150deg,#f2f7ff,#e6efff);border:1.5px solid #c9dcfb}
+.sflow-ph{
+  position:relative;width:46px;height:66px;background:#fff;border:1.5px solid #d9e4f2;
+  border-radius:11px;box-shadow:0 8px 16px rgba(30,64,175,.14);
+}
+.sf{position:absolute;inset:9px 7px 15px;display:flex;align-items:center;justify-content:center;font-size:19px;opacity:0}
+.sf svg{width:23px;height:23px;color:var(--ink)}
+.sf-dots{position:absolute;bottom:5px;left:0;right:0;display:flex;gap:3px;justify-content:center}
+.sf-dots i{width:4px;height:4px;border-radius:50%;background:#d5dce8}
+/* Step 3 — mini printer: paper khud niklta hua */
+.mini-print{background:linear-gradient(150deg,#fff6f1,#ffece2);border:1.5px solid #ffd6c4}
+.mp{position:relative;width:74px}
+.mp-body{
+  position:relative;height:30px;background:linear-gradient(160deg,#23232b,#141419);
+  border-radius:9px;box-shadow:0 8px 16px rgba(17,17,20,.28);z-index:3;
+}
+.mp-body::before{
+  content:'';position:absolute;left:9px;top:8px;width:7px;height:7px;border-radius:50%;
+  background:var(--pink);box-shadow:0 0 8px rgba(255,46,99,.85);
+}
+.mp-slot{position:absolute;left:15%;right:15%;bottom:5px;height:4px;border-radius:3px;background:#050507;box-shadow:inset 0 1px 3px rgba(0,0,0,.9)}
+.mp-mask{position:relative;margin:-4px 17% 0;height:36px;overflow:hidden;z-index:4;pointer-events:none}
+.mp-sheet{background:#fff;border:1px solid #eee4d4;border-radius:4px;padding:5px 6px;transform:translateY(-112%);box-shadow:0 8px 12px rgba(17,17,20,.18)}
+.mp-sheet i{display:block;height:3px;border-radius:2px;background:#eceadf;margin-bottom:3px}
+.mp-sheet i:nth-child(2){width:68%}
+.mp-sheet i:nth-child(3){width:82%;margin-bottom:0}
+.mp-tray{
+  position:relative;z-index:2;margin:-28px 7% 0;height:28px;border-radius:5px 5px 11px 11px;
+  background:linear-gradient(#22222b,#101015);
+  transform:perspective(210px) rotateX(40deg);transform-origin:top center;
+  box-shadow:0 10px 16px rgba(17,17,20,.3);
+}
+/* Solution mini animations */
+@media (prefers-reduced-motion:no-preference){
+  .stick-qr{animation:qrSlap 4.8s var(--ease) infinite}
+  .stick-spark{animation:sparkPing 4.8s var(--ease) infinite}
+  @keyframes qrSlap{
+    0%,8%{transform:scale(1.75) rotate(-11deg);opacity:0}
+    15%{opacity:1;transform:scale(1.5) rotate(-8deg)}
+    27%{transform:scale(.93) rotate(1.5deg)}
+    35%{transform:scale(1.05) rotate(-.5deg)}
+    41%{transform:scale(1) rotate(0)}
+    86%{transform:scale(1);opacity:1}
+    94%,100%{transform:scale(1);opacity:0}
+  }
+  @keyframes sparkPing{
+    0%,26%{opacity:0;transform:scale(.4) rotate(0)}
+    32%{opacity:1;transform:scale(1.25) rotate(20deg)}
+    46%{opacity:0;transform:scale(.6) rotate(40deg)}
+    100%{opacity:0}
+  }
+  .sf.s1{animation:sfA 5.1s var(--ease) infinite}
+  .sf.s2{animation:sfB 5.1s var(--ease) infinite}
+  .sf.s3{animation:sfC 5.1s var(--ease) infinite}
+  .sf-dots i:nth-child(1){animation:dotOn 5.1s var(--ease) infinite}
+  .sf-dots i:nth-child(2){animation:dotOn 5.1s var(--ease) infinite;animation-delay:1.7s}
+  .sf-dots i:nth-child(3){animation:dotOn 5.1s var(--ease) infinite;animation-delay:3.4s}
+  @keyframes sfA{0%{opacity:0;transform:scale(.8)}4%,28%{opacity:1;transform:scale(1)}33%,100%{opacity:0;transform:scale(.85)}}
+  @keyframes sfB{0%,33%{opacity:0;transform:translateY(8px)}37%,61%{opacity:1;transform:none}66%,100%{opacity:0;transform:translateY(-6px)}}
+  @keyframes sfC{0%,66%{opacity:0;transform:scale(.7)}70%,94%{opacity:1;transform:scale(1)}100%{opacity:0}}
+  @keyframes dotOn{0%,3%{background:#d5dce8}4%,32%{background:var(--pink)}33%,100%{background:#d5dce8}}
+  .mp-sheet{animation:mpOut 3.9s var(--ease) infinite}
+  @keyframes mpOut{
+    0%,22%{transform:translateY(-112%)}
+    50%{transform:translateY(4%)}
+    55%{transform:translateY(1%)}
+    84%{transform:translateY(2%);opacity:1}
+    93%,100%{transform:translateY(2%);opacity:0}
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   HERO STEPS — Scan → Upload → Pay → Auto Print flow animation
+   (text nodes untouched — i18n safe)
+   ══════════════════════════════════════════════════════════════ */
+@media (prefers-reduced-motion:no-preference){
+  .hero-copy .steps>.step{animation:stepGo 5.6s var(--ease) infinite}
+  .hero-copy .steps>.step:nth-child(1){animation-delay:.2s}
+  .hero-copy .steps>.step:nth-child(3){animation-delay:1.55s}
+  .hero-copy .steps>.step:nth-child(5){animation-delay:2.9s}
+  .hero-copy .steps>.step:nth-child(7){animation-delay:4.25s}
+  .hero-copy .steps>.step b{animation:stepIco 5.6s var(--ease) infinite}
+  .hero-copy .steps>.step:nth-child(1) b{animation-delay:.2s}
+  .hero-copy .steps>.step:nth-child(3) b{animation-delay:1.55s}
+  .hero-copy .steps>.step:nth-child(5) b{animation-delay:2.9s}
+  .hero-copy .steps>.step:nth-child(7) b{animation-delay:4.25s}
+  .hero-copy .steps>.step-arrow{animation:arrowGo 5.6s var(--ease) infinite}
+  .hero-copy .steps>.step-arrow:nth-child(2){animation-delay:1.25s}
+  .hero-copy .steps>.step-arrow:nth-child(4){animation-delay:2.6s}
+  .hero-copy .steps>.step-arrow:nth-child(6){animation-delay:3.95s}
+  @keyframes stepGo{
+    0%{transform:translateY(0);border-color:#f0e2ba;background:var(--tint);box-shadow:0 0 0 rgba(255,210,46,0)}
+    5%{transform:translateY(-4px);border-color:var(--yellow);background:#fffef7;box-shadow:0 12px 26px rgba(255,210,46,.42)}
+    19%{transform:translateY(-4px);border-color:var(--yellow);background:#fffef7;box-shadow:0 12px 26px rgba(255,210,46,.42)}
+    26%,100%{transform:translateY(0);border-color:#f0e2ba;background:var(--tint);box-shadow:0 0 0 rgba(255,210,46,0)}
+  }
+  @keyframes stepIco{
+    0%,4%{transform:scale(1) rotate(0)}
+    9%{transform:scale(1.3) rotate(-7deg)}
+    14%{transform:scale(1.08) rotate(3deg)}
+    19%{transform:scale(1.16) rotate(0)}
+    26%,100%{transform:scale(1) rotate(0)}
+  }
+  @keyframes arrowGo{
+    0%,2%{color:#cdc6b6;transform:translateX(0)}
+    7%{color:var(--pink);transform:translateX(4px)}
+    14%,100%{color:#cdc6b6;transform:translateX(0)}
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   BUSINESS INQUIRY MODAL — extras (demo modal ka hi style base)
+   ══════════════════════════════════════════════════════════════ */
+.dm-box textarea{
+  width:100%;padding:13px 14px;border:1.5px solid #e6e0d1;border-radius:13px;
+  font-family:'Inter',sans-serif;font-size:14px;margin-bottom:10px;background:#fffdf8;
+  resize:vertical;min-height:96px;transition:border-color .2s,box-shadow .2s;
+}
+.dm-box textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 0 4px rgba(255,46,99,.12);background:#fff}
+.iq-row{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+@media(max-width:430px){.iq-row{grid-template-columns:1fr}}
+.dm-btn.iq-wa{background:#22c55e;box-shadow:0 10px 24px rgba(34,197,94,.32)}
+.dm-btn.iq-em{background:var(--ink);box-shadow:0 10px 24px rgba(17,17,20,.3)}
+.iq-ok{
+  display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534;
+  border-radius:10px;padding:10px;font-size:12px;font-weight:700;margin-bottom:8px;
+}
 </style>
 </head>
 <body>
 
-<div class="deco sq-y d1"></div>
-<div class="deco sq-p d2"></div>
-<div class="deco sq-p d3"></div>
-<div class="deco sq-y d4"></div>
-<div class="deco sq-y d5"></div>
+<div class="bg-ambient" aria-hidden="true"></div>
 
-<div class="wrap">
+<!-- SVG defs: stylized QR glyph (phone + printed sheet dono me reuse) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="qrGlyph" viewBox="0 0 25 25">
+    <g fill="currentColor">
+      <path d="M0 0h7v7H0zM2 2h3v3H2z" fill-rule="evenodd"/>
+      <path d="M18 0h7v7h-7zM20 2h3v3h-3z" fill-rule="evenodd"/>
+      <path d="M0 18h7v7H0zM2 20h3v3H2z" fill-rule="evenodd"/>
+      <rect x="8" y="6" width="1" height="1"/><rect x="10" y="6" width="1" height="1"/>
+      <rect x="12" y="6" width="1" height="1"/><rect x="14" y="6" width="1" height="1"/>
+      <rect x="16" y="6" width="1" height="1"/>
+      <rect x="6" y="8" width="1" height="1"/><rect x="6" y="10" width="1" height="1"/>
+      <rect x="6" y="12" width="1" height="1"/><rect x="6" y="14" width="1" height="1"/>
+      <rect x="6" y="16" width="1" height="1"/>
+      <rect x="9" y="0" width="1" height="2"/><rect x="12" y="1" width="2" height="1"/>
+      <rect x="15" y="0" width="1" height="1"/><rect x="10" y="3" width="1" height="2"/>
+      <rect x="13" y="3" width="2" height="1"/><rect x="16" y="4" width="1" height="1"/>
+      <rect x="9" y="9" width="2" height="2"/><rect x="13" y="9" width="1" height="1"/>
+      <rect x="15" y="9" width="2" height="1"/><rect x="12" y="11" width="1" height="2"/>
+      <rect x="14" y="12" width="2" height="1"/><rect x="9" y="12" width="2" height="1"/>
+      <rect x="10" y="14" width="1" height="2"/><rect x="13" y="15" width="2" height="1"/>
+      <rect x="16" y="14" width="1" height="2"/><rect x="8" y="16" width="1" height="1"/>
+      <rect x="19" y="9" width="2" height="1"/><rect x="22" y="10" width="1" height="2"/>
+      <rect x="19" y="12" width="1" height="2"/><rect x="21" y="13" width="2" height="1"/>
+      <rect x="23" y="15" width="1" height="1"/><rect x="19" y="16" width="2" height="1"/>
+      <rect x="9" y="19" width="1" height="2"/><rect x="11" y="20" width="2" height="1"/>
+      <rect x="14" y="19" width="1" height="1"/><rect x="16" y="21" width="1" height="2"/>
+      <rect x="13" y="22" width="1" height="1"/><rect x="18" y="20" width="2" height="1"/>
+      <rect x="21" y="19" width="1" height="1"/><rect x="19" y="22" width="2" height="1"/>
+      <rect x="22" y="21" width="1" height="1"/><rect x="10" y="23" width="2" height="1"/>
+      <rect x="15" y="23" width="1" height="1"/>
+    </g>
+  </symbol>
+</svg>
 
-  <div class="topbar">
-    <a href="/admin" class="login-pill">🔑 Shop Owner Login</a>
-  </div>
+<!-- ═══ Announcement: Refer & Earn ═══ -->
+<a href="/admin" class="refer-strip">
+  <span class="rs-left">🎁 <b>Refer &amp; Earn</b> — har referral par ₹50</span>
+  <span class="rs-arrow">›</span>
+</a>
 
-
-
-  <a href="/admin" class="refer-strip">
-    <span class="rs-left">🎁 <b>Refer &amp; Earn</b> — har referral par ₹50</span>
-    <span class="rs-arrow">›</span>
-  </a>
-
-  <div class="brand-row">
-    <div class="perf" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-    <div class="brand" id="brandWrap"><div class="brand-mark">🖨️</div>QR Se Print</div>
-    <div class="perf" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-  </div>
-
-  <div class="h-top">Customer ke phone se</div>
-  <div class="h-hero">Print</div>
-  <div class="h-sub">seedha aapke printer par — <span class="mark">in 1 Scan</span></div>
-  <p style="text-align:center;font-size:14px;color:#4b4852;line-height:1.8;max-width:520px;margin:10px auto 0;">
-    Customer apne phone se <b>QR scan</b> karta hai, file bhejta hai, <b>payment karta hai</b> —
-    aur print aapke printer se <b>khud nikal jata hai</b>.<br>
-    <b style="color:#ff2e63;">Na WhatsApp pe file mangna, na pendrive, na hisaab ki tension.</b>
-  </p>
-
-  <div class="stats-strip" style="display:none" id="statsStrip">
-    <div class="stat-chip"><b id="statShops">—</b><span>Shops chala rahi hain</span></div>
-    <div class="stat-chip"><b id="statPrints">—</b><span>Prints nikal chuke</span></div>
-    <div class="stat-chip"><b>🇮🇳</b><span>Jharkhand me bana</span></div>
-  </div>
-  <div class="price-wrap" style="display:none">
-    <div class="price-sticker">
-      <div class="price-actual" id="actualPrice">₹999</div>
-      <div class="price-offer">₹<span id="offerPrice">499</span><small>/setup</small></div>
+<!-- ═══ Sticky header ═══ -->
+<header class="site-head" id="siteHead">
+  <div class="container head-inner">
+    <div class="brand-row">
+      <div class="perf" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="brand" id="brandWrap"><div class="brand-mark">🖨️</div>QR Se Print</div>
+      <div class="perf" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
     </div>
-    <div class="starburst" id="saveBurst"><span>Save</span>₹500</div>
+    <nav class="main-nav" aria-label="Main">
+      <a href="#features" class="nav-link">Features</a>
+      <a href="#pricingSection" class="nav-link">Pricing</a>
+      <a href="#faq" class="nav-link">FAQ</a>
+      <button type="button" class="nav-link nav-biz" onclick="openInq()">💼 Business Inquiry</button>
+    </nav>
+    <div class="head-right">
+      <a href="/admin" class="login-pill">🔑 <span>Shop Owner Login</span></a>
+      <button type="button" class="nav-burger" id="navBurger" aria-label="Menu" aria-expanded="false" aria-controls="navDrop" onclick="toggleNav()"><i></i><i></i><i></i></button>
+    </div>
   </div>
-
-  <div class="steps">
-    <div class="step"><b>📱</b><span>QR Scan</span></div>
-    <div class="step-arrow">›</div>
-    <div class="step"><b>📄</b><span>File Upload</span></div>
-    <div class="step-arrow">›</div>
-    <div class="step"><b>💳</b><span>Pay</span></div>
-    <div class="step-arrow">›</div>
-    <div class="step"><b>🖨️</b><span>Auto Print</span></div>
+  <div class="nav-drop" id="navDrop">
+    <a href="#features" class="nav-link">✨ Features</a>
+    <a href="#pricingSection" class="nav-link">💰 Pricing</a>
+    <a href="#faq" class="nav-link">❓ FAQ</a>
+    <button type="button" class="nav-link nav-biz" onclick="openInq()">💼 Business Inquiry</button>
   </div>
+</header>
 
-  <button onclick="document.getElementById('pricingSection').scrollIntoView({behavior:'smooth'})" style="width:100%;margin:22px 0 6px;background:linear-gradient(135deg,#ff2e63,#ff6b35);color:#fff;border:none;border-radius:16px;padding:17px;font-family:'Syne',sans-serif;font-weight:800;font-size:17px;cursor:pointer;box-shadow:0 8px 24px rgba(255,46,99,.35);display:flex;align-items:center;justify-content:center;gap:8px;">
-    💰 See Setup Price <span style="font-size:20px;">↓</span>
-  </button>
+<main>
 
-  <div class="pills">
-    <div class="pill">✅ 0% Commission</div>
-    <div class="pill">⚡ Automatic Print</div>
-    <div class="pill">💳 Online + Counter Pay</div>
-    <div class="pill">🖥️ System Tray Agent</div>
-    <div class="pill">🔄 Auto Update</div>
+  <!-- ═══ HERO: desktop 2-column ═══ -->
+  <section class="hero">
+    <div class="container hero-grid">
+
+      <div class="hero-copy">
+        <div class="h-top">Customer ke phone se</div>
+        <h1 class="h-hero">Print</h1>
+        <div class="h-sub">seedha aapke printer par — <span class="mark">in 1 Scan</span></div>
+        <p class="hero-para">
+          Customer apne phone se <b>QR scan</b> karta hai, file bhejta hai, <b>payment karta hai</b> —
+          aur print aapke printer se <b>khud nikal jata hai</b>.<br>
+          <b style="color:#ff2e63;">Na WhatsApp pe file mangna, na pendrive, na hisaab ki tension.</b>
+        </p>
+
+        <div class="steps">
+          <div class="step"><b>📱</b><span>QR Scan</span></div>
+          <div class="step-arrow">›</div>
+          <div class="step"><b>📄</b><span>File Upload</span></div>
+          <div class="step-arrow">›</div>
+          <div class="step"><b>💳</b><span>Pay</span></div>
+          <div class="step-arrow">›</div>
+          <div class="step"><b>🖨️</b><span>Auto Print</span></div>
+        </div>
+
+        <button class="cta-price" onclick="document.getElementById('pricingSection').scrollIntoView({behavior:'smooth'})">
+          💰 See Setup Price <span class="arr">↓</span>
+        </button>
+
+        <div class="pills">
+          <div class="pill">✅ 0% Commission</div>
+          <div class="pill">⚡ Automatic Print</div>
+          <div class="pill">💳 Online + Counter Pay</div>
+          <div class="pill">🖥️ System Tray Agent</div>
+          <div class="pill">🔄 Auto Update</div>
+        </div>
+      </div>
+
+      <!-- Signature visual: phone scan → files fly → printer se paper nikalta hua -->
+      <div class="hero-visual" aria-hidden="true">
+        <div class="scene">
+          <div class="scene-blob"></div>
+          <div class="scene-badge">⚡ Auto Print</div>
+
+          <div class="ph">
+            <div class="ph-notch"></div>
+            <div class="ph-head"><span class="ph-dot"></span><b>QR Se Print</b></div>
+            <div class="qr-box">
+              <svg><use href="#qrGlyph"/></svg>
+              <div class="scan-laser"></div>
+            </div>
+            <div class="scan-status">
+              <span class="st1">Scanning…</span>
+              <span class="st2">File Sent ✓</span>
+            </div>
+          </div>
+
+          <span class="fly f1">📄 Notes.pdf</span>
+          <span class="fly f2">🖼️ Photo.jpg</span>
+          <span class="fly f3">💳 Paid ✓</span>
+
+          <div class="printer">
+            <div class="pr-rear">
+              <div class="pr-rear-back"></div>
+              <i class="rp p1"></i><i class="rp p2"></i><i class="rp p3"></i>
+              <div class="pr-rear-lip"></div>
+            </div>
+            <div class="pr-body">
+              <div class="pr-glass"><div class="pr-beam"></div></div>
+              <div class="pr-ctrl">
+                <div class="pr-led-wrap"><span class="pr-led"></span><small>PRINTING</small></div>
+                <div class="pr-keys"><i></i><i></i><i></i></div>
+              </div>
+              <div class="pr-frontslot"></div>
+            </div>
+            <div class="pr-out-mask">
+              <div class="pr-sheet">
+                <div class="sh-brand"><i>🖨️</i> QR Se Print</div>
+                <div class="sh-line w88"></div>
+                <div class="sh-line w70"></div>
+                <div class="sh-line w55"></div>
+                <div class="sh-qr"><svg><use href="#qrGlyph"/></svg></div>
+                <div class="sh-cut"></div>
+              </div>
+            </div>
+            <div class="pr-out-tray"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══ Stats: desktop pe wide horizontal row (JS se show hota hai) ═══ -->
+  <div class="container">
+    <div class="stats-strip" style="display:none" id="statsStrip">
+      <div class="stat-chip"><b id="statShops">—</b><span>Shops chala rahi hain</span></div>
+      <div class="stat-chip"><b id="statPrints">—</b><span>Prints nikal chuke</span></div>
+      <div class="stat-chip"><b>🇮🇳</b><span>Jharkhand me bana</span></div>
+    </div>
+    <div class="price-wrap" style="display:none">
+      <div class="price-sticker">
+        <div class="price-actual" id="actualPrice">₹999</div>
+        <div class="price-offer">₹<span id="offerPrice">499</span><small>/setup</small></div>
+      </div>
+      <div class="starburst" id="saveBurst"><span>Save</span>₹500</div>
+    </div>
   </div>
 
   <!-- ═══ PAIN ═══ -->
-  <div class="sec-title">😤 Abhi Aapki Dukaan Me Kya Hota Hai?</div>
-  <div class="sec-sub">Har cyber cafe / print shop wale ka roz ka dard</div>
-  <div class="pain-grid">
-    <div class="pain-card"><div class="pi">📱</div><b>WhatsApp pe file mangna</b>
-      <p>Apna personal number har customer ko dena padta hai. Chat me files kho jaati hain, "bhaiya wo wali file" dhundhte raho.</p></div>
-    <div class="pain-card"><div class="pi">💾</div><b>Pendrive ka virus</b>
-      <p>Customer ka pendrive lagao = virus ka khatra. PC slow, files corrupt, kabhi-kabhi poora system hi baith jata hai.</p></div>
-    <div class="pain-card"><div class="pi">🧾</div><b>Hisaab ki tension</b>
-      <p>Kaun paid kar gaya, kaun baaki hai — copy pe likho, bhool jao, jhagda karo. Mahine ke end me hisaab milta hi nahi.</p></div>
-    <div class="pain-card"><div class="pi">⏰</div><b>Bheed me ek-ek ka wait</b>
-      <p>Aap ek customer ka print nikal rahe ho, baaki 5 khade hain. File lo, kholo, print karo — poora din isi me jata hai.</p></div>
-  </div>
+  <section class="sec container">
+    <h2 class="sec-title reveal">😤 Abhi Aapki Dukaan Me Kya Hota Hai?</h2>
+    <div class="sec-sub reveal">Har cyber cafe / print shop wale ka roz ka dard</div>
+    <div class="pain-grid stagger">
+      <div class="pain-card"><div class="pmini mini-wa" aria-hidden="true">
+          <div class="wa-ph">
+            <span class="wa-bub b1"><i></i><i></i><i></i></span>
+            <span class="wa-bub b2">📄</span>
+            <span class="wa-bub b3">📄</span>
+            <span class="wa-badge">3</span>
+          </div>
+        </div><b>WhatsApp pe file mangna</b>
+        <p>Apna personal number har customer ko dena padta hai. Chat me files kho jaati hain, "bhaiya wo wali file" dhundhte raho.</p></div>
+      <div class="pain-card"><div class="pmini mini-usb" aria-hidden="true">
+          <div class="usb"></div>
+          <span class="bug">🦠</span>
+          <span class="warn">⚠️</span>
+        </div><b>Pendrive ka virus</b>
+        <p>Customer ka pendrive lagao = virus ka khatra. PC slow, files corrupt, kabhi-kabhi poora system hi baith jata hai.</p></div>
+      <div class="pain-card"><div class="pmini mini-cash" aria-hidden="true">
+          <div class="ledger"><i></i><i></i><i></i></div>
+          <div class="cash-flip"><span class="cash-rs">₹</span><span class="cash-qm">?</span></div>
+        </div><b>Hisaab ki tension</b>
+        <p>Kaun paid kar gaya, kaun baaki hai — copy pe likho, bhool jao, jhagda karo. Mahine ke end me hisaab milta hi nahi.</p></div>
+      <div class="pain-card"><div class="pmini mini-q" aria-hidden="true">
+          <span class="q-clock">⏰</span>
+          <div class="q-people"><span class="q-man"></span><span class="q-man"></span><span class="q-man"></span><span class="q-man"></span></div>
+        </div><b>Bheed me ek-ek ka wait</b>
+        <p>Aap ek customer ka print nikal rahe ho, baaki 5 khade hain. File lo, kholo, print karo — poora din isi me jata hai.</p></div>
+    </div>
+  </section>
+
+  <div class="perf-divider" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 
   <!-- ═══ SOLUTION ═══ -->
-  <div class="sec-title">✨ QR Se Print Lagane Ke Baad</div>
-  <div class="sec-sub">Aapka kaam: QR chipkao. Bas.</div>
-  <div style="background:#fff;border:2px solid #86efac;border-radius:20px;padding:18px;">
-    <div class="steps" style="margin:0;">
-      <div class="step"><b>1️⃣</b><span>Shop me QR<br>chipkao</span></div>
-      <div class="step-arrow">›</div>
-      <div class="step"><b>2️⃣</b><span>Customer scan,<br>upload, pay</span></div>
-      <div class="step-arrow">›</div>
-      <div class="step"><b>3️⃣</b><span>Print KHUD<br>nikal jata hai</span></div>
+  <section class="sec container" style="margin-top:26px">
+    <h2 class="sec-title reveal">✨ QR Se Print Lagane Ke Baad</h2>
+    <div class="sec-sub reveal">Aapka kaam: QR chipkao. Bas.</div>
+    <div class="solution-band reveal">
+      <div class="sol-cards stagger">
+        <div class="sol-card">
+          <div class="smini mini-stick" aria-hidden="true">
+            <div class="stick-wall">
+              <div class="stick-qr"><svg><use href="#qrGlyph"/></svg></div>
+              <span class="stick-spark">✨</span>
+            </div>
+          </div>
+          <b>1️⃣</b><span>Shop me QR<br>chipkao</span>
+        </div>
+        <div class="sol-card">
+          <div class="smini mini-scanflow" aria-hidden="true">
+            <div class="sflow-ph">
+              <span class="sf s1"><svg><use href="#qrGlyph"/></svg></span>
+              <span class="sf s2">📤</span>
+              <span class="sf s3">💳</span>
+              <span class="sf-dots"><i></i><i></i><i></i></span>
+            </div>
+          </div>
+          <b>2️⃣</b><span>Customer scan,<br>upload, pay</span>
+        </div>
+        <div class="sol-card">
+          <div class="smini mini-print" aria-hidden="true">
+            <div class="mp">
+              <div class="mp-body"><div class="mp-slot"></div></div>
+              <div class="mp-mask"><div class="mp-sheet"><i></i><i></i><i></i></div></div>
+              <div class="mp-tray"></div>
+            </div>
+          </div>
+          <b>3️⃣</b><span>Print KHUD<br>nikal jata hai</span>
+        </div>
+      </div>
+      <p>Aap counter pe baithe raho — file lena, kholna, print dabana — kuch nahi. Payment ka record khud banta hai.</p>
     </div>
-    <p style="text-align:center;font-size:12.5px;color:#15803d;font-weight:700;margin:12px 0 0;">
-      Aap counter pe baithe raho — file lena, kholna, print dabana — kuch nahi. Payment ka record khud banta hai.</p>
-  </div>
+  </section>
 
   <!-- ═══ BENEFITS ═══ -->
-  <div class="sec-title">🎁 Sirf Print Nahi — Poori Dukaan Ka System</div>
-  <div class="sec-sub">Jo-jo milta hai, sab ek jagah</div>
-  <div class="ben-grid">
-    <div class="ben-card"><div class="bi">📄</div><b>Multi-file Print</b><p>Customer ek saath 5-10 files bheje (PDF + photo mix) — ek payment, sahi order me print.</p></div>
-    <div class="ben-card"><div class="bi">✂️</div><b>Phone Se Hi Editing</b><p>Customer khud crop, rotate, brightness theek karta hai — aapse "thoda seedha kar do" nahi bolega.</p></div>
-    <div class="ben-card"><div class="bi">📷</div><b>4×6 Passport Photos</b><p>Photo bhejo, 4 ya 6 ki sheet khud ban ke photo printer se nikle — cutting lines ke saath.</p></div>
-    <div class="ben-card"><div class="bi">📝</div><b>Resume Maker</b><p>Customer QR se 6 designs me resume banaye aur print kare — aapki extra kamai, zero mehnat.</p></div>
-    <div class="ben-card"><div class="bi">📐</div><b>A3 / A2 / A1 + Duplex</b><p>Bade naksha-banner prints aur dono-side printing — har size ka apna printer, apna rate.</p></div>
-    <div class="ben-card"><div class="bi">💳</div><b>Paisa Seedha Aapke Account</b><p>Online payment (Razorpay/PhonePe) SEEDHA aapko. Hum beech me nahi — <b>0% commission, unlimited prints.</b></p></div>
-    <div class="ben-card"><div class="bi">🔒</div><b>Customer Ka Bharosa</b><p>File print ke 90 minute baad KHUD delete. Na aapke paas rahegi, na kisi aur ke — privacy pakki.</p></div>
-    <div class="ben-card"><div class="bi">📶</div><b>Net Jaye To Bhi Safe</b><p>Internet band? Jobs queue me. Wapas aate hi sab print. Auto-update bhi khud hota hai.</p></div>
-  </div>
+  <section class="sec container" id="features">
+    <h2 class="sec-title reveal">🎁 Sirf Print Nahi — Poori Dukaan Ka System</h2>
+    <div class="sec-sub reveal">Jo-jo milta hai, sab ek jagah</div>
+    <div class="ben-grid stagger">
+      <div class="ben-card"><div class="bi">📄</div><b>Multi-file Print</b><p>Customer ek saath 5-10 files bheje (PDF + photo mix) — ek payment, sahi order me print.</p></div>
+      <div class="ben-card"><div class="bi">✂️</div><b>Phone Se Hi Editing</b><p>Customer khud crop, rotate, brightness theek karta hai — aapse "thoda seedha kar do" nahi bolega.</p></div>
+      <div class="ben-card"><div class="bi">📷</div><b>4×6 Passport Photos</b><p>Photo bhejo, 4 ya 6 ki sheet khud ban ke photo printer se nikle — cutting lines ke saath.</p></div>
+      <div class="ben-card"><div class="bi">📝</div><b>Resume Maker</b><p>Customer QR se 6 designs me resume banaye aur print kare — aapki extra kamai, zero mehnat.</p></div>
+      <div class="ben-card"><div class="bi">📐</div><b>A3 / A2 / A1 + Duplex</b><p>Bade naksha-banner prints aur dono-side printing — har size ka apna printer, apna rate.</p></div>
+      <div class="ben-card"><div class="bi">💳</div><b>Paisa Seedha Aapke Account</b><p>Online payment (Razorpay/PhonePe) SEEDHA aapko. Hum beech me nahi — <b>0% commission, unlimited prints.</b></p></div>
+      <div class="ben-card"><div class="bi">🔒</div><b>Customer Ka Bharosa</b><p>File print ke 90 minute baad KHUD delete. Na aapke paas rahegi, na kisi aur ke — privacy pakki.</p></div>
+      <div class="ben-card"><div class="bi">📶</div><b>Net Jaye To Bhi Safe</b><p>Internet band? Jobs queue me. Wapas aate hi sab print. Auto-update bhi khud hota hai.</p></div>
+    </div>
+  </section>
 
   <!-- ═══ COMPARISON ═══ -->
-  <div class="sec-title">⚖️ Pehle vs Ab</div>
-  <table class="cmp-table">
-    <tr><th></th><th>📱 WhatsApp Tareeka</th><th>⚡ QR Se Print</th></tr>
-    <tr><td><b>File lena</b></td><td class="bad">Apna number do, chat dhundo</td><td class="good">QR scan — number private</td></tr>
-    <tr><td><b>Payment</b></td><td class="bad">Yaad rakho kaun baaki hai</td><td class="good">Record khud banta hai</td></tr>
-    <tr><td><b>Aapka time</b></td><td class="bad">Har print me haath lagao</td><td class="good">Print khud nikalta hai</td></tr>
-    <tr><td><b>Virus risk</b></td><td class="bad">Pendrive = khatra</td><td class="good">Zero — sab phone se</td></tr>
-    <tr><td><b>Photo/Resume</b></td><td class="bad">Alag software, alag jhanjhat</td><td class="good">Sab isi me built-in</td></tr>
-    <tr><td><b>Commission</b></td><td class="bad">—</td><td class="good">0% — paisa poora aapka</td></tr>
-  </table>
+  <section class="sec container">
+    <h2 class="sec-title reveal" style="margin-bottom:24px">⚖️ Pehle vs Ab</h2>
+    <div class="table-scroll reveal">
+      <table class="cmp-table">
+        <tr><th></th><th>📱 WhatsApp Tareeka</th><th>⚡ QR Se Print</th></tr>
+        <tr><td><b>File lena</b></td><td class="bad">Apna number do, chat dhundo</td><td class="good">QR scan — number private</td></tr>
+        <tr><td><b>Payment</b></td><td class="bad">Yaad rakho kaun baaki hai</td><td class="good">Record khud banta hai</td></tr>
+        <tr><td><b>Aapka time</b></td><td class="bad">Har print me haath lagao</td><td class="good">Print khud nikalta hai</td></tr>
+        <tr><td><b>Virus risk</b></td><td class="bad">Pendrive = khatra</td><td class="good">Zero — sab phone se</td></tr>
+        <tr><td><b>Photo/Resume</b></td><td class="bad">Alag software, alag jhanjhat</td><td class="good">Sab isi me built-in</td></tr>
+        <tr><td><b>Commission</b></td><td class="bad">—</td><td class="good">0% — paisa poora aapka</td></tr>
+      </table>
+    </div>
+  </section>
 
-  <!-- ═══ ROI ═══ -->
-  <div class="roi-card">
-    <h3>🧮 Hisaab Lagao — Kitne Din Me Wasool?</h3>
-    <div class="roi-line"><span>Din ke sirf 15 print (kam se kam)</span><span>15 × ₹5 = ₹75/din</span></div>
-    <div class="roi-line"><span>Mahine ki print kamai</span><span>~₹2,250</span></div>
-    <div class="roi-line"><span>Software ka kharcha (One-Time)</span><span>₹999 — EK baar</span></div>
-    <div class="roi-line"><span>Wasool</span><span>2 hafte se pehle ✅</span></div>
-    <p style="font-size:11px;opacity:.7;margin:10px 0 0;">* Misaal ke taur par — aapke rates aur prints aapki dukaan par depend karte hain. Upar se time ki bachat aur photo/resume ki extra kamai alag.</p>
-  </div>
-
-  <!-- ═══ FOUNDER ═══ -->
-  <div class="founder-card">
-    <div style="font-weight:800;font-size:15px;">🙋 Banane Wala Bhi Aap Jaisa Hi Hai</div>
-    <p>Main <b>Rupesh Kumar Mahato</b> — Jharkhand me apna cyber cafe chalata hoon. Ye software maine pehle <b>apni dukaan ke liye</b> banaya tha, kyunki WhatsApp-pendrive wala jhanjhat mujhse bhi nahi jhela ja raha tha.<br><br>
-    Jab meri dukaan pe chal gaya, tab doosre shop walon ke liye khola. Isliye isme wahi cheezein hain jo <b>asli dukaan me kaam aati hain</b> — aur koi dikkat aaye to WhatsApp pe main khud jawab deta hoon.</p>
-  </div>
+  <!-- ═══ ROI + FOUNDER ═══ -->
+  <section class="sec container">
+    <div class="duo-grid">
+      <div class="roi-card reveal">
+        <h3>🧮 Hisaab Lagao — Kitne Din Me Wasool?</h3>
+        <div class="roi-line"><span>Din ke sirf 15 print (kam se kam)</span><span>15 × ₹5 = ₹75/din</span></div>
+        <div class="roi-line"><span>Mahine ki print kamai</span><span>~₹2,250</span></div>
+        <div class="roi-line"><span>Software ka kharcha (One-Time)</span><span>₹999 — EK baar</span></div>
+        <div class="roi-line"><span>Wasool</span><span>2 hafte se pehle ✅</span></div>
+        <p style="font-size:11px;opacity:.7;margin:10px 0 0;">* Misaal ke taur par — aapke rates aur prints aapki dukaan par depend karte hain. Upar se time ki bachat aur photo/resume ki extra kamai alag.</p>
+      </div>
+      <div class="founder-card reveal">
+        <div style="font-weight:800;font-size:15px;font-family:'Plus Jakarta Sans',sans-serif;">🙋 Banane Wala Bhi Aap Jaisa Hi Hai</div>
+        <p>Main <b>Rupesh Kumar Mahato</b> — Jharkhand me apna cyber cafe chalata hoon. Ye software maine pehle <b>apni dukaan ke liye</b> banaya tha, kyunki WhatsApp-pendrive wala jhanjhat mujhse bhi nahi jhela ja raha tha.<br><br>
+        Jab meri dukaan pe chal gaya, tab doosre shop walon ke liye khola. Isliye isme wahi cheezein hain jo <b>asli dukaan me kaam aati hain</b> — aur koi dikkat aaye to WhatsApp pe main khud jawab deta hoon.</p>
+      </div>
+    </div>
+  </section>
 
   <!-- ═══ PRICING PLANS ═══ -->
-  <div class="plans-wrap" id="pricingSection">
-    <div class="plans-title">💰 Apna Plan Chuno</div>
-    <div class="plans3">
+  <section class="sec container plans-wrap" id="pricingSection">
+    <h2 class="plans-title reveal">💰 Apna Plan Chuno</h2>
+    <div class="plans3 stagger">
       <div class="plan3">
         <div class="p3t">🎯 Demo</div>
         <div class="p3p">₹0</div>
@@ -437,7 +1426,7 @@ body{
           <li>✅ Unlimited Print 24/Hrs</li>
           <li>✅ Setup Guide (README) included</li>
         </ul>
-        <button class="p3btn" style="background:#1b1b1f;color:#fff;" onclick="openDemoModal()">Try Now — Free Demo</button>
+        <button class="p3btn dark" onclick="openDemoModal()">Try Now — Free Demo</button>
       </div>
       <div class="plan3">
         <div class="p3t">📅 Monthly</div>
@@ -452,12 +1441,12 @@ body{
           <li>✅ Bug fix on update</li>
           <li>✅ WhatsApp Assistant</li>
         </ul>
-        <a class="p3btn" style="background:#7c3aed;color:#fff;" href="/register">Setup Now</a>
+        <a class="p3btn violet" href="/register">Setup Now</a>
       </div>
       <div class="plan3 hot">
         <div class="p3t">💎 One-Time</div>
         <div class="p3p"><span class="cut3" id="hpCut">₹1999</span>₹<span id="hpOnetime">999</span></div>
-        <div class="p3note" style="color:#166534;">Lifetime Access & Update — No renewal</div>
+        <div class="p3note" style="color:#166534;">Lifetime Access &amp; Update — No renewal</div>
         <ul id="planOnetimeList">
           <li>✅ Auto Print Software</li>
           <li>✅ Personalize QR For Shop</li>
@@ -468,22 +1457,25 @@ body{
           <li>✅ WhatsApp Assistant</li>
           <li>✅ AnyDesk Assistant</li>
         </ul>
-        <a class="p3btn" style="background:#ff2e63;color:#fff;" href="/register">Setup Now</a>
+        <a class="p3btn pink" href="/register">Setup Now</a>
       </div>
     </div>
     <div class="plans-cta">
-      <a href="/register" class="big-btn" style="background:#ff2e63;color:#fff;">🚀 Setup Now</a>
-      <button class="big-btn" style="background:#fff;color:#1b1b1f;border:2px solid #1b1b1f;" onclick="openDemoModal()">🎯 Try Now — Demo</button>
+      <a href="/register" class="big-btn pink">🚀 Setup Now</a>
+      <button class="big-btn ghost" onclick="openDemoModal()">🎯 Try Now — Demo</button>
     </div>
+  </section>
+
+  <!-- ═══ FINAL CTA ═══ -->
+  <div class="container final-cta reveal">
+    <a href="/register" class="cta-main">🚀 <span>Abhi Start Karein</span> <span class="arrow">›</span></a>
+    <a href="/admin" class="cta-sub">🔑 <span>Shop Login</span></a>
   </div>
 
-  <a href="/register" class="cta-main">🚀 Abhi Start Karein <span class="arrow">›</span></a>
-  <a href="/admin" class="cta-sub">🔑 Shop Login</a>
-
   <!-- ═══ FAQ (SEO content — real search queries) ═══ -->
-  <div style="margin-top:34px;">
-    <h2 style="font-family:'Syne',sans-serif;font-size:22px;font-weight:800;text-align:center;margin-bottom:14px;">❓ Aksar Puchhe Jaane Wale Sawal</h2>
-    <div style="display:grid;gap:8px;" id="faqList">
+  <section class="sec container faq-sec" id="faq">
+    <h2 class="sec-title reveal" style="margin-bottom:22px">❓ Aksar Puchhe Jaane Wale Sawal</h2>
+    <div id="faqList" class="stagger">
       <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
         <summary style="font-weight:800;font-size:14px;cursor:pointer;">QR Se Print kya hai?</summary>
         <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">QR Se Print cyber cafe aur print shop ke liye ek automatic print software hai. Aap apni shop ka QR code lagate ho — customer apne phone se scan karke file upload karta hai, payment karta hai, aur print aapke printer se automatic nikal jata hai. Na WhatsApp pe file mangni padti hai, na pendrive, na email.</p>
@@ -498,7 +1490,7 @@ body{
       </details>
       <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
         <summary style="font-weight:800;font-size:14px;cursor:pointer;">Kaunse printer ke saath chalta hai?</summary>
-        <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">Har Windows printer ke saath — HP, Canon, Epson, Brother, sab. B&W aur Color ke liye alag printer set kar sakte ho. Advance me 4×6 photo printer, A3 bada printer aur duplex (dono side) printing bhi support hai.</p>
+        <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">Har Windows printer ke saath — HP, Canon, Epson, Brother, sab. B&amp;W aur Color ke liye alag printer set kar sakte ho. Advance me 4×6 photo printer, A3 bada printer aur duplex (dono side) printing bhi support hai.</p>
       </details>
       <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
         <summary style="font-weight:800;font-size:14px;cursor:pointer;">Payment kaise milta hai? Koi commission?</summary>
@@ -513,9 +1505,9 @@ body{
         <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">Customer ke jobs queue me safe rehte hain. Internet wapas aate hi software khud jobs utha ke print nikal deta hai — kuch khota nahi.</p>
       </details>
     </div>
-  </div>
+  </section>
 
-</div>
+</main>
 
 <div class="dm-overlay" id="demoModal">
   <div class="dm-box">
@@ -529,6 +1521,24 @@ body{
     </div>
     <div class="dm-result" id="dmResult"></div>
     <button class="dm-close" onclick="closeDemoModal()">Band karo</button>
+  </div>
+</div>
+
+<div class="dm-overlay" id="inqModal">
+  <div class="dm-box">
+    <h3>💼 Business Inquiry</h3>
+    <div class="dm-sub">Form bharo — message seedha humare WhatsApp ya Email par pahunchega</div>
+    <div class="dm-err" id="iqErr"></div>
+    <div class="iq-ok" id="iqOk"></div>
+    <input id="iqName" placeholder="Aapka naam">
+    <input id="iqPhone" type="tel" maxlength="10" placeholder="Mobile number (10 digit)">
+    <input id="iqEmail" type="email" placeholder="Email (optional)">
+    <textarea id="iqMsg" placeholder="Aapka message — kya jaanna chahte ho?"></textarea>
+    <div class="iq-row">
+      <button type="button" class="dm-btn iq-wa" onclick="sendInq('wa')">💬 WhatsApp Se Bhejo</button>
+      <button type="button" class="dm-btn iq-em" onclick="sendInq('em')">📧 Email Se Bhejo</button>
+    </div>
+    <button class="dm-close" onclick="closeInq()">Band karo</button>
   </div>
 </div>
 
@@ -741,6 +1751,116 @@ window.addEventListener('load', ()=>{
   const sel = document.getElementById('langSel');
   if (sel) sel.value = saved;
 });
+</script>
+<script>
+/* ── Design enhancements: scroll reveal + sticky header shadow ──
+   (Content aur functionality untouched — sirf visual polish) */
+(function(){
+  var els = document.querySelectorAll('.reveal,.stagger');
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if (en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target); }
+      });
+    }, { threshold:.12, rootMargin:'0px 0px -8% 0px' });
+    els.forEach(function(el){ io.observe(el); });
+  } else {
+    els.forEach(function(el){ el.classList.add('in'); });
+  }
+  var head = document.getElementById('siteHead');
+  if (head){
+    var onScroll = function(){ head.classList.toggle('scrolled', window.scrollY > 8); };
+    window.addEventListener('scroll', onScroll, { passive:true });
+    onScroll();
+  }
+})();
+</script>
+<script>
+/* ── Naye features: nav, Business Inquiry, card spotlight ──
+   (Purane scripts bilkul untouched — sab kuch is alag block me) */
+function toggleNav(force){
+  var b=document.getElementById('navBurger'), d=document.getElementById('navDrop');
+  if(!b||!d) return;
+  var open=(typeof force==='boolean')?force:!d.classList.contains('open');
+  d.classList.toggle('open',open);
+  b.classList.toggle('open',open);
+  b.setAttribute('aria-expanded',open?'true':'false');
+}
+function openInq(){
+  toggleNav(false);
+  var m=document.getElementById('inqModal');
+  if(m) m.classList.add('open');
+  var e=document.getElementById('iqErr'), k=document.getElementById('iqOk');
+  if(e) e.style.display='none';
+  if(k) k.style.display='none';
+}
+function closeInq(){
+  var m=document.getElementById('inqModal');
+  if(m) m.classList.remove('open');
+}
+function sendInq(via){
+  var g=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
+  var name=g('iqName'), ph=g('iqPhone'), em=g('iqEmail'), msg=g('iqMsg');
+  var err=document.getElementById('iqErr'), ok=document.getElementById('iqOk');
+  var fail=function(t){ if(err){err.textContent=t;err.style.display='block';} if(ok) ok.style.display='none'; };
+  if(!name) return fail('Apna naam likho');
+  if(!/^\d{10}$/.test(ph)) return fail('Sahi 10 digit mobile number daalo');
+  if(em && !/^\S+@\S+\.\S+$/.test(em)) return fail('Email sahi nahi lag raha — ya khaali chhod do');
+  if(msg.length<5) return fail('Message thoda detail me likho');
+  if(err) err.style.display='none';
+  var body='Business Inquiry — QR Se Print\n\nNaam: '+name+'\nMobile: '+ph+(em?('\nEmail: '+em):'')+'\n\nMessage:\n'+msg;
+  if(via==='wa'){
+    var fp=document.getElementById('ftPhone');
+    var num=((fp&&fp.getAttribute('href'))||'').replace(/\D/g,'');
+    if(num.length===10) num='91'+num;
+    if(!num) num='919999999999';
+    window.open('https://wa.me/'+num+'?text='+encodeURIComponent(body),'_blank','noopener');
+    if(ok){ ok.textContent='WhatsApp khul gaya — bas Send daba do ✅'; ok.style.display='block'; }
+  } else {
+    var fe=document.getElementById('ftEmail');
+    var mail=(((fe&&fe.getAttribute('href'))||'').replace(/^mailto:/i,'').split('?')[0])||'mahatonetcafe@gmail.com';
+    window.location.href='mailto:'+mail+'?subject='+encodeURIComponent('Business Inquiry — QR Se Print')+'&body='+encodeURIComponent(body);
+    if(ok){ ok.textContent='Email app khul gaya — Send daba do ✅'; ok.style.display='block'; }
+  }
+}
+(function(){
+  var drop=document.getElementById('navDrop');
+  if(drop) drop.addEventListener('click',function(e){ if(e.target.closest('.nav-link')) toggleNav(false); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape'){ toggleNav(false); closeInq(); } });
+  var im=document.getElementById('inqModal');
+  if(im) im.addEventListener('click',function(e){ if(e.target===im) closeInq(); });
+  document.addEventListener('click',function(e){
+    if(drop && drop.classList.contains('open') &&
+       !e.target.closest('#navDrop') && !e.target.closest('#navBurger')) toggleNav(false);
+  });
+  /* Scrollspy — jis section me ho, wahi nav link active */
+  if('IntersectionObserver' in window){
+    var mark=function(id){
+      document.querySelectorAll('.nav-link.active').forEach(function(l){ l.classList.remove('active'); });
+      document.querySelectorAll('.nav-link[href="#'+id+'"]').forEach(function(l){ l.classList.add('active'); });
+    };
+    var spy=new IntersectionObserver(function(es){
+      es.forEach(function(en){ if(en.isIntersecting) mark(en.target.id); });
+    },{rootMargin:'-35% 0px -55% 0px'});
+    ['features','pricingSection','faq'].forEach(function(id){
+      var s=document.getElementById(id); if(s) spy.observe(s);
+    });
+  }
+  /* Cursor spotlight — card ke andar mouse jahan, wahin glow (sirf mouse devices) */
+  if(window.matchMedia && matchMedia('(hover:hover) and (pointer:fine)').matches){
+    var raf=null;
+    document.addEventListener('mousemove',function(e){
+      var c=e.target.closest && e.target.closest('.pain-card,.ben-card,.sol-card');
+      if(!c || raf) return;
+      raf=requestAnimationFrame(function(){
+        raf=null;
+        var r=c.getBoundingClientRect();
+        c.style.setProperty('--mx',(e.clientX-r.left)+'px');
+        c.style.setProperty('--my',(e.clientY-r.top)+'px');
+      });
+    },{passive:true});
+  }
+})();
 </script>
 </body>
 </html>
