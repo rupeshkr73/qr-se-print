@@ -331,6 +331,18 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           <div id="faqEditor" style="display:grid;gap:10px;"></div>
         </div>
 
+        <div style="margin-top:22px;border-top:2px dashed #e2ddd6;padding-top:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px;">
+            <label style="font-weight:800;font-size:14px;">✏️ Website Ke Saare Button &amp; Text</label>
+            <button onclick="resetAllTexts()" style="background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">↺ Sab Default Karo</button>
+          </div>
+          <p style="font-size:12px;color:#9b9690;line-height:1.6;margin:0 0 12px;">
+            Har box <b>khaali</b> chhodo = website ka default text dikhega. Kuch likhoge to wahi dikhega.
+            Group pe click karke kholo. <b>Save neeche wale hare button se hi hota hai.</b>
+          </p>
+          <div id="hpTextEditor" style="display:grid;gap:8px;"></div>
+        </div>
+
         <button onclick="saveHomepage()" style="width:100%;margin-top:16px;background:#16a34a;color:#fff;border:none;border-radius:12px;padding:14px;font-weight:800;font-size:15px;cursor:pointer;">💾 Homepage Update Karo</button>
         <div id="hpSaveMsg" style="text-align:center;margin-top:8px;font-size:13px;"></div>
       </div>
@@ -1099,6 +1111,8 @@ async function loadHomepageConfig() {
     g('hpPlanOnetime').value = (_hpCfg.planOnetime || []).join('\n');
     _faqs = Array.isArray(_hpCfg.faqs) ? JSON.parse(JSON.stringify(_hpCfg.faqs)) : [];
     renderFaqEditor();
+    _texts = (_hpCfg.texts && typeof _hpCfg.texts === 'object') ? JSON.parse(JSON.stringify(_hpCfg.texts)) : {};
+    renderTextEditor();
     const lp = g('hpLogoPreview');
     if (_hpCfg.logoUrl) { lp.src = _hpCfg.logoUrl; lp.style.display = 'block'; }
   } catch(e) {}
@@ -1132,6 +1146,45 @@ async function uploadHpLogo() {
     else alert('❌ '+(d.error||'Fail'));
   } catch(e) { alert('❌ '+e.message); }
 }
+const HP_TEXTS = [{"g": "🔝 Top Bar", "k": [{"k": "referText", "d": "🎁 <b>Refer &amp; Earn</b> — har referral par ₹50", "h": 1}]}, {"g": "🧭 Header Menu (Desktop)", "k": [{"k": "navFeatures", "d": "Features", "h": 0}, {"k": "navPricing", "d": "Pricing", "h": 0}, {"k": "navFaq", "d": "FAQ", "h": 0}, {"k": "navDisclaimer", "d": "Disclaimer", "h": 0}, {"k": "navBusiness", "d": "💼 Business Inquiry", "h": 0}, {"k": "navLogin", "d": "Shop Owner Login", "h": 0}]}, {"g": "📱 Header Menu (Mobile)", "k": [{"k": "navFeaturesM", "d": "✨ Features", "h": 0}, {"k": "navPricingM", "d": "💰 Pricing", "h": 0}, {"k": "navFaqM", "d": "❓ FAQ", "h": 0}, {"k": "navDisclaimerM", "d": "📄 Disclaimer", "h": 0}, {"k": "navBusinessM", "d": "💼 Business Inquiry", "h": 0}]}, {"g": "🎯 Hero (sabse upar)", "k": [{"k": "heroTop", "d": "Customer ke phone se", "h": 0}, {"k": "heroTitle", "d": "Print", "h": 0}, {"k": "heroSub", "d": "seedha aapke printer par — <span class=\"mark\">in 1 Scan</span>", "h": 1}, {"k": "heroPara", "d": "Customer apne phone se <b>QR scan</b> karta hai, file bhejta hai, <b>payment karta hai</b> — aur print aapke printer se <b>khud nikal jata hai</b>.<br> <b style=\"color:#ff2e63;\">Na WhatsApp pe file mangna, na pendrive, na hisaab ki tension.</b>", "h": 1}, {"k": "ctaPriceBtn", "d": "💰 See Setup Price", "h": 0}]}, {"g": "🔢 Steps (Scan→Print)", "k": [{"k": "step1Ico", "d": "📱", "h": 0}, {"k": "step1", "d": "QR Scan", "h": 0}, {"k": "step2Ico", "d": "📄", "h": 0}, {"k": "step2", "d": "File Upload", "h": 0}, {"k": "step3Ico", "d": "💳", "h": 0}, {"k": "step3", "d": "Pay", "h": 0}, {"k": "step4Ico", "d": "🖨️", "h": 0}, {"k": "step4", "d": "Auto Print", "h": 0}]}, {"g": "🏷️ Hero Pills", "k": [{"k": "pill1", "d": "✅ 0% Commission", "h": 0}, {"k": "pill2", "d": "⚡ Automatic Print", "h": 0}, {"k": "pill3", "d": "💳 Online + Counter Pay", "h": 0}, {"k": "pill4", "d": "🖥️ System Tray Agent", "h": 0}, {"k": "pill5", "d": "🔄 Auto Update", "h": 0}]}, {"g": "📊 Stats Labels", "k": [{"k": "statShopsLabel", "d": "Shops chala rahi hain", "h": 0}, {"k": "statPrintsLabel", "d": "Prints nikal chuke", "h": 0}, {"k": "statMadeIco", "d": "🇮🇳", "h": 0}, {"k": "statMadeLabel", "d": "Jharkhand me bana", "h": 0}]}, {"g": "📌 Section Headings", "k": [{"k": "painHeading", "d": "😤 Abhi Aapki Dukaan Me Kya Hota Hai?", "h": 0}, {"k": "solutionHeading", "d": "✨ QR Se Print Lagane Ke Baad", "h": 0}, {"k": "benefitsHeading", "d": "🎁 Sirf Print Nahi — Poori Dukaan Ka System", "h": 0}, {"k": "compareHeading", "d": "⚖️ Pehle vs Ab", "h": 0}, {"k": "faqHeading", "d": "❓ Aksar Puchhe Jaane Wale Sawal", "h": 0}]}, {"g": "😤 Problem Cards", "k": [{"k": "pain1Title", "d": "WhatsApp pe file mangna", "h": 0}, {"k": "pain1Text", "d": "Apna personal number har customer ko dena padta hai. Chat me files kho jaati hain, \"bhaiya wo wali file\" dhundhte raho.", "h": 1}, {"k": "pain2Title", "d": "Pendrive ka virus", "h": 0}, {"k": "pain2Text", "d": "Customer ka pendrive lagao = virus ka khatra. PC slow, files corrupt, kabhi-kabhi poora system hi baith jata hai.", "h": 1}, {"k": "pain3Title", "d": "Hisaab ki tension", "h": 0}, {"k": "pain3Text", "d": "Kaun paid kar gaya, kaun baaki hai — copy pe likho, bhool jao, jhagda karo. Mahine ke end me hisaab milta hi nahi.", "h": 1}, {"k": "pain4Title", "d": "Bheed me ek-ek ka wait", "h": 0}, {"k": "pain4Text", "d": "Aap ek customer ka print nikal rahe ho, baaki 5 khade hain. File lo, kholo, print karo — poora din isi me jata hai.", "h": 1}]}, {"g": "✨ Solution Cards", "k": [{"k": "sol1", "d": "Shop me QR<br>chipkao", "h": 1}, {"k": "sol2", "d": "Customer scan,<br>upload, pay", "h": 1}, {"k": "sol3", "d": "Print KHUD<br>nikal jata hai", "h": 1}, {"k": "solNote", "d": "Aap counter pe baithe raho — file lena, kholna, print dabana — kuch nahi. Payment ka record khud banta hai.", "h": 0}]}, {"g": "🎁 Benefit Cards", "k": [{"k": "ben1Title", "d": "Multi-file Print", "h": 0}, {"k": "ben1Text", "d": "Customer ek saath 5-10 files bheje (PDF + photo mix) — ek payment, sahi order me print.", "h": 1}, {"k": "ben2Title", "d": "Phone Se Hi Editing", "h": 0}, {"k": "ben2Text", "d": "Customer khud crop, rotate, brightness theek karta hai — aapse \"thoda seedha kar do\" nahi bolega.", "h": 1}, {"k": "ben3Title", "d": "4×6 Passport Photos", "h": 0}, {"k": "ben3Text", "d": "Photo bhejo, 4 ya 6 ki sheet khud ban ke photo printer se nikle — cutting lines ke saath.", "h": 1}, {"k": "ben4Title", "d": "Resume Maker", "h": 0}, {"k": "ben4Text", "d": "Customer QR se 6 designs me resume banaye aur print kare — aapki extra kamai, zero mehnat.", "h": 1}, {"k": "ben5Title", "d": "A3 / A2 / A1 + Duplex", "h": 0}, {"k": "ben5Text", "d": "Bade naksha-banner prints aur dono-side printing — har size ka apna printer, apna rate.", "h": 1}, {"k": "ben6Title", "d": "Paisa Seedha Aapke Account", "h": 0}, {"k": "ben6Text", "d": "Online payment (Razorpay/PhonePe) SEEDHA aapko. Hum beech me nahi — <b>0% commission, unlimited prints.</b>", "h": 1}, {"k": "ben7Title", "d": "Customer Ka Bharosa", "h": 0}, {"k": "ben7Text", "d": "File print ke 90 minute baad KHUD delete. Na aapke paas rahegi, na kisi aur ke — privacy pakki.", "h": 1}, {"k": "ben8Title", "d": "Net Jaye To Bhi Safe", "h": 0}, {"k": "ben8Text", "d": "Internet band? Jobs queue me. Wapas aate hi sab print. Auto-update bhi khud hota hai.", "h": 1}]}, {"g": "🚀 Bottom Buttons", "k": [{"k": "ctaMain", "d": "Abhi Start Karein", "h": 0}, {"k": "ctaSub", "d": "Shop Login", "h": 0}]}, {"g": "📄 Footer", "k": [{"k": "ftTagline", "d": "Automated cyber cafe printing network — QR scan karo, print khud nikal jaye.", "h": 0}, {"k": "ftProductHead", "d": "Product", "h": 0}, {"k": "ftLegalHead", "d": "Legal", "h": 0}, {"k": "ftContactHead", "d": "Contact", "h": 0}, {"k": "ftCopyright", "d": "© 2026 · Powered By <b>QR Se Print</b> · All rights reserved. | Developed by Rupesh Kumar Mahato", "h": 1}]}];
+let _texts = {};
+function renderTextEditor() {
+  const box = document.getElementById('hpTextEditor');
+  if (!box) return;
+  const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  box.innerHTML = HP_TEXTS.map((grp, gi) => {
+    const filled = grp.k.filter(f => (_texts[f.k]||'').trim()).length;
+    const rows = grp.k.map(f => {
+      const v = esc(_texts[f.k] || '');
+      const d = esc(f.d);
+      const input = f.h || f.d.length > 70
+        ? `<textarea rows="2" data-tk="${f.k}" oninput="_texts['${f.k}']=this.value" placeholder="${d}" style="width:100%;padding:8px;border:1.5px solid #e2ddd6;border-radius:8px;font-size:12px;font-family:inherit;resize:vertical;">${v}</textarea>`
+        : `<input type="text" data-tk="${f.k}" oninput="_texts['${f.k}']=this.value" value="${v}" placeholder="${d}" style="width:100%;padding:8px;border:1.5px solid #e2ddd6;border-radius:8px;font-size:12px;">`;
+      return `<div style="margin-bottom:9px;">
+        <div style="display:flex;justify-content:space-between;gap:8px;margin-bottom:3px;">
+          <label style="font-size:11px;font-weight:700;color:#7c3aed;">${esc(f.k)}</label>
+          <button onclick="clearText('${f.k}')" style="background:none;border:none;color:#9b9690;font-size:11px;cursor:pointer;padding:0;">default</button>
+        </div>
+        ${input}
+      </div>`;
+    }).join('');
+    return `<details ${gi===0?'open':''} style="background:#f7f7f9;border:1.5px solid #e2ddd6;border-radius:12px;padding:11px 13px;">
+      <summary style="font-weight:800;font-size:13px;cursor:pointer;">${esc(grp.g)} <span style="color:#9b9690;font-weight:600;font-size:11px;">(${grp.k.length} text${filled?` · ${filled} badle hue`:''})</span></summary>
+      <div style="margin-top:11px;">${rows}</div>
+    </details>`;
+  }).join('');
+}
+function clearText(k) {
+  delete _texts[k];
+  const el = document.querySelector(`[data-tk="${k}"]`);
+  if (el) el.value = '';
+}
+function resetAllTexts() {
+  if (!confirm('Saare text default par wapas le jaayein?\n(Save dabane ke baad hi live hoga)')) return;
+  _texts = {};
+  renderTextEditor();
+}
+
 async function saveHomepage() {
   const g = id => document.getElementById(id);
   const lines = id => g(id).value.split('\n').map(x=>x.trim()).filter(Boolean);
@@ -1147,13 +1200,14 @@ async function saveHomepage() {
     planDemo: lines('hpPlanDemo'),
     planMonthly: lines('hpPlanMonthly'),
     planOnetime: lines('hpPlanOnetime'),
-    faqs: _faqs.filter(f => (f.q||'').trim())
+    faqs: _faqs.filter(f => (f.q||'').trim()),
+    texts: Object.fromEntries(Object.entries(_texts).filter(([, v]) => String(v||'').trim()))
   };
   const msg = g('hpSaveMsg');
   try {
     const r = await fetch('/api/superadmin/homepage-config', { method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken}, body: JSON.stringify(body) });
     const d = await r.json();
-    if (d.success) { msg.style.color='#16a34a'; msg.textContent='✅ Homepage update ho gaya! (thodi der me live)'; }
+    if (d.success) { msg.style.color='#16a34a'; msg.textContent='✅ Homepage update ho gaya! (thodi der me live)'; _hpCfg = d.config || _hpCfg; renderTextEditor(); }
     else { msg.style.color='#dc2626'; msg.textContent='❌ '+(d.error||'Fail'); }
   } catch(e) { msg.style.color='#dc2626'; msg.textContent='❌ '+e.message; }
 }
