@@ -730,14 +730,14 @@ a{color:inherit}
 html{scroll-behavior:smooth}
 #features,#faq{scroll-margin-top:86px}
 .main-nav{display:none;align-items:center;gap:2px}
-@media(min-width:900px){.main-nav{display:flex}}
+@media(min-width:1040px){.main-nav{display:flex}}
 .nav-link{
   position:relative;background:none;border:none;cursor:pointer;text-decoration:none;
   color:#3a3f47;font-family:'Inter',sans-serif;font-weight:600;font-size:13.5px;
-  padding:9px 13px;border-radius:12px;transition:color .2s,background .2s;white-space:nowrap;
+  padding:9px 11px;border-radius:12px;transition:color .2s,background .2s;white-space:nowrap;
 }
 .nav-link::after{
-  content:'';position:absolute;left:13px;right:13px;bottom:5px;height:2.5px;border-radius:2px;
+  content:'';position:absolute;left:11px;right:11px;bottom:5px;height:2.5px;border-radius:2px;
   background:linear-gradient(90deg,var(--yellow),var(--pink));
   transform:scaleX(0);transform-origin:left;transition:transform .25s var(--ease);
 }
@@ -751,7 +751,7 @@ html{scroll-behavior:smooth}
   width:38px;height:38px;border-radius:11px;border:1.5px solid var(--line);
   background:#fff;cursor:pointer;padding:0 9px;flex:none;
 }
-@media(min-width:900px){.nav-burger{display:none}}
+@media(min-width:1040px){.nav-burger{display:none}}
 .nav-burger i{display:block;height:2px;border-radius:2px;background:var(--ink);transition:transform .28s var(--ease),opacity .2s}
 .nav-burger.open i:nth-child(1){transform:translateY(6px) rotate(45deg)}
 .nav-burger.open i:nth-child(2){opacity:0}
@@ -766,7 +766,7 @@ html{scroll-behavior:smooth}
 }
 .nav-drop.open{opacity:1;visibility:visible;transform:none;pointer-events:auto}
 .nav-drop .nav-link{display:block;text-align:left;padding:13px 14px;font-size:14px;width:100%}
-@media(min-width:900px){.nav-drop{display:none}}
+@media(min-width:1040px){.nav-drop{display:none}}
 @media(max-width:390px){.login-pill span{display:none}.login-pill{padding:8px 11px}}
 
 /* ══════════════════════════════════════════════════════════════
@@ -1086,6 +1086,150 @@ html{scroll-behavior:smooth}
 }
 
 /* ══════════════════════════════════════════════════════════════
+   FOOTER — multi-column (brand + Product + Legal + Contact)
+   ══════════════════════════════════════════════════════════════ */
+.ft-grid{
+  display:grid;grid-template-columns:1fr;gap:26px;
+  text-align:left;padding-bottom:26px;
+}
+@media(min-width:600px){.ft-grid{grid-template-columns:1fr 1fr 1fr}}
+@media(min-width:900px){.ft-grid{grid-template-columns:1.5fr 1fr 1fr 1.1fr;gap:30px}}
+.ft-brand .brand{font-size:19px;margin-bottom:10px}
+.ft-brand .brand-mark{width:30px;height:30px;font-size:15px}
+@media(min-width:600px){.ft-brand{grid-column:1/-1}}
+@media(min-width:900px){.ft-brand{grid-column:auto}}
+.ft-tag{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;max-width:260px}
+.ft-social{display:flex;gap:9px;flex-wrap:wrap}
+.ft-social a{
+  width:36px;height:36px;border-radius:50%;border:1.5px solid var(--line);background:#fff;
+  text-align:center;line-height:33px;font-size:16px;text-decoration:none;
+  box-shadow:var(--shadow-sm);transition:transform .18s var(--ease),border-color .18s,box-shadow .18s;
+}
+.ft-social a:hover{transform:translateY(-3px);border-color:var(--yellow);box-shadow:0 10px 20px rgba(255,210,46,.28)}
+.ft-col h4{
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:13.5px;color:var(--ink);
+  letter-spacing:.3px;margin-bottom:12px;
+}
+.ft-col a,.ft-col button{
+  display:block;width:100%;text-align:left;background:none;border:none;padding:0;cursor:pointer;
+  font-family:'Inter',sans-serif;font-size:13px;font-weight:500;color:#6b7280;
+  line-height:1.55;margin-bottom:11px;text-decoration:none;
+  transition:color .18s var(--ease),transform .18s var(--ease);
+}
+.ft-col a:hover,.ft-col button:hover{color:var(--ink);transform:translateX(3px)}
+.ft-col a:last-child,.ft-col button:last-child{margin-bottom:0}
+.ft-bottom{
+  border-top:1.5px solid var(--line);padding-top:18px;
+  display:flex;align-items:center;justify-content:center;gap:10px;flex-wrap:wrap;text-align:center;
+}
+.ft-bottom p{font-size:11.5px;color:#9aa0ab;margin:0}
+.ft-bottom b{color:var(--pink);font-weight:800}
+
+/* ══════════════════════════════════════════════════════════════
+   LEGAL PAGE (Disclaimer) — full-screen premium document view
+   ══════════════════════════════════════════════════════════════ */
+.legal-page{
+  position:fixed;inset:0;z-index:200;background:var(--paper);
+  overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+  opacity:0;visibility:hidden;transform:translateY(14px);
+  transition:opacity .3s var(--ease),transform .35s var(--ease),visibility .35s;
+}
+.legal-page.open{opacity:1;visibility:visible;transform:none}
+html.legal-open,body.legal-open{overflow:hidden}
+.lg-top{
+  position:sticky;top:0;z-index:5;
+  background:rgba(255,253,248,.9);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1.5px solid var(--line);
+  padding:12px 18px calc(12px + env(safe-area-inset-left,0px));
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.lg-top .brand{font-size:17px}
+.lg-back{
+  display:inline-flex;align-items:center;gap:7px;flex:none;
+  background:var(--ink);color:#fff;border:none;cursor:pointer;
+  font-family:'Inter',sans-serif;font-weight:700;font-size:13px;
+  padding:10px 15px;border-radius:12px;text-decoration:none;
+  box-shadow:0 8px 20px rgba(17,17,20,.22);
+  transition:transform .18s var(--ease),box-shadow .18s var(--ease);
+}
+.lg-back:hover{transform:translateY(-2px);box-shadow:0 12px 26px rgba(17,17,20,.3)}
+.lg-back:active{transform:translateY(0)}
+.lg-wrap{max-width:820px;margin:0 auto;padding:34px 20px 90px}
+.lg-cover{margin-bottom:26px}
+.lg-eyebrow{
+  display:inline-flex;align-items:center;gap:7px;
+  background:var(--tint);border:1.5px solid #f0e2ba;border-radius:999px;
+  padding:6px 13px;font-size:11.5px;font-weight:800;letter-spacing:1.2px;
+  text-transform:uppercase;color:#8a6d1f;margin-bottom:14px;
+}
+.lg-title{
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;
+  font-size:clamp(30px,7vw,46px);line-height:1.1;letter-spacing:-1px;margin-bottom:12px;
+}
+.lg-meta{
+  display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;
+  font-size:12.5px;color:var(--muted);font-weight:600;
+  padding-bottom:20px;border-bottom:1.5px dashed #e0d8c6;
+}
+.lg-meta b{color:var(--ink);font-weight:700}
+.lg-lead{
+  background:linear-gradient(150deg,#fffdf5,var(--tint));
+  border:1.5px solid #f0e2ba;border-radius:18px;
+  padding:18px 20px;margin:24px 0 10px;
+  font-size:14.5px;line-height:1.75;color:#3a3f47;
+  box-shadow:var(--shadow-sm);
+}
+.lg-note{
+  background:#f5f9ff;border:1.5px solid #d6e4fb;border-radius:16px;
+  padding:15px 18px;margin-bottom:28px;font-size:13px;line-height:1.7;color:#3b4a63;
+}
+.lg-note b{display:block;font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:#1e3a8a;margin-bottom:5px}
+.lg-sec{
+  position:relative;background:var(--card);border:1.5px solid var(--line);
+  border-radius:20px;padding:22px 22px 20px;margin-bottom:14px;
+  box-shadow:var(--shadow-sm);
+  transition:transform .22s var(--ease),box-shadow .22s var(--ease),border-color .22s;
+}
+.lg-sec:hover{transform:translateY(-3px);box-shadow:var(--shadow-md);border-color:#e3d4b4}
+.lg-sec h3{
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:18px;
+  line-height:1.3;margin-bottom:10px;padding-left:42px;
+}
+.lg-sec h3::before{
+  content:attr(data-n);position:absolute;left:22px;
+  width:30px;height:30px;border-radius:10px;
+  background:linear-gradient(150deg,var(--yellow),#ffb703);
+  color:var(--ink);font-size:13px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 6px 14px rgba(255,183,3,.35);
+}
+.lg-sec p{font-size:14px;line-height:1.78;color:#4a4f58;margin-bottom:10px}
+.lg-sec p:last-child{margin-bottom:0}
+.lg-sec ul{margin:0 0 10px;padding-left:20px}
+.lg-sec li{font-size:14px;line-height:1.7;color:#4a4f58;margin-bottom:6px}
+.lg-sec strong{color:var(--ink);font-weight:700}
+.lg-sec.lg-warn{border-color:#f5c6c6;background:linear-gradient(160deg,#fffafa,#fff5f5)}
+.lg-sec.lg-warn h3::before{background:linear-gradient(150deg,var(--pink),#c81e4a);color:#fff;box-shadow:0 6px 14px rgba(255,46,99,.35)}
+.lg-contact{
+  margin-top:24px;background:var(--dark);color:#fff;border-radius:22px;
+  padding:26px 24px;text-align:center;box-shadow:0 24px 50px rgba(17,17,20,.24);
+}
+.lg-contact h4{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:19px;margin-bottom:8px}
+.lg-contact p{font-size:13.5px;line-height:1.7;color:#c8ccd4;margin-bottom:16px}
+.lg-contact a{
+  display:inline-flex;align-items:center;gap:8px;background:var(--yellow);color:var(--ink);
+  font-weight:800;font-size:14px;padding:12px 20px;border-radius:14px;text-decoration:none;
+  box-shadow:0 10px 24px rgba(255,210,46,.32);transition:transform .18s var(--ease)
+}
+.lg-contact a:hover{transform:translateY(-2px)}
+.lg-foot{margin-top:26px;text-align:center;font-size:11.5px;color:#9aa0ab;line-height:1.9}
+@media print{
+  .lg-top,.lg-contact a,.site-head,.nav-drop{display:none!important}
+  .legal-page{position:static;opacity:1;visibility:visible;transform:none;overflow:visible}
+  .lg-sec{break-inside:avoid;box-shadow:none;border-color:#ddd}
+}
+
+/* ══════════════════════════════════════════════════════════════
    BUSINESS INQUIRY MODAL — extras (demo modal ka hi style base)
    ══════════════════════════════════════════════════════════════ */
 .dm-box textarea{
@@ -1144,7 +1288,7 @@ html{scroll-behavior:smooth}
 
 <!-- ═══ Announcement: Refer & Earn ═══ -->
 <a href="/admin" class="refer-strip">
-  <span class="rs-left">🎁 <b>Refer &amp; Earn</b> — har referral par ₹50</span>
+  <span class="rs-left" data-cfg-html="referText">🎁 <b>Refer &amp; Earn</b> — har referral par ₹50</span>
   <span class="rs-arrow">›</span>
 </a>
 
@@ -1157,21 +1301,23 @@ html{scroll-behavior:smooth}
       <div class="perf" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
     </div>
     <nav class="main-nav" aria-label="Main">
-      <a href="#features" class="nav-link">Features</a>
-      <a href="#pricingSection" class="nav-link">Pricing</a>
-      <a href="#faq" class="nav-link">FAQ</a>
-      <button type="button" class="nav-link nav-biz" onclick="openInq()">💼 Business Inquiry</button>
+      <a href="#features" class="nav-link" data-cfg="navFeatures">Features</a>
+      <a href="#pricingSection" class="nav-link" data-cfg="navPricing">Pricing</a>
+      <a href="#faq" class="nav-link" data-cfg="navFaq">FAQ</a>
+      <a href="#disclaimer" class="nav-link" data-cfg="navDisclaimer">Disclaimer</a>
+      <button type="button" class="nav-link nav-biz" onclick="openInq()" data-cfg="navBusiness">💼 Business Inquiry</button>
     </nav>
     <div class="head-right">
-      <a href="/admin" class="login-pill">🔑 <span>Shop Owner Login</span></a>
+      <a href="/admin" class="login-pill">🔑 <span data-cfg="navLogin">Shop Owner Login</span></a>
       <button type="button" class="nav-burger" id="navBurger" aria-label="Menu" aria-expanded="false" aria-controls="navDrop" onclick="toggleNav()"><i></i><i></i><i></i></button>
     </div>
   </div>
   <div class="nav-drop" id="navDrop">
-    <a href="#features" class="nav-link">✨ Features</a>
-    <a href="#pricingSection" class="nav-link">💰 Pricing</a>
-    <a href="#faq" class="nav-link">❓ FAQ</a>
-    <button type="button" class="nav-link nav-biz" onclick="openInq()">💼 Business Inquiry</button>
+    <a href="#features" class="nav-link" data-cfg="navFeaturesM">✨ Features</a>
+    <a href="#pricingSection" class="nav-link" data-cfg="navPricingM">💰 Pricing</a>
+    <a href="#faq" class="nav-link" data-cfg="navFaqM">❓ FAQ</a>
+    <a href="#disclaimer" class="nav-link" data-cfg="navDisclaimerM">📄 Disclaimer</a>
+    <button type="button" class="nav-link nav-biz" onclick="openInq()" data-cfg="navBusinessM">💼 Business Inquiry</button>
   </div>
 </header>
 
@@ -1182,35 +1328,35 @@ html{scroll-behavior:smooth}
     <div class="container hero-grid">
 
       <div class="hero-copy">
-        <div class="h-top">Customer ke phone se</div>
-        <h1 class="h-hero">Print</h1>
-        <div class="h-sub">seedha aapke printer par — <span class="mark">in 1 Scan</span></div>
-        <p class="hero-para">
+        <div class="h-top" data-cfg="heroTop">Customer ke phone se</div>
+        <h1 class="h-hero" data-cfg="heroTitle">Print</h1>
+        <div class="h-sub" data-cfg-html="heroSub">seedha aapke printer par — <span class="mark">in 1 Scan</span></div>
+        <p class="hero-para" data-cfg-html="heroPara">
           Customer apne phone se <b>QR scan</b> karta hai, file bhejta hai, <b>payment karta hai</b> —
           aur print aapke printer se <b>khud nikal jata hai</b>.<br>
           <b style="color:#ff2e63;">Na WhatsApp pe file mangna, na pendrive, na hisaab ki tension.</b>
         </p>
 
         <div class="steps">
-          <div class="step"><b>📱</b><span>QR Scan</span></div>
+          <div class="step"><b data-cfg="step1Ico">📱</b><span data-cfg="step1">QR Scan</span></div>
           <div class="step-arrow">›</div>
-          <div class="step"><b>📄</b><span>File Upload</span></div>
+          <div class="step"><b data-cfg="step2Ico">📄</b><span data-cfg="step2">File Upload</span></div>
           <div class="step-arrow">›</div>
-          <div class="step"><b>💳</b><span>Pay</span></div>
+          <div class="step"><b data-cfg="step3Ico">💳</b><span data-cfg="step3">Pay</span></div>
           <div class="step-arrow">›</div>
-          <div class="step"><b>🖨️</b><span>Auto Print</span></div>
+          <div class="step"><b data-cfg="step4Ico">🖨️</b><span data-cfg="step4">Auto Print</span></div>
         </div>
 
         <button class="cta-price" onclick="document.getElementById('pricingSection').scrollIntoView({behavior:'smooth'})">
-          💰 See Setup Price <span class="arr">↓</span>
+          <span data-cfg="ctaPriceBtn">💰 See Setup Price</span> <span class="arr">↓</span>
         </button>
 
         <div class="pills">
-          <div class="pill">✅ 0% Commission</div>
-          <div class="pill">⚡ Automatic Print</div>
-          <div class="pill">💳 Online + Counter Pay</div>
-          <div class="pill">🖥️ System Tray Agent</div>
-          <div class="pill">🔄 Auto Update</div>
+          <div class="pill" data-cfg="pill1">✅ 0% Commission</div>
+          <div class="pill" data-cfg="pill2">⚡ Automatic Print</div>
+          <div class="pill" data-cfg="pill3">💳 Online + Counter Pay</div>
+          <div class="pill" data-cfg="pill4">🖥️ System Tray Agent</div>
+          <div class="pill" data-cfg="pill5">🔄 Auto Update</div>
         </div>
       </div>
 
@@ -1272,9 +1418,9 @@ html{scroll-behavior:smooth}
   <!-- ═══ Stats: desktop pe wide horizontal row (JS se show hota hai) ═══ -->
   <div class="container">
     <div class="stats-strip" style="display:none" id="statsStrip">
-      <div class="stat-chip"><b id="statShops">—</b><span>Shops chala rahi hain</span></div>
-      <div class="stat-chip"><b id="statPrints">—</b><span>Prints nikal chuke</span></div>
-      <div class="stat-chip"><b>🇮🇳</b><span>Jharkhand me bana</span></div>
+      <div class="stat-chip"><b id="statShops">—</b><span data-cfg="statShopsLabel">Shops chala rahi hain</span></div>
+      <div class="stat-chip"><b id="statPrints">—</b><span data-cfg="statPrintsLabel">Prints nikal chuke</span></div>
+      <div class="stat-chip"><b data-cfg="statMadeIco">🇮🇳</b><span data-cfg="statMadeLabel">Jharkhand me bana</span></div>
     </div>
     <div class="price-wrap" style="display:none">
       <div class="price-sticker">
@@ -1287,7 +1433,7 @@ html{scroll-behavior:smooth}
 
   <!-- ═══ PAIN ═══ -->
   <section class="sec container">
-    <h2 class="sec-title reveal">😤 Abhi Aapki Dukaan Me Kya Hota Hai?</h2>
+    <h2 class="sec-title reveal" data-cfg="painHeading">😤 Abhi Aapki Dukaan Me Kya Hota Hai?</h2>
     <div class="sec-sub reveal">Har cyber cafe / print shop wale ka roz ka dard</div>
     <div class="pain-grid stagger">
       <div class="pain-card"><div class="pmini mini-wa" aria-hidden="true">
@@ -1297,24 +1443,24 @@ html{scroll-behavior:smooth}
             <span class="wa-bub b3">📄</span>
             <span class="wa-badge">3</span>
           </div>
-        </div><b>WhatsApp pe file mangna</b>
-        <p>Apna personal number har customer ko dena padta hai. Chat me files kho jaati hain, "bhaiya wo wali file" dhundhte raho.</p></div>
+        </div><b data-cfg="pain1Title">WhatsApp pe file mangna</b>
+        <p data-cfg-html="pain1Text">Apna personal number har customer ko dena padta hai. Chat me files kho jaati hain, "bhaiya wo wali file" dhundhte raho.</p></div>
       <div class="pain-card"><div class="pmini mini-usb" aria-hidden="true">
           <div class="usb"></div>
           <span class="bug">🦠</span>
           <span class="warn">⚠️</span>
-        </div><b>Pendrive ka virus</b>
-        <p>Customer ka pendrive lagao = virus ka khatra. PC slow, files corrupt, kabhi-kabhi poora system hi baith jata hai.</p></div>
+        </div><b data-cfg="pain2Title">Pendrive ka virus</b>
+        <p data-cfg-html="pain2Text">Customer ka pendrive lagao = virus ka khatra. PC slow, files corrupt, kabhi-kabhi poora system hi baith jata hai.</p></div>
       <div class="pain-card"><div class="pmini mini-cash" aria-hidden="true">
           <div class="ledger"><i></i><i></i><i></i></div>
           <div class="cash-flip"><span class="cash-rs">₹</span><span class="cash-qm">?</span></div>
-        </div><b>Hisaab ki tension</b>
-        <p>Kaun paid kar gaya, kaun baaki hai — copy pe likho, bhool jao, jhagda karo. Mahine ke end me hisaab milta hi nahi.</p></div>
+        </div><b data-cfg="pain3Title">Hisaab ki tension</b>
+        <p data-cfg-html="pain3Text">Kaun paid kar gaya, kaun baaki hai — copy pe likho, bhool jao, jhagda karo. Mahine ke end me hisaab milta hi nahi.</p></div>
       <div class="pain-card"><div class="pmini mini-q" aria-hidden="true">
           <span class="q-clock">⏰</span>
           <div class="q-people"><span class="q-man"></span><span class="q-man"></span><span class="q-man"></span><span class="q-man"></span></div>
-        </div><b>Bheed me ek-ek ka wait</b>
-        <p>Aap ek customer ka print nikal rahe ho, baaki 5 khade hain. File lo, kholo, print karo — poora din isi me jata hai.</p></div>
+        </div><b data-cfg="pain4Title">Bheed me ek-ek ka wait</b>
+        <p data-cfg-html="pain4Text">Aap ek customer ka print nikal rahe ho, baaki 5 khade hain. File lo, kholo, print karo — poora din isi me jata hai.</p></div>
     </div>
   </section>
 
@@ -1322,7 +1468,7 @@ html{scroll-behavior:smooth}
 
   <!-- ═══ SOLUTION ═══ -->
   <section class="sec container" style="margin-top:26px">
-    <h2 class="sec-title reveal">✨ QR Se Print Lagane Ke Baad</h2>
+    <h2 class="sec-title reveal" data-cfg="solutionHeading">✨ QR Se Print Lagane Ke Baad</h2>
     <div class="sec-sub reveal">Aapka kaam: QR chipkao. Bas.</div>
     <div class="solution-band reveal">
       <div class="sol-cards stagger">
@@ -1333,7 +1479,7 @@ html{scroll-behavior:smooth}
               <span class="stick-spark">✨</span>
             </div>
           </div>
-          <b>1️⃣</b><span>Shop me QR<br>chipkao</span>
+          <b>1️⃣</b><span data-cfg-html="sol1">Shop me QR<br>chipkao</span>
         </div>
         <div class="sol-card">
           <div class="smini mini-scanflow" aria-hidden="true">
@@ -1344,7 +1490,7 @@ html{scroll-behavior:smooth}
               <span class="sf-dots"><i></i><i></i><i></i></span>
             </div>
           </div>
-          <b>2️⃣</b><span>Customer scan,<br>upload, pay</span>
+          <b>2️⃣</b><span data-cfg-html="sol2">Customer scan,<br>upload, pay</span>
         </div>
         <div class="sol-card">
           <div class="smini mini-print" aria-hidden="true">
@@ -1354,32 +1500,32 @@ html{scroll-behavior:smooth}
               <div class="mp-tray"></div>
             </div>
           </div>
-          <b>3️⃣</b><span>Print KHUD<br>nikal jata hai</span>
+          <b>3️⃣</b><span data-cfg-html="sol3">Print KHUD<br>nikal jata hai</span>
         </div>
       </div>
-      <p>Aap counter pe baithe raho — file lena, kholna, print dabana — kuch nahi. Payment ka record khud banta hai.</p>
+      <p data-cfg="solNote">Aap counter pe baithe raho — file lena, kholna, print dabana — kuch nahi. Payment ka record khud banta hai.</p>
     </div>
   </section>
 
   <!-- ═══ BENEFITS ═══ -->
   <section class="sec container" id="features">
-    <h2 class="sec-title reveal">🎁 Sirf Print Nahi — Poori Dukaan Ka System</h2>
+    <h2 class="sec-title reveal" data-cfg="benefitsHeading">🎁 Sirf Print Nahi — Poori Dukaan Ka System</h2>
     <div class="sec-sub reveal">Jo-jo milta hai, sab ek jagah</div>
     <div class="ben-grid stagger">
-      <div class="ben-card"><div class="bi">📄</div><b>Multi-file Print</b><p>Customer ek saath 5-10 files bheje (PDF + photo mix) — ek payment, sahi order me print.</p></div>
-      <div class="ben-card"><div class="bi">✂️</div><b>Phone Se Hi Editing</b><p>Customer khud crop, rotate, brightness theek karta hai — aapse "thoda seedha kar do" nahi bolega.</p></div>
-      <div class="ben-card"><div class="bi">📷</div><b>4×6 Passport Photos</b><p>Photo bhejo, 4 ya 6 ki sheet khud ban ke photo printer se nikle — cutting lines ke saath.</p></div>
-      <div class="ben-card"><div class="bi">📝</div><b>Resume Maker</b><p>Customer QR se 6 designs me resume banaye aur print kare — aapki extra kamai, zero mehnat.</p></div>
-      <div class="ben-card"><div class="bi">📐</div><b>A3 / A2 / A1 + Duplex</b><p>Bade naksha-banner prints aur dono-side printing — har size ka apna printer, apna rate.</p></div>
-      <div class="ben-card"><div class="bi">💳</div><b>Paisa Seedha Aapke Account</b><p>Online payment (Razorpay/PhonePe) SEEDHA aapko. Hum beech me nahi — <b>0% commission, unlimited prints.</b></p></div>
-      <div class="ben-card"><div class="bi">🔒</div><b>Customer Ka Bharosa</b><p>File print ke 90 minute baad KHUD delete. Na aapke paas rahegi, na kisi aur ke — privacy pakki.</p></div>
-      <div class="ben-card"><div class="bi">📶</div><b>Net Jaye To Bhi Safe</b><p>Internet band? Jobs queue me. Wapas aate hi sab print. Auto-update bhi khud hota hai.</p></div>
+      <div class="ben-card"><div class="bi">📄</div><b data-cfg="ben1Title">Multi-file Print</b><p data-cfg-html="ben1Text">Customer ek saath 5-10 files bheje (PDF + photo mix) — ek payment, sahi order me print.</p></div>
+      <div class="ben-card"><div class="bi">✂️</div><b data-cfg="ben2Title">Phone Se Hi Editing</b><p data-cfg-html="ben2Text">Customer khud crop, rotate, brightness theek karta hai — aapse "thoda seedha kar do" nahi bolega.</p></div>
+      <div class="ben-card"><div class="bi">📷</div><b data-cfg="ben3Title">4×6 Passport Photos</b><p data-cfg-html="ben3Text">Photo bhejo, 4 ya 6 ki sheet khud ban ke photo printer se nikle — cutting lines ke saath.</p></div>
+      <div class="ben-card"><div class="bi">📝</div><b data-cfg="ben4Title">Resume Maker</b><p data-cfg-html="ben4Text">Customer QR se 6 designs me resume banaye aur print kare — aapki extra kamai, zero mehnat.</p></div>
+      <div class="ben-card"><div class="bi">📐</div><b data-cfg="ben5Title">A3 / A2 / A1 + Duplex</b><p data-cfg-html="ben5Text">Bade naksha-banner prints aur dono-side printing — har size ka apna printer, apna rate.</p></div>
+      <div class="ben-card"><div class="bi">💳</div><b data-cfg="ben6Title">Paisa Seedha Aapke Account</b><p data-cfg-html="ben6Text">Online payment (Razorpay/PhonePe) SEEDHA aapko. Hum beech me nahi — <b>0% commission, unlimited prints.</b></p></div>
+      <div class="ben-card"><div class="bi">🔒</div><b data-cfg="ben7Title">Customer Ka Bharosa</b><p data-cfg-html="ben7Text">File print ke 90 minute baad KHUD delete. Na aapke paas rahegi, na kisi aur ke — privacy pakki.</p></div>
+      <div class="ben-card"><div class="bi">📶</div><b data-cfg="ben8Title">Net Jaye To Bhi Safe</b><p data-cfg-html="ben8Text">Internet band? Jobs queue me. Wapas aate hi sab print. Auto-update bhi khud hota hai.</p></div>
     </div>
   </section>
 
   <!-- ═══ COMPARISON ═══ -->
   <section class="sec container">
-    <h2 class="sec-title reveal" style="margin-bottom:24px">⚖️ Pehle vs Ab</h2>
+    <h2 class="sec-title reveal" data-cfg="compareHeading" style="margin-bottom:24px">⚖️ Pehle vs Ab</h2>
     <div class="table-scroll reveal">
       <table class="cmp-table">
         <tr><th></th><th>📱 WhatsApp Tareeka</th><th>⚡ QR Se Print</th></tr>
@@ -1468,13 +1614,13 @@ html{scroll-behavior:smooth}
 
   <!-- ═══ FINAL CTA ═══ -->
   <div class="container final-cta reveal">
-    <a href="/register" class="cta-main">🚀 <span>Abhi Start Karein</span> <span class="arrow">›</span></a>
-    <a href="/admin" class="cta-sub">🔑 <span>Shop Login</span></a>
+    <a href="/register" class="cta-main">🚀 <span data-cfg="ctaMain">Abhi Start Karein</span> <span class="arrow">›</span></a>
+    <a href="/admin" class="cta-sub">🔑 <span data-cfg="ctaSub">Shop Login</span></a>
   </div>
 
   <!-- ═══ FAQ (SEO content — real search queries) ═══ -->
   <section class="sec container faq-sec" id="faq">
-    <h2 class="sec-title reveal" style="margin-bottom:22px">❓ Aksar Puchhe Jaane Wale Sawal</h2>
+    <h2 class="sec-title reveal" data-cfg="faqHeading" style="margin-bottom:22px">❓ Aksar Puchhe Jaane Wale Sawal</h2>
     <div id="faqList" class="stagger">
       <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
         <summary style="font-weight:800;font-size:14px;cursor:pointer;">QR Se Print kya hai?</summary>
@@ -1542,18 +1688,486 @@ html{scroll-behavior:smooth}
   </div>
 </div>
 
+<div class="legal-page" id="termsPage" role="dialog" aria-modal="true" aria-labelledby="termsPageT">
+  <div class="lg-top">
+    <div class="brand"><div class="brand-mark">🖨️</div> QR Se Print</div>
+    <a href="#" class="lg-back" onclick="closeLegal();return false;">← Back to Home</a>
+  </div>
+  <div class="lg-wrap">
+    <div class="lg-cover">
+      <span class="lg-eyebrow">📜 Legal</span>
+      <h1 class="lg-title" id="termsPageT">Terms &amp; Conditions</h1>
+      <div class="lg-meta">
+        <span>Last updated: <b>July 2026</b></span>
+        <span>Applies to: <b>qrseprint.in</b> &amp; the QR Se Print desktop print-relay software</span>
+      </div>
+    </div>
+    <div class="lg-lead">These Terms &amp; Conditions govern access to and use of the QR Se Print website, the QR-based customer upload portal, and the desktop print-relay software (together, the <strong>“Platform”</strong>). By registering a shop, purchasing a plan, or otherwise using the Platform, you confirm that you have read, understood, and agreed to be bound by these terms. If you do not accept them, please do not use the Platform.</div>
+    <div class="lg-note"><b>Saral bhasha me</b>Ye niyam hain jinke upar QR Se Print chalta hai — account, plan, payment, aur kya karna mana hai. Software use karne ka matlab hai aapne ye maan liya. Binding text English me neeche hai.</div>
+    <div class="lg-sec">
+      <h3 data-n="1">Definitions</h3>
+      <p><strong>“Platform”</strong> means the QR Se Print website, customer portal, admin panel, and desktop print-relay application. <strong>“Vendor”</strong> means the cyber cafe or print shop owner who registers a shop and operates the software at their premises. <strong>“Customer”</strong> means an end user who scans a Vendor’s QR code to upload and print a document. <strong>“We”, “us”, “our”</strong> refer to QR Se Print.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="2">Eligibility and account registration</h3>
+      <p>The Platform is intended for use by businesses and individuals aged 18 or above who are legally capable of entering into a binding contract under Indian law.</p>
+      <p>Vendors must provide accurate and current information when registering a shop, and are responsible for keeping their login credentials confidential. Any activity carried out through a Vendor’s account is deemed to be carried out by that Vendor. Please notify us immediately if you suspect unauthorised access.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="3">Licence to use the software</h3>
+      <p>Subject to payment of the applicable fees and continued compliance with these terms, we grant each Vendor a limited, non-exclusive, non-transferable, revocable licence to install and use the print-relay software at their own business premises.</p>
+      <p>This licence does not permit reselling, sub-licensing, renting, or redistributing the software, sharing a single shop account across multiple unrelated businesses, or reverse-engineering, decompiling, or attempting to derive the source code, except to the extent such restriction is prohibited by law.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="4">Vendor obligations</h3>
+      <p>As an independent business, each Vendor agrees to:</p>
+      <ul>
+        <li>Maintain their own printer, computer, internet connection, and consumables in working condition;</li>
+        <li>Hold all licences, registrations, and tax compliances required to operate a print business in their jurisdiction;</li>
+        <li>Display accurate pricing and honour print jobs that customers have paid for at their shop;</li>
+        <li>Handle customer queries, complaints, and refunds relating to print work performed at their premises;</li>
+        <li>Use the Platform only for lawful purposes and not to facilitate the printing of prohibited material.</li>
+      </ul>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="5">Fees, plans and billing</h3>
+      <p>The Platform is offered on a free demo basis and through paid plans as published on the pricing section of the website. A <strong>monthly plan</strong> renews each billing cycle until cancelled. A <strong>one-time plan</strong> grants lifetime access to the licensed version, with no recurring subscription charge.</p>
+      <p>All fees are quoted in Indian Rupees and are exclusive of any applicable taxes unless stated otherwise. Prices, plan inclusions, and promotional offers may be revised at any time; changes will not affect a one-time licence already purchased. <strong>All payments are final and non-refundable</strong> — a free demo of the complete software is available beforehand, and setup assistance is provided with every paid plan. Full terms are set out in our Refund &amp; Cancellation Policy.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="6">Customer payments for print work</h3>
+      <p>Payments made by Customers for print jobs settle directly into the Vendor’s own payment account through Razorpay or the Vendor’s configured UPI handle. We do not hold these funds, route them through our accounts, or deduct any commission from them.</p>
+      <p>The commercial transaction for printing is strictly between the Vendor and the Customer. Any dispute regarding a print charge must be resolved between those parties.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="7">Acceptable use</h3>
+      <p>You must not use the Platform to:</p>
+      <ul>
+        <li>Upload, print, or distribute material that is unlawful, obscene, defamatory, fraudulent, or infringing;</li>
+        <li>Interfere with, overload, probe, or attempt to gain unauthorised access to the Platform or its infrastructure;</li>
+        <li>Introduce malware, scripts, or automated tools intended to disrupt or exploit the service;</li>
+        <li>Misrepresent your identity, impersonate another shop, or use the Platform to defraud customers;</li>
+        <li>Copy, scrape, or reproduce the Platform’s design, content, or code for a competing product.</li>
+      </ul>
+      <p>We may suspend or terminate access where misuse is reported or reasonably suspected, without prior notice where the circumstances require it.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="8">Intellectual property</h3>
+      <p>The Platform, including its software, source code, design, brand name, logo, and written content, is owned by QR Se Print and protected by applicable intellectual property laws. No rights are transferred to a Vendor or Customer other than the limited licence described above.</p>
+      <p>Documents uploaded by Customers remain the property of their respective owners; we claim no ownership over them.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="9">Suspension and termination</h3>
+      <p>A Vendor may stop using the Platform at any time. We may suspend or terminate access where a Vendor breaches these terms, fails to pay applicable fees, or uses the Platform in a manner that exposes us or other users to legal or security risk.</p>
+      <p>On termination, the right to use the software ends immediately. Provisions that by their nature should survive — including intellectual property, limitation of liability, and governing law — will continue to apply.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="10">Changes to the service and these terms</h3>
+      <p>We are actively developing the Platform and may add, modify, or discontinue features. We may also revise these terms from time to time; the revision date at the top of this page indicates when they were last amended. Continued use after a change constitutes acceptance of the updated terms.</p>
+    </div>
+    <div class="lg-sec lg-warn">
+      <h3 data-n="11">Limitation of liability</h3>
+      <p>The Platform is provided on an “as is” and “as available” basis. To the maximum extent permitted by law, our total aggregate liability arising out of or in connection with the Platform shall not exceed the amount actually paid by the affected Vendor to QR Se Print for the software in the three (3) months preceding the event giving rise to the claim.</p>
+      <p>We shall not be liable for indirect, incidental, special, or consequential loss, including loss of business, profit, revenue, goodwill, or data. Further detail is set out in our Disclaimer.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="12">Governing law</h3>
+      <p>These terms are governed by the laws of India. Any dispute arising from or relating to the Platform shall be subject to the exclusive jurisdiction of the competent courts of Jharkhand, India.</p>
+    </div>
+    <div class="lg-contact">
+      <h4>Koi sawal hai?</h4>
+      <p>Is policy ya platform ke bare me kuch bhi poochna ho — seedha humse baat kariye.</p>
+      <a href="#" onclick="closeLegal();setTimeout(openInq,320);return false;">💼 Business Inquiry</a>
+    </div>
+    <p class="lg-foot">© 2026 QR Se Print · All Rights Reserved<br>Developed by Rupesh Kumar Mahato</p>
+  </div>
+</div>
+
+<div class="legal-page" id="privacyPage" role="dialog" aria-modal="true" aria-labelledby="privacyPageT">
+  <div class="lg-top">
+    <div class="brand"><div class="brand-mark">🖨️</div> QR Se Print</div>
+    <a href="#" class="lg-back" onclick="closeLegal();return false;">← Back to Home</a>
+  </div>
+  <div class="lg-wrap">
+    <div class="lg-cover">
+      <span class="lg-eyebrow">🔒 Legal</span>
+      <h1 class="lg-title" id="privacyPageT">Privacy Policy</h1>
+      <div class="lg-meta">
+        <span>Last updated: <b>July 2026</b></span>
+        <span>Applies to: <b>qrseprint.in</b> &amp; the QR Se Print desktop print-relay software</span>
+      </div>
+    </div>
+    <div class="lg-lead">This Privacy Policy explains what information QR Se Print collects, why we collect it, how it is used, and the choices available to you. It applies to the QR Se Print website, the customer upload portal, and the desktop print-relay software. We collect only what is necessary to operate the printing service, and we do not sell personal information to anyone.</div>
+    <div class="lg-note"><b>Saral bhasha me</b>Hum sirf utna hi data lete hain jitna print service chalane ke liye zaroori hai. Customer ki file print hone ke baad apne aap delete ho jati hai. Card ya UPI PIN hum kabhi store nahi karte — wo Razorpay handle karta hai. Aapka data hum kisi ko bechte nahi.</div>
+    <div class="lg-sec">
+      <h3 data-n="1">Information we collect</h3>
+      <p>Depending on how you use the Platform, we may collect:</p>
+      <ul>
+        <li><strong>Vendor account information</strong> — shop name, owner name, mobile number, email address, shop location, and login credentials in hashed form;</li>
+        <li><strong>Customer submission data</strong> — the file uploaded for printing, along with basic job details such as page count, colour or black-and-white selection, copies, and the shop it was sent to;</li>
+        <li><strong>Customer contact detail</strong> — a mobile number, where provided, so that a print job can be identified at the counter;</li>
+        <li><strong>Payment metadata</strong> — transaction reference, amount, and status received from the payment gateway;</li>
+        <li><strong>Technical information</strong> — device type, browser, approximate region, error logs, and timestamps generated automatically when the Platform is used.</li>
+      </ul>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="2">How we use information</h3>
+      <p>Information is used strictly for operational purposes, including to:</p>
+      <ul>
+        <li>Route a print job from a Customer’s device to the correct Vendor’s printer;</li>
+        <li>Confirm payment status and generate the Vendor’s earnings and print records;</li>
+        <li>Provide support, resolve faults, and investigate reported misuse;</li>
+        <li>Maintain security, prevent fraud, and keep the service reliable;</li>
+        <li>Send service-related communication such as setup assistance or account notices.</li>
+      </ul>
+      <p>We do not use uploaded documents for advertising, profiling, training of any model, or any purpose unrelated to completing the requested print job.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="3">Uploaded documents and retention</h3>
+      <p>Files uploaded through the QR portal are stored only for as long as is necessary to complete the print job, after which they are removed automatically from active storage. Neither the Vendor nor QR Se Print retains a browsable archive of Customer documents.</p>
+      <p>The Platform is <strong>not a backup or storage service</strong>. Customers should keep their own copy of any document they upload, as files cannot be recovered once the retention window has elapsed.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="4">Payment information</h3>
+      <p>Online payments are processed by <strong>Razorpay Software Private Limited</strong> and, where configured, the Vendor’s own UPI handle. Card numbers, CVVs, UPI PINs, and net-banking credentials are entered on the payment provider’s secure interface and are <strong>never collected, seen, or stored by QR Se Print</strong>.</p>
+      <p>We receive only the transaction outcome — reference number, amount, and success or failure status — which is required to release the print job and maintain records.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="5">Sharing with third parties</h3>
+      <p>We do not sell or rent personal information. Information is shared only where necessary, with:</p>
+      <ul>
+        <li><strong>Payment providers</strong> — to process and verify transactions;</li>
+        <li><strong>Hosting and infrastructure providers</strong> — to store data and run the application;</li>
+        <li><strong>The Vendor concerned</strong> — who receives the job details required to complete a Customer’s print;</li>
+        <li><strong>Legal and regulatory authorities</strong> — where disclosure is required by applicable law or a valid legal request.</li>
+      </ul>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="6">Data security</h3>
+      <p>We apply reasonable technical and organisational measures to protect information against unauthorised access, alteration, and loss, including encrypted transport, access controls on administrative functions, and hashed credential storage.</p>
+      <p>No method of transmission or storage is completely secure, and we cannot guarantee absolute security. Vendors are responsible for safeguarding their own login details and the computer on which the relay software is installed.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="7">Cookies and local storage</h3>
+      <p>The website and admin panel use cookies and browser local storage to keep a Vendor signed in, remember language preference, and measure basic usage so that faults can be diagnosed. These are functional in nature. You may block or clear them through your browser settings, though certain features may then not work as intended.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="8">Your choices and rights</h3>
+      <p>Subject to applicable law, you may:</p>
+      <ul>
+        <li>Request a copy of the personal information we hold about you;</li>
+        <li>Ask us to correct information that is inaccurate or incomplete;</li>
+        <li>Request deletion of your account and associated personal data, where we are not required to retain it;</li>
+        <li>Withdraw consent to non-essential communication at any time.</li>
+      </ul>
+      <p>Requests can be sent through the Business Inquiry form or the contact details published on this website. We aim to respond within a reasonable period.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="9">Children</h3>
+      <p>The Platform is intended for use by adults operating or visiting a print business. We do not knowingly collect personal information from children. If you believe a child has provided us with such information, please contact us so that it can be removed.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="10">Changes to this policy</h3>
+      <p>This policy may be updated to reflect changes in the Platform, our practices, or applicable law. The revision date shown at the top of this page indicates when it was last amended. Material changes will be communicated through the website or the admin panel.</p>
+    </div>
+    <div class="lg-contact">
+      <h4>Koi sawal hai?</h4>
+      <p>Is policy ya platform ke bare me kuch bhi poochna ho — seedha humse baat kariye.</p>
+      <a href="#" onclick="closeLegal();setTimeout(openInq,320);return false;">💼 Business Inquiry</a>
+    </div>
+    <p class="lg-foot">© 2026 QR Se Print · All Rights Reserved<br>Developed by Rupesh Kumar Mahato</p>
+  </div>
+</div>
+
+<div class="legal-page" id="refundPage" role="dialog" aria-modal="true" aria-labelledby="refundPageT">
+  <div class="lg-top">
+    <div class="brand"><div class="brand-mark">🖨️</div> QR Se Print</div>
+    <a href="#" class="lg-back" onclick="closeLegal();return false;">← Back to Home</a>
+  </div>
+  <div class="lg-wrap">
+    <div class="lg-cover">
+      <span class="lg-eyebrow">💳 Legal</span>
+      <h1 class="lg-title" id="refundPageT">Refund &amp; Cancellation Policy</h1>
+      <div class="lg-meta">
+        <span>Last updated: <b>July 2026</b></span>
+        <span>Applies to: <b>qrseprint.in</b> &amp; the QR Se Print desktop print-relay software</span>
+      </div>
+    </div>
+    <div class="lg-lead">QR Se Print operates a <strong>no-refund policy</strong>. A free two-hour demo of the complete software is offered to every prospective Vendor before any payment is made, so that the product can be tested in full at no cost and no risk. Once a plan is purchased, the licence is issued and activated immediately and the amount paid is not refundable. What we do guarantee is <strong>delivery of the service</strong>: if you cannot install or configure the software yourself, we will set it up for you.</div>
+    <div class="lg-note"><b>Saral bhasha me</b>Paise dene se pehle 2 ghante ka free demo milta hai — pehle poora software try karo. Ek baar payment ho gayi to refund nahi hota. Par ghabrane ki baat nahi: agar aap khud install nahi kar pa rahe, to hum WhatsApp ya AnyDesk se aapki dukaan me khud setup karke denge — jab tak chalu na ho jaye. Print ke paise seedha shop owner ke account me jate hain, unka hisaab shop owner hi dekhega.</div>
+    <div class="lg-sec lg-warn">
+      <h3 data-n="1">All sales are final</h3>
+      <p><strong>Once payment for a QR Se Print plan has been made, the amount is not refundable.</strong> Access to the software is granted immediately upon payment, and a digital licence — once issued and activated — cannot be returned, recalled, or resold.</p>
+      <p>Instead of a refund, every paying Vendor receives <strong>hands-on assistance until the software is installed and working</strong> on their system. Our commitment is to deliver the service, not to reverse the transaction. Please read this policy in full and complete the free demo before making any payment.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="2">What this policy covers</h3>
+      <p>This policy applies to subscription and licence fees paid to QR Se Print for use of the Platform — the monthly plan and the one-time lifetime plan.</p>
+      <p>It does <strong>not</strong> apply to money a Customer pays at a shop for printing. Those funds settle directly into the Vendor’s own payment account, and any adjustment for a failed or unsatisfactory print is a matter between that Vendor and their Customer.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="3">Try the software before you pay</h3>
+      <p>A <strong>free two-hour demo</strong> is available to every prospective Vendor, with no payment and no card details required. The demo provides full access to the working software so that you can confirm it performs correctly with your printer, your computer, and your workflow.</p>
+      <p>This trial exists precisely so that no one needs to pay before being satisfied. Because a complete, no-obligation evaluation is offered in advance, payment is treated as confirmation that the software has been tested and accepted.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="4">Why payments are final</h3>
+      <p>Unlike a physical product, a software licence cannot be returned once it has been delivered. Payment is final because:</p>
+      <ul>
+        <li>Access, credentials, and the licensed software are released immediately on payment;</li>
+        <li>A free demo of the full product is available beforehand, removing the need to purchase untested;</li>
+        <li>The one-time plan grants lifetime access with no recurring charge, and is priced accordingly;</li>
+        <li>Setup support is provided as part of the plan, so difficulties are resolved rather than refunded.</li>
+      </ul>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="5">Installation and setup are our responsibility</h3>
+      <p>If you are unable to install or configure the software yourself, <strong>that is not a reason for a refund — it is a reason to contact us.</strong> Setup assistance is included with every paid plan and is provided until the system is operational.</p>
+      <p>Support is delivered remotely over WhatsApp and, where required, through AnyDesk screen sharing, covering installation of the relay application, printer and driver configuration, QR code setup, and payment gateway linking. In practice, almost every reported difficulty is a configuration matter that is resolved in a single session.</p>
+      <p>If you are stuck at any stage, please reach out. We would far rather get your shop running than leave a Vendor unsupported.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="6">Monthly plan — cancellation</h3>
+      <p>A monthly plan may be stopped at any time and will simply not renew for the following cycle. Amounts already paid for the current or any previous billing period are not refundable, in whole or in part, as the service was made available for that period.</p>
+      <p>There is no lock-in and no cancellation charge.</p>
+    </div>
+    <div class="lg-sec lg-warn">
+      <h3 data-n="7">Circumstances that do not qualify for a refund</h3>
+      <p>For clarity, a refund will not be issued where:</p>
+      <ul>
+        <li>The Vendor changes their mind after purchase, or no longer wishes to run a print service;</li>
+        <li>The Vendor is unable to install or operate the software themselves — setup assistance is provided instead;</li>
+        <li>The Vendor’s printer, computer, operating system, or internet connection is faulty, incompatible, or unavailable;</li>
+        <li>The shop closes, relocates, or is sold after purchase;</li>
+        <li>The Vendor receives fewer print orders than expected, or does not use the software after purchase;</li>
+        <li>The Vendor subsequently chooses a different product;</li>
+        <li>Access is suspended or terminated because of a breach of our Terms &amp; Conditions.</li>
+      </ul>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="8">Billing errors and failed transactions</h3>
+      <p>A genuine payment error is corrected rather than refunded. If an amount is <strong>debited twice</strong> for the same licence, or a payment is <strong>captured without access being granted</strong>, please contact us with the transaction reference and the excess or undelivered amount will be returned to the original payment method.</p>
+      <p>Such corrections are typically processed within five to seven (5–7) working days, subject to the timelines of the payment provider and the receiving bank.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="9">Chargebacks</h3>
+      <p>If you believe a charge is incorrect, please contact us before raising a dispute with your bank or card issuer. Nearly every issue is resolved directly and quickly.</p>
+      <p>Raising a chargeback without first contacting us may result in suspension of the associated shop account while the matter is investigated, and we reserve the right to present this policy, the demo access record, and the support history in response to any such claim.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="10">Statutory rights</h3>
+      <p>Nothing in this policy limits any right that cannot be excluded under applicable Indian law, including the Consumer Protection Act, 2019. This policy sets out our commercial position on refunds and does not restrict any remedy available to you under law.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="11">Changes to this policy</h3>
+      <p>This policy may be revised from time to time. The revision date shown at the top of this page indicates when it was last amended, and the version in force at the time of your purchase applies to that purchase.</p>
+    </div>
+    <div class="lg-contact">
+      <h4>Setup me dikkat aa rahi hai?</h4>
+      <p>Refund ki jagah hum aapka setup karke denge — bas ek message kar dijiye, jab tak chalu na ho hum saath hain.</p>
+      <a href="#" onclick="closeLegal();setTimeout(openInq,320);return false;">💼 Business Inquiry</a>
+    </div>
+    <p class="lg-foot">© 2026 QR Se Print · All Rights Reserved<br>Developed by Rupesh Kumar Mahato</p>
+  </div>
+</div>
+
+<!-- ═══ DISCLAIMER — full-screen legal page ═══ -->
+<div class="legal-page" id="disclaimerPage" role="dialog" aria-modal="true" aria-labelledby="lgTitle">
+  <div class="lg-top">
+    <div class="brand"><div class="brand-mark">🖨️</div> QR Se Print</div>
+    <a href="#" class="lg-back" onclick="closeLegal();return false;">← Back to Home</a>
+  </div>
+  <div class="lg-wrap">
+
+    <div class="lg-cover">
+      <span class="lg-eyebrow">⚖️ Legal</span>
+      <h1 class="lg-title" id="lgTitle">Disclaimer</h1>
+      <div class="lg-meta">
+        <span>Last updated: <b>July 2026</b></span>
+        <span>Applies to: <b>qrseprint.in</b> &amp; the QR Se Print desktop print-relay software</span>
+      </div>
+    </div>
+
+    <div class="lg-lead">
+      QR Se Print (“QR Se Print”, “the Platform”, “we”, “us”) provides its website, QR-based customer portal, and
+      desktop print-relay software on an <strong>“as is” and “as available”</strong> basis, for general informational
+      and operational purposes. While we work continuously to keep the Platform accurate, secure, and dependable,
+      we make no warranties or representations of any kind — express or implied — regarding its completeness,
+      accuracy, reliability, fitness for a particular purpose, or uninterrupted availability. By accessing the
+      website or using the software, you acknowledge and accept the terms set out below.
+    </div>
+
+    <div class="lg-note">
+      <b>Saral bhasha me</b>
+      QR Se Print ek software hai — hum print shop nahi chalate. Printer, paper, ink aur license shop owner ka
+      apna hai. Customer jo file upload karta hai uski zimmedari customer ki hai. Payment Razorpay se hota hai,
+      seedha shop owner ke account me. Ye summary sirf samajhne ke liye hai — asli aur binding text neeche English
+      me hai.
+    </div>
+
+    <div class="lg-sec">
+      <h3 data-n="1">Nature of the service</h3>
+      <p>QR Se Print is a <strong>software-as-a-service (SaaS) platform</strong>. We supply the technology that
+      connects a customer’s mobile device to a vendor’s printer: a QR-based upload portal, a job queue, and a
+      desktop relay application that dispatches jobs to a locally installed printer.</p>
+      <p>We are not a printing business, a courier, a document-processing bureau, or a party to the transaction
+      between a vendor and their customer. Every print transaction is a direct commercial arrangement between the
+      vendor and the customer who walks into that vendor’s shop.</p>
+    </div>
+
+    <div class="lg-sec">
+      <h3 data-n="2">Vendor responsibility</h3>
+      <p>Each vendor (cyber cafe or print shop owner) operates as an independent business and remains solely
+      responsible for:</p>
+      <ul>
+        <li>Printer hardware, drivers, network connectivity, and the computer on which the relay software runs;</li>
+        <li>Consumables such as paper, ink, and toner, and routine machine maintenance;</li>
+        <li>Business registration, trade licensing, GST compliance, tax filings, and any local permissions required to operate;</li>
+        <li>The accuracy of prices, service descriptions, and any offers displayed to their customers;</li>
+        <li>Handling their customers’ queries, refunds, and disputes arising from print work carried out at their premises.</li>
+      </ul>
+      <p>Nothing in the Platform creates a partnership, franchise, agency, or employment relationship between
+      QR Se Print and any vendor.</p>
+    </div>
+
+    <div class="lg-sec">
+      <h3 data-n="3">Content uploaded by customers</h3>
+      <p>Customers who upload files through the QR portal are <strong>solely responsible</strong> for the legality,
+      ownership, copyright status, and appropriateness of those documents. QR Se Print does not review, moderate,
+      verify, endorse, or accept responsibility for any content that passes through the Platform.</p>
+      <p>Uploading material that is obscene, defamatory, fraudulent, infringing, or otherwise unlawful is strictly
+      prohibited. We reserve the right to suspend access where misuse is reported or reasonably suspected, and to
+      co-operate with lawful requests from competent authorities.</p>
+    </div>
+
+    <div class="lg-sec">
+      <h3 data-n="4">Payments and third-party services</h3>
+      <p>Online payments are processed by <strong>Razorpay Software Private Limited</strong> and, where configured,
+      the vendor’s own UPI handle. Customer payments for print work settle directly into the vendor’s account;
+      QR Se Print does not hold, route, or take a commission on those funds.</p>
+      <p>We do not collect or store card numbers, UPI PINs, CVVs, or banking credentials at any point. Any payment
+      failure, chargeback, or settlement dispute must first be raised with the payment provider and the vendor
+      concerned. QR Se Print acts as merchant of record only in respect of its own software subscription fees.</p>
+    </div>
+
+    <div class="lg-sec">
+      <h3 data-n="5">Print quality and output</h3>
+      <p>Final print quality depends entirely on the vendor’s local printer, driver configuration, paper stock, and
+      consumables. Colour reproduction, sharpness, margins, and paper alignment may differ from the on-screen
+      preview, and we cannot guarantee an exact match.</p>
+      <p>Vendors are expected to keep their equipment calibrated and functional. Wasted paper, misprints, or
+      hardware faults are matters between the vendor and their customer.</p>
+    </div>
+
+    <div class="lg-sec">
+      <h3 data-n="6">Availability and connectivity</h3>
+      <p>The Platform depends on internet connectivity at both the customer’s and the vendor’s end, as well as on
+      third-party hosting, payment, and messaging providers. We do not warrant uninterrupted or error-free
+      operation.</p>
+      <p>Scheduled maintenance, software updates, provider outages, power failures, or local network problems may
+      temporarily interrupt service. Where a job cannot be delivered immediately, it may remain queued and be
+      dispatched once connectivity is restored.</p>
+    </div>
+
+    <div class="lg-sec">
+      <h3 data-n="7">Files, data and retention</h3>
+      <p>Uploaded files are held only for as long as is necessary to complete the print job and are then removed
+      automatically from active storage. The Platform is <strong>not a backup, archive, or long-term storage
+      service</strong>, and customers should retain their own copy of any document they upload.</p>
+      <p>We accept no liability for loss of files, loss of print history, or any inability to recover material once
+      the retention window has elapsed.</p>
+    </div>
+
+    <div class="lg-sec lg-warn">
+      <h3 data-n="8">Limitation of liability</h3>
+      <p>To the maximum extent permitted by applicable law, QR Se Print, its owner, employees, contractors, and
+      affiliates shall not be liable for any loss or damage — whether direct, indirect, incidental, special, or
+      consequential — including without limitation loss of business, loss of profit, loss of revenue, loss of
+      goodwill, loss of data, or business interruption, arising out of or in connection with the use of, or
+      inability to use, the Platform.</p>
+      <p>Where liability cannot lawfully be excluded, our total aggregate liability shall not exceed the amount
+      actually paid by the affected vendor to QR Se Print for the software in the three (3) months preceding the
+      event giving rise to the claim.</p>
+    </div>
+
+    <div class="lg-sec">
+      <h3 data-n="9">External links</h3>
+      <p>The website and software may contain links to third-party sites or services that are not owned or
+      controlled by us. We have no control over their content, policies, availability, or practices, and their
+      inclusion does not imply endorsement. Accessing such sites is entirely at your own risk.</p>
+    </div>
+
+    <div class="lg-sec">
+      <h3 data-n="10">Changes to this disclaimer</h3>
+      <p>We may revise this disclaimer from time to time to reflect changes in the Platform, our practices, or
+      applicable law. The revision date shown at the top of this page indicates when it was last amended, and
+      continued use of the Platform after any change constitutes acceptance of the updated terms.</p>
+    </div>
+
+    <div class="lg-sec">
+      <h3 data-n="11">Governing law</h3>
+      <p>This disclaimer is governed by and construed in accordance with the laws of India. Any dispute arising
+      from or relating to the Platform shall be subject to the exclusive jurisdiction of the competent courts of
+      Jharkhand, India.</p>
+      <p>If you do not agree with any part of this disclaimer, please discontinue use of the website and the
+      software.</p>
+    </div>
+
+    <div class="lg-contact">
+      <h4>Koi sawal hai?</h4>
+      <p>Is disclaimer ya platform ke bare me kuch bhi poochna ho — seedha humse baat kariye.</p>
+      <a href="#" onclick="closeLegal();setTimeout(openInq,320);return false;">💼 Business Inquiry</a>
+    </div>
+
+    <p class="lg-foot">© 2026 QR Se Print · All Rights Reserved<br>Developed by Rupesh Kumar Mahato</p>
+  </div>
+</div>
+
 <div class="footer">
-  <div style="display:flex;justify-content:center;gap:20px;flex-wrap:wrap;margin-bottom:10px;">
-    <a id="ftEmail" href="mailto:mahatonetcafe@gmail.com">📧 mahatonetcafe@gmail.com</a>
-    <a id="ftPhone" href="tel:9999999999">📞 9999999999</a>
+  <div class="container">
+    <div class="ft-grid">
+
+      <div class="ft-brand">
+        <div class="brand"><div class="brand-mark">🖨️</div> QR Se Print</div>
+        <p class="ft-tag" data-cfg="ftTagline">Automated cyber cafe printing network — QR scan karo, print khud nikal jaye.</p>
+        <div id="ftSocial" class="ft-social">
+          <a id="socInsta" href="#" target="_blank" rel="noopener" aria-label="Instagram" style="display:none;">📷</a>
+          <a id="socFb" href="#" target="_blank" rel="noopener" aria-label="Facebook" style="display:none;">📘</a>
+          <a id="socYt" href="#" target="_blank" rel="noopener" aria-label="YouTube" style="display:none;">▶️</a>
+        </div>
+      </div>
+
+      <div class="ft-col">
+        <h4 data-cfg="ftProductHead">Product</h4>
+        <a href="#" onclick="closeLegal();window.scrollTo({top:0,behavior:'smooth'});return false;">Home</a>
+        <a href="#features">Features</a>
+        <a href="#pricingSection">Pricing</a>
+        <a href="#faq">FAQ</a>
+        <button type="button" onclick="openDemoModal()">Start Free</button>
+      </div>
+
+      <div class="ft-col">
+        <h4 data-cfg="ftLegalHead">Legal</h4>
+        <a href="#terms">Terms &amp; Conditions</a>
+        <a href="#privacy">Privacy Policy</a>
+        <a href="#refund">Refund Policy</a>
+        <a href="#disclaimer">Disclaimer</a>
+      </div>
+
+      <div class="ft-col">
+        <h4 data-cfg="ftContactHead">Contact</h4>
+        <a id="ftEmail" href="mailto:mahatonetcafe@gmail.com">📧 mahatonetcafe@gmail.com</a>
+        <a id="ftPhone" href="tel:9999999999">📞 9999999999</a>
+        <button type="button" onclick="openInq()">💼 Business Inquiry</button>
+        <a href="/admin">🔑 Shop Owner Login</a>
+      </div>
+
+    </div>
+    <div class="ft-bottom">
+      <p data-cfg-html="ftCopyright">© 2026 · Powered By <b>QR Se Print</b> · All rights reserved. | Developed by Rupesh Kumar Mahato</p>
+      <a href="/superadmin" class="super-link">⚙</a>
+    </div>
   </div>
-  <div id="ftSocial" style="display:flex;justify-content:center;gap:14px;margin-bottom:10px;flex-wrap:wrap;">
-    <a id="socInsta" href="#" target="_blank" rel="noopener" style="display:none;font-size:22px;text-decoration:none;">📷</a>
-    <a id="socFb" href="#" target="_blank" rel="noopener" style="display:none;font-size:22px;text-decoration:none;">📘</a>
-    <a id="socYt" href="#" target="_blank" rel="noopener" style="display:none;font-size:22px;text-decoration:none;">▶️</a>
-  </div>
-  <p>© 2026 QR Se Print · All Rights Reserved | Developed by Rupesh Kumar Mahato</p>
-  <a href="/superadmin" class="super-link">⚙</a>
 </div>
 
 <script>
@@ -1823,6 +2437,81 @@ function sendInq(via){
     if(ok){ ok.textContent='Email app khul gaya — Send daba do ✅'; ok.style.display='block'; }
   }
 }
+/* ── Superadmin se text control: [data-cfg] / [data-cfg-html] ──
+   Jo key config me set hogi wahi text badlega. Khaali ya missing key
+   pe page ka default text hi rehta hai — kuch tootega nahi. */
+(function(){
+  var apply=function(cfg){
+    if(!cfg || typeof cfg!=='object') return;
+    var T=(cfg.texts && typeof cfg.texts==='object')?cfg.texts:{};
+    var val=function(k){
+      var v=(T[k]!==undefined&&T[k]!==null)?T[k]:cfg[k];
+      if(v===undefined||v===null) return null;
+      v=String(v);
+      return v.trim()===''?null:v;
+    };
+    document.querySelectorAll('[data-cfg]').forEach(function(el){
+      var v=val(el.getAttribute('data-cfg'));
+      if(v!==null) el.textContent=v;
+    });
+    document.querySelectorAll('[data-cfg-html]').forEach(function(el){
+      var v=val(el.getAttribute('data-cfg-html'));
+      if(v!==null) el.innerHTML=v;
+    });
+  };
+  fetch('/api/homepage-config')
+    .then(function(r){ return r.json(); })
+    .then(apply)
+    .catch(function(){});
+})();
+
+/* ── Legal pages (Disclaimer / Terms / Privacy / Refund) ── */
+var LEGAL_PAGES={disclaimer:'disclaimerPage',terms:'termsPage',privacy:'privacyPage',refund:'refundPage'};
+function openLegal(key){
+  var id=LEGAL_PAGES[key];
+  if(!id) return;
+  var p=document.getElementById(id);
+  if(!p) return;
+  toggleNav(false); closeInq();
+  Object.keys(LEGAL_PAGES).forEach(function(k){
+    var el=document.getElementById(LEGAL_PAGES[k]);
+    if(el && el!==p) el.classList.remove('open');
+  });
+  p.classList.add('open');
+  document.documentElement.classList.add('legal-open');
+  document.body.classList.add('legal-open');
+  p.scrollTop=0;
+  if(location.hash!=='#'+key){
+    try{ history.pushState(null,'','#'+key); }catch(e){ location.hash=key; }
+  }
+}
+function closeLegal(){
+  var any=false;
+  Object.keys(LEGAL_PAGES).forEach(function(k){
+    var el=document.getElementById(LEGAL_PAGES[k]);
+    if(el && el.classList.contains('open')){ el.classList.remove('open'); any=true; }
+  });
+  if(!any) return;
+  document.documentElement.classList.remove('legal-open');
+  document.body.classList.remove('legal-open');
+  var h=location.hash.replace('#','');
+  if(LEGAL_PAGES[h]){
+    try{ history.pushState(null,'',location.pathname+location.search); }
+    catch(e){ location.hash=''; }
+  }
+}
+(function(){
+  var sync=function(){
+    var h=location.hash.replace('#','');
+    if(LEGAL_PAGES[h]) openLegal(h); else closeLegal();
+  };
+  window.addEventListener('hashchange',sync);
+  window.addEventListener('popstate',sync);
+  sync();
+  document.addEventListener('keydown',function(e){
+    if(e.key==='Escape' && document.querySelector('.legal-page.open')) closeLegal();
+  });
+})();
 (function(){
   var drop=document.getElementById('navDrop');
   if(drop) drop.addEventListener('click',function(e){ if(e.target.closest('.nav-link')) toggleNav(false); });
