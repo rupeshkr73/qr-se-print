@@ -2621,6 +2621,20 @@ app.put('/api/superadmin/homepage-config', verifySuperAdmin, async (req, res) =>
     const strKeys = ['logoUrl','statShops','statPrints','supportEmail','supportPhone','instagram','facebook','youtube'];
     for (const k of strKeys) if (typeof b[k] === 'string') cfg[k] = b[k].slice(0, 300);
     if (typeof b.showStats === 'boolean') cfg.showStats = b.showStats;
+    // Homepage ke saare button/text (data-cfg keys) — ek hi object me
+    if (b.texts && typeof b.texts === 'object' && !Array.isArray(b.texts)) {
+      const t = {};
+      let n = 0;
+      for (const k of Object.keys(b.texts)) {
+        if (n >= 200) break;
+        if (!/^[A-Za-z0-9_]{1,40}$/.test(k)) continue;
+        const v = b.texts[k];
+        if (typeof v !== 'string') continue;
+        const s = v.slice(0, 800).trim();
+        if (s) { t[k] = s; n++; }
+      }
+      cfg.texts = t;
+    }
     for (const k of ['planDemo','planMonthly','planOnetime']) {
       if (Array.isArray(b[k])) cfg[k] = b[k].filter(x => typeof x === 'string').map(x => x.slice(0,120)).slice(0, 20);
     }
