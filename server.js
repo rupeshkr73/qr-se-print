@@ -2620,6 +2620,19 @@ app.put('/api/superadmin/homepage-config', verifySuperAdmin, async (req, res) =>
     const b = req.body || {};
     const strKeys = ['logoUrl','statShops','statPrints','supportEmail','supportPhone','instagram','facebook','youtube'];
     for (const k of strKeys) if (typeof b[k] === 'string') cfg[k] = b[k].slice(0, 300);
+    // Social links: https:// missing ho ya sirf username ho to bhi sahi URL banao
+    const SOC_BASE = { instagram: 'instagram.com/', facebook: 'facebook.com/', youtube: 'youtube.com/@' };
+    for (const k of Object.keys(SOC_BASE)) {
+      let v = String(cfg[k] || '').trim();
+      if (!v) { cfg[k] = ''; continue; }
+      if (/^(https?:)?\/\//i.test(v)) {
+        v = v.replace(/^\/\//, 'https://');
+      } else {
+        v = v.replace(/^\/+/, '').replace(/^@/, '');
+        v = /[.\/]/.test(v) ? 'https://' + v : 'https://' + SOC_BASE[k] + v;
+      }
+      cfg[k] = v.slice(0, 300);
+    }
     if (typeof b.showStats === 'boolean') cfg.showStats = b.showStats;
     // Homepage ke saare button/text (data-cfg keys) — ek hi object me
     if (b.texts && typeof b.texts === 'object' && !Array.isArray(b.texts)) {
