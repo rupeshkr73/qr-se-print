@@ -309,9 +309,9 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 
         <label style="font-weight:800;font-size:13px;display:block;margin-bottom:6px;">🔗 Social Media Links (khali = homepage par nahi dikhega)</label>
         <div style="display:grid;gap:8px;margin-bottom:14px;">
-          <input type="text" id="hpInsta" placeholder="📷 Instagram URL — https://instagram.com/..." style="width:100%;padding:10px;border:1.5px solid #e2ddd6;border-radius:10px;">
-          <input type="text" id="hpFb" placeholder="📘 Facebook URL — https://facebook.com/..." style="width:100%;padding:10px;border:1.5px solid #e2ddd6;border-radius:10px;">
-          <input type="text" id="hpYt" placeholder="▶️ YouTube URL — https://youtube.com/..." style="width:100%;padding:10px;border:1.5px solid #e2ddd6;border-radius:10px;">
+          <input type="text" id="hpInsta" placeholder="Instagram — https://instagram.com/qrseprint (ya sirf username)" style="width:100%;padding:10px;border:1.5px solid #e2ddd6;border-radius:10px;">
+          <input type="text" id="hpFb" placeholder="Facebook — https://facebook.com/qrseprint (ya sirf username)" style="width:100%;padding:10px;border:1.5px solid #e2ddd6;border-radius:10px;">
+          <input type="text" id="hpYt" placeholder="YouTube — https://youtube.com/@qrseprint (ya sirf username)" style="width:100%;padding:10px;border:1.5px solid #e2ddd6;border-radius:10px;">
         </div>
 
         <div style="display:grid;gap:12px;">
@@ -1210,6 +1210,21 @@ function resetAllTexts() {
   renderTextEditor();
 }
 
+function fixSocial(inputId, base) {
+  const el = document.getElementById(inputId);
+  if (!el) return '';
+  let v = (el.value || '').trim();
+  if (!v) { el.value = ''; return ''; }
+  if (/^(https?:)?\/\//i.test(v)) {
+    v = v.replace(/^\/\//, 'https://');
+  } else {
+    v = v.replace(/^\/+/, '').replace(/^@/, '');
+    v = /[.\/]/.test(v) ? 'https://' + v : 'https://' + base + v;
+  }
+  el.value = v;
+  return v;
+}
+
 async function saveHomepage() {
   const g = id => document.getElementById(id);
   const lines = id => g(id).value.split('\n').map(x=>x.trim()).filter(Boolean);
@@ -1219,9 +1234,9 @@ async function saveHomepage() {
     showStats: g('hpShowStats').checked,
     supportEmail: g('hpEmail').value.trim(),
     supportPhone: g('hpPhone').value.trim(),
-    instagram: g('hpInsta').value.trim(),
-    facebook: g('hpFb').value.trim(),
-    youtube: g('hpYt').value.trim(),
+    instagram: fixSocial('hpInsta', 'instagram.com/'),
+    facebook: fixSocial('hpFb', 'facebook.com/'),
+    youtube: fixSocial('hpYt', 'youtube.com/@'),
     planDemo: lines('hpPlanDemo'),
     planMonthly: lines('hpPlanMonthly'),
     planOnetime: lines('hpPlanOnetime'),

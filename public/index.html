@@ -1101,11 +1101,16 @@ html{scroll-behavior:smooth}
 .ft-tag{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:14px;max-width:260px}
 .ft-social{display:flex;gap:9px;flex-wrap:wrap}
 .ft-social a{
-  width:36px;height:36px;border-radius:50%;border:1.5px solid var(--line);background:#fff;
-  text-align:center;line-height:33px;font-size:16px;text-decoration:none;
-  box-shadow:var(--shadow-sm);transition:transform .18s var(--ease),border-color .18s,box-shadow .18s;
+  width:38px;height:38px;border-radius:50%;border:1.5px solid var(--line);background:#fff;
+  text-align:center;line-height:35px;text-decoration:none;color:#6b7280;
+  box-shadow:var(--shadow-sm);
+  transition:transform .18s var(--ease),border-color .18s,box-shadow .18s,color .18s,background .18s;
 }
-.ft-social a:hover{transform:translateY(-3px);border-color:var(--yellow);box-shadow:0 10px 20px rgba(255,210,46,.28)}
+.ft-social a svg{width:18px;height:18px;vertical-align:middle;display:inline-block}
+.ft-social a:hover{transform:translateY(-3px)}
+.ft-social a.soc-ig:hover{color:#fff;background:linear-gradient(45deg,#f9a03f,#e4405f 45%,#8a3ab9);border-color:transparent;box-shadow:0 10px 20px rgba(228,64,95,.35)}
+.ft-social a.soc-fb:hover{color:#fff;background:#1877f2;border-color:#1877f2;box-shadow:0 10px 20px rgba(24,119,242,.35)}
+.ft-social a.soc-yt:hover{color:#ff0000;border-color:#ff0000;box-shadow:0 10px 20px rgba(255,0,0,.25)}
 .ft-col h4{
   font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:13.5px;color:var(--ink);
   letter-spacing:.3px;margin-bottom:12px;
@@ -2015,9 +2020,9 @@ html.legal-open,body.legal-open{overflow:hidden}
         <div class="brand"><div data-cfg="ft01" class="brand-mark">🖨️</div> QR Se Print</div>
         <p class="ft-tag" data-cfg="ftTagline">Automated cyber cafe printing network — QR scan karo, print khud nikal jaye.</p>
         <div id="ftSocial" class="ft-social">
-          <a id="socInsta" href="#" target="_blank" rel="noopener" aria-label="Instagram" style="display:none;">📷</a>
-          <a id="socFb" href="#" target="_blank" rel="noopener" aria-label="Facebook" style="display:none;">📘</a>
-          <a id="socYt" href="#" target="_blank" rel="noopener" aria-label="YouTube" style="display:none;">▶️</a>
+          <a id="socInsta" class="soc-ig" href="#" target="_blank" rel="noopener" aria-label="Instagram" title="Instagram" style="display:none;"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5.4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.4" cy="6.6" r="1.35" fill="currentColor"/></svg></a>
+          <a id="socFb" class="soc-fb" href="#" target="_blank" rel="noopener" aria-label="Facebook" title="Facebook" style="display:none;"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13.42 21v-8.02h2.72l.41-3.15h-3.13V7.81c0-.91.26-1.53 1.57-1.53h1.67V3.46c-.29-.04-1.29-.13-2.45-.13-2.42 0-4.08 1.48-4.08 4.2v2.3H7.4v3.15h2.73V21h3.29z"/></svg></a>
+          <a id="socYt" class="soc-yt" href="#" target="_blank" rel="noopener" aria-label="YouTube" title="YouTube" style="display:none;"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2.2" y="5.4" width="19.6" height="13.2" rx="4.2" fill="currentColor"/><path fill="#fff" d="M10.2 8.9v6.2l5.3-3.1z"/></svg></a>
         </div>
       </div>
 
@@ -2347,6 +2352,43 @@ function sendInq(via){
     .then(function(r){ return r.json(); })
     .then(apply)
     .catch(function(){});
+})();
+
+/* ── Social links fix: https:// missing ho to bhi sahi khule ──
+   Purana script config ka URL seedha lagata hai. Agar superadmin me
+   'www.youtube.com/...' ya sirf username likha ho to browser use
+   apni site ka path samajh leta tha. Yahan har href normalise hota hai. */
+(function(){
+  var BASE={socInsta:'instagram.com/',socFb:'facebook.com/',socYt:'youtube.com/@'};
+  var norm=function(raw,id){
+    var v=String(raw||'').trim();
+    if(!v||v==='#') return '';
+    if(/^(https?:)?\/\//i.test(v)) return v.replace(/^\/\//,'https://');
+    v=v.replace(/^\/+/,'').replace(/^@/,'');
+    if(!v) return '';
+    return /[.\/]/.test(v) ? 'https://'+v : 'https://'+BASE[id]+v;
+  };
+  var fixOne=function(el){
+    if(!el) return;
+    var cur=el.getAttribute('href')||'';
+    var good=norm(cur,el.id);
+    if(good && good!==cur) el.setAttribute('href',good);
+    if(!good && cur && cur!=='#') el.style.display='none';
+  };
+  var all=function(){ ['socInsta','socFb','socYt'].forEach(function(id){ fixOne(document.getElementById(id)); }); };
+  all();
+  if(window.MutationObserver){
+    ['socInsta','socFb','socYt'].forEach(function(id){
+      var el=document.getElementById(id);
+      if(!el) return;
+      new MutationObserver(function(){ fixOne(el); }).observe(el,{attributes:true,attributeFilter:['href']});
+    });
+  }
+  [400,1200,3000].forEach(function(t){ setTimeout(all,t); });
+  var box=document.getElementById('ftSocial');
+  if(box) box.addEventListener('click',function(e){
+    var a=e.target.closest && e.target.closest('a'); if(a) fixOne(a);
+  },true);
 })();
 
 /* ── Legal pages (Disclaimer / Terms / Privacy / Refund) ── */
