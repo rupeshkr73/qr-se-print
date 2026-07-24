@@ -42,7 +42,7 @@ SHOP_ID_TEMPLATE   = "AAPKA_SHOP_ID"
 SERVER_URL         = "https://qrseprint.in"
 CHECK_INTERVAL     = 5          # Print jobs check karne ka interval (seconds)
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 18           # Integer version number — server ke agent_version se compare hota hai
+VERSION            = 19           # Integer version number — server ke agent_version se compare hota hai
 SUPPORT_WA         = "918404832414"  # Admin WhatsApp (shop-login Support jaisa) — Contact Admin isi par khulega
 
 # Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
@@ -873,7 +873,9 @@ def get_pending_jobs():
     try:
         url = f"{SERVER_URL}/api/jobs/pending/{SHOP_ID}"
         if MACHINE_ID:
-            url += f"?m={MACHINE_ID}"
+            url += f"?m={MACHINE_ID}&v={VERSION}"
+        else:
+            url += f"?v={VERSION}"
         resp = requests.get(url, timeout=15)
         if resp.status_code != 200:
             return []
@@ -904,6 +906,174 @@ def _show_demo_expired_popup():
             os.startfile(f"{SERVER_URL}/register")
     except Exception:
         pass
+
+# ══════════════════════════════════════════════════════════════════
+# DEMO UPGRADE REMINDER
+# Demo shop ID par agent chal raha ho to subah 9 baje se raat 8 baje
+# tak 4 baar yaad dilata hai — Monthly ya Lifetime plan lo. Popup me
+# dono plan ke button + Dismiss. Plan button dabate hi browser me
+# nayi shop registration khul jati hai.
+# Har slot ek hi baar dikhta hai (state file me likha jata hai), isliye
+# agent restart hone par bhi dobara spam nahi hota.
+# ══════════════════════════════════════════════════════════════════
+DEMO_REMINDER_FILE = os.path.join(_APPDATA_DIR, "demo_reminder.txt")
+DEMO_SLOTS = [(9, 0), (12, 40), (16, 20), (20, 0)]   # 4 baar, 9AM–8PM
+DEMO_CHECK_INTERVAL = 300                             # har 5 min slot check
+
+
+def _demo_status():
+    """Server se poochho: ye shop demo hai ya nahi. Naya halka endpoint
+    use karte hain; purana server ho to /api/shop/<id> par fallback."""
+    try:
+        r = requests.get(f"{SERVER_URL}/api/shop/{SHOP_ID}/demo-status", timeout=12)
+        if r.status_code == 200:
+            d = r.json()
+            return bool(d.get("demo")), bool(d.get("expired"))
+    except Exception:
+        pass
+    try:
+        r = requests.get(f"{SERVER_URL}/api/shop/{SHOP_ID}", timeout=12)
+        if r.status_code == 200:
+            return bool(r.json().get("demo")), False
+    except Exception:
+        pass
+    return False, False
+
+
+def _demo_slot_index(now=None):
+    """Abhi kaunsa slot chal raha hai (0-3), ya None agar time se bahar."""
+    n = now or datetime.now()
+    cur = None
+    for i, (h, m) in enumerate(DEMO_SLOTS):
+        if (n.hour, n.minute) >= (h, m):
+            cur = i
+    # 8 baje ke baad wala slot agle din tak valid, par raat 11 ke baad nahi
+    if cur is not None and n.hour >= 22:
+        return None
+    return cur
+
+
+def _demo_reminder_done(tag):
+    try:
+        if os.path.exists(DEMO_REMINDER_FILE):
+            with open(DEMO_REMINDER_FILE, "r", encoding="utf-8") as f:
+                return f.read().strip() == tag
+    except Exception:
+        pass
+    return False
+
+
+def _demo_reminder_mark(tag):
+    try:
+        with open(DEMO_REMINDER_FILE, "w", encoding="utf-8") as f:
+            f.write(tag)
+    except Exception:
+        pass
+
+
+def _open_register(plan):
+    url = f"{SERVER_URL}/register?plan={plan}&from=agent"
+    try:
+        os.startfile(url)
+    except Exception:
+        try:
+            import webbrowser
+            webbrowser.open(url)
+        except Exception:
+            pass
+
+
+def _show_demo_upgrade_popup():
+    """Do plan button + Dismiss. tkinter fail ho to MessageBox fallback."""
+    try:
+        import tkinter as tk
+        root = tk.Tk()
+        root.title("QR Se Print — Demo")
+        root.attributes("-topmost", True)
+        root.resizable(False, False)
+        w, h = 430, 330
+        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
+        root.geometry(f"{w}x{h}+{sw - w - 20}+{sh - h - 70}")
+        root.configure(bg="white")
+
+        head = tk.Frame(root, bg="#ff3b6b", height=76)
+        head.pack(fill="x")
+        head.pack_propagate(False)
+        tk.Label(head, text="\u23f3  Demo Chal Raha Hai", bg="#ff3b6b", fg="white",
+                 font=("Segoe UI", 14, "bold")).pack(pady=(14, 0))
+        tk.Label(head, text="Plan lo — warna print nikalna band ho jayega",
+                 bg="#ff3b6b", fg="white", font=("Segoe UI", 9)).pack()
+
+        tk.Label(root, text="Aapki dukaan abhi demo Shop ID par chal rahi hai.\n"
+                            "Continue karne ke liye koi ek plan choose kariye:",
+                 bg="white", fg="#2b2b31", font=("Segoe UI", 10), justify="center").pack(pady=(16, 12))
+
+        btns = tk.Frame(root, bg="white")
+        btns.pack(pady=(0, 6))
+
+        def pick(plan):
+            _open_register(plan)
+            try:
+                root.destroy()
+            except Exception:
+                pass
+
+        tk.Button(btns, text="\U0001F4C5  Monthly Plan", width=17, height=2,
+                  bg="#ffffff", fg="#2b2b31", font=("Segoe UI", 10, "bold"),
+                  relief="solid", bd=1, cursor="hand2",
+                  command=lambda: pick("monthly")).grid(row=0, column=0, padx=6)
+        tk.Button(btns, text="\u267E  Lifetime Plan", width=17, height=2,
+                  bg="#ff3b6b", fg="white", font=("Segoe UI", 10, "bold"),
+                  relief="flat", bd=0, cursor="hand2",
+                  command=lambda: pick("onetime")).grid(row=0, column=1, padx=6)
+
+        tk.Label(root, text="Button dabate hi browser me nayi shop registration khulegi",
+                 bg="white", fg="#9b9690", font=("Segoe UI", 8)).pack(pady=(10, 0))
+
+        tk.Button(root, text="Abhi nahi — Dismiss", bg="white", fg="#9b9690",
+                  font=("Segoe UI", 9), relief="flat", bd=0, cursor="hand2",
+                  command=root.destroy).pack(pady=(12, 0))
+
+        root.after(120000, lambda: root.destroy())   # 2 min baad khud band
+        root.mainloop()
+    except Exception:
+        try:
+            import ctypes
+            r = ctypes.windll.user32.MessageBoxW(
+                None,
+                "Aapki dukaan abhi DEMO Shop ID par chal rahi hai.\n\n"
+                "Continue karne ke liye Monthly ya Lifetime plan lijiye.\n\n"
+                "OK dabane par registration page khulega.",
+                "QR Se Print — Demo", 0x40 | 0x1)
+            if r == 1:
+                _open_register("onetime")
+        except Exception:
+            pass
+
+
+def demo_reminder_loop():
+    """Background thread — har 5 min dekhta hai ki slot ka time hua ya nahi."""
+    last_status_check = 0
+    is_demo, expired = False, False
+    while agent_state["running"]:
+        try:
+            now = time.time()
+            # Demo status har 30 min me ek baar refresh (server par halka)
+            if now - last_status_check > 1800:
+                is_demo, expired = _demo_status()
+                last_status_check = now
+            if is_demo and not expired:
+                slot = _demo_slot_index()
+                if slot is not None:
+                    tag = f"{datetime.now().strftime('%Y-%m-%d')}#{slot}"
+                    if not _demo_reminder_done(tag):
+                        _demo_reminder_mark(tag)
+                        log(f"\u23f0 Demo upgrade reminder ({slot + 1}/4 aaj)")
+                        threading.Thread(target=_show_demo_upgrade_popup, daemon=True).start()
+        except Exception:
+            pass
+        time.sleep(DEMO_CHECK_INTERVAL)
+
 
 def _report_with_retry(url, payload, job_id, what):
     """Result report SERVER tak pahunchna hi chahiye — ek attempt fail hone
@@ -1716,6 +1886,10 @@ def main():
                 pass
     printer_report_thread = threading.Thread(target=printer_report_loop, daemon=True)
     printer_report_thread.start()
+
+    # Demo shop par upgrade reminder (subah 9 se raat 8, 4 baar)
+    demo_thread = threading.Thread(target=demo_reminder_loop, daemon=True)
+    demo_thread.start()
 
     # Auto-update checker background thread mein chalao
     update_thread = threading.Thread(target=update_checker_loop, daemon=True)
