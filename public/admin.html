@@ -260,6 +260,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <button class="nav-it" data-nav="refer" onclick="navTo('refer',this)"><span class="ico">🎁</span> Refer &amp; Earn</button>
     <button class="nav-it" data-nav="qr" onclick="navTo('qr',this)"><span class="ico">📱</span> QR &amp; Downloads</button>
     <button class="nav-it" data-nav="orders" onclick="navTo('orders',this)"><span class="ico">📋</span> Orders</button>
+    <button class="nav-it" data-nav="agent" id="navAgent" style="display:none;" onclick="navTo('agent',this)"><span class="ico">💼</span> Agent</button>
     <button class="nav-it" data-nav="settings" onclick="navTo('settings',this)"><span class="ico">⚙️</span> Settings</button>
     <button class="nav-it" data-nav="advance" onclick="navTo('advance',this)"><span class="ico">⚡</span> Advance Feature</button>
     <button class="nav-it" data-nav="payment" onclick="navTo('payment',this)"><span class="ico">💳</span> Payment Setup</button>
@@ -279,6 +280,20 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <div class="app-content"><div id="sectionHost">
 
     <div data-sect="overview" class="show">
+
+    <!-- AGENT DASHBOARD BANNER — sirf agents ko dikhta hai -->
+    <div id="agentBanner" style="display:none;margin-bottom:16px;border-radius:16px;background:linear-gradient(135deg,#1a1a22,#3b1230);padding:14px 18px;color:#fff;box-shadow:0 14px 34px rgba(17,17,20,.22);">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:22px;">💼</span>
+          <div>
+            <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:16px;letter-spacing:.3px;">AGENT DASHBOARD</div>
+            <div style="font-size:11.5px;color:#c9ccd6;" id="agentBannerCode">—</div>
+          </div>
+        </div>
+        <button onclick="navTo('agent',document.getElementById('navAgent'))" style="background:#ffd22e;color:#111114;border:none;border-radius:11px;padding:9px 15px;font-weight:800;font-size:12.5px;cursor:pointer;white-space:nowrap;">Agent Tab kholo ›</button>
+      </div>
+    </div>
 
     <!-- ADMIN BROADCAST — superadmin ka message, sabhi shops ko dikhta hai -->
     <div id="adminBroadcastCard" style="display:none;margin-bottom:20px;border:1.5px solid #fcd34d;border-radius:16px;background:linear-gradient(135deg,#fffbeb,#fef3c7);padding:18px 20px;box-shadow:0 4px 14px rgba(251,191,36,.15);">
@@ -522,6 +537,124 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     </div>
 
     </div><!-- /qr -->
+
+    <!-- ═══════════ AGENT SECTION ═══════════ -->
+    <div data-sect="agent">
+
+      <!-- JOIN (agent nahi ho) -->
+      <div id="agJoin" class="card" style="display:none;text-align:center;">
+        <div style="font-size:38px;">💼</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:20px;margin:8px 0 8px;">Agent bano — har shop par ₹200</h2>
+        <p style="font-size:13px;color:#6b6870;line-height:1.7;max-width:420px;margin:0 auto 14px;">
+          Aas-paas ke cyber cafe walo ko QR Se Print dilwao. Har paid shop par <b>₹200 commission</b>,
+          plus apna price badhao to <b>extra margin bhi aapka</b>. Har 10 shop par ₹300 bonus.
+        </p>
+        <div id="agJoinErr" style="display:none;background:#fee2e2;border:1.5px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px;font-size:12.5px;margin-bottom:12px;"></div>
+        <button id="agJoinBtn" onclick="agentJoin()" style="background:#ff2e63;color:#fff;border:none;border-radius:13px;padding:14px 26px;font-weight:800;font-size:15px;cursor:pointer;box-shadow:0 12px 28px rgba(255,46,99,.32);">Agent ban jao</button>
+      </div>
+
+      <!-- BLOCKED -->
+      <div id="agBlocked" class="card" style="display:none;background:#fef2f2;border-color:#fecaca;">
+        <b style="color:#991b1b;">⛔ Aapka agent account abhi paused hai</b>
+        <p style="font-size:12.5px;color:#991b1b;margin-top:6px;line-height:1.6;">Aapka link band hai aur naye commission nahi jud rahe. Admin se baat kariye.</p>
+      </div>
+
+      <!-- MAIN -->
+      <div id="agMain" style="display:none;">
+
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+            <h2 style="font-family:'Syne',sans-serif;font-size:18px;">💼 Meri Kamai</h2>
+            <span id="agCode" style="background:#111114;color:#ffd22e;border-radius:999px;padding:6px 13px;font-size:12px;font-weight:800;letter-spacing:.5px;">—</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
+            <div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:14px;padding:13px 15px;">
+              <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:#166534;">₹<span id="agAvail">0</span></div>
+              <div style="font-size:11px;color:#166534;font-weight:700;">Withdrawal ke liye ready</div>
+            </div>
+            <div style="background:#fff9ec;border:1.5px solid #f0e2ba;border-radius:14px;padding:13px 15px;">
+              <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:#8a6d1f;">₹<span id="agTotal">0</span></div>
+              <div style="font-size:11px;color:#8a6d1f;font-weight:700;">Total kamai</div>
+            </div>
+            <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:14px;padding:13px 15px;">
+              <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:#1e40af;"><span id="agPaidShops">0</span></div>
+              <div style="font-size:11px;color:#1e40af;font-weight:700;">Paid shops onboard</div>
+            </div>
+            <div style="background:#f5f3ff;border:1.5px solid #ddd6fe;border-radius:14px;padding:13px 15px;">
+              <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:22px;color:#5b21b6;"><span id="agPending">0</span></div>
+              <div style="font-size:11px;color:#5b21b6;font-weight:700;">Pending payment</div>
+            </div>
+          </div>
+          <p style="font-size:11.5px;color:#9b9690;margin-top:12px;line-height:1.6;">
+            Har paid shop par ₹200 + aapka margin. Har 10 shop par ₹300 bonus.
+            Withdrawal <b>Refer &amp; Earn</b> tab se — min ₹500.
+          </p>
+        </div>
+
+        <div class="card">
+          <h2 style="font-family:'Syne',sans-serif;font-size:17px;margin-bottom:12px;">💳 UPI ID — commission yahin aayega</h2>
+          <div id="agUpiOk" style="display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534;border-radius:10px;padding:10px;font-size:12.5px;font-weight:700;margin-bottom:10px;"></div>
+          <div id="agUpiErr" style="display:none;background:#fee2e2;border:1.5px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px;font-size:12.5px;margin-bottom:10px;"></div>
+          <input id="agUpi" placeholder="jaise 9999999999@ybl" style="width:100%;padding:12px;border:1.5px solid #e2ddd6;border-radius:11px;font-size:14px;box-sizing:border-box;margin-bottom:10px;">
+          <button onclick="agentSaveUpi()" style="width:100%;background:#16a34a;color:#fff;border:none;border-radius:11px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;">💾 UPI Save Karo</button>
+        </div>
+
+        <div class="card">
+          <h2 style="font-family:'Syne',sans-serif;font-size:17px;margin-bottom:6px;">🏷️ Shop Registration Price</h2>
+          <p style="font-size:12.5px;color:#6b6870;line-height:1.7;margin-bottom:12px;">
+            Admin ka base price <b>₹<span id="agBase">—</span></b> hai. Aap isse <b>upar</b> koi bhi price rakh sakte ho
+            (max ₹<span id="agMax">2999</span>) — jo extra hoga wo <b>poora aapka margin</b>.
+            Isse neeche nahi ja sakte.
+          </p>
+          <div id="agPriceOk" style="display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534;border-radius:10px;padding:10px;font-size:12.5px;font-weight:700;margin-bottom:10px;"></div>
+          <div id="agPriceErr" style="display:none;background:#fee2e2;border:1.5px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px;font-size:12.5px;margin-bottom:10px;"></div>
+          <div style="display:flex;gap:9px;align-items:center;margin-bottom:10px;">
+            <span style="font-size:19px;font-weight:800;">₹</span>
+            <input id="agPrice" type="number" oninput="agentMargin()" inputmode="numeric" style="flex:1;padding:12px;border:1.5px solid #e2ddd6;border-radius:11px;font-size:16px;font-weight:800;box-sizing:border-box;">
+          </div>
+          <div id="agMarginNote" style="font-size:12.5px;font-weight:700;color:#166534;margin-bottom:10px;"></div>
+          <button onclick="agentSavePrice()" style="width:100%;background:#111114;color:#fff;border:none;border-radius:11px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;">Price Save Karo</button>
+        </div>
+
+        <div class="card">
+          <h2 style="font-family:'Syne',sans-serif;font-size:17px;margin-bottom:6px;">🔗 Mera Link</h2>
+          <p style="font-size:12.5px;color:#6b6870;line-height:1.7;margin-bottom:10px;">
+            Is link se jo bhi register karega, use <b>aapka price</b> dikhega aur wo shop
+            aapki list me aa jayegi.
+          </p>
+          <div style="display:flex;gap:8px;margin-bottom:10px;">
+            <input id="agLink" readonly style="flex:1;padding:11px;border:1.5px solid #e2ddd6;border-radius:11px;font-size:12.5px;background:#f7f7f9;box-sizing:border-box;">
+            <button onclick="agentCopyLink()" style="background:#111114;color:#fff;border:none;border-radius:11px;padding:11px 15px;font-weight:800;font-size:12.5px;cursor:pointer;white-space:nowrap;">Copy</button>
+          </div>
+          <button onclick="agentShareWA()" style="width:100%;background:#22c55e;color:#fff;border:none;border-radius:11px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;">💬 WhatsApp par Share Karo</button>
+        </div>
+
+        <div class="card">
+          <h2 style="font-family:'Syne',sans-serif;font-size:17px;margin-bottom:6px;">➕ Shop Onboard Karo</h2>
+          <p style="font-size:12.5px;color:#6b6870;line-height:1.7;margin-bottom:12px;">
+            Kisi ki dukaan khud register kar do — Shop ID aur password turant ban jayega.
+            Payment aap online kar do, dukaan se cash le lena.
+          </p>
+          <div id="agOnErr" style="display:none;background:#fee2e2;border:1.5px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px;font-size:12.5px;margin-bottom:10px;"></div>
+          <div id="agOnOk" style="display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534;border-radius:12px;padding:14px;font-size:13px;line-height:1.9;margin-bottom:10px;"></div>
+          <input id="agOnName" placeholder="Shop ka naam" style="width:100%;padding:12px;border:1.5px solid #e2ddd6;border-radius:11px;font-size:14px;box-sizing:border-box;margin-bottom:9px;">
+          <input id="agOnPhone" type="tel" maxlength="10" placeholder="Mobile number (10 digit)" style="width:100%;padding:12px;border:1.5px solid #e2ddd6;border-radius:11px;font-size:14px;box-sizing:border-box;margin-bottom:9px;">
+          <input id="agOnAddr" placeholder="Shop ka address (optional)" style="width:100%;padding:12px;border:1.5px solid #e2ddd6;border-radius:11px;font-size:14px;box-sizing:border-box;margin-bottom:10px;">
+          <button onclick="agentOnboard()" style="width:100%;background:#ff2e63;color:#fff;border:none;border-radius:11px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;">Shop ID Banao</button>
+        </div>
+
+        <div class="card">
+          <h2 style="font-family:'Syne',sans-serif;font-size:17px;margin-bottom:12px;">🏪 Onboarded Shops</h2>
+          <div id="agShops" style="font-size:13px;color:#9b9690;">Loading…</div>
+        </div>
+
+        <div class="card">
+          <h2 style="font-family:'Syne',sans-serif;font-size:17px;margin-bottom:12px;">📜 Kamai / Payout History</h2>
+          <div id="agHistory" style="font-size:13px;color:#9b9690;">Loading…</div>
+        </div>
+
+      </div>
+    </div>
 
     <div data-sect="settings">
     <div class="card">
@@ -973,7 +1106,7 @@ async function loadBreakdown(){
 }
 
 // ===== SIDEBAR NAV =====
-const PAGE_TITLES={overview:'Overview',refer:'Refer & Earn',qr:'QR & Downloads',orders:'Orders',settings:'Settings'};
+const PAGE_TITLES={overview:'Overview',refer:'Refer & Earn',qr:'QR & Downloads',orders:'Orders',settings:'Settings',agent:'Agent Dashboard'};
 function navTo(sect,btn){
   document.querySelectorAll('[data-sect]').forEach(el=>el.classList.toggle('show',el.getAttribute('data-sect')===sect));
   document.querySelectorAll('.nav-it[data-nav]').forEach(n=>n.classList.toggle('active',n.getAttribute('data-nav')===sect));
@@ -1164,6 +1297,7 @@ async function loadAdminPanel() {
     renderSubscription(shop);
     initSupport(shop);
     initDemoUpgrade(shop);
+    loadAgent();
     initNotice(shop);
     loadAdminBroadcast();
     loadInsights();
@@ -1516,6 +1650,204 @@ function resetAdvBtn() {
     const fee = document.querySelector('.advFeeVal')?.textContent || '199';
     btn.innerHTML = '🔓 Pay ₹<span class="advFeeVal" id="advFeeAmt">' + fee + '</span> — Abhi Unlock Karo';
   }
+}
+
+// ═══════════════ AGENT ═══════════════
+let _ag = null;
+const _agE = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const _agShow = (id, msg, ok) => {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = msg; el.style.display = msg ? 'block' : 'none';
+};
+
+async function loadAgent() {
+  try {
+    const r = await fetch('/api/agent/status', { headers:{'Authorization':'Bearer '+authToken} });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'fail');
+    _ag = d;
+
+    const nav = document.getElementById('navAgent');
+    const banner = document.getElementById('agentBanner');
+    // Agent tab sirf tab dikhe jab agent ho, ya ban sakta ho
+    if (nav) nav.style.display = (d.is_agent || d.eligible) ? 'flex' : 'none';
+    if (banner) {
+      banner.style.display = d.is_agent ? 'block' : 'none';
+      const c = document.getElementById('agentBannerCode');
+      if (c) c.textContent = (d.agent_code || '') + (d.blocked ? ' · PAUSED' : '');
+    }
+
+    document.getElementById('agJoin').style.display    = d.is_agent ? 'none' : 'block';
+    document.getElementById('agMain').style.display    = d.is_agent ? 'block' : 'none';
+    document.getElementById('agBlocked').style.display = (d.is_agent && d.blocked) ? 'block' : 'none';
+    if (!d.is_agent) {
+      if (!d.eligible) _agShow('agJoinErr', 'Agent banne ke liye pehle apna plan lena zaroori hai. Demo account agent nahi ban sakta.');
+      return;
+    }
+
+    document.getElementById('agCode').textContent  = d.agent_code || '—';
+    document.getElementById('agAvail').textContent = d.available || 0;
+    document.getElementById('agTotal').textContent = d.earnings || 0;
+    document.getElementById('agPaidShops').textContent = d.stats.paid || 0;
+    document.getElementById('agPending').textContent   = d.stats.pending || 0;
+    document.getElementById('agBase').textContent  = d.base_price;
+    document.getElementById('agMax').textContent   = d.max_price;
+    document.getElementById('agUpi').value   = d.upi || '';
+    document.getElementById('agPrice').value = d.price || d.base_price;
+    document.getElementById('agLink').value  = d.link || '';
+    agentMargin();
+    loadAgentShops();
+    loadAgentHistory();
+  } catch(e) {
+    const nav = document.getElementById('navAgent');
+    if (nav) nav.style.display = 'none';
+  }
+}
+function agentMargin() {
+  const el = document.getElementById('agMarginNote');
+  if (!el || !_ag) return;
+  const p = parseInt(document.getElementById('agPrice').value, 10) || 0;
+  const m = p - _ag.base_price;
+  el.textContent = m > 0
+    ? `Har shop par aapko: ₹${_ag.commission_per_shop} + ₹${m} margin = ₹${_ag.commission_per_shop + m}`
+    : `Har shop par aapko: ₹${_ag.commission_per_shop}`;
+}
+async function agentJoin() {
+  const b = document.getElementById('agJoinBtn');
+  b.disabled = true; b.textContent = 'Ban raha hai…';
+  try {
+    const r = await fetch('/api/agent/join', { method:'POST', headers:{'Authorization':'Bearer '+authToken} });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'fail');
+    await loadAgent();
+  } catch(e) { _agShow('agJoinErr', '❌ ' + e.message); }
+  b.disabled = false; b.textContent = 'Agent ban jao';
+}
+async function agentSaveUpi() {
+  _agShow('agUpiErr',''); _agShow('agUpiOk','');
+  try {
+    const r = await fetch('/api/agent/upi', {
+      method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},
+      body: JSON.stringify({ upi_id: document.getElementById('agUpi').value })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'fail');
+    _agShow('agUpiOk', '✅ UPI save ho gaya — ' + d.upi_id);
+  } catch(e) { _agShow('agUpiErr', '❌ ' + e.message); }
+}
+async function agentSavePrice() {
+  _agShow('agPriceErr',''); _agShow('agPriceOk','');
+  try {
+    const r = await fetch('/api/agent/price', {
+      method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},
+      body: JSON.stringify({ price: parseInt(document.getElementById('agPrice').value, 10) })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'fail');
+    _ag.price = d.price;
+    _agShow('agPriceOk', `✅ Price ₹${d.price} set — aapka margin ₹${d.markup} per shop`);
+    agentMargin();
+  } catch(e) { _agShow('agPriceErr', '❌ ' + e.message); }
+}
+function agentCopyLink() {
+  const el = document.getElementById('agLink');
+  el.select();
+  try { document.execCommand('copy'); alert('✅ Link copy ho gaya'); }
+  catch(e) { alert('Copy nahi hua — manually select karke copy karo'); }
+}
+function agentShareWA() {
+  if (!_ag) return;
+  const price = _ag.price || _ag.base_price;
+  const msg = `🖨️ *QR Se Print* — cyber cafe ke liye automatic print software\n\n` +
+    `Dukaan me QR chipkao — customer apne phone se scan karke file bhejta hai, payment karta hai, ` +
+    `aur print aapke printer se KHUD nikal jata hai.\n\n` +
+    `✅ 0% commission — paisa seedha aapke account me\n✅ Unlimited print\n✅ Na WhatsApp pe file mangna, na pendrive ka virus\n\n` +
+    `💰 Setup: ₹${price} (one-time, lifetime)\n🎯 2 ghante FREE demo — bina payment ke\n\n` +
+    `👉 ${_ag.link}`;
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank', 'noopener');
+}
+async function agentOnboard() {
+  _agShow('agOnErr',''); document.getElementById('agOnOk').style.display='none';
+  try {
+    const r = await fetch('/api/agent/onboard', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},
+      body: JSON.stringify({
+        name: document.getElementById('agOnName').value,
+        phone: document.getElementById('agOnPhone').value,
+        address: document.getElementById('agOnAddr').value
+      })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'fail');
+    const ok = document.getElementById('agOnOk');
+    ok.innerHTML = `<b>✅ Shop ban gayi!</b><br>
+      <b>Shop ID:</b> ${_agE(d.shopId)}<br>
+      <b>Password:</b> ${_agE(d.password)}<br>
+      <b>Amount:</b> ₹${d.amount}<br><br>
+      <span style="color:#92400e;">⚠️ Ye Shop ID aur password abhi note kar lo — dobara nahi dikhega.</span><br><br>
+      <a href="${_agE(d.pay_url)}" target="_blank" style="display:inline-block;background:#16a34a;color:#fff;padding:11px 18px;border-radius:10px;font-weight:800;text-decoration:none;">💳 Ab Payment Karo ›</a>`;
+    ok.style.display = 'block';
+    document.getElementById('agOnName').value = '';
+    document.getElementById('agOnPhone').value = '';
+    document.getElementById('agOnAddr').value = '';
+    loadAgentShops();
+  } catch(e) { _agShow('agOnErr', '❌ ' + e.message); }
+}
+async function loadAgentShops() {
+  const box = document.getElementById('agShops');
+  try {
+    const r = await fetch('/api/agent/shops', { headers:{'Authorization':'Bearer '+authToken} });
+    const d = await r.json();
+    if (!d.shops || !d.shops.length) {
+      box.innerHTML = '<p style="color:#9b9690;font-size:13px;">Abhi koi shop onboard nahi hui. Apna link share karo ya upar se shop banao.</p>';
+      return;
+    }
+    box.innerHTML = d.shops.map(s => {
+      const st = s.demo ? ['🎯 Demo','#ede9fe','#5b21b6']
+               : s.setup_paid ? ['✅ Paid','#dcfce7','#166534']
+               : ['⏳ Payment pending','#fef3c7','#92400e'];
+      const earn = s.earned ? `<span style="color:#166534;font-weight:800;">+₹${s.earned}</span>` : '<span style="color:#9b9690;">—</span>';
+      return `<div style="border:1.5px solid #e2ddd6;border-radius:13px;padding:12px 14px;margin-bottom:9px;">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+          <div style="min-width:0;">
+            <b style="font-size:14px;">${_agE(s.name||'—')}</b>
+            <div style="font-size:11.5px;color:#6b6870;margin-top:2px;">${_agE(s.id)} · 📱 ${_agE(s.phone||'-')}</div>
+          </div>
+          <span style="flex:none;font-size:10.5px;font-weight:800;background:${st[1]};color:${st[2]};border-radius:999px;padding:4px 10px;">${st[0]}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:10px;margin-top:8px;font-size:12px;">
+          <span style="color:#6b6870;">Bika: <b>₹${s.sold_price || s.setup_amount || 0}</b> ${s.markup ? `<span style="color:#9b9690;">(base ₹${s.base_price_at_signup} + ₹${s.markup})</span>` : ''}</span>
+          <span>Kamai: ${earn}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { box.innerHTML = '<p style="color:#c22;font-size:13px;">Load nahi hua</p>'; }
+}
+async function loadAgentHistory() {
+  const box = document.getElementById('agHistory');
+  try {
+    const r = await fetch('/api/agent/commissions', { headers:{'Authorization':'Bearer '+authToken} });
+    const d = await r.json();
+    let h = '';
+    if (d.commissions && d.commissions.length) {
+      h += '<div style="font-size:11.5px;font-weight:800;color:#6b6870;margin-bottom:7px;">KAMAI</div>';
+      h += d.commissions.map(c => `<div style="display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed #ece7e0;padding:8px 0;font-size:12.5px;">
+        <span style="min-width:0;">${_agE(c.shop_name||c.shop_id)}<br><span style="font-size:10.5px;color:#9b9690;">₹${c.commission} commission${c.markup?` + ₹${c.markup} margin`:''}${c.bonus?` + ₹${c.bonus} bonus 🎉`:''}</span></span>
+        <b style="color:#166534;white-space:nowrap;">+₹${c.total}</b>
+      </div>`).join('');
+    }
+    if (d.payouts && d.payouts.length) {
+      h += '<div style="font-size:11.5px;font-weight:800;color:#6b6870;margin:14px 0 7px;">PAYOUT</div>';
+      h += d.payouts.map(p => {
+        const st = p.status === 'done' ? ['✅ Mil gaya','#166534'] : p.status === 'rejected' ? ['❌ Reject','#991b1b'] : ['⏳ Pending','#92400e'];
+        return `<div style="display:flex;justify-content:space-between;gap:10px;border-bottom:1px dashed #ece7e0;padding:8px 0;font-size:12.5px;">
+          <span>₹${p.amount}<br><span style="font-size:10.5px;color:#9b9690;">${_agE(p.upi_id||'')}</span></span>
+          <b style="color:${st[1]};white-space:nowrap;">${st[0]}</b></div>`;
+      }).join('');
+    }
+    box.innerHTML = h || '<p style="color:#9b9690;font-size:13px;">Abhi koi kamai nahi hui.</p>';
+  } catch(e) { box.innerHTML = '<p style="color:#c22;font-size:13px;">Load nahi hua</p>'; }
 }
 
 // ===== DEMO UPGRADE (sirf demo shops) =====

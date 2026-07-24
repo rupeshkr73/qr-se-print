@@ -244,7 +244,7 @@ function selPlan(p) {
 }
 (async () => {
   try {
-    const r = await fetch('/api/setup-fee/current');
+    const r = await fetch('/api/setup-fee/current' + (new URLSearchParams(location.search).get('ref') ? '?ref=' + encodeURIComponent(new URLSearchParams(location.search).get('ref')) : ''));
     const d = await r.json();
     if (d.offerPrice !== undefined) document.getElementById('planOfferPrice').textContent = d.offerPrice;
     if (d.actualPrice) document.getElementById('planCutPrice').textContent = '₹' + d.actualPrice;

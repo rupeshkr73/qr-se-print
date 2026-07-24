@@ -1131,6 +1131,53 @@ html{scroll-behavior:smooth}
 .ft-bottom b{color:var(--pink);font-weight:800}
 
 /* ══════════════════════════════════════════════════════════════
+   BECOME AN AGENT — homepage par sirf ek button
+   ══════════════════════════════════════════════════════════════ */
+.agent-btn{
+  position:relative;overflow:hidden;isolation:isolate;
+  display:flex;align-items:center;gap:14px;
+  background:linear-gradient(135deg,#1a1a22,#2b1f3d 60%,#3b1230);
+  border-radius:18px;padding:16px 18px;text-decoration:none;color:#fff;
+  box-shadow:0 16px 40px rgba(17,17,20,.24);
+  transition:transform .2s var(--ease),box-shadow .2s var(--ease);
+}
+.agent-btn::before{
+  content:'';position:absolute;inset:0;z-index:-1;
+  background:radial-gradient(300px circle at 8% 0%,rgba(255,210,46,.20),transparent 62%),
+             radial-gradient(280px circle at 96% 100%,rgba(255,46,99,.24),transparent 62%);
+}
+.agent-btn:hover{transform:translateY(-3px);box-shadow:0 24px 54px rgba(17,17,20,.32)}
+.agent-btn:active{transform:translateY(0)}
+.agb-ico{
+  flex:none;width:44px;height:44px;border-radius:13px;
+  background:rgba(255,210,46,.16);border:1.5px solid rgba(255,210,46,.45);
+  display:flex;align-items:center;justify-content:center;font-size:21px;
+}
+.agb-txt{flex:1;min-width:0;display:block}
+.agb-txt b{
+  display:block;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;
+  font-size:16px;line-height:1.25;color:#fff;
+}
+.agb-txt small{display:block;font-size:12px;color:#c5c8d2;margin-top:2px;line-height:1.5}
+.agb-arr{
+  flex:none;font-size:24px;font-weight:800;color:var(--yellow);
+  transition:transform .2s var(--ease);
+}
+.agent-btn:hover .agb-arr{transform:translateX(4px)}
+@media(max-width:400px){
+  .agent-btn{padding:14px 15px;gap:11px}
+  .agb-ico{width:40px;height:40px;font-size:19px}
+  .agb-txt b{font-size:14.5px}
+  .agb-txt small{font-size:11px}
+}
+.ref-note{
+  display:none;background:var(--tint);border:1.5px solid #f0e2ba;border-radius:12px;
+  padding:9px 14px;font-size:12px;font-weight:700;color:#8a6d1f;
+  text-align:center;margin:0 auto 14px;max-width:520px;
+}
+.ref-note.on{display:block}
+
+/* ══════════════════════════════════════════════════════════════
    LEGAL PAGE (Disclaimer) — full-screen premium document view
    ══════════════════════════════════════════════════════════════ */
 .legal-page{
@@ -1333,6 +1380,7 @@ html.legal-open,body.legal-open{overflow:hidden}
     <div class="container hero-grid">
 
       <div class="hero-copy">
+        <div class="ref-note" id="refNote"></div>
         <div class="h-top" data-cfg="heroTop">Customer ke phone se</div>
         <h1 class="h-hero" data-cfg="heroTitle">Print</h1>
         <div class="h-sub" data-cfg-html="heroSub">seedha aapke printer par — <span class="mark">in 1 Scan</span></div>
@@ -1616,6 +1664,18 @@ html.legal-open,body.legal-open{overflow:hidden}
       <button data-cfg="plan15" class="big-btn ghost" onclick="openDemoModal()">🎯 Try Now — Demo</button>
     </div>
   </section>
+
+  <!-- ═══ BECOME AN AGENT — sirf ek button, saari detail /agent page par ═══ -->
+  <div class="container reveal" style="margin-top:8px;">
+    <a href="/agent" class="agent-btn">
+      <span class="agb-ico">💼</span>
+      <span class="agb-txt">
+        <b data-cfg="agentBtnTitle">Become an Agent</b>
+        <small data-cfg="agentBtnSub">Har shop onboard karne par ₹200 commission</small>
+      </span>
+      <span class="agb-arr">›</span>
+    </a>
+  </div>
 
   <!-- ═══ FINAL CTA ═══ -->
   <div class="container final-cta reveal">
@@ -2033,6 +2093,7 @@ html.legal-open,body.legal-open{overflow:hidden}
         <a data-cfg="ft04" href="#pricingSection">Pricing</a>
         <a data-cfg="ft05" href="#faq">FAQ</a>
         <button data-cfg="ft06" type="button" onclick="openDemoModal()">Start Free</button>
+        <a href="/agent" data-cfg="ftAgent">💼 Become an Agent</a>
       </div>
 
       <div class="ft-col">
@@ -2389,6 +2450,36 @@ function sendInq(via){
   if(box) box.addEventListener('click',function(e){
     var a=e.target.closest && e.target.closest('a'); if(a) fixOne(a);
   },true);
+})();
+
+/* ── Agent referral link (?ref=QRA-1234) ──
+   Agent ka price homepage par dikhta hai aur register link me ref chala
+   jata hai. Plain qrseprint.in kholo to normal price hi dikhega. */
+(function(){
+  var ref=null;
+  try{ ref=new URLSearchParams(location.search).get('ref'); }catch(e){}
+  if(!ref) return;
+  ref=String(ref).trim().slice(0,24);
+  if(!ref) return;
+  var addRef=function(){
+    document.querySelectorAll('a[href^="/register"]').forEach(function(a){
+      var h=a.getAttribute('href')||'';
+      if(h.indexOf('ref=')===-1) a.setAttribute('href',h+(h.indexOf('?')===-1?'?':'&')+'ref='+encodeURIComponent(ref));
+    });
+  };
+  addRef();
+  fetch('/api/setup-fee/current?ref='+encodeURIComponent(ref))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d||!d.agentRef) return;
+      var note=document.getElementById('refNote');
+      if(note){
+        note.textContent='\ud83e\udd1d '+(d.agentName?d.agentName+' ':'')+'ke through aaye ho \u2014 aapke liye special price';
+        note.classList.add('on');
+      }
+      addRef();
+    })
+    .catch(function(){});
 })();
 
 /* ── Legal pages (Disclaimer / Terms / Privacy / Refund) ── */

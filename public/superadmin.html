@@ -201,6 +201,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <button class="nav-it" data-nav="shops-monthly"  onclick="navShops('monthly',this)"><span class="ico">📅</span> Monthly Shops</button>
     <button class="nav-it" data-nav="shops-pending"  onclick="navShops('pending',this)"><span class="ico">⏳</span> Pending Payment</button>
     <button class="nav-it" data-nav="demos"       onclick="navTo('demos',this)"><span class="ico">🎯</span> Demo Accounts</button>
+    <button class="nav-it" data-nav="agents"      onclick="navTo('agents',this)"><span class="ico">💼</span> Agents</button>
     <button class="nav-it" data-nav="withdrawals" onclick="navTo('withdrawals',this)"><span class="ico">💸</span> Withdrawals</button>
     <button class="nav-it" data-nav="agent"       onclick="navTo('agent',this)"><span class="ico">🔄</span> Agent Software</button>
     <button class="nav-it" data-nav="pricing"     onclick="navTo('pricing',this)"><span class="ico">💰</span> Setup Fee</button>
@@ -464,6 +465,14 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       <h2><span>🎯 Demo Accounts</span></h2>
       <div id="demosList" style="margin-top:12px;">Loading...</div>
     </div>
+
+<div class="card" data-sect="agents">
+  <h2><span>💼 Agents</span>
+    <button onclick="loadAgents()" style="background:#f3f4f6;color:#4b5563;border:none;border-radius:9px;padding:8px 13px;font-size:12px;font-weight:700;cursor:pointer;">↻ Refresh</button>
+  </h2>
+  <div id="agentsSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px;"></div>
+  <div id="agentsList" style="font-size:13px;color:#9b9690;">Loading…</div>
+</div>
 
     </div><!-- /demos -->
 
@@ -729,6 +738,110 @@ async function loadDemos(){
   }catch(e){ document.getElementById('demosList').innerHTML = '<div style="color:#c22;">Load fail</div>'; }
 }
 
+// ═══ AGENTS (superadmin) ═══
+let _agents = [];
+async function loadAgents() {
+  const box = document.getElementById('agentsList');
+  if (!box) return;
+  box.innerHTML = 'Loading…';
+  try {
+    const r = await fetch('/api/superadmin/agents', { headers:{'Authorization':'Bearer '+authToken} });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'fail');
+    _agents = d.agents || [];
+    renderAgents(d);
+  } catch(e) { box.innerHTML = `<span style="color:#c22;">❌ ${e.message}</span>`; }
+}
+function renderAgents(d) {
+  const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const sum = document.getElementById('agentsSummary');
+  const totalShops = _agents.reduce((n,a)=>n + a.shops.filter(s=>s.setup_paid && !s.demo).length, 0);
+  const totalEarn  = _agents.reduce((n,a)=>n + (a.agent_earnings||0), 0);
+  const pending    = _agents.reduce((n,a)=>n + (a.pending_payout||0), 0);
+  const box = (v,l,c) => `<div style="background:${c[0]};border:1.5px solid ${c[1]};border-radius:13px;padding:12px 14px;">
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:21px;color:${c[2]};">${v}</div>
+      <div style="font-size:11px;font-weight:700;color:${c[2]};">${l}</div></div>`;
+  sum.innerHTML =
+    box(_agents.length, 'Total agents', ['#f5f3ff','#ddd6fe','#5b21b6']) +
+    box(totalShops, 'Shops onboarded', ['#eff6ff','#bfdbfe','#1e40af']) +
+    box('₹'+totalEarn, 'Total commission', ['#fff9ec','#f0e2ba','#8a6d1f']) +
+    box('₹'+pending, 'Abhi dena hai', ['#fef2f2','#fecaca','#991b1b']);
+
+  if (!_agents.length) { document.getElementById('agentsList').innerHTML = '<p style="color:#9b9690;">Abhi koi agent nahi hai.</p>'; return; }
+
+  document.getElementById('agentsList').innerHTML = _agents.map(a => {
+    const paidShops = a.shops.filter(s => s.setup_paid && !s.demo);
+    const rows = a.shops.length ? a.shops.map(s => {
+      const st = s.demo ? ['🎯 Demo','#ede9fe','#5b21b6']
+               : s.setup_paid ? ['✅ Paid','#dcfce7','#166534']
+               : ['⏳ Pending','#fef3c7','#92400e'];
+      const base = s.base_price_at_signup || 0;
+      const sold = s.sold_price || s.setup_amount || 0;
+      const mk = Math.max(0, sold - base);
+      const online = s.agent_last_seen && (Date.now() - new Date(s.agent_last_seen).getTime()) < 120000;
+      return `<tr style="border-top:1px solid #f0ece6;">
+        <td style="padding:8px 6px;font-size:12px;"><b>${esc(s.name||'—')}</b><br><span style="color:#9b9690;font-size:10.5px;">${esc(s.id)}</span></td>
+        <td style="padding:8px 6px;font-size:11.5px;">${esc(s.phone||'-')}</td>
+        <td style="padding:8px 6px;"><span style="font-size:10px;font-weight:800;background:${st[1]};color:${st[2]};border-radius:999px;padding:3px 8px;white-space:nowrap;">${st[0]}</span></td>
+        <td style="padding:8px 6px;font-size:12px;white-space:nowrap;"><b>₹${base}</b>${mk?` <span style="color:#16a34a;font-weight:800;">+ ₹${mk}</span>`:''}<br><span style="color:#9b9690;font-size:10.5px;">= ₹${sold} liya</span></td>
+        <td style="padding:8px 6px;font-size:12px;white-space:nowrap;">${s.earned?`<b style="color:#166534;">₹${s.earned}</b>`:'<span style="color:#9b9690;">—</span>'}</td>
+        <td style="padding:8px 6px;"><span style="font-size:10px;font-weight:800;background:${online?'#dcfce7':'#f3f4f6'};color:${online?'#166534':'#9ca3af'};border-radius:999px;padding:3px 8px;">${online?'🟢':'🔴'}</span></td>
+        <td style="padding:8px 6px;"><button onclick="openPrinterPanel('${s.id}','${esc(s.name||'').replace(/'/g,'')}')" style="background:#0f766e;color:#fff;border:none;border-radius:7px;padding:6px 9px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap;">🖨️</button></td>
+      </tr>`;
+    }).join('') : '<tr><td colspan="7" style="padding:12px;color:#9b9690;font-size:12px;text-align:center;">Abhi koi shop onboard nahi</td></tr>';
+
+    return `<details style="background:#f7f7f9;border:1.5px solid ${a.agent_blocked?'#fecaca':'#e2ddd6'};border-radius:14px;padding:13px 15px;margin-bottom:11px;">
+      <summary style="cursor:pointer;font-weight:800;font-size:14px;list-style:none;">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+          <div style="min-width:0;">
+            ${esc(a.name||'—')} ${a.agent_blocked?'<span style="font-size:10px;background:#fee2e2;color:#991b1b;border-radius:999px;padding:2px 8px;">PAUSED</span>':''}
+            <div style="font-weight:600;font-size:11.5px;color:#6b6870;margin-top:3px;">
+              <span style="background:#111114;color:#ffd22e;border-radius:5px;padding:2px 7px;font-weight:800;">${esc(a.agent_code||'—')}</span>
+              &nbsp;📱 ${esc(a.phone||'-')} &nbsp;·&nbsp; ${esc(a.id)}
+            </div>
+          </div>
+          <div style="text-align:right;font-weight:600;font-size:11.5px;color:#6b6870;white-space:nowrap;">
+            <div><b style="color:#166534;font-size:15px;">₹${a.agent_earnings||0}</b> kamaya</div>
+            <div style="color:#991b1b;">₹${a.pending_payout||0} dena hai</div>
+          </div>
+        </div>
+      </summary>
+      <div style="margin-top:13px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:11.5px;">
+        <span style="background:#fff;border:1.5px solid #e2ddd6;border-radius:8px;padding:6px 10px;">Base <b>₹${a.base_price}</b> → Agent ka price <b>₹${a.agent_price||a.base_price}</b>${a.markup?` <span style="color:#16a34a;font-weight:800;">(+₹${a.markup})</span>`:''}</span>
+        <span style="background:#fff;border:1.5px solid #e2ddd6;border-radius:8px;padding:6px 10px;">💳 ${esc(a.agent_upi||'UPI nahi diya')}</span>
+        <span style="background:#fff;border:1.5px solid #e2ddd6;border-radius:8px;padding:6px 10px;">${paidShops.length} paid shop</span>
+        <button onclick="toggleAgentBlock('${a.id}',${a.agent_blocked?'false':'true'})" style="background:${a.agent_blocked?'#16a34a':'#fee2e2'};color:${a.agent_blocked?'#fff':'#dc2626'};border:none;border-radius:8px;padding:7px 12px;font-size:11.5px;font-weight:700;cursor:pointer;">${a.agent_blocked?'▶️ Unblock':'⏸️ Pause karo'}</button>
+      </div>
+      <div style="overflow-x:auto;margin-top:11px;">
+        <table style="width:100%;border-collapse:collapse;background:#fff;border-radius:10px;">
+          <thead><tr style="background:#f0ece6;">
+            <th style="padding:8px 6px;text-align:left;font-size:10.5px;">Shop</th>
+            <th style="padding:8px 6px;text-align:left;font-size:10.5px;">Phone</th>
+            <th style="padding:8px 6px;text-align:left;font-size:10.5px;">Status</th>
+            <th style="padding:8px 6px;text-align:left;font-size:10.5px;">Base + Markup</th>
+            <th style="padding:8px 6px;text-align:left;font-size:10.5px;">Agent ko</th>
+            <th style="padding:8px 6px;text-align:left;font-size:10.5px;">Agent</th>
+            <th style="padding:8px 6px;text-align:left;font-size:10.5px;"></th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </details>`;
+  }).join('');
+}
+async function toggleAgentBlock(shopId, blocked) {
+  if (!confirm(blocked ? 'Is agent ko pause karein? Uska link band ho jayega aur naye commission nahi judenge.' : 'Is agent ko wapas chalu karein?')) return;
+  try {
+    const r = await fetch(`/api/superadmin/agent/${shopId}/block`, {
+      method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},
+      body: JSON.stringify({ blocked })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'fail');
+    loadAgents();
+  } catch(e) { alert('❌ ' + e.message); }
+}
+
 // ═══ AGENT VERSION BADGE ═══
 let _latestAgentVersion = null;
 function agentVerBadge(v, lastSeen) {
@@ -911,6 +1024,7 @@ async function loadPanel() {
   loadBroadcast();
   loadWithdrawals();
   loadDemos();
+  loadAgents();
   loadDemoConfig();
   loadCloudinaryStatus();
   loadDbCounts();
@@ -1450,7 +1564,7 @@ async function deletePendingShop(shopId, name){
 
 
 // ===== SIDEBAR NAV =====
-const PAGE_TITLES = {overview:'Overview', shops:'Shops', demos:'Demo Accounts', withdrawals:'Withdrawals', agent:'Agent Software', pricing:'Setup Fee'};
+const PAGE_TITLES = {overview:'Overview', shops:'Shops', demos:'Demo Accounts', agents:'Agents', withdrawals:'Withdrawals', agent:'Agent Software', pricing:'Setup Fee'};
 function navTo(sect, btn){
   document.querySelectorAll('[data-sect]').forEach(el=>el.classList.toggle('show', el.getAttribute('data-sect')===sect));
   document.querySelectorAll('.nav-it[data-nav]').forEach(n=>n.classList.toggle('active', n.getAttribute('data-nav')===sect));
