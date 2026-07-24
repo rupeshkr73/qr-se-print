@@ -98,18 +98,49 @@ select{padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-fami
 
 @media(max-width:600px){.form-grid{grid-template-columns:1fr}.stats{grid-template-columns:1fr 1fr 1fr}}
 .new-dot{
-  display:inline-block;margin-left:6px;background:linear-gradient(135deg,#ff2e63,#ff6b35);
-  color:#fff;font-size:8.5px;font-weight:800;letter-spacing:.6px;
-  border-radius:999px;padding:2px 7px;vertical-align:middle;
-  animation:newPulse 1.6s ease-in-out infinite;
+  position:relative;overflow:hidden;isolation:isolate;
+  display:inline-flex;align-items:center;gap:3px;
+  margin-left:7px;background:linear-gradient(135deg,#ff2e63,#ff6b35 55%,#ffd22e);
+  color:#fff;font-size:8.5px;font-weight:800;letter-spacing:.7px;
+  border-radius:999px;padding:3px 8px;vertical-align:middle;line-height:1;
+  animation:newPulse 1.7s ease-in-out infinite;
   box-shadow:0 0 0 0 rgba(255,46,99,.6);
+}
+.new-dot i{font-style:normal;font-size:9px;animation:newSpark 1.7s ease-in-out infinite}
+.new-dot::after{
+  content:'';position:absolute;top:-40%;bottom:-40%;left:-60%;width:40%;z-index:1;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.75),transparent);
+  transform:skewX(-20deg);animation:newShine 2.6s var(--ease,ease) infinite;
 }
 @keyframes newPulse{
   0%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,46,99,.55)}
-  60%{transform:scale(1.09);box-shadow:0 0 0 7px rgba(255,46,99,0)}
+  55%{transform:scale(1.11);box-shadow:0 0 0 8px rgba(255,46,99,0)}
   100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,46,99,0)}
 }
-@media (prefers-reduced-motion:reduce){.new-dot{animation:none}}
+@keyframes newSpark{
+  0%,100%{transform:scale(1) rotate(0);opacity:1}
+  45%{transform:scale(1.35) rotate(18deg);opacity:.85}
+}
+@keyframes newShine{
+  0%,62%{left:-60%}
+  92%,100%{left:130%}
+}
+/* Nav item par rukh-rukh ke golden glow — login karte hi nazar jaye */
+.nav-it[data-nav="agent"]{position:relative;overflow:visible}
+.nav-it[data-nav="agent"]::before{
+  content:'';position:absolute;inset:-2px;border-radius:inherit;
+  pointer-events:none;z-index:-1;
+  animation:agentGlow 3.2s ease-in-out infinite;
+}
+@keyframes agentGlow{
+  0%,64%{box-shadow:0 0 0 0 rgba(255,210,46,0)}
+  76%{box-shadow:0 0 16px 3px rgba(255,210,46,.5)}
+  88%{box-shadow:0 0 8px 1px rgba(255,46,99,.35)}
+  100%{box-shadow:0 0 0 0 rgba(255,210,46,0)}
+}
+@media (prefers-reduced-motion:reduce){
+  .new-dot,.new-dot i,.new-dot::after,.nav-it[data-nav="agent"]::before{animation:none}
+}
 </style>
 
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -273,7 +304,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <button class="nav-it" data-nav="refer" onclick="navTo('refer',this)"><span class="ico">🎁</span> Refer &amp; Earn</button>
     <button class="nav-it" data-nav="qr" onclick="navTo('qr',this)"><span class="ico">📱</span> QR &amp; Downloads</button>
     <button class="nav-it" data-nav="orders" onclick="navTo('orders',this)"><span class="ico">📋</span> Orders</button>
-    <button class="nav-it" data-nav="agent" id="navAgent" style="display:none;" onclick="navTo('agent',this)"><span class="ico">💼</span> <span id="navAgentLabel">Become Agent</span> <span class="new-dot">NEW</span></button>
+    <button class="nav-it" data-nav="agent" id="navAgent" style="display:none;" onclick="navTo('agent',this)"><span class="ico">💼</span> <span id="navAgentLabel">Become Agent</span><span class="new-dot"><i>✨</i>NEW</span></button>
     <button class="nav-it" data-nav="settings" onclick="navTo('settings',this)"><span class="ico">⚙️</span> Settings</button>
     <button class="nav-it" data-nav="advance" onclick="navTo('advance',this)"><span class="ico">⚡</span> Advance Feature</button>
     <button class="nav-it" data-nav="payment" onclick="navTo('payment',this)"><span class="ico">💳</span> Payment Setup</button>
@@ -1716,13 +1747,7 @@ async function loadAgent() {
     const nav = document.getElementById('navAgent');
     const banner = document.getElementById('agentBanner');
     // Agent tab sirf tab dikhe jab agent ho, ya ban sakta ho
-    if (nav) {
-      nav.style.display = (d.is_agent || d.eligible) ? 'flex' : 'none';
-      const lbl = document.getElementById('navAgentLabel');
-      if (lbl) lbl.textContent = d.is_agent ? 'Agent' : 'Become Agent';
-      const dot = nav.querySelector('.new-dot');
-      if (dot) dot.style.display = d.is_agent ? 'none' : 'inline-block';
-    }
+    if (nav) nav.style.display = (d.is_agent || d.eligible) ? 'flex' : 'none';
     if (banner) {
       banner.style.display = d.is_agent ? 'block' : 'none';
       const c = document.getElementById('agentBannerCode');
