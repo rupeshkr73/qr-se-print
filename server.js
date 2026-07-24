@@ -2918,7 +2918,7 @@ app.get('/api/superadmin/shops', verifySuperAdmin, async (req, res) => {
     const r = await pool.query(`
       SELECT id, name, address, phone, printer_model, price_bw, price_color,
              payment_mode, payment_gateway, setup_paid, setup_amount, created_at,
-             demo, plan_type, paid_until, advanced_unlocked, agent_last_seen, agent_version
+             demo, plan_type, paid_until, advanced_unlocked, agent_last_seen, agent_version, onboarded_by
       FROM shops ORDER BY created_at DESC
     `);
     res.json({ shops: r.rows });
