@@ -350,6 +350,19 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS payment_mode VARCHAR(20) DEFAULT 'both';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_last_seen TIMESTAMP;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_version INT;
+      -- ══ AGENT PROGRAM ══
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS is_agent BOOLEAN DEFAULT false;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_code VARCHAR(20);
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_upi VARCHAR(120) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_price INTEGER DEFAULT 0;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_blocked BOOLEAN DEFAULT false;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_earnings INTEGER DEFAULT 0;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_joined_at TIMESTAMP;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS onboarded_by VARCHAR(50) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS base_price_at_signup INTEGER DEFAULT 0;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS sold_price INTEGER DEFAULT 0;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_credited BOOLEAN DEFAULT false;
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_shops_agent_code ON shops(agent_code) WHERE agent_code IS NOT NULL;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS printing_at TIMESTAMP;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
@@ -410,6 +423,20 @@ async function initDB() {
         shop_id VARCHAR(50),
         created_at TIMESTAMP DEFAULT NOW()
       );
+      CREATE TABLE IF NOT EXISTS agent_commissions (
+        id SERIAL PRIMARY KEY,
+        agent_id VARCHAR(50),
+        shop_id VARCHAR(50),
+        shop_name VARCHAR(200),
+        base_price INTEGER DEFAULT 0,
+        sold_price INTEGER DEFAULT 0,
+        markup INTEGER DEFAULT 0,
+        commission INTEGER DEFAULT 0,
+        bonus INTEGER DEFAULT 0,
+        total INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
       CREATE TABLE IF NOT EXISTS withdrawals (
         id SERIAL PRIMARY KEY,
         shop_id VARCHAR(50),
@@ -626,9 +653,9 @@ app.get('/api/shop/earnings-breakdown', verifyToken, async (req, res) => {
 
 app.get('/api/shop/referral', verifyToken, async (req, res) => {
   try {
-    const me = await pool.query('SELECT referral_earnings, setup_paid, demo FROM shops WHERE id=$1', [req.shopId]);
+    const me = await pool.query('SELECT referral_earnings, agent_earnings, setup_paid, demo FROM shops WHERE id=$1', [req.shopId]);
     if (!me.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
-    const earnings = me.rows[0].referral_earnings || 0;
+    const earnings = (me.rows[0].referral_earnings || 0) + (me.rows[0].agent_earnings || 0);
     const canRefer = me.rows[0].setup_paid && !me.rows[0].demo; // paid AND non-demo hi refer kare — warna demo user free ₹50 kamata
 
     // Withdrawn total (done + pending — dono balance se ghatao taaki double-withdraw na ho)
@@ -662,6 +689,203 @@ app.get('/api/shop/referral', verifyToken, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// ══════════════════════════════════════════════════════════════
+// AGENT APIs — shop login (verifyToken) ke andar
+// ══════════════════════════════════════════════════════════════
+
+// Mera agent status + stats
+app.get('/api/agent/status', verifyToken, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT id,name,is_agent,agent_code,agent_upi,agent_price,agent_blocked,
+              agent_earnings,agent_joined_at,setup_paid,demo
+       FROM shops WHERE id=$1`, [req.shopId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
+    const s = r.rows[0];
+    const base = await getSetupFeeAmount();
+
+    let stats = { total: 0, paid: 0, pending: 0, demo: 0 };
+    if (s.is_agent) {
+      const c = await pool.query(
+        `SELECT COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE setup_paid=true AND demo=false)::int AS paid,
+                COUNT(*) FILTER (WHERE setup_paid=false AND demo=false)::int AS pending,
+                COUNT(*) FILTER (WHERE demo=true)::int AS demo
+         FROM shops WHERE onboarded_by=$1`, [req.shopId]);
+      stats = c.rows[0];
+    }
+    const wd = await pool.query(
+      "SELECT COALESCE(SUM(amount),0)::int AS used FROM withdrawals WHERE shop_id=$1 AND status IN ('pending','done')",
+      [req.shopId]);
+
+    res.json({
+      is_agent: !!s.is_agent, agent_code: s.agent_code, upi: s.agent_upi || '',
+      blocked: !!s.agent_blocked, price: s.agent_price || 0,
+      base_price: base, max_price: AGENT_PRICE_MAX,
+      commission_per_shop: AGENT_COMMISSION,
+      bonus_every: AGENT_BONUS_EVERY, bonus_amount: AGENT_BONUS_AMOUNT,
+      earnings: s.agent_earnings || 0,
+      withdrawn: wd.rows[0].used,
+      available: Math.max(0, (s.agent_earnings || 0) - wd.rows[0].used),
+      eligible: !!(s.setup_paid && !s.demo),
+      joined_at: s.agent_joined_at, stats,
+      link: s.agent_code ? `${BASE_URL}/?ref=${s.agent_code}` : null
+    });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Agent bano — sirf paid (non-demo) shop owner
+app.post('/api/agent/join', verifyToken, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT setup_paid,demo,is_agent,agent_code FROM shops WHERE id=$1', [req.shopId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
+    const s = r.rows[0];
+    if (s.demo || !s.setup_paid)
+      return res.status(403).json({ error: 'Agent banne ke liye pehle plan lena zaroori hai. Demo account agent nahi ban sakta.' });
+    if (s.is_agent) return res.json({ success: true, agent_code: s.agent_code, already: true });
+
+    const code = s.agent_code || await genAgentCode();
+    await pool.query(
+      'UPDATE shops SET is_agent=true, agent_code=$2, agent_joined_at=NOW() WHERE id=$1',
+      [req.shopId, code]);
+    res.json({ success: true, agent_code: code, link: `${BASE_URL}/?ref=${code}` });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// UPI save — commission isi par aayega
+app.put('/api/agent/upi', verifyToken, async (req, res) => {
+  try {
+    const upi = String(req.body.upi_id || '').trim();
+    if (!/^[\w.\-]{2,}@[\w.\-]{2,}$/.test(upi))
+      return res.status(400).json({ error: 'Sahi UPI ID daalo (jaise name@bank)' });
+    const r = await pool.query('SELECT is_agent FROM shops WHERE id=$1', [req.shopId]);
+    if (!r.rows.length || !r.rows[0].is_agent) return res.status(403).json({ error: 'Aap agent nahi ho' });
+    await pool.query('UPDATE shops SET agent_upi=$2 WHERE id=$1', [req.shopId, upi]);
+    res.json({ success: true, upi_id: upi });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Apna selling price set karo — base se neeche nahi, cap se upar nahi
+app.put('/api/agent/price', verifyToken, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT is_agent, agent_blocked FROM shops WHERE id=$1', [req.shopId]);
+    if (!r.rows.length || !r.rows[0].is_agent) return res.status(403).json({ error: 'Aap agent nahi ho' });
+    if (r.rows[0].agent_blocked) return res.status(403).json({ error: 'Aapka agent account abhi paused hai' });
+
+    const base = await getSetupFeeAmount();
+    const p = parseInt(req.body.price, 10);
+    if (!Number.isInteger(p)) return res.status(400).json({ error: 'Sahi price daalo' });
+    if (p < base) return res.status(400).json({ error: `Price ₹${base} se kam nahi ho sakta` });
+    if (p > AGENT_PRICE_MAX) return res.status(400).json({ error: `Price ₹${AGENT_PRICE_MAX} se zyada nahi ho sakta` });
+
+    await pool.query('UPDATE shops SET agent_price=$2 WHERE id=$1', [req.shopId, p]);
+    res.json({ success: true, price: p, base, markup: p - base });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Meri onboard ki hui shops
+app.get('/api/agent/shops', verifyToken, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT s.id, s.name, s.phone, s.created_at, s.setup_paid, s.demo, s.plan_type,
+              s.base_price_at_signup, s.sold_price, s.setup_amount, s.agent_last_seen,
+              c.total AS earned, c.markup, c.commission, c.bonus
+       FROM shops s
+       LEFT JOIN agent_commissions c ON c.shop_id = s.id AND c.agent_id = $1
+       WHERE s.onboarded_by=$1 ORDER BY s.created_at DESC`, [req.shopId]);
+    res.json({ shops: r.rows });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Kamai ka poora hisaab (payout history)
+app.get('/api/agent/commissions', verifyToken, async (req, res) => {
+  try {
+    const c = await pool.query(
+      'SELECT * FROM agent_commissions WHERE agent_id=$1 ORDER BY created_at DESC LIMIT 200', [req.shopId]);
+    const w = await pool.query(
+      'SELECT amount, upi_id, status, requested_at, completed_at FROM withdrawals WHERE shop_id=$1 ORDER BY requested_at DESC LIMIT 50',
+      [req.shopId]);
+    res.json({ commissions: c.rows, payouts: w.rows });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Agent khud kisi ki shop onboard kare — Shop ID + password generate
+app.post('/api/agent/onboard', verifyToken, async (req, res) => {
+  try {
+    const me = await pool.query(
+      'SELECT is_agent, agent_blocked, agent_price FROM shops WHERE id=$1', [req.shopId]);
+    if (!me.rows.length || !me.rows[0].is_agent) return res.status(403).json({ error: 'Aap agent nahi ho' });
+    if (me.rows[0].agent_blocked) return res.status(403).json({ error: 'Aapka agent account abhi paused hai' });
+
+    const name = String(req.body.name || '').trim();
+    const phone = String(req.body.phone || '').trim();
+    const address = String(req.body.address || '').trim();
+    if (!name) return res.status(400).json({ error: 'Shop ka naam zaroori hai' });
+    if (!/^\d{10}$/.test(phone)) return res.status(400).json({ error: 'Sahi 10 digit mobile number daalo' });
+
+    const base = await getSetupFeeAmount();
+    const ap = me.rows[0].agent_price;
+    const sold = (ap && ap > base) ? ap : base;
+
+    const shopId = 'SHOP_' + uuidv4().substring(0,8).toUpperCase();
+    const password = Math.random().toString(36).slice(-4).toUpperCase() + Math.floor(1000 + Math.random()*9000);
+    const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
+
+    await pool.query(
+      `INSERT INTO shops (id,name,address,phone,printer_model,price_bw,price_color,payment_mode,
+         password_hash,setup_paid,setup_amount,plan_type,referred_by,onboarded_by,base_price_at_signup,sold_price)
+       VALUES ($1,$2,$3,$4,'',5,10,'counter_only',$5,false,$6,'onetime',$7,$7,$8,$9)`,
+      [shopId, name, address, phone, passwordHash, sold, req.shopId, base, sold]);
+
+    res.json({ success: true, shopId, password, amount: sold,
+      pay_url: `${BASE_URL}/setup-payment.html?shop=${shopId}` });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ══════════════ SUPERADMIN: AGENTS ══════════════
+app.get('/api/superadmin/agents', verifySuperAdmin, async (req, res) => {
+  try {
+    const base = await getSetupFeeAmount();
+    const ags = await pool.query(
+      `SELECT id,name,phone,agent_code,agent_upi,agent_price,agent_blocked,agent_earnings,agent_joined_at
+       FROM shops WHERE is_agent=true ORDER BY agent_joined_at DESC NULLS LAST`);
+    const out = [];
+    for (const a of ags.rows) {
+      const sh = await pool.query(
+        `SELECT s.id,s.name,s.phone,s.created_at,s.setup_paid,s.demo,s.plan_type,
+                s.base_price_at_signup,s.sold_price,s.setup_amount,s.agent_last_seen,s.paused,
+                c.total AS earned, c.markup, c.commission, c.bonus
+         FROM shops s
+         LEFT JOIN agent_commissions c ON c.shop_id=s.id AND c.agent_id=$1
+         WHERE s.onboarded_by=$1 ORDER BY s.created_at DESC`, [a.id]);
+      const wd = await pool.query(
+        "SELECT COALESCE(SUM(amount),0)::int AS used FROM withdrawals WHERE shop_id=$1 AND status IN ('pending','done')",
+        [a.id]);
+      out.push({
+        ...a,
+        base_price: base,
+        markup: Math.max(0, (a.agent_price || 0) - base),
+        paid_out: wd.rows[0].used,
+        pending_payout: Math.max(0, (a.agent_earnings || 0) - wd.rows[0].used),
+        shops: sh.rows
+      });
+    }
+    res.json({ agents: out, base_price: base, commission: AGENT_COMMISSION,
+      max_price: AGENT_PRICE_MAX, bonus_every: AGENT_BONUS_EVERY, bonus_amount: AGENT_BONUS_AMOUNT });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/superadmin/agent/:shopId/block', verifySuperAdmin, async (req, res) => {
+  try {
+    const block = !!req.body.blocked;
+    const r = await pool.query(
+      'UPDATE shops SET agent_blocked=$2 WHERE id=$1 AND is_agent=true RETURNING id, agent_blocked',
+      [req.params.shopId, block]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Agent nahi mila' });
+    res.json({ success: true, blocked: r.rows[0].agent_blocked });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 // Withdrawal request — min ₹500, UPI zaroori
 app.post('/api/shop/withdraw', verifyToken, async (req, res) => {
   try {
@@ -669,8 +893,9 @@ app.post('/api/shop/withdraw', verifyToken, async (req, res) => {
     if (!upi_id || !/^[\w.\-]+@[\w.\-]+$/.test(upi_id.trim()))
       return res.status(400).json({ error: 'Sahi UPI ID daalo (jaise name@bank)' });
 
-    const me = await pool.query('SELECT referral_earnings FROM shops WHERE id=$1', [req.shopId]);
-    const earnings = me.rows[0]?.referral_earnings || 0;
+    const me = await pool.query('SELECT referral_earnings, agent_earnings FROM shops WHERE id=$1', [req.shopId]);
+    // Referral (₹50) + Agent commission — dono ek hi wallet me
+    const earnings = (me.rows[0]?.referral_earnings || 0) + (me.rows[0]?.agent_earnings || 0);
     const wd = await pool.query(
       "SELECT COALESCE(SUM(amount),0) as used FROM withdrawals WHERE shop_id=$1 AND status IN ('pending','done')",
       [req.shopId]);
@@ -1108,12 +1333,66 @@ One-Time plan walon ko AnyDesk support bhi milta hai.
   res.send(txt);
 });
 
+// ══════════════════════════════════════════════════════════════
+// AGENT PROGRAM — helpers
+// Agent = paid shop owner jo doosri shops onboard karke commission kamata hai.
+// Kamai = ₹200 fix per shop + markup (agent ka price − superadmin ka base price)
+// + har 10 shop par ₹300 bonus. Payout manual (UPI), withdrawals table se.
+// ══════════════════════════════════════════════════════════════
+const AGENT_COMMISSION   = 200;   // per successful paid shop
+const AGENT_PRICE_MAX    = 2999;  // agent isse upar price nahi rakh sakta
+const AGENT_BONUS_EVERY  = 10;    // har 10 shop par
+const AGENT_BONUS_AMOUNT = 300;   // itna extra bonus
+
+async function genAgentCode() {
+  for (let i = 0; i < 40; i++) {
+    const code = 'QRA-' + Math.floor(1000 + Math.random() * 9000);
+    const c = await pool.query('SELECT 1 FROM shops WHERE agent_code=$1', [code]);
+    if (!c.rows.length) return code;
+  }
+  return 'QRA-' + Date.now().toString().slice(-6);
+}
+
+// ref = agent code (QRA-1234) ya purana shop id (SHOP_XXXX) — dono chalte hain
+async function resolveRef(ref) {
+  if (!ref || typeof ref !== 'string') return null;
+  const v = ref.trim().toUpperCase();
+  if (!v) return null;
+  const r = await pool.query(
+    `SELECT id, name, is_agent, agent_blocked, agent_price, setup_paid, demo
+     FROM shops WHERE (agent_code=$1 OR UPPER(id)=$1) LIMIT 1`, [v]);
+  if (!r.rows.length) return null;
+  const s = r.rows[0];
+  if (!s.setup_paid || s.demo) return null;          // unpaid/demo refer nahi kar sakta
+  if (s.is_agent && s.agent_blocked) return null;    // blocked agent ka link dead
+  return s;
+}
+
+// Kisi ref ke hisaab se one-time setup price (agent ne badhaya ho to wahi)
+async function priceForRef(ref) {
+  const base = await getSetupFeeAmount();
+  const s = await resolveRef(ref);
+  if (s && s.is_agent && s.agent_price && s.agent_price > base) {
+    return { price: s.agent_price, base, agent: s };
+  }
+  return { price: base, base, agent: s || null };
+}
+
 app.get('/api/setup-fee/current', async (req, res) => {
   try {
     const pricing = await getSetupPricing();
-    // Poora object + advancedFee — manually copy karne par naye fields
-    // (monthlyFee) gir jaate the aur homepage stale price dikhata tha
-    res.json({ amount: pricing.offerPrice, ...pricing, advancedFee: await getAdvancedFee() });
+    const out = { amount: pricing.offerPrice, ...pricing, advancedFee: await getAdvancedFee() };
+    // ?ref=QRA-1234 — agent ka apna price (sirf one-time plan par)
+    if (req.query.ref) {
+      const s = await resolveRef(req.query.ref);
+      if (s && s.is_agent && s.agent_price && s.agent_price > pricing.offerPrice) {
+        out.offerPrice = s.agent_price;
+        out.amount = s.agent_price;
+        out.agentRef = req.query.ref;
+        out.agentName = s.name;
+      }
+    }
+    res.json(out);
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1136,11 +1415,10 @@ app.post('/api/shop/register', async (req, res) => {
     // Referral: ?ref=SHOP_XXX se aaya — sirf tab valid jab wo referrer
     // EXIST kare aur khud PAID ho (unpaid shop refer nahi kar sakta),
     // aur khud ko refer na kare
-    let referredBy = '';
-    if (ref && typeof ref === 'string') {
-      const r = await pool.query('SELECT id FROM shops WHERE id=$1 AND setup_paid=true AND demo=false', [ref.trim()]);
-      if (r.rows.length) referredBy = ref.trim();
-    }
+    // ref = agent code (QRA-1234) ya purana shop id — dono support
+    const refShop = await resolveRef(ref);
+    const referredBy = refShop ? refShop.id : '';
+    const onboardedBy = (refShop && refShop.is_agent) ? refShop.id : '';
 
     if (!name || !name.trim()) return res.status(400).json({ error: 'Shop ka naam zaroori hai' });
     if (!password || password.length < 4) return res.status(400).json({ error: 'Password kam se kam 4 character ka hona chahiye' });
@@ -1166,7 +1444,14 @@ app.post('/api/shop/register', async (req, res) => {
     // Plan: 'onetime' (default) ya 'monthly' (₹99/mahina — pehli payment se 30 din)
     const plan = req.body.plan === 'monthly' ? 'monthly' : 'onetime';
     const monthlyFee = await getMonthlyFee();
-    const firstPayment = plan === 'monthly' ? monthlyFee : currentSetupFee;
+    // Agent ka badhaya hua price SIRF one-time plan par lagta hai
+    let oneTimePrice = currentSetupFee;
+    if (onboardedBy && refShop.agent_price && refShop.agent_price > currentSetupFee) {
+      oneTimePrice = refShop.agent_price;
+    }
+    const firstPayment = plan === 'monthly' ? monthlyFee : oneTimePrice;
+    const soldPrice = plan === 'monthly' ? monthlyFee : oneTimePrice;
+    const basePrice  = plan === 'monthly' ? monthlyFee : currentSetupFee;
 
     // Shop create hoti hai lekin setup_paid=false rehta hai by default.
     // QR Code aur Print Agent sirf setup fee payment confirm hone ke baad milte hain.
@@ -1174,11 +1459,11 @@ app.post('/api/shop/register', async (req, res) => {
       `INSERT INTO shops 
         (id,name,address,phone,printer_model,price_bw,price_color,payment_mode,password_hash,
          payment_gateway,razorpay_key_id,razorpay_key_secret,phonepe_merchant_id,phonepe_salt_key,phonepe_salt_index,
-         setup_paid,setup_amount,plan_type)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,false,$16,$17)`,
+         setup_paid,setup_amount,plan_type,referred_by,onboarded_by,base_price_at_signup,sold_price)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,false,$16,$17,$18,$19,$20,$21)`,
       [shopId, name, address, phone, printer_model, price_bw||5, price_color||10, finalPaymentMode, passwordHash,
        finalGateway, razorpay_key_id||'', razorpay_key_secret||'', phonepe_merchant_id||'', phonepe_salt_key||'', phonepe_salt_index||'1',
-       firstPayment, plan]
+       firstPayment, plan, referredBy, onboardedBy, basePrice, soldPrice]
     );
 
     res.json({ success: true, shopId, setupFeeAmount: firstPayment, plan });
@@ -1315,11 +1600,50 @@ async function activateShop(shopId, paymentId) {
     [shopId]);
   console.log(`Setup fee paid: ${shopId} | Payment: ${paymentId}`);
 
-  // ── REFERRAL REWARD ── is naye shop ko kisi ne refer kiya tha?
+  // ── AGENT COMMISSION ── kya ye shop kisi agent ne onboard ki thi?
   try {
-    const me = await pool.query('SELECT referred_by, referral_rewarded FROM shops WHERE id=$1', [shopId]);
+    const ob = await pool.query(
+      `SELECT name, onboarded_by, agent_credited, base_price_at_signup, sold_price, setup_amount
+       FROM shops WHERE id=$1`, [shopId]);
+    const s = ob.rows[0];
+    if (s && s.onboarded_by && !s.agent_credited) {
+      const ag = await pool.query(
+        'SELECT id, is_agent, agent_blocked FROM shops WHERE id=$1', [s.onboarded_by]);
+      if (ag.rows.length && ag.rows[0].is_agent && !ag.rows[0].agent_blocked) {
+        const base   = s.base_price_at_signup || 0;
+        const sold   = s.sold_price || s.setup_amount || 0;
+        const markup = Math.max(0, sold - base);
+
+        // Bonus: har 10 onboarded (paid) shop par ek baar
+        const cnt = await pool.query(
+          'SELECT COUNT(*)::int AS n FROM agent_commissions WHERE agent_id=$1', [s.onboarded_by]);
+        const nth = (cnt.rows[0].n || 0) + 1;
+        const bonus = (nth % AGENT_BONUS_EVERY === 0) ? AGENT_BONUS_AMOUNT : 0;
+        const total = AGENT_COMMISSION + markup + bonus;
+
+        await pool.query(
+          `INSERT INTO agent_commissions
+             (agent_id, shop_id, shop_name, base_price, sold_price, markup, commission, bonus, total)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          [s.onboarded_by, shopId, s.name || '', base, sold, markup, AGENT_COMMISSION, bonus, total]);
+        await pool.query(
+          'UPDATE shops SET agent_earnings = COALESCE(agent_earnings,0) + $2 WHERE id=$1',
+          [s.onboarded_by, total]);
+        console.log(`Agent commission: ₹${total} (₹${AGENT_COMMISSION}+₹${markup}+bonus ₹${bonus}) -> ${s.onboarded_by} for ${shopId}`);
+      }
+      await pool.query('UPDATE shops SET agent_credited=true WHERE id=$1', [shopId]);
+    }
+  } catch(e) { console.error('Agent commission error:', e.message); }
+
+  // ── REFERRAL REWARD ── is naye shop ko kisi ne refer kiya tha?
+  // NOTE: agar shop kisi AGENT ne onboard ki hai to ₹50 referral nahi milta —
+  // usko ₹200 wala agent commission upar mil chuka hai (double count se bachne ke liye)
+  try {
+    const me = await pool.query('SELECT referred_by, referral_rewarded, onboarded_by FROM shops WHERE id=$1', [shopId]);
     const row = me.rows[0];
-    if (row && row.referred_by && !row.referral_rewarded) {
+    if (row && row.onboarded_by) {
+      await pool.query('UPDATE shops SET referral_rewarded=true WHERE id=$1', [shopId]);
+    } else if (row && row.referred_by && !row.referral_rewarded) {
       // Referrer khud PAID hona chahiye — warna reward nahi
       const ref = await pool.query('SELECT id, setup_paid FROM shops WHERE id=$1', [row.referred_by]);
       if (ref.rows.length && ref.rows[0].setup_paid) {
@@ -3145,6 +3469,7 @@ setInterval(backgroundMaintenance, 2 * 60 * 1000).unref();
 
 app.get('/print/:shopId', (req,res) => res.sendFile(path.join(__dirname,'public','customer.html')));
 app.get('/register',  (req,res) => res.sendFile(path.join(__dirname,'public','register.html')));
+app.get('/agent',     (req,res) => res.sendFile(path.join(__dirname,'public','agent.html')));
 app.get('/dashboard', (req,res) => res.sendFile(path.join(__dirname,'public','dashboard.html')));
 app.get('/admin', (req,res) => res.sendFile(path.join(__dirname,'public','admin.html')));
 app.get('/superadmin', (req,res) => res.sendFile(path.join(__dirname,'public','superadmin.html')));
