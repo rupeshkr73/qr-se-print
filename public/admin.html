@@ -601,8 +601,17 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           </div>
           <p style="font-size:11.5px;color:#9b9690;margin-top:12px;line-height:1.6;">
             Har paid shop par ₹200 + aapka margin. Har 10 shop par ₹300 bonus.
-            Withdrawal <b>Refer &amp; Earn</b> tab se — min ₹500.
           </p>
+
+          <div style="border-top:1.5px dashed #e2ddd6;margin:14px 0 12px;"></div>
+          <div id="agWdOk" style="display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534;border-radius:10px;padding:10px;font-size:12.5px;font-weight:700;margin-bottom:10px;"></div>
+          <div id="agWdErr" style="display:none;background:#fee2e2;border:1.5px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px;font-size:12.5px;margin-bottom:10px;"></div>
+          <button id="agWdBtn" onclick="agentWithdraw()" style="width:100%;background:#7c3aed;color:#fff;border:none;border-radius:12px;padding:14px;font-weight:800;font-size:15px;cursor:pointer;box-shadow:0 12px 28px rgba(124,58,237,.3);">💸 Withdraw Karo</button>
+          <p style="font-size:11px;color:#9b9690;margin-top:8px;line-height:1.6;text-align:center;">
+            Min ₹500 par withdrawal. Paisa aapke saved UPI par bheja jayega.
+          </p>
+
+          <div id="agPayouts" style="margin-top:14px;"></div>
         </div>
 
         <div class="card">
@@ -1739,6 +1748,7 @@ async function loadAgent() {
     document.getElementById('agPrice').value = d.price || d.base_price;
     document.getElementById('agLink').value  = d.link || '';
     agentMargin();
+    renderAgentPayouts();
     loadAgentShops();
     loadAgentHistory();
   } catch(e) {
@@ -1746,6 +1756,16 @@ async function loadAgent() {
     if (nav) nav.style.display = 'none';
   }
 }
+function renderAgentPayouts() {
+  const box = document.getElementById('agPayouts');
+  if (!box || !_ag) return;
+  const avail = _ag.available || 0, wd = _ag.withdrawn || 0;
+  box.innerHTML = `<div style="display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#6b6870;background:#f7f7f9;border-radius:11px;padding:10px 13px;">
+    <span>Ab tak nikala: <b style="color:#111114;">₹${wd}</b></span>
+    <span>${avail >= 500 ? '<b style="color:#166534;">Withdraw kar sakte ho ✅</b>' : `₹${Math.max(0, 500 - avail)} aur chahiye`}</span>
+  </div>`;
+}
+
 function agentMargin() {
   const el = document.getElementById('agMarginNote');
   if (!el || !_ag) return;
@@ -1843,6 +1863,37 @@ async function agentOnboard() {
     loadAgentShops();
   } catch(e) { _agShow('agOnErr', '❌ ' + e.message); }
 }
+async function agentWithdraw() {
+  const ok = document.getElementById('agWdOk'), err = document.getElementById('agWdErr');
+  ok.style.display = 'none'; err.style.display = 'none';
+  if (!_ag) return;
+  if (!_ag.upi) {
+    err.textContent = '❌ Pehle apni UPI ID save karo — commission wahin bheja jayega'; err.style.display = 'block';
+    document.getElementById('agUpi').focus();
+    return;
+  }
+  if ((_ag.available || 0) < 500) {
+    err.textContent = `❌ Withdrawal ke liye kam se kam ₹500 chahiye. Abhi aapke paas ₹${_ag.available || 0} hai.`;
+    err.style.display = 'block';
+    return;
+  }
+  if (!confirm(`₹${_ag.available} ka withdrawal request bhejein?\nUPI: ${_ag.upi}`)) return;
+  const btn = document.getElementById('agWdBtn');
+  btn.disabled = true; btn.textContent = 'Bhej rahe hain…';
+  try {
+    const r = await fetch('/api/shop/withdraw', {
+      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},
+      body: JSON.stringify({ upi_id: _ag.upi })
+    });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Fail');
+    ok.textContent = '✅ Withdrawal request bhej di! Approve hone par paisa aapke UPI par aayega.';
+    ok.style.display = 'block';
+    loadAgent();
+  } catch(e) { err.textContent = '❌ ' + e.message; err.style.display = 'block'; }
+  btn.disabled = false; btn.textContent = '💸 Withdraw Karo';
+}
+
 async function loadAgentShops() {
   const box = document.getElementById('agShops');
   try {
