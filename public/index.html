@@ -2477,6 +2477,32 @@ function sendInq(via){
     });
   };
   addRef();
+  // Agent ka price homepage par bhi lagana hai — purana script bina ref ke
+  // price laata hai, isliye uske baad hum override karte hain
+  var applyAgentPrice=function(d){
+    var offer=parseInt(d.offerPrice,10);
+    var actual=parseInt(d.actualPrice,10);
+    if(!offer) return;
+    var set=function(id,val){ var el=document.getElementById(id); if(el) el.textContent=val; };
+    set('offerPrice', offer);
+    set('hpOnetime', offer);
+    var cut=document.getElementById('hpCut');
+    var save=(actual||0)-offer;
+    if(actual && save>0){
+      set('actualPrice','\u20b9'+actual);
+      if(cut){ cut.textContent='\u20b9'+actual; cut.style.display=''; }
+    } else {
+      var ap=document.getElementById('actualPrice');
+      if(ap) ap.style.display='none';
+      if(cut) cut.style.display='none';
+    }
+    var burst=document.getElementById('saveBurst');
+    if(burst){
+      if(save>0){ burst.innerHTML='<span>Save</span>\u20b9'+save; burst.style.display=''; }
+      else burst.style.display='none';
+    }
+    addRef();
+  };
   fetch('/api/setup-fee/current?ref='+encodeURIComponent(ref))
     .then(function(r){ return r.json(); })
     .then(function(d){
@@ -2486,7 +2512,9 @@ function sendInq(via){
         note.textContent='\ud83e\udd1d '+(d.agentName?d.agentName+' ':'')+'ke through aaye ho \u2014 aapke liye special price';
         note.classList.add('on');
       }
-      addRef();
+      applyAgentPrice(d);
+      // Purane scripts baad me chal kar overwrite na kar dein
+      [300,900,2000,3500].forEach(function(t){ setTimeout(function(){ applyAgentPrice(d); }, t); });
     })
     .catch(function(){});
 })();
