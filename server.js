@@ -787,7 +787,7 @@ app.put('/api/agent/price', verifyToken, async (req, res) => {
 app.get('/api/agent/shops', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT s.id, s.name, s.phone, s.created_at, s.setup_paid, s.demo, s.plan_type,
+      `SELECT s.id, s.name, s.phone, s.address, s.created_at, s.setup_paid, s.demo, s.plan_type,
               s.base_price_at_signup, s.sold_price, s.setup_amount, s.agent_last_seen,
               c.total AS earned, c.markup, c.commission, c.bonus
        FROM shops s
@@ -827,18 +827,34 @@ app.post('/api/agent/onboard', verifyToken, async (req, res) => {
     const ap = me.rows[0].agent_price;
     const sold = (ap && ap > base) ? ap : base;
 
+    // Baaki details — normal registration jaisi hi
+    const printerModel = String(req.body.printer_model || '').trim().slice(0,120);
+    const priceBw    = parseInt(req.body.price_bw, 10);
+    const priceColor = parseInt(req.body.price_color, 10);
+    const modes = ['counter_only','both','online_only'];
+    const payMode = modes.includes(req.body.payment_mode) ? req.body.payment_mode : 'counter_only';
+    // Online payment ke liye shop owner ki apni keys chahiye — wo baad me
+    // Payment Setup se khud daalega, isliye agent sirf counter_only de sakta hai
+    const finalMode = payMode === 'counter_only' ? 'counter_only' : 'counter_only';
+
     const shopId = 'SHOP_' + uuidv4().substring(0,8).toUpperCase();
-    const password = Math.random().toString(36).slice(-4).toUpperCase() + Math.floor(1000 + Math.random()*9000);
+    let password = String(req.body.password || '').trim();
+    if (password.length < 4) {
+      password = Math.random().toString(36).slice(-4).toUpperCase() + Math.floor(1000 + Math.random()*9000);
+    }
     const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
 
     await pool.query(
       `INSERT INTO shops (id,name,address,phone,printer_model,price_bw,price_color,payment_mode,
          password_hash,setup_paid,setup_amount,plan_type,referred_by,onboarded_by,base_price_at_signup,sold_price)
-       VALUES ($1,$2,$3,$4,'',5,10,'counter_only',$5,false,$6,'onetime',$7,$7,$8,$9)`,
-      [shopId, name, address, phone, passwordHash, sold, req.shopId, base, sold]);
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,false,$10,'onetime',$11,$11,$12,$13)`,
+      [shopId, name, address, phone, printerModel,
+       Number.isInteger(priceBw) && priceBw > 0 ? priceBw : 5,
+       Number.isInteger(priceColor) && priceColor > 0 ? priceColor : 10,
+       finalMode, passwordHash, sold, req.shopId, base, sold]);
 
     res.json({ success: true, shopId, password, amount: sold,
-      pay_url: `${BASE_URL}/setup-payment.html?shop=${shopId}` });
+      pay_url: `${BASE_URL}/setup-payment/${shopId}` });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
