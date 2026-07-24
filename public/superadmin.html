@@ -495,7 +495,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
             <tr>
               <th>Shop Name / ID</th>
               <th>Contact</th>
-              <th>Printer</th>
+              <th>Printer / Agent</th>
               <th>Setup Status</th>
               <th>Print Earnings</th>
               <th>Registered</th>
@@ -717,15 +717,141 @@ async function loadDemos(){
         <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:8px;">
           <div>
             <div style="font-weight:800;font-size:14px;">${(d.agent_last_seen && (Date.now()-new Date(d.agent_last_seen).getTime())<120000) ? '🟢' : '🔴'} ${sanitize(d.name||'-')} <span style="font-family:monospace;font-size:11px;color:#6b6870;">${d.id}</span></div>
-            <div style="font-size:12px;color:#6b6870;margin-top:3px;">📱 ${sanitize(d.phone||'-')} &nbsp;|&nbsp; 🖨️ ${d.prints} paid prints (${d.total_jobs} total jobs)</div>
+            <div style="font-size:12px;color:#6b6870;margin-top:3px;">📱 ${sanitize(d.phone||'-')} &nbsp;|&nbsp; 🖨️ ${d.prints} paid prints (${d.total_jobs} total jobs) &nbsp;${agentVerBadge(d.agent_version, d.agent_last_seen)}</div>
             <div style="font-size:11px;color:#9a9aa0;margin-top:3px;">Shuru: ${createdStr} &nbsp;|&nbsp; ${statusHtml}</div>
           </div>
+          <button onclick="openPrinterPanel('${d.id}','${sanitize(d.name||'')}')" style="background:#0f766e;color:#fff;border:none;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🖨️ Printer</button>
           <button onclick="notifyShop('${d.id}')" style="background:#f59e0b;color:#fff;border:none;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔔 Notify</button>
           <button onclick="deletePendingShop('${d.id}','${sanitize(d.name||'')}' )" style="background:#ff3b3b;color:#fff;border:none;border-radius:10px;padding:9px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🗑️ Delete</button>
         </div>
       </div>`;
     }).join('');
   }catch(e){ document.getElementById('demosList').innerHTML = '<div style="color:#c22;">Load fail</div>'; }
+}
+
+// ═══ AGENT VERSION BADGE ═══
+let _latestAgentVersion = null;
+function agentVerBadge(v, lastSeen) {
+  const ver = parseInt(v, 10);
+  const everSeen = !!lastSeen;
+  if (!ver) {
+    return everSeen
+      ? `<span style="display:inline-block;font-size:10px;font-weight:800;background:#f3f4f6;color:#6b7280;border-radius:6px;padding:2px 7px;" title="Purana agent — version report nahi karta. Update hone par dikhne lagega.">v ?</span>`
+      : `<span style="display:inline-block;font-size:10px;font-weight:800;background:#f3f4f6;color:#9ca3af;border-radius:6px;padding:2px 7px;" title="Agent kabhi connect nahi hua">agent nahi</span>`;
+  }
+  const latest = _latestAgentVersion;
+  if (latest && ver < latest) {
+    return `<span style="display:inline-block;font-size:10px;font-weight:800;background:#fef3c7;color:#92400e;border-radius:6px;padding:2px 7px;" title="Purana version — latest v${latest} hai. Agent 1 ghante me khud update ho jayega.">v${ver} ⬆</span>`;
+  }
+  return `<span style="display:inline-block;font-size:10px;font-weight:800;background:#dcfce7;color:#166534;border-radius:6px;padding:2px 7px;" title="Latest version chal raha hai">v${ver} ✓</span>`;
+}
+
+// ═══ PRINTER & PAYMENT PANEL ═══
+let _prnShopId = null;
+function _pesc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+async function openPrinterPanel(shopId, shopName) {
+  _prnShopId = shopId;
+  document.getElementById('prnShopName').textContent = (shopName || '') + ' · ' + shopId;
+  document.getElementById('prnBody').innerHTML = 'Loading…';
+  const ov = document.getElementById('prnOverlay');
+  ov.style.display = 'flex';
+  try {
+    const r = await fetch(`/api/superadmin/shop/${shopId}/printers`, { headers:{'Authorization':'Bearer '+authToken} });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Load fail');
+    renderPrinterPanel(d);
+  } catch(e) {
+    document.getElementById('prnBody').innerHTML = `<div style="color:#c22;font-size:13px;">❌ ${_pesc(e.message)}</div>`;
+  }
+}
+function closePrinterPanel() {
+  document.getElementById('prnOverlay').style.display = 'none';
+  _prnShopId = null;
+}
+function renderPrinterPanel(d) {
+  const s = d.shop || {};
+  const list = d.available || [];
+  const opts = list.map(p => `<option value="${_pesc(p)}"></option>`).join('');
+  const online = s.agent_last_seen && (Date.now() - new Date(s.agent_last_seen).getTime()) < 120000;
+  const reported = d.reported_at
+    ? new Date(d.reported_at).toLocaleString('en-IN', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hour12:true})
+    : null;
+
+  const field = (id, label, val, hint) => `
+    <div style="margin-bottom:13px;">
+      <label style="display:block;font-size:12px;font-weight:800;color:#4b5563;margin-bottom:5px;">${label}</label>
+      <input id="${id}" list="prnList" value="${_pesc(val||'')}" placeholder="— koi printer select nahi —"
+        style="width:100%;padding:10px 12px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:13px;box-sizing:border-box;">
+      ${hint ? `<div style="font-size:10.5px;color:#9b9690;margin-top:3px;">${hint}</div>` : ''}
+    </div>`;
+
+  const listBox = list.length
+    ? `<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:11px;padding:11px 13px;margin-bottom:14px;">
+         <div style="font-size:11.5px;font-weight:800;color:#166534;margin-bottom:5px;">
+           ✅ PC se mili printer list (${list.length})${reported ? ` · ${reported}` : ''}
+         </div>
+         <div style="font-size:12px;color:#166534;line-height:1.8;">${list.map(p=>`• ${_pesc(p)}`).join('<br>')}</div>
+       </div>`
+    : `<div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:11px;padding:11px 13px;margin-bottom:14px;font-size:12px;color:#92400e;line-height:1.65;">
+         ⚠️ Is shop ke PC se abhi tak printer list nahi aayi.<br>
+         Agent chalu hone ke baad 30 min me apne aap aati hai. Tab tak naam khud type kar sakte ho (bilkul waise hi jaise Windows me dikhta hai).
+       </div>`;
+
+  document.getElementById('prnBody').innerHTML = `
+    <datalist id="prnList">${opts}</datalist>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+      <span style="font-size:11px;font-weight:800;background:${online?'#dcfce7':'#fee2e2'};color:${online?'#166534':'#991b1b'};border-radius:999px;padding:5px 11px;">${online?'🟢 Agent online':'🔴 Agent offline'}</span>
+      ${s.demo ? '<span style="font-size:11px;font-weight:800;background:#ede9fe;color:#5b21b6;border-radius:999px;padding:5px 11px;">🎯 Demo shop</span>' : ''}
+    </div>
+    ${listBox}
+    ${field('prnBw','⚫ B&W Printer', s.printer_name_bw, 'Black & white print isi se niklega')}
+    ${field('prnColor','🌈 Color Printer', s.printer_name_color, 'Khaali chhodo to B&W wala hi use hoga')}
+    ${field('prnA3','📄 A3 / Bade Size Printer', s.printer_name_a3, 'Sirf tab jab alag bada printer ho')}
+    ${field('prn4x6','🖼️ 4×6 Photo Printer', s.printer_name_4x6, 'Passport photo ke liye alag printer ho to')}
+
+    <div style="border-top:1.5px dashed #e2ddd6;margin:18px 0 14px;"></div>
+
+    <label style="display:block;font-size:12px;font-weight:800;color:#4b5563;margin-bottom:7px;">💳 Payment Method</label>
+    <label style="display:flex;align-items:flex-start;gap:9px;background:#f7f7f9;border:1.5px solid #e2ddd6;border-radius:11px;padding:12px;cursor:pointer;">
+      <input type="checkbox" id="prnCounter" ${s.payment_mode==='counter_only'?'checked disabled':''} style="margin-top:2px;width:17px;height:17px;cursor:pointer;">
+      <span style="font-size:12.5px;line-height:1.6;">
+        <b>Counter par payment</b> — customer dukaan par cash dega${s.payment_mode==='counter_only'?' <span style="color:#16a34a;font-weight:800;">(abhi yahi set hai)</span>':''}
+      </span>
+    </label>
+    <div style="background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:11px;padding:11px 13px;margin-top:9px;font-size:11.5px;color:#1e40af;line-height:1.65;">
+      🔒 Aap sirf <b>Counter payment</b> set kar sakte ho.<br>
+      <b>Online</b> ya <b>Both</b> shop owner ko khud apne login se karna hoga — usme uski apni Razorpay/PhonePe key chahiye hoti hai.
+      ${s.payment_mode && s.payment_mode!=='counter_only' ? `<br><br>Abhi is shop par set hai: <b>${_pesc(s.payment_mode)}</b> — ise counter par lane ke liye upar wala box tick karke Save karo.` : ''}
+    </div>`;
+}
+async function savePrinterPanel() {
+  if (!_prnShopId) return;
+  const btn = document.getElementById('prnSaveBtn');
+  const g = id => (document.getElementById(id)?.value || '').trim();
+  const body = {
+    printer_name_bw: g('prnBw'),
+    printer_name_color: g('prnColor'),
+    printer_name_4x6: g('prn4x6'),
+    printer_name_a3: g('prnA3')
+  };
+  const cb = document.getElementById('prnCounter');
+  if (cb && cb.checked && !cb.disabled) body.payment_mode = 'counter_only';
+  btn.disabled = true; btn.textContent = 'Saving…';
+  try {
+    const r = await fetch(`/api/superadmin/shop/${_prnShopId}/printers`, {
+      method:'PUT',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},
+      body: JSON.stringify(body)
+    });
+    const d = await r.json();
+    if (!r.ok || !d.success) throw new Error(d.error || 'Save fail');
+    btn.textContent = '✅ Save ho gaya';
+    setTimeout(() => { btn.disabled=false; btn.textContent='💾 Save Karo'; closePrinterPanel(); try { loadPanel(); } catch(e){} }, 900);
+  } catch(e) {
+    alert('❌ ' + e.message);
+    btn.disabled = false; btn.textContent = '💾 Save Karo';
+  }
 }
 
 async function loadWithdrawals(){
@@ -831,6 +957,7 @@ async function loadPanel() {
 
     if (versionRes.ok) {
       const versionData = await versionRes.json();
+      _latestAgentVersion = parseInt(versionData.version, 10) || null;
       document.getElementById('agentVersionDisplay').textContent = versionData.version;
       if (versionData.updatedAt) {
         const d = new Date(versionData.updatedAt);
@@ -1026,11 +1153,11 @@ async function renderShops() {
         📍 ${shop.address || '-'}<br>
         📞 ${shop.phone || '-'}
       </td>
-      <td style="font-size:12px;">${shop.printer_model || '-'}</td>
+      <td style="font-size:12px;">${shop.printer_model || '-'}<br>${agentVerBadge(shop.agent_version, shop.agent_last_seen)}</td>
       <td><span class="status-pill ${shop.setup_paid ? 'active' : 'pending'}">${shop.setup_paid ? '✅ Active' : '⏳ Pending'}</span>${shop.setup_paid ? `<div style="font-size:11px;color:#00875a;font-weight:700;margin-top:4px">Paid ₹${shop.setup_amount || 0}</div>` : ''}</td>
       <td class="earnings-cell" id="earn-${shop.id}">Loading...</td>
       <td style="font-size:11px;color:#6b6870;">${createdDate}<br><span style="font-family:monospace;color:#9a9aa0;">${createdTime}</span></td>
-      <td>${shop.advanced_unlocked ? `<span style="display:inline-block;background:#f3e8ff;color:#7c3aed;border-radius:8px;padding:7px 9px;font-size:11px;font-weight:800;margin-right:6px;" title="Advance Feature active">⚡✓</span>` : `<button onclick="unlockAdvancedFor('${shop.id}')" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">⚡ Unlock</button>`}${shop.plan_type === 'monthly' ? `<button onclick="extendShop30('${shop.id}')" style="background:#0ea5e9;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">🔄 +30 Din</button>` : ''}<button onclick="resetShopPassword('${shop.id}')" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">🔑 Reset Pass</button>${!shop.setup_paid ? `<button onclick="manualActivate('${shop.id}')" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;margin-right:6px;">💰 Activate</button>` : ''}${(!shop.setup_paid || !shop.setup_amount || shop.setup_amount == 0) && shop.id !== 'SHOP_ECB1AB8A' ? `<button onclick="deletePendingShop('${shop.id}','${(shop.name||'').replace(/'/g,"")}')" style="background:#ff3b3b;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑️ Delete</button>` : `<span style="font-size:11px;color:#b0b0b0">${shop.id === 'SHOP_ECB1AB8A' ? '🔒 Protected' : '—'}</span>`}</td>
+      <td>${shop.advanced_unlocked ? `<span style="display:inline-block;background:#f3e8ff;color:#7c3aed;border-radius:8px;padding:7px 9px;font-size:11px;font-weight:800;margin-right:6px;" title="Advance Feature active">⚡✓</span>` : `<button onclick="unlockAdvancedFor('${shop.id}')" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">⚡ Unlock</button>`}${shop.plan_type === 'monthly' ? `<button onclick="extendShop30('${shop.id}')" style="background:#0ea5e9;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">🔄 +30 Din</button>` : ''}<button onclick="openPrinterPanel('${shop.id}','${(shop.name||'').replace(/'/g,"")}')" style="background:#0f766e;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;" title="PC ka printer list + payment method">🖨️ Printer</button><button onclick="resetShopPassword('${shop.id}')" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">🔑 Reset Pass</button>${!shop.setup_paid ? `<button onclick="manualActivate('${shop.id}')" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;margin-right:6px;">💰 Activate</button>` : ''}${(!shop.setup_paid || !shop.setup_amount || shop.setup_amount == 0) && shop.id !== 'SHOP_ECB1AB8A' ? `<button onclick="deletePendingShop('${shop.id}','${(shop.name||'').replace(/'/g,"")}')" style="background:#ff3b3b;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑️ Delete</button>` : `<span style="font-size:11px;color:#b0b0b0">${shop.id === 'SHOP_ECB1AB8A' ? '🔒 Protected' : '—'}</span>`}</td>
     `;
     tbody.appendChild(tr);
 
@@ -1338,5 +1465,25 @@ function logout() {
   location.reload();
 }
 </script>
+<!-- ═══ PRINTER & PAYMENT PANEL (superadmin) ═══ -->
+<div id="prnOverlay" onclick="if(event.target===this)closePrinterPanel()" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(20,18,16,.55);backdrop-filter:blur(3px);align-items:flex-start;justify-content:center;padding:20px 14px;overflow-y:auto;">
+  <div style="background:#fff;border-radius:18px;max-width:520px;width:100%;box-shadow:0 30px 70px rgba(0,0,0,.3);overflow:hidden;margin:auto;">
+    <div style="background:linear-gradient(135deg,#7c3aed,#4c1d95);padding:18px 20px;color:#fff;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+        <div>
+          <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:17px;">🖨️ Printer &amp; Payment</div>
+          <div id="prnShopName" style="font-size:12px;opacity:.9;margin-top:2px;">—</div>
+        </div>
+        <button onclick="closePrinterPanel()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:9px;width:32px;height:32px;font-size:17px;cursor:pointer;flex:none;">×</button>
+      </div>
+    </div>
+    <div id="prnBody" style="padding:18px 20px;max-height:70vh;overflow-y:auto;">Loading…</div>
+    <div style="padding:14px 20px 18px;border-top:1.5px solid #f0ece6;display:flex;gap:10px;">
+      <button onclick="closePrinterPanel()" style="flex:1;background:#f3f4f6;color:#4b5563;border:none;border-radius:11px;padding:12px;font-weight:700;font-size:13px;cursor:pointer;">Band karo</button>
+      <button id="prnSaveBtn" onclick="savePrinterPanel()" style="flex:2;background:#16a34a;color:#fff;border:none;border-radius:11px;padding:12px;font-weight:800;font-size:13px;cursor:pointer;">💾 Save Karo</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>

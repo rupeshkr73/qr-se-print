@@ -289,6 +289,35 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       <div id="adminBroadcastText" style="font-size:14px;color:#78350f;line-height:1.6;white-space:pre-wrap;word-break:break-word;"></div>
     </div>
 
+    <!-- DEMO UPGRADE CARD (sirf demo accounts ko dikhta hai) -->
+    <div id="demoUpgradeCard" class="card" style="display:none;overflow:hidden;padding:0;margin-bottom:20px;">
+      <div style="background:linear-gradient(135deg,#ff3b6b 0%,#c81e4a 100%);padding:22px 18px;text-align:center;color:#fff;">
+        <div style="font-size:36px;line-height:1;">⏳</div>
+        <h2 style="font-family:'Syne',sans-serif;font-size:20px;margin:8px 0 10px;color:#fff;">Aapka Demo Chal Raha Hai</h2>
+        <div id="demoCountdown" style="display:inline-block;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);border-radius:999px;padding:8px 18px;font-weight:800;font-size:15px;letter-spacing:.3px;">—</div>
+        <p style="font-size:12.5px;opacity:.95;margin:12px 0 0;line-height:1.6;">Demo khatam hote hi print nikalna band ho jayega.<br>Abhi plan lo — dukaan kabhi nahi rukegi.</p>
+      </div>
+      <div style="padding:18px;">
+        <div id="demoPlanBtns" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <button onclick="goUpgrade('monthly')" style="border:2px solid #e5e0d8;background:#fff;border-radius:14px;padding:14px 10px;cursor:pointer;text-align:center;font-family:inherit;transition:.15s;" onmouseover="this.style.borderColor='#ff3b6b';this.style.background='#fff5f7'" onmouseout="this.style.borderColor='#e5e0d8';this.style.background='#fff'">
+            <div style="font-weight:800;font-size:13.5px;color:#2b2b31;margin-bottom:3px;">📅 Monthly Plan</div>
+            <div style="font-size:20px;font-weight:800;color:#ff3b6b;">₹<span id="duMonthly">399</span><span style="font-size:11px;color:#6b6870;font-weight:600;">/mahina</span></div>
+            <div style="font-size:10.5px;color:#6b6870;margin-top:4px;line-height:1.45;">Unlimited print<br>WhatsApp support</div>
+          </button>
+          <button onclick="goUpgrade('onetime')" style="border:2px solid #ff3b6b;background:#fff5f7;border-radius:14px;padding:14px 10px;cursor:pointer;text-align:center;font-family:inherit;position:relative;transition:.15s;">
+            <div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);background:#ff3b6b;color:#fff;font-size:9px;font-weight:800;padding:3px 9px;border-radius:999px;white-space:nowrap;">POPULAR</div>
+            <div style="font-weight:800;font-size:13.5px;color:#2b2b31;margin-bottom:3px;">♾️ Lifetime Plan</div>
+            <div style="font-size:20px;font-weight:800;color:#ff3b6b;"><span id="duCut" style="font-size:12px;color:#9b9690;text-decoration:line-through;font-weight:600;margin-right:4px;"></span>₹<span id="duOnetime">999</span></div>
+            <div style="font-size:10.5px;color:#6b6870;margin-top:4px;line-height:1.45;">Ek baar paisa<br>Zindagi bhar use</div>
+          </button>
+        </div>
+        <p style="font-size:11.5px;color:#6b6870;margin:12px 0 0;line-height:1.6;text-align:center;">
+          Plan pe click karte hi <b>nayi shop registration</b> khulegi — wahi normal process.<br>
+          Registration ke baad naya Shop ID milega, use agent me daal dena.
+        </p>
+      </div>
+    </div>
+
     <!-- DEMO SUPPORT CARD (sirf demo accounts ko dikhta hai) -->
     <div id="demoSupportCard" class="card" style="display:none;overflow:hidden;padding:0;margin-bottom:20px;">
       <div style="background:linear-gradient(135deg,#25D366 0%,#128C7E 100%);padding:22px;text-align:center;color:#fff;">
@@ -1134,6 +1163,7 @@ async function loadAdminPanel() {
     loadAgentVersion();
     renderSubscription(shop);
     initSupport(shop);
+    initDemoUpgrade(shop);
     initNotice(shop);
     loadAdminBroadcast();
     loadInsights();
@@ -1486,6 +1516,40 @@ function resetAdvBtn() {
     const fee = document.querySelector('.advFeeVal')?.textContent || '199';
     btn.innerHTML = '🔓 Pay ₹<span class="advFeeVal" id="advFeeAmt">' + fee + '</span> — Abhi Unlock Karo';
   }
+}
+
+// ===== DEMO UPGRADE (sirf demo shops) =====
+let _demoExpiryTs = null, _demoTimer = null;
+function initDemoUpgrade(shop) {
+  const card = document.getElementById('demoUpgradeCard');
+  if (!card) return;
+  const isDemo = !!(shop && shop.demo);
+  card.style.display = isDemo ? 'block' : 'none';
+  if (_demoTimer) { clearInterval(_demoTimer); _demoTimer = null; }
+  if (!isDemo) return;
+  _demoExpiryTs = shop.demo_expires_at ? new Date(shop.demo_expires_at).getTime() : null;
+  renderDemoCountdown();
+  _demoTimer = setInterval(renderDemoCountdown, 30000);
+  fetch('/api/setup-fee/current').then(r => r.json()).then(d => {
+    if (d.monthlyFee) document.getElementById('duMonthly').textContent = d.monthlyFee;
+    if (d.offerPrice !== undefined) document.getElementById('duOnetime').textContent = d.offerPrice;
+    const cut = document.getElementById('duCut');
+    if (cut && d.actualPrice && Number(d.actualPrice) > Number(d.offerPrice)) cut.textContent = '₹' + d.actualPrice;
+  }).catch(() => {});
+}
+function renderDemoCountdown() {
+  const el = document.getElementById('demoCountdown');
+  if (!el) return;
+  if (!_demoExpiryTs) { el.textContent = 'Demo account'; return; }
+  const left = _demoExpiryTs - Date.now();
+  if (left <= 0) { el.textContent = '⚠️ Demo khatam ho chuka hai'; return; }
+  const h = Math.floor(left / 3600000), m = Math.floor((left % 3600000) / 60000);
+  el.textContent = h > 0 ? `Khatam hone me ${h} ghante ${m} min` : `Khatam hone me ${m} minute`;
+}
+function goUpgrade(plan) {
+  const url = '/register?plan=' + (plan === 'monthly' ? 'monthly' : 'onetime') + '&from=demo';
+  const w = window.open(url, '_blank');
+  if (!w) window.location.href = url;
 }
 
 // ===== SUPPORT =====

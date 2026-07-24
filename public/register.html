@@ -179,7 +179,6 @@ h1 .mark{background:linear-gradient(transparent 62%,var(--yellow) 62%);padding:0
 
   <!-- 4: Gateway (conditional) -->
     <div class="hint">💡 <b>Payment kaise receive karna hai (Counter/Online), kaun sa printer B&W ke liye, kaun sa Color, kaun sa Duplex</b> — ye saari settings register ke baad <b>Shop Login → Settings</b> mein milengi.<br><br>Register karne ke baad: <b>pehle Software Download karo</b>, phir Settings mein jaake Printer aur Payment options update karo.</div>
-  </div>
 
   <button class="cta" id="regBtn" onclick="doRegister()">Register Karo — Agla Step: Setup Fee ›</button>
   <div class="err" id="errBox"></div>
@@ -229,6 +228,11 @@ function buildPrinterModel(){
 }
 
 let selectedPlan = 'onetime';
+// Demo se aaye ho to jo plan choose kiya wahi pehle se select rahega
+try {
+  const _qp = new URLSearchParams(location.search).get('plan');
+  if (_qp === 'monthly' || _qp === 'onetime') selectedPlan = _qp;
+} catch (e) {}
 function selPlan(p) {
   selectedPlan = p;
   document.getElementById('planOnetime').classList.toggle('sel', p === 'onetime');
@@ -250,6 +254,8 @@ function selPlan(p) {
       if (p2) p2.textContent = d.monthlyFee;  // purane card me tha, revamp me nahi — null-crash guard
     }
   } catch(e) {}
+  // Demo panel / agent se aaye ho to wahi plan pehle se selected rahega
+  try { selPlan(selectedPlan); } catch(e) {}
 })();
 
 async function doRegister(){
