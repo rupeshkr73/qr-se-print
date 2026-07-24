@@ -667,7 +667,11 @@ app.get('/api/shop/referral', verifyToken, async (req, res) => {
 
     // Referred shops list — naam, number, paid status
     const refs = await pool.query(
-      `SELECT name, phone, setup_paid, created_at FROM shops WHERE referred_by=$1 ORDER BY created_at DESC`,
+      // Agent ne jo shops khud onboard ki hain wo yahan NAHI — unka hisaab
+      // Agent tab me alag dikhta hai (₹200 commission wala), warna ek hi shop
+      // dono jagah dikh kar confuse karti hai
+      `SELECT name, phone, setup_paid, created_at FROM shops
+       WHERE referred_by=$1 AND COALESCE(onboarded_by,'')='' ORDER BY created_at DESC`,
       [req.shopId]);
 
     // Withdrawal history
