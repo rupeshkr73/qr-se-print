@@ -730,7 +730,7 @@ a{color:inherit}
 html{scroll-behavior:smooth}
 #features,#faq{scroll-margin-top:86px}
 .main-nav{display:none;align-items:center;gap:2px}
-@media(min-width:1040px){.main-nav{display:flex}}
+@media(min-width:1120px){.main-nav{display:flex}}
 .nav-link{
   position:relative;background:none;border:none;cursor:pointer;text-decoration:none;
   color:#3a3f47;font-family:'Inter',sans-serif;font-weight:600;font-size:13.5px;
@@ -745,13 +745,20 @@ html{scroll-behavior:smooth}
 .nav-link:hover::after,.nav-link.active::after{transform:scaleX(1)}
 .nav-link.active{color:var(--ink);font-weight:700}
 .nav-biz{color:var(--pink);font-weight:700}
+.nav-agent{
+  color:var(--ink);font-weight:800;background:var(--yellow);
+  box-shadow:0 6px 16px rgba(255,210,46,.34);
+}
+.nav-agent:hover{background:#ffdb52;color:var(--ink);transform:translateY(-1px)}
+.nav-agent::after{display:none}
+.nav-drop .nav-agent{background:var(--tint);box-shadow:none;border:1.5px solid #f0e2ba}
 .head-right{display:flex;align-items:center;gap:10px}
 .nav-burger{
   display:inline-flex;flex-direction:column;justify-content:center;gap:4px;
   width:38px;height:38px;border-radius:11px;border:1.5px solid var(--line);
   background:#fff;cursor:pointer;padding:0 9px;flex:none;
 }
-@media(min-width:1040px){.nav-burger{display:none}}
+@media(min-width:1120px){.nav-burger{display:none}}
 .nav-burger i{display:block;height:2px;border-radius:2px;background:var(--ink);transition:transform .28s var(--ease),opacity .2s}
 .nav-burger.open i:nth-child(1){transform:translateY(6px) rotate(45deg)}
 .nav-burger.open i:nth-child(2){opacity:0}
@@ -766,7 +773,7 @@ html{scroll-behavior:smooth}
 }
 .nav-drop.open{opacity:1;visibility:visible;transform:none;pointer-events:auto}
 .nav-drop .nav-link{display:block;text-align:left;padding:13px 14px;font-size:14px;width:100%}
-@media(min-width:1040px){.nav-drop{display:none}}
+@media(min-width:1120px){.nav-drop{display:none}}
 @media(max-width:390px){.login-pill span{display:none}.login-pill{padding:8px 11px}}
 
 /* ══════════════════════════════════════════════════════════════
@@ -1358,6 +1365,7 @@ html.legal-open,body.legal-open{overflow:hidden}
       <a href="#faq" class="nav-link" data-cfg="navFaq">FAQ</a>
       <a href="#disclaimer" class="nav-link" data-cfg="navDisclaimer">Disclaimer</a>
       <button type="button" class="nav-link nav-biz" onclick="openInq()" data-cfg="navBusiness">💼 Business Inquiry</button>
+      <a href="/agent" class="nav-link nav-agent" data-cfg="navAgent">🤝 Agent</a>
     </nav>
     <div class="head-right">
       <a data-cfg-html="nav01" href="/admin" class="login-pill">🔑 <span data-cfg="navLogin">Shop Owner Login</span></a>
@@ -1370,6 +1378,7 @@ html.legal-open,body.legal-open{overflow:hidden}
     <a href="#faq" class="nav-link" data-cfg="navFaqM">❓ FAQ</a>
     <a href="#disclaimer" class="nav-link" data-cfg="navDisclaimerM">📄 Disclaimer</a>
     <button type="button" class="nav-link nav-biz" onclick="openInq()" data-cfg="navBusinessM">💼 Business Inquiry</button>
+    <a href="/agent" class="nav-link nav-agent" data-cfg="navAgentM">🤝 Become an Agent</a>
   </div>
 </header>
 
@@ -1670,8 +1679,8 @@ html.legal-open,body.legal-open{overflow:hidden}
     <a href="/agent" class="agent-btn">
       <span class="agb-ico">💼</span>
       <span class="agb-txt">
-        <b data-cfg="agentBtnTitle">Become an Agent</b>
-        <small data-cfg="agentBtnSub">Har shop onboard karne par ₹200 commission</small>
+        <b data-cfg="agentBtnTitle">Become an Agent — Earn Lifetime</b>
+        <small data-cfg="agentBtnSub">Har shop onboard karne par ₹200 commission + apna margin</small>
       </span>
       <span class="agb-arr">›</span>
     </a>
