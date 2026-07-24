@@ -1166,6 +1166,42 @@ html{scroll-behavior:smooth}
   font-size:16px;line-height:1.25;color:#fff;
 }
 .agb-txt small{display:block;font-size:12px;color:#c5c8d2;margin-top:2px;line-height:1.5}
+/* 🤝 Handshake icon — hilta hua + chamakta hua */
+.hs{
+  display:inline-block;transform-origin:60% 70%;will-change:transform,filter;
+  animation:hsShake 2.6s var(--ease) infinite, hsGlow 2.6s ease-in-out infinite;
+}
+.hs.big{font-size:23px;line-height:1}
+@keyframes hsShake{
+  0%,55%{transform:rotate(0) scale(1)}
+  60%{transform:rotate(-13deg) scale(1.10)}
+  65%{transform:rotate(11deg) scale(1.13)}
+  70%{transform:rotate(-9deg) scale(1.10)}
+  75%{transform:rotate(7deg) scale(1.08)}
+  80%{transform:rotate(-4deg) scale(1.05)}
+  85%{transform:rotate(2deg) scale(1.02)}
+  90%,100%{transform:rotate(0) scale(1)}
+}
+@keyframes hsGlow{
+  0%,50%{filter:drop-shadow(0 0 0 rgba(255,183,3,0))}
+  62%{filter:drop-shadow(0 0 7px rgba(255,183,3,.95)) drop-shadow(0 0 14px rgba(255,46,99,.5))}
+  78%{filter:drop-shadow(0 0 5px rgba(255,183,3,.7))}
+  92%,100%{filter:drop-shadow(0 0 0 rgba(255,183,3,0))}
+}
+.nav-agent:hover .hs,.agent-btn:hover .hs{animation:hsShake .6s var(--ease) 1, hsGlow .6s ease-in-out 1}
+.agb-ico{position:relative;overflow:visible}
+.agb-ico::after{
+  content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  animation:hsRing 2.6s ease-in-out infinite;
+}
+@keyframes hsRing{
+  0%,52%{box-shadow:0 0 0 0 rgba(255,210,46,0)}
+  64%{box-shadow:0 0 0 8px rgba(255,210,46,.22)}
+  85%,100%{box-shadow:0 0 0 0 rgba(255,210,46,0)}
+}
+@media (prefers-reduced-motion:reduce){
+  .hs,.agb-ico::after{animation:none!important;filter:none!important}
+}
 .agb-arr{
   flex:none;font-size:24px;font-weight:800;color:var(--yellow);
   transition:transform .2s var(--ease);
@@ -1365,7 +1401,7 @@ html.legal-open,body.legal-open{overflow:hidden}
       <a href="#faq" class="nav-link" data-cfg="navFaq">FAQ</a>
       <a href="#disclaimer" class="nav-link" data-cfg="navDisclaimer">Disclaimer</a>
       <button type="button" class="nav-link nav-biz" onclick="openInq()" data-cfg="navBusiness">💼 Business Inquiry</button>
-      <a href="/agent" class="nav-link nav-agent" data-cfg="navAgent">🤝 Agent</a>
+      <a href="/agent" class="nav-link nav-agent"><span class="hs">🤝</span> <span data-cfg="navAgent">Agent</span></a>
     </nav>
     <div class="head-right">
       <a data-cfg-html="nav01" href="/admin" class="login-pill">🔑 <span data-cfg="navLogin">Shop Owner Login</span></a>
@@ -1378,7 +1414,7 @@ html.legal-open,body.legal-open{overflow:hidden}
     <a href="#faq" class="nav-link" data-cfg="navFaqM">❓ FAQ</a>
     <a href="#disclaimer" class="nav-link" data-cfg="navDisclaimerM">📄 Disclaimer</a>
     <button type="button" class="nav-link nav-biz" onclick="openInq()" data-cfg="navBusinessM">💼 Business Inquiry</button>
-    <a href="/agent" class="nav-link nav-agent" data-cfg="navAgentM">🤝 Become an Agent</a>
+    <a href="/agent" class="nav-link nav-agent"><span class="hs">🤝</span> <span data-cfg="navAgentM">Become an Agent</span></a>
   </div>
 </header>
 
@@ -1677,7 +1713,7 @@ html.legal-open,body.legal-open{overflow:hidden}
   <!-- ═══ BECOME AN AGENT — sirf ek button, saari detail /agent page par ═══ -->
   <div class="container reveal" style="margin-top:8px;">
     <a href="/agent" class="agent-btn">
-      <span class="agb-ico">💼</span>
+      <span class="agb-ico"><span class="hs big">🤝</span></span>
       <span class="agb-txt">
         <b data-cfg="agentBtnTitle">Become an Agent — Earn Lifetime</b>
         <small data-cfg="agentBtnSub">Har shop onboard karne par ₹200 commission + apna margin</small>
