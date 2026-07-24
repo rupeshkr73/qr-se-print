@@ -349,6 +349,7 @@ async function initDB() {
     await pool.query(`
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS payment_mode VARCHAR(20) DEFAULT 'both';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_last_seen TIMESTAMP;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_version INT;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS printing_at TIMESTAMP;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
@@ -895,7 +896,7 @@ app.put('/api/superadmin/demo-config', verifySuperAdmin, async (req, res) => {
 app.get('/api/superadmin/demos', verifySuperAdmin, async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT s.id, s.name, s.phone, s.created_at, s.demo_expires_at, s.agent_last_seen,
+      `SELECT s.id, s.name, s.phone, s.created_at, s.demo_expires_at, s.agent_last_seen, s.agent_version,
               (SELECT COUNT(*) FROM print_jobs j WHERE j.shop_id = s.id) as total_jobs,
               (SELECT COUNT(*) FROM print_jobs j WHERE j.shop_id = s.id AND j.payment_status='paid') as prints
        FROM shops s WHERE s.demo = true
@@ -1509,6 +1510,17 @@ app.post('/api/shop/set-password', async (req, res) => {
     await pool.query('UPDATE shops SET password_hash=$1 WHERE id=$2', [passwordHash, shopId.trim().toUpperCase()]);
     res.json({ success: true });
   } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Demo status — agent 30 min me ek baar poochta hai (halka payload)
+app.get('/api/shop/:shopId/demo-status', async (req, res) => {
+  try {
+    const r = await pool.query('SELECT demo, demo_expires_at FROM shops WHERE id=$1', [req.params.shopId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Shop not found' });
+    const s = r.rows[0];
+    const expired = !!(s.demo && s.demo_expires_at && new Date(s.demo_expires_at).getTime() < Date.now());
+    res.json({ demo: !!s.demo, demo_expires_at: s.demo_expires_at, expired });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/shop/:shopId', async (req, res) => {
@@ -2170,8 +2182,16 @@ app.get('/api/agent/download-latest-exe', async (req, res) => {
 
 app.get('/api/jobs/pending/:shopId', async (req, res) => {
   try {
-    // Agent heartbeat — dashboard ka Online/Offline indicator isi se chalta hai
-    await pool.query('UPDATE shops SET agent_last_seen=NOW() WHERE id=$1', [req.params.shopId]);
+    // Agent heartbeat — dashboard ka Online/Offline indicator isi se chalta hai.
+    // Agent apna version bhi bhejta hai (?v=), taaki superadmin dekh sake kis
+    // shop par kaun sa version chal raha hai.
+    const _av = parseInt(req.query.v, 10);
+    if (Number.isInteger(_av) && _av > 0 && _av < 100000) {
+      await pool.query('UPDATE shops SET agent_last_seen=NOW(), agent_version=$2 WHERE id=$1',
+        [req.params.shopId, _av]);
+    } else {
+      await pool.query('UPDATE shops SET agent_last_seen=NOW() WHERE id=$1', [req.params.shopId]);
+    }
 
     // ── DEMO: machine-lock + expiry ──
     const shopRow = await pool.query(
@@ -2558,11 +2578,79 @@ app.get('/api/superadmin/shops', verifySuperAdmin, async (req, res) => {
     const r = await pool.query(`
       SELECT id, name, address, phone, printer_model, price_bw, price_color,
              payment_mode, payment_gateway, setup_paid, setup_amount, created_at,
-             demo, plan_type, paid_until, advanced_unlocked, agent_last_seen
+             demo, plan_type, paid_until, advanced_unlocked, agent_last_seen, agent_version
       FROM shops ORDER BY created_at DESC
     `);
     res.json({ shops: r.rows });
   } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Superadmin: kisi bhi shop (paid ya demo) ka PC printer list + selection ───
+// Agent har 30 min apni printer list bhejta hai (system_settings.printers_<id>).
+// Superadmin yahan se dekh sakta hai aur kaun sa printer kis kaam ke liye
+// use hoga wo save kar sakta hai.
+app.get('/api/superadmin/shop/:shopId/printers', verifySuperAdmin, async (req, res) => {
+  try {
+    const shopId = req.params.shopId;
+    const s = await pool.query(
+      `SELECT id, name, demo, payment_mode, agent_last_seen,
+              printer_name_bw, printer_name_color, printer_name_4x6, printer_name_a3
+       FROM shops WHERE id=$1`, [shopId]);
+    if (!s.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
+    const p = await pool.query(
+      'SELECT value, updated_at FROM system_settings WHERE key=$1', [`printers_${shopId}`]);
+    let available = [];
+    if (p.rows.length) { try { available = JSON.parse(p.rows[0].value) || []; } catch (e) { available = []; } }
+    res.json({
+      shop: s.rows[0],
+      available: Array.isArray(available) ? available : [],
+      reported_at: p.rows.length ? p.rows[0].updated_at : null
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Printer selection + payment mode save.
+// SAKHT NIYAM: superadmin sirf 'counter_only' set kar sakta hai. Online/Both
+// shop owner ko khud apne login se karna hoga (kyunki usme uski apni
+// Razorpay/PhonePe keys chahiye hoti hain).
+app.put('/api/superadmin/shop/:shopId/printers', verifySuperAdmin, async (req, res) => {
+  try {
+    const shopId = req.params.shopId;
+    const b = req.body || {};
+    const chk = await pool.query('SELECT id FROM shops WHERE id=$1', [shopId]);
+    if (!chk.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
+
+    const clean = v => (typeof v === 'string' ? v.trim().slice(0, 300) : null);
+    const bw = clean(b.printer_name_bw);
+    const color = clean(b.printer_name_color);
+    const p4x6 = clean(b.printer_name_4x6);
+    const a3 = clean(b.printer_name_a3);
+
+    let setPayment = false;
+    if (b.payment_mode !== undefined && b.payment_mode !== null && b.payment_mode !== '') {
+      if (b.payment_mode !== 'counter_only') {
+        return res.status(403).json({
+          error: 'Superadmin sirf "Counter par payment" set kar sakta hai. Online/Both ke liye shop owner ko khud login karke apni payment keys daalni hongi.'
+        });
+      }
+      setPayment = true;
+    }
+
+    await pool.query(
+      `UPDATE shops SET
+         printer_name_bw    = COALESCE($2, printer_name_bw),
+         printer_name_color = COALESCE($3, printer_name_color),
+         printer_name_4x6   = COALESCE($4, printer_name_4x6),
+         printer_name_a3    = COALESCE($5, printer_name_a3),
+         payment_mode       = CASE WHEN $6 THEN 'counter_only' ELSE payment_mode END
+       WHERE id=$1`,
+      [shopId, bw, color, p4x6, a3, setPayment]);
+
+    const out = await pool.query(
+      `SELECT payment_mode, printer_name_bw, printer_name_color, printer_name_4x6, printer_name_a3
+       FROM shops WHERE id=$1`, [shopId]);
+    res.json({ success: true, shop: out.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Owner ka apna pehla shop — kabhi delete nahi hoga, chahe UI/API se kuch
