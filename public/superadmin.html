@@ -788,7 +788,7 @@ function renderAgents(d) {
         <td style="padding:8px 6px;font-size:12px;white-space:nowrap;"><b>₹${base}</b>${mk?` <span style="color:#16a34a;font-weight:800;">+ ₹${mk}</span>`:''}<br><span style="color:#9b9690;font-size:10.5px;">= ₹${sold} liya</span></td>
         <td style="padding:8px 6px;font-size:12px;white-space:nowrap;">${s.earned?`<b style="color:#166534;">₹${s.earned}</b>`:'<span style="color:#9b9690;">—</span>'}</td>
         <td style="padding:8px 6px;"><span style="font-size:10px;font-weight:800;background:${online?'#dcfce7':'#f3f4f6'};color:${online?'#166534':'#9ca3af'};border-radius:999px;padding:3px 8px;">${online?'🟢':'🔴'}</span></td>
-        <td style="padding:8px 6px;"><button onclick="openPrinterPanel('${s.id}','${esc(s.name||'').replace(/'/g,'')}')" style="background:#0f766e;color:#fff;border:none;border-radius:7px;padding:6px 9px;font-size:10.5px;font-weight:700;cursor:pointer;white-space:nowrap;">🖨️</button></td>
+        <td style="padding:8px 6px;min-width:230px;">${shopActions(s)}</td>
       </tr>`;
     }).join('') : '<tr><td colspan="7" style="padding:12px;color:#9b9690;font-size:12px;text-align:center;">Abhi koi shop onboard nahi</td></tr>';
 
@@ -823,7 +823,7 @@ function renderAgents(d) {
             <th style="padding:8px 6px;text-align:left;font-size:10.5px;">Base + Markup</th>
             <th style="padding:8px 6px;text-align:left;font-size:10.5px;">Agent ko</th>
             <th style="padding:8px 6px;text-align:left;font-size:10.5px;">Agent</th>
-            <th style="padding:8px 6px;text-align:left;font-size:10.5px;"></th>
+            <th style="padding:8px 6px;text-align:left;font-size:10.5px;">Action</th>
           </tr></thead>
           <tbody>${rows}</tbody>
         </table>
@@ -1218,6 +1218,10 @@ function setFilter(f) {
   renderShops();
 }
 
+function shopActions(shop) {
+  return `${shop.advanced_unlocked ? `<span style="display:inline-block;background:#f3e8ff;color:#7c3aed;border-radius:8px;padding:7px 9px;font-size:11px;font-weight:800;margin-right:6px;" title="Advance Feature active">⚡✓</span>` : `<button onclick="unlockAdvancedFor('${shop.id}')" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">⚡ Unlock</button>`}${shop.plan_type === 'monthly' ? `<button onclick="extendShop30('${shop.id}')" style="background:#0ea5e9;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">🔄 +30 Din</button>` : ''}<button onclick="openPrinterPanel('${shop.id}','${(shop.name||'').replace(/'/g,"")}')" style="background:#0f766e;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;" title="PC ka printer list + payment method">🖨️ Printer</button><button onclick="resetShopPassword('${shop.id}')" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">🔑 Reset Pass</button>${!shop.setup_paid ? `<button onclick="manualActivate('${shop.id}')" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;margin-right:6px;">💰 Activate</button>` : ''}${(!shop.setup_paid || !shop.setup_amount || shop.setup_amount == 0) && shop.id !== 'SHOP_ECB1AB8A' ? `<button onclick="deletePendingShop('${shop.id}','${(shop.name||'').replace(/'/g,"")}')" style="background:#ff3b3b;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑️ Delete</button>` : `<span style="font-size:11px;color:#b0b0b0">${shop.id === 'SHOP_ECB1AB8A' ? '🔒 Protected' : '—'}</span>`}`;
+}
+
 async function renderShops() {
   const tbody = document.getElementById('shopsList');
   tbody.innerHTML = '';
@@ -1226,8 +1230,10 @@ async function renderShops() {
   const _isMonthly = s => (s.plan_type === 'monthly');
   const _isExpired = s => _isMonthly(s) && s.setup_paid && (!s.paid_until || new Date(s.paid_until).getTime() <= _now);
 
-  // Demo shops yahan NAHI — unka apna 'Demo Accounts' section hai
-  const realShops = allShops.filter(s => !s.demo);
+  // Demo shops yahan NAHI — unka apna 'Demo Accounts' section hai.
+  // Agent ne jo shops onboard ki hain wo bhi yahan NAHI — wo 'Agents'
+  // section me apne agent ke neeche dikhti hain (double listing se bachne ke liye).
+  const realShops = allShops.filter(s => !s.demo && !s.onboarded_by);
   let filtered = realShops;
   if (currentFilter === 'active') filtered = realShops.filter(s => s.setup_paid);
   if (currentFilter === 'pending') filtered = realShops.filter(s => !s.setup_paid);
@@ -1273,7 +1279,7 @@ async function renderShops() {
       <td><span class="status-pill ${shop.setup_paid ? 'active' : 'pending'}">${shop.setup_paid ? '✅ Active' : '⏳ Pending'}</span>${shop.setup_paid ? `<div style="font-size:11px;color:#00875a;font-weight:700;margin-top:4px">Paid ₹${shop.setup_amount || 0}</div>` : ''}</td>
       <td class="earnings-cell" id="earn-${shop.id}">Loading...</td>
       <td style="font-size:11px;color:#6b6870;">${createdDate}<br><span style="font-family:monospace;color:#9a9aa0;">${createdTime}</span></td>
-      <td>${shop.advanced_unlocked ? `<span style="display:inline-block;background:#f3e8ff;color:#7c3aed;border-radius:8px;padding:7px 9px;font-size:11px;font-weight:800;margin-right:6px;" title="Advance Feature active">⚡✓</span>` : `<button onclick="unlockAdvancedFor('${shop.id}')" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">⚡ Unlock</button>`}${shop.plan_type === 'monthly' ? `<button onclick="extendShop30('${shop.id}')" style="background:#0ea5e9;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">🔄 +30 Din</button>` : ''}<button onclick="openPrinterPanel('${shop.id}','${(shop.name||'').replace(/'/g,"")}')" style="background:#0f766e;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;" title="PC ka printer list + payment method">🖨️ Printer</button><button onclick="resetShopPassword('${shop.id}')" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">🔑 Reset Pass</button>${!shop.setup_paid ? `<button onclick="manualActivate('${shop.id}')" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;margin-right:6px;">💰 Activate</button>` : ''}${(!shop.setup_paid || !shop.setup_amount || shop.setup_amount == 0) && shop.id !== 'SHOP_ECB1AB8A' ? `<button onclick="deletePendingShop('${shop.id}','${(shop.name||'').replace(/'/g,"")}')" style="background:#ff3b3b;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑️ Delete</button>` : `<span style="font-size:11px;color:#b0b0b0">${shop.id === 'SHOP_ECB1AB8A' ? '🔒 Protected' : '—'}</span>`}</td>
+      <td>${shopActions(shop)}</td>
     `;
     tbody.appendChild(tr);
 
