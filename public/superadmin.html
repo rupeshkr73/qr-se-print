@@ -1268,14 +1268,14 @@ async function renderShops() {
 
     tr.innerHTML = `
       <td>
-        <div class="shop-name">${(shop.agent_last_seen && (Date.now()-new Date(shop.agent_last_seen).getTime())<120000) ? '🟢' : '🔴'} ${shop.name}${shop.plan_type === 'monthly' ? `<br><span style="font-size:10px;font-weight:700;color:${shop.paid_until && new Date(shop.paid_until) > new Date() ? '#0ea5e9' : '#dc2626'};">📅 Monthly ${shop.paid_until ? (new Date(shop.paid_until) > new Date() ? '· till ' + new Date(shop.paid_until).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : '· ❌ EXPIRED') : ''}</span>` : ''}</div>
-        <div class="shop-id-mono">${shop.id}</div>
+        <div class="shop-name">${(shop.agent_last_seen && (Date.now()-new Date(shop.agent_last_seen).getTime())<120000) ? '🟢' : '🔴'} ${sanitize(shop.name)}${shop.plan_type === 'monthly' ? `<br><span style="font-size:10px;font-weight:700;color:${shop.paid_until && new Date(shop.paid_until) > new Date() ? '#0ea5e9' : '#dc2626'};">📅 Monthly ${shop.paid_until ? (new Date(shop.paid_until) > new Date() ? '· till ' + new Date(shop.paid_until).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : '· ❌ EXPIRED') : ''}</span>` : ''}</div>
+        <div class="shop-id-mono">${sanitize(shop.id)}</div>
       </td>
       <td class="contact-cell">
-        📍 ${shop.address || '-'}<br>
-        📞 ${shop.phone || '-'}
+        📍 ${sanitize(shop.address || '-')}<br>
+        📞 ${sanitize(shop.phone || '-')}
       </td>
-      <td style="font-size:12px;">${shop.printer_model || '-'}<br>${agentVerBadge(shop.agent_version, shop.agent_last_seen)}</td>
+      <td style="font-size:12px;">${sanitize(shop.printer_model || '-')}<br>${agentVerBadge(shop.agent_version, shop.agent_last_seen)}</td>
       <td><span class="status-pill ${shop.setup_paid ? 'active' : 'pending'}">${shop.setup_paid ? '✅ Active' : '⏳ Pending'}</span>${shop.setup_paid ? `<div style="font-size:11px;color:#00875a;font-weight:700;margin-top:4px">Paid ₹${shop.setup_amount || 0}</div>` : ''}</td>
       <td class="earnings-cell" id="earn-${shop.id}">Loading...</td>
       <td style="font-size:11px;color:#6b6870;">${createdDate}<br><span style="font-family:monospace;color:#9a9aa0;">${createdTime}</span></td>
