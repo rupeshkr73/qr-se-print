@@ -3534,6 +3534,7 @@ app.get('/robots.txt', (req, res) => {
   res.type('text/plain').send(`User-agent: *
 Allow: /$
 Allow: /register
+Allow: /agent
 Disallow: /admin
 Disallow: /superadmin
 Disallow: /dashboard
@@ -3551,6 +3552,7 @@ app.get('/sitemap.xml', (req, res) => {
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url><loc>https://qrseprint.in/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
   <url><loc>https://qrseprint.in/register</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://qrseprint.in/agent</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
 </urlset>`);
 });
 
