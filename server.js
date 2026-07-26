@@ -484,6 +484,12 @@ async function initDB() {
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_minutes','120') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('monthly_fee','399') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('advanced_fee','199') ON CONFLICT DO NOTHING");
+    // Agent Base Price (0 = abhi tak set nahi — tab tak agent ka floor = public
+    // Offer Price hi rahega). Monthly/Advanced Actual Price bhi 0 = strikethrough
+    // hide rahega jab tak superadmin explicitly na daale.
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('agent_base_price','0') ON CONFLICT DO NOTHING");
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('monthly_actual_price','0') ON CONFLICT DO NOTHING");
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('advanced_actual_price','0') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('homepage_config', $1) ON CONFLICT DO NOTHING", ["{\"logoUrl\": \"\", \"statShops\": \"\", \"statPrints\": \"\", \"showStats\": true, \"supportEmail\": \"mahatonetcafe@gmail.com\", \"supportPhone\": \"9999999999\", \"planDemo\": [\"Demo Auto Print Software\", \"Personalize QR For Shop\", \"Unlimited Print 24/Hrs\", \"Setup Guide (README) included\"], \"planMonthly\": [\"Auto Print Software\", \"Personalize QR For Shop\", \"Unlimited Print\", \"Advance Feature (4x6 Photo, Resume, A3, Duplex) \\u2014 sab included\", \"Assistant in Setup\", \"On Demand Service will be added\", \"Bug fix on update\", \"WhatsApp Assistant\"], \"planOnetime\": [\"Sab kuch Monthly wala\", \"Assistant in Online Payment Gateway Setup\", \"Bug Fix Within 2Hr\", \"AnyDesk Remote Support\", \"Lifetime Access & Update\", \"No renewal \\u2014 ek baar pay\"], \"faqs\": [{\"q\": \"QR Se Print kya hai?\", \"a\": \"QR Se Print cyber cafe aur print shop ke liye ek automatic print software hai. Aap apni shop ka QR code lagate ho \\u2014 customer apne phone se scan karke file upload karta hai, payment karta hai, aur print aapke printer se automatic nikal jata hai. Na WhatsApp pe file mangni padti hai, na pendrive, na email.\"}, {\"q\": \"Customer file kaise bhejta hai?\", \"a\": \"Shop par laga QR code scan karo, file select karo (PDF, photo \\u2014 ek saath kai files), edit karo (crop, rotate, brightness), payment karo (online ya counter cash) \\u2014 print automatic nikal jata hai. Poora kaam customer ke phone se, 1 minute me.\"}, {\"q\": \"WhatsApp pe file lene se ye better kyun hai?\", \"a\": \"WhatsApp me aapka personal number public ho jata hai, chat me files kho jaati hain, aur hisaab manually rakhna padta hai. QR Se Print me number private rehta hai, har print ka payment record automatic banta hai, aur customer ki file print ke 90 minute baad khud delete ho jaati hai.\"}, {\"q\": \"Kaunse printer ke saath chalta hai?\", \"a\": \"Har Windows printer ke saath \\u2014 HP, Canon, Epson, Brother, sab. B&W aur Color ke liye alag printer set kar sakte ho. Advance me 4x6 photo printer, A3 bada printer aur duplex (dono side) printing bhi support hai.\"}, {\"q\": \"Payment kaise milta hai? Koi commission?\", \"a\": \"Do tarike: counter par cash, ya online payment (Razorpay/PhonePe) jo seedha aapke account me jata hai. Hum beech me nahi aate \\u2014 koi commission nahi, unlimited prints.\"}, {\"q\": \"Kitna kharcha aata hai?\", \"a\": \"Free demo se shuru karo. Phir Rs 399/month ka monthly plan ya Rs 999 one-time lifetime plan \\u2014 ek baar do, hamesha chalao. Koi hidden charge nahi, koi per-print commission nahi.\"}, {\"q\": \"Internet chala jaye to print ka kya hoga?\", \"a\": \"Customer ke jobs queue me safe rehte hain. Internet wapas aate hi software khud jobs utha ke print nikal deta hai \\u2014 kuch khota nahi.\"}]}"]);
 
     // Broken demo logins repair (bcrypt hash galti se gaya tha; login sha256
@@ -706,7 +712,7 @@ app.get('/api/agent/status', verifyToken, async (req, res) => {
        FROM shops WHERE id=$1`, [req.shopId]);
     if (!r.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
     const s = r.rows[0];
-    const base = await getSetupFeeAmount();
+    const base = await getAgentBasePrice();  // agent ka apna floor, public price nahi
 
     let stats = { total: 0, paid: 0, pending: 0, demo: 0 };
     if (s.is_agent) {
@@ -776,7 +782,7 @@ app.put('/api/agent/price', verifyToken, async (req, res) => {
     if (!r.rows.length || !r.rows[0].is_agent) return res.status(403).json({ error: 'Aap agent nahi ho' });
     if (r.rows[0].agent_blocked) return res.status(403).json({ error: 'Aapka agent account abhi paused hai' });
 
-    const base = await getSetupFeeAmount();
+    const base = await getAgentBasePrice();  // agent isse neeche nahi ja sakta
     const p = parseInt(req.body.price, 10);
     if (!Number.isInteger(p)) return res.status(400).json({ error: 'Sahi price daalo' });
     if (p < base) return res.status(400).json({ error: `Price ₹${base} se kam nahi ho sakta` });
@@ -865,7 +871,7 @@ app.post('/api/agent/onboard', verifyToken, async (req, res) => {
 // ══════════════ SUPERADMIN: AGENTS ══════════════
 app.get('/api/superadmin/agents', verifySuperAdmin, async (req, res) => {
   try {
-    const base = await getSetupFeeAmount();
+    const base = await getAgentBasePrice();  // agent ka apna floor — 599 nahi, 699
     const ags = await pool.query(
       `SELECT id,name,phone,agent_code,agent_upi,agent_price,agent_blocked,agent_earnings,agent_joined_at
        FROM shops WHERE is_agent=true ORDER BY agent_joined_at DESC NULLS LAST`);
@@ -1401,13 +1407,22 @@ async function priceForRef(ref) {
 app.get('/api/setup-fee/current', async (req, res) => {
   try {
     const pricing = await getSetupPricing();
-    const out = { amount: pricing.offerPrice, ...pricing, advancedFee: await getAdvancedFee() };
-    // ?ref=QRA-1234 — agent ka apna price (sirf one-time plan par)
+    const out = {
+      amount: pricing.offerPrice, ...pricing,
+      advancedFee: await getAdvancedFee(),
+      monthlyActualPrice: await getMonthlyActualFee(),
+      advancedActualPrice: await getAdvancedActualFee()
+    };
+    // ?ref=QRA-1234 — agent ka apna price (sirf one-time plan par).
+    // Agent ka floor ab AGENT BASE PRICE hai, public Offer Price nahi —
+    // agent ne kuch set na kiya ho tab bhi yahi (699 jaisa) dikhega.
     if (req.query.ref) {
       const s = await resolveRef(req.query.ref);
-      if (s && s.is_agent && s.agent_price && s.agent_price > pricing.offerPrice) {
-        out.offerPrice = s.agent_price;
-        out.amount = s.agent_price;
+      if (s && s.is_agent) {
+        const agentBase = await getAgentBasePrice();
+        const agentPrice = (s.agent_price && s.agent_price > agentBase) ? s.agent_price : agentBase;
+        out.offerPrice = agentPrice;
+        out.amount = agentPrice;
         out.agentRef = req.query.ref;
         out.agentName = s.name;
       }
@@ -1464,14 +1479,20 @@ app.post('/api/shop/register', async (req, res) => {
     // Plan: 'onetime' (default) ya 'monthly' (₹99/mahina — pehli payment se 30 din)
     const plan = req.body.plan === 'monthly' ? 'monthly' : 'onetime';
     const monthlyFee = await getMonthlyFee();
-    // Agent ka badhaya hua price SIRF one-time plan par lagta hai
+    // Agent ke link se aaya hai to floor = AGENT BASE PRICE (superadmin ne
+    // set kiya hua, jaise 699) — public Offer Price (599) nahi. Agent ne
+    // khud kuch aur set kiya ho (jaise 799) to wahi lagega. Ye SIRF
+    // one-time plan par lagta hai; monthly hamesha public rate par.
     let oneTimePrice = currentSetupFee;
-    if (onboardedBy && refShop.agent_price && refShop.agent_price > currentSetupFee) {
-      oneTimePrice = refShop.agent_price;
+    let onetimeBaseForRecord = currentSetupFee;
+    if (onboardedBy) {
+      const agentBase = await getAgentBasePrice();
+      oneTimePrice = (refShop.agent_price && refShop.agent_price > agentBase) ? refShop.agent_price : agentBase;
+      onetimeBaseForRecord = agentBase;
     }
     const firstPayment = plan === 'monthly' ? monthlyFee : oneTimePrice;
     const soldPrice = plan === 'monthly' ? monthlyFee : oneTimePrice;
-    const basePrice  = plan === 'monthly' ? monthlyFee : currentSetupFee;
+    const basePrice  = plan === 'monthly' ? monthlyFee : onetimeBaseForRecord;
 
     // Shop create hoti hai lekin setup_paid=false rehta hai by default.
     // QR Code aur Print Agent sirf setup fee payment confirm hone ke baad milte hain.
@@ -1580,6 +1601,33 @@ async function getMonthlyFee() {
     const r = await pool.query("SELECT value FROM system_settings WHERE key='monthly_fee'");
     return Math.max(1, parseInt(r.rows[0]?.value) || 99);
   } catch(e) { return 99; }
+}
+
+async function getMonthlyActualFee() {
+  try {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key='monthly_actual_price'");
+    return Math.max(0, parseInt(r.rows[0]?.value) || 0);
+  } catch(e) { return 0; }
+}
+
+async function getAdvancedActualFee() {
+  try {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key='advanced_actual_price'");
+    return Math.max(0, parseInt(r.rows[0]?.value) || 0);
+  } catch(e) { return 0; }
+}
+
+// Agent Base Price — agent ke liye alag floor. 0/unset ho to public Offer
+// Price hi floor rehta hai (purana behaviour, kuch nahi tootega). Superadmin
+// jab explicitly ise set karega tabhi agent ka price homepage ke price se
+// alag dikhna shuru hoga.
+async function getAgentBasePrice() {
+  try {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key='agent_base_price'");
+    const v = parseInt(r.rows[0]?.value) || 0;
+    if (v > 0) return v;
+  } catch(e) {}
+  return await getSetupFeeAmount();
 }
 
 // Shop ka subscription zinda hai? onetime = hamesha; monthly = paid_until check
@@ -3119,6 +3167,10 @@ app.get('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
       actualPrice: pricing.actualPrice,
       monthlyFee: pricing.monthlyFee,
       advancedFee: await getAdvancedFee(),
+      monthlyActualPrice: await getMonthlyActualFee(),
+      advancedActualPrice: await getAdvancedActualFee(),
+      agentBasePrice: await getAgentBasePrice(),
+      agentBasePriceIsSet: (await pool.query("SELECT value FROM system_settings WHERE key='agent_base_price'")).rows[0]?.value > 0,
       defaultOfferPrice: SETUP_FEE_AMOUNT,
       defaultActualPrice: SETUP_ACTUAL_PRICE
     });
@@ -3141,18 +3193,47 @@ app.put('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Actual Price, Offer Price se kam nahi ho sakta' });
     }
 
+    let newMonthlyFee = null, newAdvancedFee = null;
     if (req.body.monthlyFee !== undefined) {
       const mf = parseInt(req.body.monthlyFee);
       if (!isNaN(mf) && mf >= 1) {
+        newMonthlyFee = mf;
         await pool.query("UPDATE system_settings SET value=$1 WHERE key='monthly_fee'", [String(mf)]);
       }
     }
     if (req.body.advancedFee !== undefined) {
       const af = parseInt(req.body.advancedFee);
       if (!isNaN(af) && af >= 1) {
+        newAdvancedFee = af;
         await pool.query("UPDATE system_settings SET value=$1 WHERE key='advanced_fee'", [String(af)]);
       }
     }
+
+    // Monthly Actual Price — strikethrough. 0/khaali = hide, warna >= Monthly Fee hona chahiye
+    if (req.body.monthlyActualPrice !== undefined && req.body.monthlyActualPrice !== '') {
+      const map = parseInt(req.body.monthlyActualPrice);
+      const mfCheck = newMonthlyFee ?? await getMonthlyFee();
+      if (isNaN(map) || map < 0) return res.status(400).json({ error: 'Valid Monthly Actual Price daalo' });
+      if (map > 0 && map < mfCheck) return res.status(400).json({ error: 'Monthly Actual Price, Monthly Fee se kam nahi ho sakta' });
+      await pool.query("UPDATE system_settings SET value=$1 WHERE key='monthly_actual_price'", [String(map)]);
+    }
+    // Advanced Actual Price — strikethrough. 0/khaali = hide, warna >= Advanced Fee hona chahiye
+    if (req.body.advancedActualPrice !== undefined && req.body.advancedActualPrice !== '') {
+      const aap = parseInt(req.body.advancedActualPrice);
+      const afCheck = newAdvancedFee ?? await getAdvancedFee();
+      if (isNaN(aap) || aap < 0) return res.status(400).json({ error: 'Valid Advanced Actual Price daalo' });
+      if (aap > 0 && aap < afCheck) return res.status(400).json({ error: 'Advanced Actual Price, Advanced Fee se kam nahi ho sakta' });
+      await pool.query("UPDATE system_settings SET value=$1 WHERE key='advanced_actual_price'", [String(aap)]);
+    }
+    // Agent Base Price — 0/khaali = "abhi set nahi", agent ka floor = public Offer Price hi rahega.
+    // Value diya ho to Offer Price se kam nahi ho sakta — warna agent public se sasta bech payega.
+    if (req.body.agentBasePrice !== undefined && req.body.agentBasePrice !== '') {
+      const abp = parseInt(req.body.agentBasePrice);
+      if (isNaN(abp) || abp < 0) return res.status(400).json({ error: 'Valid Agent Base Price daalo' });
+      if (abp > 0 && abp < newOfferPrice) return res.status(400).json({ error: 'Agent Base Price, Offer Price se kam nahi ho sakta' });
+      await pool.query("UPDATE system_settings SET value=$1 WHERE key='agent_base_price'", [String(abp)]);
+    }
+
     await pool.query(
       `INSERT INTO system_settings (key, value, updated_at) VALUES ('setup_fee_amount', $1, NOW())
        ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
