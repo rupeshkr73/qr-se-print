@@ -368,22 +368,67 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           <label style="font-size:11px;color:#6b6870;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px;">Offer Price (₹) <span style="font-weight:400;text-transform:none;">— customer yahi dega</span></label>
           <input type="number" id="offerPriceInput" min="0" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid #ff2e63;border-radius:10px;font-size:18px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#ff2e63;">
         </div>
-        <div style="margin-top:12px;">
-          <label style="font-size:12px;font-weight:700;">📅 Monthly Plan Fee (₹/mahina)</label>
-          <input type="number" id="monthlyFeeInput" min="1" style="width:100%;padding:11px 13px;border:1.5px solid #7c3aed;border-radius:10px;font-size:18px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#7c3aed;">
-        </div>
-        <div style="margin-top:12px;">
-          <label style="font-size:12px;font-weight:700;">⚡ Advanced Printing Unlock Fee (₹ one-time)</label>
-          <input type="number" id="advancedFeeInput" min="1" style="width:100%;padding:11px 13px;border:1.5px solid #a855f7;border-radius:10px;font-size:18px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#a855f7;">
-        </div>
       </div>
 
       <!-- Live Preview - jaisa homepage pe dikhega -->
-      <div style="background:#111111;border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:14px;margin-bottom:14px;">
+      <div style="background:#111111;border-radius:14px;padding:16px 20px;display:flex;align-items:center;gap:14px;margin-bottom:18px;">
         <span style="font-size:11px;color:rgba(255,255,255,0.5);">Preview:</span>
         <span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;color:rgba(255,255,255,0.4);text-decoration:line-through;" id="previewActual">₹999</span>
         <span style="font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:800;color:#ff2e63;" id="previewOffer">₹499</span>
         <span id="previewDiscount" style="background:#00c853;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;">50% OFF</span>
+      </div>
+
+      <div style="border-top:1.5px dashed #e2ddd6;margin-bottom:16px;"></div>
+
+      <!-- Monthly Plan -->
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:8px;">📅 Monthly Plan</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:10px;">
+        <div>
+          <label style="font-size:10.5px;color:#6b6870;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px;">Actual (₹) <span style="font-weight:400;text-transform:none;">— 0 = hide</span></label>
+          <input type="number" id="monthlyActualInput" min="0" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;">
+        </div>
+        <div>
+          <label style="font-size:10.5px;color:#6b6870;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px;">Fee (₹/mahina)</label>
+          <input type="number" id="monthlyFeeInput" min="1" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid #7c3aed;border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#7c3aed;">
+        </div>
+      </div>
+      <div id="monthlyPreviewLine" style="display:none;align-items:center;gap:10px;background:#f7f7f9;border-radius:10px;padding:9px 13px;margin-bottom:18px;">
+        <span style="font-size:13px;color:#9b9690;text-decoration:line-through;" id="monthlyPreviewActual">₹0</span>
+        <span style="font-size:16px;font-weight:800;color:#7c3aed;" id="monthlyPreviewOffer">₹0</span>
+        <span id="monthlyPreviewDiscount" style="background:#7c3aed;color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;">0% OFF</span>
+      </div>
+
+      <!-- Advanced Feature -->
+      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:8px;">⚡ Advanced Printing Unlock</label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:10px;">
+        <div>
+          <label style="font-size:10.5px;color:#6b6870;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px;">Actual (₹) <span style="font-weight:400;text-transform:none;">— 0 = hide</span></label>
+          <input type="number" id="advancedActualInput" min="0" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;">
+        </div>
+        <div>
+          <label style="font-size:10.5px;color:#6b6870;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px;">Fee (₹ one-time)</label>
+          <input type="number" id="advancedFeeInput" min="1" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid #a855f7;border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#a855f7;">
+        </div>
+      </div>
+      <div id="advancedPreviewLine" style="display:none;align-items:center;gap:10px;background:#f7f7f9;border-radius:10px;padding:9px 13px;margin-bottom:18px;">
+        <span style="font-size:13px;color:#9b9690;text-decoration:line-through;" id="advancedPreviewActual">₹0</span>
+        <span style="font-size:16px;font-weight:800;color:#a855f7;" id="advancedPreviewOffer">₹0</span>
+        <span id="advancedPreviewDiscount" style="background:#a855f7;color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;">0% OFF</span>
+      </div>
+
+      <div style="border-top:1.5px dashed #e2ddd6;margin-bottom:16px;"></div>
+
+      <!-- Agent Base Price -->
+      <div style="background:linear-gradient(135deg,#1a1a22,#2b1f3d);border-radius:16px;padding:16px 17px;margin-bottom:16px;">
+        <label style="font-size:12.5px;font-weight:800;color:#ffd22e;display:block;margin-bottom:6px;">🤝 Agent Base Price</label>
+        <p style="font-size:11.5px;color:#c9ccd6;line-height:1.65;margin-bottom:11px;">
+          Agents ke liye alag floor price. Khaali/0 rakho to agent ka price bhi normal Offer Price
+          (upar wala) se hi shuru hoga. Yahan value dogi (jaise 699) to har agent ka <b style="color:#fff;">apna link
+          isi price se start hoga</b> — agent apna price isse upar hi badha sakta hai, apna margin ban jata hai.
+          Registration ka charge bhi isi price se hoga.
+        </p>
+        <input type="number" id="agentBasePriceInput" min="0" placeholder="0 = Offer Price jaisa hi" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid rgba(255,210,46,.4);border-radius:10px;font-size:18px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#ffd22e;background:rgba(255,255,255,.06);">
+        <div id="agentBasePreviewLine" style="margin-top:10px;font-size:12px;color:#9aa0ab;"></div>
       </div>
 
       <button class="filter-tab" style="padding:11px 22px;background:#00c853;color:#fff;border-color:#00c853;font-size:13px;width:100%;" onclick="updateSetupFee()">💾 Update Karo</button>
@@ -1068,6 +1113,9 @@ async function loadPanel() {
       document.getElementById('offerPriceInput').value = feeData.offerPrice;
       if (feeData.monthlyFee !== undefined) document.getElementById('monthlyFeeInput').value = feeData.monthlyFee;
       if (feeData.advancedFee !== undefined) document.getElementById('advancedFeeInput').value = feeData.advancedFee;
+      document.getElementById('monthlyActualInput').value = feeData.monthlyActualPrice || 0;
+      document.getElementById('advancedActualInput').value = feeData.advancedActualPrice || 0;
+      document.getElementById('agentBasePriceInput').value = feeData.agentBasePriceIsSet ? feeData.agentBasePrice : 0;
       updatePreview();
     }
 
@@ -1155,6 +1203,22 @@ async function pushAgentUpdate() {
   }
 }
 
+async function refreshSetupFeeDisplay() {
+  try {
+    const r = await fetch('/api/superadmin/setup-fee', { headers: { 'Authorization': 'Bearer ' + authToken } });
+    if (!r.ok) return;
+    const feeData = await r.json();
+    document.getElementById('actualPriceInput').value = feeData.actualPrice;
+    document.getElementById('offerPriceInput').value = feeData.offerPrice;
+    if (feeData.monthlyFee !== undefined) document.getElementById('monthlyFeeInput').value = feeData.monthlyFee;
+    if (feeData.advancedFee !== undefined) document.getElementById('advancedFeeInput').value = feeData.advancedFee;
+    document.getElementById('monthlyActualInput').value = feeData.monthlyActualPrice || 0;
+    document.getElementById('advancedActualInput').value = feeData.advancedActualPrice || 0;
+    document.getElementById('agentBasePriceInput').value = feeData.agentBasePriceIsSet ? feeData.agentBasePrice : 0;
+    updatePreview();
+  } catch(e) {}
+}
+
 function updatePreview() {
   const actual = parseInt(document.getElementById('actualPriceInput').value) || 0;
   const offer = parseInt(document.getElementById('offerPriceInput').value) || 0;
@@ -1170,6 +1234,32 @@ function updatePreview() {
   } else {
     discountEl.style.display = 'none';
   }
+
+  // Ek hi tarah ka preview Monthly aur Advanced ke liye bhi
+  const mini = (actualId, feeId, lineId, actualElId, offerElId, discEl) => {
+    const a = parseInt(document.getElementById(actualId).value) || 0;
+    const f = parseInt(document.getElementById(feeId).value) || 0;
+    const line = document.getElementById(lineId);
+    if (a > 0 && f > 0 && a > f) {
+      document.getElementById(actualElId).textContent = '₹' + a;
+      document.getElementById(offerElId).textContent = '₹' + f;
+      document.getElementById(discEl).textContent = Math.round(((a - f) / a) * 100) + '% OFF';
+      line.style.display = 'flex';
+    } else {
+      line.style.display = 'none';
+    }
+  };
+  mini('monthlyActualInput','monthlyFeeInput','monthlyPreviewLine','monthlyPreviewActual','monthlyPreviewOffer','monthlyPreviewDiscount');
+  mini('advancedActualInput','advancedFeeInput','advancedPreviewLine','advancedPreviewActual','advancedPreviewOffer','advancedPreviewDiscount');
+
+  // Agent base price ka chhota explainer
+  const abp = parseInt(document.getElementById('agentBasePriceInput').value) || 0;
+  const abpNote = document.getElementById('agentBasePreviewLine');
+  if (abpNote) {
+    abpNote.innerHTML = abp > 0
+      ? `Har agent ka link kam se kam <b style="color:#ffd22e;">₹${abp}</b> dikhayega (agent chahe to isse zyada rakh sakta hai)`
+      : `Abhi khaali hai — agent ka floor bhi normal <b style="color:#ffd22e;">₹${offer}</b> (Offer Price) hi rahega`;
+  }
 }
 
 async function updateSetupFee() {
@@ -1182,13 +1272,21 @@ async function updateSetupFee() {
     const res = await fetch('/api/superadmin/setup-fee', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
-      body: JSON.stringify({ actualPrice, offerPrice, monthlyFee: document.getElementById('monthlyFeeInput').value, advancedFee: document.getElementById('advancedFeeInput').value })
+      body: JSON.stringify({
+        actualPrice, offerPrice,
+        monthlyFee: document.getElementById('monthlyFeeInput').value,
+        advancedFee: document.getElementById('advancedFeeInput').value,
+        monthlyActualPrice: document.getElementById('monthlyActualInput').value,
+        advancedActualPrice: document.getElementById('advancedActualInput').value,
+        agentBasePrice: document.getElementById('agentBasePriceInput').value
+      })
     });
     const data = await res.json();
     if (data.success) {
       msgEl.textContent = `✅ Price update ho gaya — naye registrations ₹${data.actualPrice} (katega) → ₹${data.offerPrice} pe honge`;
       msgEl.style.color = '#00c853';
       msgEl.style.display = 'block';
+      refreshSetupFeeDisplay();
     } else {
       msgEl.textContent = '❌ ' + data.error;
       msgEl.style.color = '#ff2e63';

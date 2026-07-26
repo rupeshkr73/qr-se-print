@@ -730,7 +730,7 @@ a{color:inherit}
 html{scroll-behavior:smooth}
 #features,#faq{scroll-margin-top:86px}
 .main-nav{display:none;align-items:center;gap:2px}
-@media(min-width:1120px){.main-nav{display:flex}}
+@media(min-width:1220px){.main-nav{display:flex}}
 .nav-link{
   position:relative;background:none;border:none;cursor:pointer;text-decoration:none;
   color:#3a3f47;font-family:'Inter',sans-serif;font-weight:600;font-size:13.5px;
@@ -758,7 +758,7 @@ html{scroll-behavior:smooth}
   width:38px;height:38px;border-radius:11px;border:1.5px solid var(--line);
   background:#fff;cursor:pointer;padding:0 9px;flex:none;
 }
-@media(min-width:1120px){.nav-burger{display:none}}
+@media(min-width:1220px){.nav-burger{display:none}}
 .nav-burger i{display:block;height:2px;border-radius:2px;background:var(--ink);transition:transform .28s var(--ease),opacity .2s}
 .nav-burger.open i:nth-child(1){transform:translateY(6px) rotate(45deg)}
 .nav-burger.open i:nth-child(2){opacity:0}
@@ -773,7 +773,7 @@ html{scroll-behavior:smooth}
 }
 .nav-drop.open{opacity:1;visibility:visible;transform:none;pointer-events:auto}
 .nav-drop .nav-link{display:block;text-align:left;padding:13px 14px;font-size:14px;width:100%}
-@media(min-width:1120px){.nav-drop{display:none}}
+@media(min-width:1220px){.nav-drop{display:none}}
 @media(max-width:390px){.login-pill span{display:none}.login-pill{padding:8px 11px}}
 
 /* ══════════════════════════════════════════════════════════════
@@ -1221,6 +1221,125 @@ html{scroll-behavior:smooth}
 .ref-note.on{display:block}
 
 /* ══════════════════════════════════════════════════════════════
+   🧭 HOW TO SETUP GUIDE — animated step-by-step walkthrough
+   ══════════════════════════════════════════════════════════════ */
+/* Nav button ka compass icon — swing + glow, jaise handshake ka rhythm */
+.gd-compass{
+  display:inline-block;transform-origin:50% 62%;
+  animation:gdCompassSwing 3.2s ease-in-out infinite, gdCompassGlow 3.2s ease-in-out infinite;
+}
+@keyframes gdCompassSwing{
+  0%,60%{transform:rotate(0)}
+  68%{transform:rotate(-16deg)}
+  76%{transform:rotate(13deg)}
+  84%{transform:rotate(-8deg)}
+  92%,100%{transform:rotate(0)}
+}
+@keyframes gdCompassGlow{
+  0%,55%{filter:drop-shadow(0 0 0 rgba(255,183,3,0))}
+  68%{filter:drop-shadow(0 0 7px rgba(255,183,3,.9)) drop-shadow(0 0 12px rgba(20,184,166,.5))}
+  80%{filter:drop-shadow(0 0 4px rgba(255,183,3,.6))}
+  92%,100%{filter:drop-shadow(0 0 0 rgba(255,183,3,0))}
+}
+.nav-guide:hover .gd-compass{animation:gdCompassSwing .6s var(--ease) 1, gdCompassGlow .6s ease-in-out 1}
+
+/* Section heading */
+.gd-sec-head{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0 20px;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:17px;color:var(--ink);
+}
+.gd-sec-head .tag{
+  font-size:10.5px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;
+  background:var(--tint);border:1.5px solid #f0e2ba;color:#8a6d1f;border-radius:999px;padding:4px 11px;
+}
+.gd-sec-head.gd-alt-head .tag{background:#f0fdfa;border-color:#99f6e4;color:#0f766e}
+.gd-sec-sub{font-size:12.5px;color:var(--muted);margin:-12px 0 20px;line-height:1.7}
+
+/* Flow container + connecting animated line */
+.gd-flow{position:relative;display:flex;flex-direction:column;gap:24px;margin-bottom:8px}
+.gd-flow::before{
+  content:'';position:absolute;left:25px;top:34px;bottom:34px;width:3px;border-radius:3px;
+  background:linear-gradient(180deg,var(--yellow) 0%,var(--pink) 50%,var(--yellow) 100%);
+  background-size:100% 200%;opacity:.5;z-index:1;
+  animation:gdFlowMove 3.6s linear infinite;
+}
+.gd-flow.gd-alt::before{background:linear-gradient(180deg,#14b8a6 0%,#0f766e 50%,#14b8a6 100%);background-size:100% 200%;opacity:.55}
+@keyframes gdFlowMove{0%{background-position:0 0}100%{background-position:0 -200%}}
+
+/* Each step */
+.gd-step{display:flex;gap:15px;align-items:flex-start;position:relative;z-index:2;opacity:0}
+.legal-page.open .gd-step{animation:gdStepIn .55s var(--ease) both}
+.gd-flow .gd-step:nth-child(1){animation-delay:.05s}
+.gd-flow .gd-step:nth-child(2){animation-delay:.13s}
+.gd-flow .gd-step:nth-child(3){animation-delay:.21s}
+.gd-flow .gd-step:nth-child(4){animation-delay:.29s}
+.gd-flow .gd-step:nth-child(5){animation-delay:.37s}
+.gd-flow .gd-step:nth-child(6){animation-delay:.45s}
+.gd-flow .gd-step:nth-child(7){animation-delay:.53s}
+.gd-flow .gd-step:nth-child(8){animation-delay:.61s}
+@keyframes gdStepIn{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}
+
+/* Icon circle */
+.gd-ico-circle{
+  position:relative;flex:none;width:52px;height:52px;border-radius:16px;
+  display:flex;align-items:center;justify-content:center;font-size:23px;
+  background:linear-gradient(150deg,var(--yellow),#ffb703);
+  box-shadow:0 10px 22px rgba(255,183,3,.32);
+}
+.gd-ico-circle::after{
+  content:'';position:absolute;inset:-4px;border-radius:inherit;pointer-events:none;
+  animation:gdIcoGlow 3s ease-in-out infinite;
+}
+@keyframes gdIcoGlow{
+  0%,58%{box-shadow:0 0 0 0 rgba(255,183,3,0)}
+  74%{box-shadow:0 0 0 7px rgba(255,183,3,.2)}
+  100%{box-shadow:0 0 0 0 rgba(255,183,3,0)}
+}
+.gd-ico-circle span{display:inline-block;animation:gdIcoBounce 3s ease-in-out infinite}
+@keyframes gdIcoBounce{
+  0%,55%{transform:scale(1) rotate(0)}
+  65%{transform:scale(1.16) rotate(-6deg)}
+  75%{transform:scale(1.05) rotate(4deg)}
+  85%,100%{transform:scale(1) rotate(0)}
+}
+.gd-num{
+  position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;
+  background:var(--ink);color:#fff;font-size:10px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 3px 8px rgba(17,17,20,.32);
+}
+/* Alt (payment) theme */
+.gd-alt .gd-ico-circle{background:linear-gradient(150deg,#2dd4bf,#0f766e);box-shadow:0 10px 22px rgba(15,118,110,.34)}
+.gd-alt .gd-ico-circle::after{animation-name:gdIcoGlowAlt}
+@keyframes gdIcoGlowAlt{
+  0%,58%{box-shadow:0 0 0 0 rgba(45,212,191,0)}
+  74%{box-shadow:0 0 0 7px rgba(45,212,191,.24)}
+  100%{box-shadow:0 0 0 0 rgba(45,212,191,0)}
+}
+.gd-alt .gd-num{background:#0f766e}
+
+/* Step text */
+.gd-content{flex:1;min-width:0;padding-top:6px}
+.gd-content h4{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:15px;margin-bottom:4px;color:var(--ink)}
+.gd-content p{font-size:12.8px;color:#4a4f58;line-height:1.68}
+.gd-content b{color:var(--ink)}
+.gd-sub{margin-top:9px;display:grid;gap:6px}
+.gd-sub div{
+  display:flex;align-items:center;gap:8px;background:var(--tint);border:1.5px solid #f0e2ba;
+  border-radius:10px;padding:8px 11px;font-size:12px;color:#5a4a1f;font-weight:600;
+}
+
+@media (prefers-reduced-motion:reduce){
+  .gd-compass,.gd-flow::before,.gd-ico-circle::after,.gd-ico-circle span{animation:none!important;filter:none!important}
+  .gd-step{opacity:1!important;transform:none!important;animation:none!important}
+}
+@media(max-width:420px){
+  .gd-ico-circle{width:44px;height:44px;font-size:19px;border-radius:13px}
+  .gd-flow::before{left:21px}
+  .gd-content h4{font-size:14px}
+}
+
+/* ══════════════════════════════════════════════════════════════
    LEGAL PAGE (Disclaimer) — full-screen premium document view
    ══════════════════════════════════════════════════════════════ */
 .legal-page{
@@ -1399,6 +1518,7 @@ html.legal-open,body.legal-open{overflow:hidden}
       <a href="#features" class="nav-link" data-cfg="navFeatures">Features</a>
       <a href="#pricingSection" class="nav-link" data-cfg="navPricing">Pricing</a>
       <a href="#faq" class="nav-link" data-cfg="navFaq">FAQ</a>
+      <a href="#guide" class="nav-link nav-guide"><span class="gd-compass">🧭</span> <span data-cfg="navGuide">How to Setup</span></a>
       <a href="#disclaimer" class="nav-link" data-cfg="navDisclaimer">Disclaimer</a>
       <button type="button" class="nav-link nav-biz" onclick="openInq()" data-cfg="navBusiness">💼 Business Inquiry</button>
       <a href="/agent" class="nav-link nav-agent"><span class="hs">🤝</span> <span data-cfg="navAgent">Agent</span></a>
@@ -1412,6 +1532,7 @@ html.legal-open,body.legal-open{overflow:hidden}
     <a href="#features" class="nav-link" data-cfg="navFeaturesM">✨ Features</a>
     <a href="#pricingSection" class="nav-link" data-cfg="navPricingM">💰 Pricing</a>
     <a href="#faq" class="nav-link" data-cfg="navFaqM">❓ FAQ</a>
+    <a href="#guide" class="nav-link nav-guide"><span class="gd-compass">🧭</span> <span data-cfg="navGuideM">How to Setup</span></a>
     <a href="#disclaimer" class="nav-link" data-cfg="navDisclaimerM">📄 Disclaimer</a>
     <button type="button" class="nav-link nav-biz" onclick="openInq()" data-cfg="navBusinessM">💼 Business Inquiry</button>
     <a href="/agent" class="nav-link nav-agent"><span class="hs">🤝</span> <span data-cfg="navAgentM">Become an Agent</span></a>
@@ -1674,7 +1795,7 @@ html.legal-open,body.legal-open{overflow:hidden}
       </div>
       <div class="plan3">
         <div data-cfg="plan06" class="p3t">📅 Monthly</div>
-        <div data-cfg-html="plan07" class="p3p">₹<span id="hpMonthly">399</span> <small>/month</small></div>
+        <div data-cfg-html="plan07" class="p3p"><span class="cut3" id="hpMonthlyCut" style="display:none;">₹0</span>₹<span id="hpMonthly">399</span> <small>/month</small></div>
         <div data-cfg="plan08" class="p3note" style="color:#b45309;">Per month renewal — time par pay karo, service chalti rahe</div>
         <ul id="planMonthlyList">
           <li>✅ Auto Print Software</li>
@@ -2117,6 +2238,196 @@ html.legal-open,body.legal-open{overflow:hidden}
   </div>
 </div>
 
+<div class="legal-page" id="setupGuidePage" role="dialog" aria-modal="true" aria-labelledby="setupGuidePageT">
+  <div class="lg-top">
+    <div class="brand"><div class="brand-mark">🖨️</div> QR Se Print</div>
+    <a href="#" class="lg-back" onclick="closeLegal();return false;">← Back to Home</a>
+  </div>
+  <div class="lg-wrap">
+
+    <div class="lg-cover">
+      <span class="lg-eyebrow" data-cfg="gd01">🧭 Setup Guide</span>
+      <h1 class="lg-title" id="setupGuidePageT" data-cfg="gd02">QR Se Print Kaise Setup Karein</h1>
+      <div class="lg-meta">
+        <span data-cfg="gd03">⏱️ 5 minute me shuru ho jayega</span>
+        <span data-cfg="gd04">🙋 Koi bhi follow kar sakta hai — technical knowledge zaroori nahi</span>
+      </div>
+    </div>
+
+    <div class="lg-lead" data-cfg-html="gd05">
+      Ye guide aapko <strong>step-by-step</strong> dikhayega ki payment complete karne ke baad Shop ID milne se lekar
+      pehla test print nikalne tak kya-kya karna hai. Har step ko order me follow karo — kahin atko to sabse neeche
+      Support section me contact ka tarika bhi diya hai.
+    </div>
+    <div class="lg-note" data-cfg-html="gd06">
+      <b>Ek line me</b>Login karo → Download tab se QR + Software lo → PC me install karo → Settings me printer select karo → QR scan karke test print nikalo. Bas itna hi hai.
+    </div>
+
+    <!-- ═══ SECTION A: Main Setup Flow ═══ -->
+    <div class="gd-sec-head">
+      <span class="tag" data-cfg="gd07">Step 1–8</span>
+      <span data-cfg="gd08">🖨️ Print Software Setup Karo</span>
+    </div>
+    <p class="gd-sec-sub" data-cfg="gd09">Ye 8 steps sabke liye zaroori hain — chahe aap counter par cash lete ho ya online payment.</p>
+
+    <div class="gd-flow">
+      <div class="gd-step">
+        <div class="gd-ico-circle"><span>💳</span><span class="gd-num">1</span></div>
+        <div class="gd-content">
+          <h4 data-cfg="gd10">Payment Complete Karo</h4>
+          <p data-cfg-html="gd11">Registration ke baad payment poora hote hi aapko turant ek <b>Shop ID</b> mil jaata hai — yahi aapki dukaan ki pehchan hai, isko sambhal ke rakho.</p>
+        </div>
+      </div>
+      <div class="gd-step">
+        <div class="gd-ico-circle"><span>🔑</span><span class="gd-num">2</span></div>
+        <div class="gd-content">
+          <h4 data-cfg="gd12">Shop Login Karo</h4>
+          <p data-cfg-html="gd13">Apni Shop ID aur password se <b>Shop Owner Login</b> karo. Login hote hi aap seedha apne Shop Dashboard me pahunch jaoge.</p>
+        </div>
+      </div>
+      <div class="gd-step">
+        <div class="gd-ico-circle"><span>📥</span><span class="gd-num">3</span></div>
+        <div class="gd-content">
+          <h4 data-cfg="gd14">Download Tab Kholo</h4>
+          <p data-cfg="gd15">Dashboard me Download tab me jaao. Yahan se teen kaam karne hain:</p>
+          <div class="gd-sub">
+            <div data-cfg="gd16">🔲 Apna personalized QR Code download karo</div>
+            <div data-cfg="gd17">💻 Print Agent Software download karo</div>
+            <div data-cfg="gd18">📋 Apni Shop ID copy kar lo</div>
+          </div>
+        </div>
+      </div>
+      <div class="gd-step">
+        <div class="gd-ico-circle"><span>🖥️</span><span class="gd-num">4</span></div>
+        <div class="gd-content">
+          <h4 data-cfg="gd19">PC Me Software Install Karo</h4>
+          <p data-cfg-html="gd20">Jo software download kiya, use apne dukaan ke computer me install karo. Install hote waqt <b>Shop ID</b> maangi jaayegi — wahi Shop ID paste kar do jo abhi copy ki thi.</p>
+        </div>
+      </div>
+      <div class="gd-step">
+        <div class="gd-ico-circle"><span>📌</span><span class="gd-num">5</span></div>
+        <div class="gd-content">
+          <h4 data-cfg="gd21">System Tray Me Chala Jayega</h4>
+          <p data-cfg-html="gd22">Install hote hi software apne aap minimize hoke <b>System Tray</b> (screen ke bottom-right, ghadi ke paas) me chala jaayega — background me chupchap kaam karta rahega.</p>
+        </div>
+      </div>
+      <div class="gd-step">
+        <div class="gd-ico-circle"><span>🔄</span><span class="gd-num">6</span></div>
+        <div class="gd-content">
+          <h4 data-cfg="gd23">Dashboard Refresh Karo</h4>
+          <p data-cfg-html="gd24">Browser me apne Shop Dashboard se ek baar <b>Logout karke dobara Login</b> karo — isse dashboard ko pata chal jaata hai ki aapka Print Agent connect ho chuka hai, aur Settings me printer options dikhne lagte hain.</p>
+        </div>
+      </div>
+      <div class="gd-step">
+        <div class="gd-ico-circle"><span>🖨️</span><span class="gd-num">7</span></div>
+        <div class="gd-content">
+          <h4 data-cfg="gd25">Printer Select Karo</h4>
+          <p data-cfg-html="gd26">Settings me jaao — <b>B&amp;W Print</b> ke liye ek printer aur <b>Color Print</b> ke liye ek printer select karo. Agar dukaan me sirf ek hi printer hai, to dono jagah wahi printer select kar do. Phir <b>Save</b> dabao.</p>
+        </div>
+      </div>
+      <div class="gd-step">
+        <div class="gd-ico-circle"><span>🎉</span><span class="gd-num">8</span></div>
+        <div class="gd-content">
+          <h4 data-cfg="gd27">Test Print Karo</h4>
+          <p data-cfg-html="gd28">Ab apni dukaan ka QR scan karke ek <b>test print</b> nikalo — agar print nikal aaye, matlab sab kuch sahi set ho chuka hai! 🎊</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SECTION B: Online Payment (Razorpay) ═══ -->
+    <div class="gd-sec-head gd-alt-head">
+      <span class="tag" data-cfg="gd29">Step 1–7 · Optional</span>
+      <span data-cfg="gd30">💳 Online Payment Setup (Razorpay)</span>
+    </div>
+    <p class="gd-sec-sub" data-cfg="gd31">Agar customer se sirf counter par cash lena hai to ye section skip kar sakte ho. Online payment bhi lena hai to ye extra steps follow karo:</p>
+
+    <div class="gd-flow gd-alt">
+      <div class="gd-step">
+        <div class="gd-ico-circle"><span>🏦</span><span class="gd-num">1</span></div>
+        <div class="gd-content">
+          <h4 data-cfg="gd32">Razorpay Account Banao</h4>
+          <p data-cfg-html="gd33"><b>razorpay.com</b> par jaakar apna account banao.</p>
+        </div>
+      </div>
+      <div class="gd-step">
+        <div class="gd-ico-circle"><span>🌐</span><span class="gd-num">2</span></div>
+        <div class="gd-content">
+          <h4 data-cfg="gd34">Website Me "qrseprint.in" Likho</h4>
+          <p data-cfg-html="gd35">Registration ke time jahan business website maangi jaaye, wahaan <b>qrseprint.in</b> daal do — kyunki aapke online orders isi platform ke through aate hain.</p>
+        </div>
+      </div>
+      <div class="gd-step">
+        <div class="gd-ico-circle"><span>📄</span><span class="gd-num">3</span></div>
+        <div class="gd-content">
+          <h4 data-cfg="gd36">Unregistered Business Select Karo</h4>
+          <p data-cfg-html="gd37">GST ya current account nahi hai? Koi baat nahi — <b>"Unregistered Business"</b> category chuno. Savings account aur PAN card se hi ho jaata hai.</p>
+        </div>
+      </div>
+      <div class="gd-step">
+        <div class="gd-ico-circle"><span>🔐</span><span class="gd-num">4</span></div>
+        <div class="gd-content">
+          <h4 data-cfg="gd38">Live API Key Generate Karo</h4>
+          <p data-cfg-html="gd39">Account active hone ke baad: <b>Profile → Settings → API Keys</b> me jaakar apni <b>Live Key</b> generate karo.</p>
+        </div>
+      </div>
+      <div class="gd-step">
+        <div class="gd-ico-circle"><span>⚙️</span><span class="gd-num">5</span></div>
+        <div class="gd-content">
+          <h4 data-cfg="gd40">Payment Setup Kholo</h4>
+          <p data-cfg-html="gd41">qrseprint.in par apne Shop Dashboard me login karke <b>Payment Setup</b> me jaao, aur wahan <b>"Online Payment"</b> select karo.</p>
+        </div>
+      </div>
+      <div class="gd-step">
+        <div class="gd-ico-circle"><span>🔑</span><span class="gd-num">6</span></div>
+        <div class="gd-content">
+          <h4 data-cfg="gd42">Keys Paste Karke Save Karo</h4>
+          <p data-cfg-html="gd43">Razorpay se generate ki hui <b>API Key</b> aur <b>Secret Key</b> copy karke yahan paste karo, phir <b>Save</b> karo.</p>
+        </div>
+      </div>
+      <div class="gd-step">
+        <div class="gd-ico-circle"><span>🎉</span><span class="gd-num">7</span></div>
+        <div class="gd-content">
+          <h4 data-cfg="gd44">Test Karo</h4>
+          <p data-cfg-html="gd45">Ab QR scan karke phone se test print karo aur payment <b>online</b> karke dekho — is baar payment online hoga, aur print seedha automatic nikal jaayega. 🎊</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SECTION C: Customer File Privacy ═══ -->
+    <div class="gd-sec-head">
+      <span class="tag" data-cfg="gd46">FAQ</span>
+      <span data-cfg="gd47">🔒 Customer File Privacy</span>
+    </div>
+
+    <div class="lg-sec">
+      <h3 data-n="1">
+        <span data-cfg="gd48">File upload ke baad, file kahaan store hoti hai?</span>
+      </h3>
+      <p data-cfg-html="gd49">Kahin nahi. File server par sirf print hone tak rehti hai — print command chalte hi turant delete command chal jaata hai, aur file <b>permanently</b> mit jaati hai.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="2">
+        <span data-cfg="gd50">Agar print cancel kar diya, to kya customer ko dobara upload karna padega?</span>
+      </h3>
+      <p data-cfg-html="gd51">Haan, dobara upload karna padega. Hamari policy hai ki koi file store nahi ki jaati — chahe print ho ya cancel. Ye aap khud verify kar sakte ho: System Tray me QR Se Print icon par right-click karke <b>"📋 Logs Dekho"</b> kholo, wahaan har file print ke turant baad delete hoti dikhegi.</p>
+    </div>
+    <div class="lg-sec">
+      <h3 data-n="3">
+        <span data-cfg="gd52">Kisi bhi sawal ke liye kya karein?</span>
+      </h3>
+      <p data-cfg-html="gd53">Do tarike hain — (1) apne Shop Dashboard ke Support tab me <b>WhatsApp Connect</b> button se seedha message karo, ya (2) System Tray me icon par right-click karke <b>"💬 Contact Admin"</b> dabao. Dono se seedha admin tak baat pahunchti hai.</p>
+    </div>
+
+    <div class="lg-contact">
+      <h4 data-cfg="gd54">Setup me atak gaye?</h4>
+      <p data-cfg="gd55">Koi bhi step samajh nahi aaya ho — seedha humse baat kariye, hum madad kar denge.</p>
+      <a href="#" onclick="closeLegal();setTimeout(openInq,320);return false;">💼 Business Inquiry</a>
+    </div>
+
+    <p class="lg-foot" data-cfg-html="gd56">© 2026 QR Se Print (qrseprint.in) · Cyber cafe aur print shop ke liye automatic print software · Made in Jharkhand, India</p>
+  </div>
+</div>
+
 <div class="footer">
   <div class="container">
     <div class="ft-grid">
@@ -2497,6 +2808,27 @@ function sendInq(via){
   },true);
 })();
 
+/* ── Monthly plan ka strikethrough (Actual Price) — alag script,
+   purane loadPrices() ko bilkul nahi chhuta, apni fetch karta hai ── */
+(function(){
+  var setMonthlyCut=function(d){
+    var mCut=document.getElementById('hpMonthlyCut');
+    if(!mCut) return;
+    var mFee=parseInt((document.getElementById('hpMonthly')||{}).textContent,10)||d.monthlyFee;
+    if(d.monthlyActualPrice && mFee && d.monthlyActualPrice>mFee){
+      mCut.textContent='\u20b9'+d.monthlyActualPrice;
+      mCut.style.display='';
+    } else {
+      mCut.style.display='none';
+    }
+  };
+  var run=function(){
+    fetch('/api/setup-fee/current').then(function(r){return r.json();}).then(setMonthlyCut).catch(function(){});
+  };
+  run();
+  [500,1500,3000].forEach(function(t){ setTimeout(run,t); });
+})();
+
 /* ── Agent referral link (?ref=QRA-1234) ──
    Agent ka price homepage par dikhta hai aur register link me ref chala
    jata hai. Plain qrseprint.in kholo to normal price hi dikhega. */
@@ -2556,7 +2888,7 @@ function sendInq(via){
 })();
 
 /* ── Legal pages (Disclaimer / Terms / Privacy / Refund) ── */
-var LEGAL_PAGES={disclaimer:'disclaimerPage',terms:'termsPage',privacy:'privacyPage',refund:'refundPage'};
+var LEGAL_PAGES={disclaimer:'disclaimerPage',terms:'termsPage',privacy:'privacyPage',refund:'refundPage',guide:'setupGuidePage'};
 function openLegal(key){
   var id=LEGAL_PAGES[key];
   if(!id) return;

@@ -656,9 +656,9 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         <div class="card">
           <h2 style="font-family:'Syne',sans-serif;font-size:17px;margin-bottom:6px;">🏷️ Shop Registration Price</h2>
           <p style="font-size:12.5px;color:#6b6870;line-height:1.7;margin-bottom:12px;">
-            Admin ka base price <b>₹<span id="agBase">—</span></b> hai. Aap isse <b>upar</b> koi bhi price rakh sakte ho
-            (max ₹<span id="agMax">2999</span>) — jo extra hoga wo <b>poora aapka margin</b>.
-            Isse neeche nahi ja sakte.
+            Agent ka base price <b>₹<span id="agBase">—</span></b> hai (ye normal homepage price se alag ho sakta hai).
+            Aap isse <b>upar</b> koi bhi price rakh sakte ho (max ₹<span id="agMax">2999</span>) —
+            jo extra hoga wo <b>poora aapka margin</b>. Isse neeche nahi ja sakte.
           </p>
           <div id="agPriceOk" style="display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534;border-radius:10px;padding:10px;font-size:12.5px;font-weight:700;margin-bottom:10px;"></div>
           <div id="agPriceErr" style="display:none;background:#fee2e2;border:1.5px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px;font-size:12.5px;margin-bottom:10px;"></div>
@@ -807,7 +807,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         <!-- ═══ SALES (sirf LOCKED shops dekhti hain) ═══ -->
         <div id="advSales">
           <div style="background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:18px;padding:20px;text-align:center;color:#fff;margin-bottom:14px;">
-            <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;">₹<span class="advFeeVal">199</span> — Ek Baar. Lifetime.</div>
+            <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;"><span class="advActualVal" style="font-size:15px;font-weight:600;opacity:.65;text-decoration:line-through;margin-right:6px;display:none;">₹0</span>₹<span class="advFeeVal">199</span> — Ek Baar. Lifetime.</div>
             <div style="font-size:12.5px;opacity:.95;margin-top:4px;">Apni dukaan ko <b>FULL-SERVICE shop</b> banao — photo, resume, bade prints, sab</div>
           </div>
 
@@ -1686,6 +1686,14 @@ async function loadAdvancedFee() {
     const r = await fetch('/api/setup-fee/current');
     const d = await r.json();
     if (d.advancedFee) document.querySelectorAll('.advFeeVal').forEach(el => el.textContent = d.advancedFee);
+    document.querySelectorAll('.advActualVal').forEach(el => {
+      if (d.advancedActualPrice && d.advancedFee && d.advancedActualPrice > d.advancedFee) {
+        el.textContent = '₹' + d.advancedActualPrice;
+        el.style.display = 'inline';
+      } else {
+        el.style.display = 'none';
+      }
+    });
   } catch(e) {}
 }
 async function unlockAdvanced() {
