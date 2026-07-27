@@ -202,6 +202,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <button class="nav-it" data-nav="shops-pending"  onclick="navShops('pending',this)"><span class="ico">⏳</span> Pending Payment</button>
     <button class="nav-it" data-nav="demos"       onclick="navTo('demos',this)"><span class="ico">🎯</span> Demo Accounts</button>
     <button class="nav-it" data-nav="agents"      onclick="navTo('agents',this)"><span class="ico">💼</span> Agents</button>
+    <button class="nav-it" data-nav="analytics"   onclick="navTo('analytics',this)"><span class="ico">📊</span> Analytics</button>
     <button class="nav-it" data-nav="withdrawals" onclick="navTo('withdrawals',this)"><span class="ico">💸</span> Withdrawals</button>
     <button class="nav-it" data-nav="agent"       onclick="navTo('agent',this)"><span class="ico">🔄</span> Agent Software</button>
     <button class="nav-it" data-nav="pricing"     onclick="navTo('pricing',this)"><span class="ico">💰</span> Setup Fee</button>
@@ -523,6 +524,44 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       </div>
     </div>
 
+    <div data-sect="analytics">
+      <div class="card">
+        <h2><span>📊 Homepage Funnel</span>
+          <select id="anRange" onchange="loadAnalytics()" style="border:1.5px solid #e2ddd6;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;">
+            <option value="7">7 din</option>
+            <option value="14">14 din</option>
+            <option value="30" selected>30 din</option>
+            <option value="90">90 din</option>
+          </select>
+        </h2>
+        <p style="font-size:11.5px;color:#9b9690;margin:-6px 0 16px;">
+          Pageview/click data first-party track hota hai (koi Google/Meta nahi). Demo aur Paid ka asli data seedha Shops table se aata hai.
+        </p>
+
+        <div id="anSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px;"></div>
+
+        <div style="background:#fafaf9;border:1.5px solid #e2ddd6;border-radius:14px;padding:14px 10px 6px;margin-bottom:16px;">
+          <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;padding:0 8px;font-size:11px;font-weight:700;color:#6b6870;">
+            <span><i style="display:inline-block;width:9px;height:9px;background:#ffd22e;border-radius:2px;margin-right:5px;"></i>Pageviews</span>
+            <span><i style="display:inline-block;width:9px;height:9px;background:#0f766e;border-radius:2px;margin-right:5px;"></i>Demo Created</span>
+            <span><i style="display:inline-block;width:9px;height:9px;background:#ff2e63;border-radius:2px;margin-right:5px;"></i>Paid Created</span>
+          </div>
+          <div id="anChart" style="width:100%;overflow-x:auto;">Loading…</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+          <div>
+            <div style="font-size:12px;font-weight:800;margin-bottom:8px;">🚦 Traffic Source</div>
+            <div id="anSource" style="font-size:12.5px;color:#9b9690;">Loading…</div>
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:800;margin-bottom:8px;">🔻 Click Breakdown</div>
+            <div id="anClicks" style="font-size:12.5px;color:#9b9690;">Loading…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div data-sect="withdrawals">
     <!-- WITHDRAWAL REQUESTS -->
     <div class="card" style="margin-bottom:20px;">
@@ -787,6 +826,114 @@ async function loadDemos(){
 
 // ═══ AGENTS (superadmin) ═══
 let _agents = [];
+// ═══ ANALYTICS ═══
+async function loadAnalytics() {
+  const box = document.getElementById('anChart');
+  if (!box) return;
+  const days = parseInt(document.getElementById('anRange').value, 10) || 30;
+  box.innerHTML = 'Loading…';
+  document.getElementById('anSummary').innerHTML = '';
+  document.getElementById('anSource').innerHTML = 'Loading…';
+  document.getElementById('anClicks').innerHTML = 'Loading…';
+  try {
+    const r = await fetch('/api/superadmin/analytics?days=' + days, { headers: { 'Authorization': 'Bearer ' + authToken } });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'Load fail');
+    renderAnalytics(d, days);
+  } catch (e) {
+    box.innerHTML = `<span style="color:#c22;font-size:12px;">❌ ${e.message}</span>`;
+  }
+}
+
+function renderAnalytics(d, days) {
+  const esc = s => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+  // ── Build a complete zero-filled date axis (API sirf jis din data hai wahi bhejta hai) ──
+  const dates = [];
+  const today = new Date();
+  for (let i = days - 1; i >= 0; i--) {
+    const dt = new Date(today); dt.setDate(dt.getDate() - i);
+    dates.push(dt.toISOString().slice(0, 10));
+  }
+  const pvByDay = {}, uniqByDay = {};
+  (d.daily || []).forEach(row => {
+    if (row.event_type === 'pageview') { pvByDay[row.day] = row.cnt; uniqByDay[row.day] = row.uniq; }
+  });
+  const demoByDay = {}, paidByDay = {};
+  (d.shopsDaily || []).forEach(row => { demoByDay[row.day] = row.demo_created; paidByDay[row.day] = row.paid_created; });
+
+  const pv = dates.map(x => pvByDay[x] || 0);
+  const dc = dates.map(x => demoByDay[x] || 0);
+  const pc = dates.map(x => paidByDay[x] || 0);
+  const maxPv = Math.max(1, ...pv);
+  const maxDc = Math.max(1, ...dc);
+  const maxPc = Math.max(1, ...pc);
+
+  // ── SVG chart: 3 stacked lanes per day — Pageviews (bar), Demo (bar), Paid (bar) ──
+  const colW = days > 45 ? 14 : days > 20 ? 22 : 34;
+  const W = dates.length * colW + 20;
+  const laneH = 78, laneGap = 8, demoLaneH = 16, paidLaneH = 16;
+  const H = laneH + laneGap + demoLaneH + laneGap + paidLaneH + 20;
+  const showEvery = days > 45 ? 7 : days > 20 ? 3 : 1;
+
+  let bars = '';
+  dates.forEach((day, i) => {
+    const x = 10 + i * colW;
+    const bw = Math.max(4, colW - 6);
+    const pvH = Math.round((pv[i] / maxPv) * (laneH - 4));
+    const dcH = Math.round((dc[i] / maxDc) * (demoLaneH - 2));
+    const pcH = Math.round((pc[i] / maxPc) * (paidLaneH - 2));
+    const title = `${day}: ${pv[i]} views, ${dc[i]} demo, ${pc[i]} paid`;
+    bars += `<g><title>${esc(title)}</title>
+      <rect x="${x}" y="${laneH - pvH}" width="${bw}" height="${Math.max(1,pvH)}" rx="2" fill="#ffd22e"></rect>
+      <rect x="${x}" y="${laneH+laneGap+demoLaneH-dcH}" width="${bw}" height="${Math.max(1,dcH)}" rx="2" fill="#0f766e"></rect>
+      <rect x="${x}" y="${laneH+laneGap+demoLaneH+laneGap+paidLaneH-pcH}" width="${bw}" height="${Math.max(1,pcH)}" rx="2" fill="#ff2e63"></rect>
+    </g>`;
+    if (i % showEvery === 0 || i === dates.length - 1) {
+      const lbl = day.slice(5).replace('-', '/');
+      bars += `<text x="${x + bw/2}" y="${H - 4}" font-size="8.5" fill="#9b9690" text-anchor="middle">${lbl}</text>`;
+    }
+  });
+
+  document.getElementById('anChart').innerHTML =
+    `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block;min-width:${W}px;">${bars}</svg>`;
+
+  // ── Summary cards ──
+  const tot = k => (d.totals || []).find(t => t.event_type === k) || { cnt: 0, uniq: 0 };
+  const pageviews = tot('pageview'), demoClk = tot('demo_click'), regClk = tot('register_click');
+  const totalDemo = (d.shopsDaily || []).reduce((n, r) => n + (r.demo_created || 0), 0);
+  const totalPaidCreated = (d.shopsDaily || []).reduce((n, r) => n + (r.paid_created || 0), 0);
+  const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0;
+
+  const card = (v, l, c) => `<div style="background:${c[0]};border:1.5px solid ${c[1]};border-radius:13px;padding:12px 14px;">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:${c[2]};">${v}</div>
+    <div style="font-size:10.5px;font-weight:700;color:${c[2]};line-height:1.4;">${l}</div></div>`;
+
+  document.getElementById('anSummary').innerHTML =
+    card(pageviews.cnt, `Pageviews (${pageviews.uniq} unique)`, ['#fff9ec', '#f0e2ba', '#8a6d1f']) +
+    card(`${demoClk.cnt} → ${totalDemo}`, `Demo Click → Demo Bana (${pct(totalDemo, demoClk.cnt)}%)`, ['#f0fdfa', '#99f6e4', '#0f766e']) +
+    card(`${regClk.cnt} → ${totalPaidCreated}`, `Register Click → Paid (${pct(totalPaidCreated, regClk.cnt)}%)`, ['#fef2f2', '#fecaca', '#991b1b']) +
+    card(totalPaidCreated, `Total Paid Shops (${days} din)`, ['#f0fdf4', '#bbf7d0', '#166534']);
+
+  // ── Traffic source ──
+  const src = document.getElementById('anSource');
+  if (d.bySource && d.bySource.length) {
+    const totalSrc = d.bySource.reduce((n, s) => n + s.cnt, 0) || 1;
+    src.innerHTML = d.bySource.map(s => `<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #ece7e0;">
+      <span>${esc(s.source)}</span><b>${s.cnt} <span style="color:#9b9690;font-weight:600;">(${pct(s.cnt, totalSrc)}%)</span></b></div>`).join('');
+  } else {
+    src.innerHTML = '<p style="color:#9b9690;">Koi utm_source track nahi hua — video link me ?utm_source=yt jodo taaki pata chale kitna traffic wahan se aata hai.</p>';
+  }
+
+  // ── Click breakdown ──
+  const clk = document.getElementById('anClicks');
+  const clickTypes = [['demo_click', '🎯 Demo Try'], ['register_click', '🚀 Register'], ['inquiry_click', '💼 Business Inquiry'], ['guide_click', '🧭 How to Setup'], ['agent_click', '🤝 Agent']];
+  clk.innerHTML = clickTypes.map(([k, l]) => {
+    const t = tot(k);
+    return `<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px dashed #ece7e0;"><span>${l}</span><b>${t.cnt}</b></div>`;
+  }).join('');
+}
+
 async function loadAgents() {
   const box = document.getElementById('agentsList');
   if (!box) return;
@@ -1072,6 +1219,7 @@ async function loadPanel() {
   loadWithdrawals();
   loadDemos();
   loadAgents();
+  loadAnalytics();
   loadDemoConfig();
   loadCloudinaryStatus();
   loadDbCounts();
@@ -1670,7 +1818,7 @@ async function deletePendingShop(shopId, name){
 
 
 // ===== SIDEBAR NAV =====
-const PAGE_TITLES = {overview:'Overview', shops:'Shops', demos:'Demo Accounts', agents:'Agents', withdrawals:'Withdrawals', agent:'Agent Software', pricing:'Setup Fee'};
+const PAGE_TITLES = {overview:'Overview', shops:'Shops', demos:'Demo Accounts', agents:'Agents', withdrawals:'Withdrawals', agent:'Agent Software', pricing:'Setup Fee', analytics:'Analytics'};
 function navTo(sect, btn){
   document.querySelectorAll('[data-sect]').forEach(el=>el.classList.toggle('show', el.getAttribute('data-sect')===sect));
   document.querySelectorAll('.nav-it[data-nav]').forEach(n=>n.classList.toggle('active', n.getAttribute('data-nav')===sect));

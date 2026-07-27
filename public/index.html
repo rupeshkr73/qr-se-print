@@ -2887,6 +2887,47 @@ function sendInq(via){
     .catch(function(){});
 })();
 
+/* ── Analytics — first-party, purane kisi bhi function ko chhue bina.
+   Sirf clicks OBSERVE karta hai (event delegation), kisi existing
+   onclick/handler ko override ya replace nahi karta — isliye 100% safe. ── */
+(function(){
+  var VID_KEY='qrsp_vid';
+  var visitorId=function(){
+    try{
+      var v=localStorage.getItem(VID_KEY);
+      if(!v){ v='v_'+Date.now().toString(36)+Math.random().toString(36).slice(2,10); localStorage.setItem(VID_KEY,v); }
+      return v;
+    }catch(e){ return ''; }
+  }();
+  var qp=function(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } };
+  var REF=qp('ref'), UTM=qp('utm_source');
+
+  var track=function(eventType){
+    try{
+      var body=JSON.stringify({event_type:eventType, path:location.pathname, ref:REF, utm_source:UTM, visitor_id:visitorId});
+      if(navigator.sendBeacon){
+        navigator.sendBeacon('/api/track', new Blob([body],{type:'application/json'}));
+      } else {
+        fetch('/api/track',{method:'POST',headers:{'Content-Type':'application/json'},body:body,keepalive:true}).catch(function(){});
+      }
+    }catch(e){}
+  };
+
+  // Pageview — ek hi baar page load par
+  track('pageview');
+
+  // CTA clicks — sirf observe karta hai, kisi handler ko rokta ya badalta nahi
+  document.addEventListener('click', function(e){
+    var t=e.target;
+    if(!t || !t.closest) return;
+    if(t.closest('[onclick*="openDemoModal"]')) track('demo_click');
+    else if(t.closest('a[href^="/register"]')) track('register_click');
+    else if(t.closest('[onclick*="openInq"]')) track('inquiry_click');
+    else if(t.closest('a[href="#guide"]')) track('guide_click');
+    else if(t.closest('a[href="/agent"]')) track('agent_click');
+  }, true);
+})();
+
 /* ── Legal pages (Disclaimer / Terms / Privacy / Refund) ── */
 var LEGAL_PAGES={disclaimer:'disclaimerPage',terms:'termsPage',privacy:'privacyPage',refund:'refundPage',guide:'setupGuidePage'};
 function openLegal(key){
