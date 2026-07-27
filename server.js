@@ -2852,6 +2852,129 @@ app.get('/api/admin/jobs', verifyToken, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// ══════════════════════════════════════════════════════════════
+// DIRECT UPLOAD — Customer → Cloudinary (Render ko file chhuti hi nahi)
+//
+// Purana flow: Customer → Render → Cloudinary. 10 MB file par Render ko
+// 10 MB receive + ~13 MB bhejna padta tha (base64 33% bada kar deta hai)
+// = ~23 MB per file. Render ka 5 GB isi me udd raha tha.
+//
+// Naya flow: Render sirf ek signature deta hai (~200 bytes), customer
+// seedha Cloudinary ko file bhejta hai, phir Render ko sirf public_id
+// aata hai (~300 bytes). Bandwidth ~99% bach jaata hai.
+//
+// Security: signature ke saath ek HMAC token bhi jaata hai. Confirm par
+// wahi token match hona chahiye AUR Cloudinary se confirm hona chahiye ki
+// file sach me wahan hai — warna koi jhoota public_id bhej kar bina file
+// ke job bana sakta tha.
+// ══════════════════════════════════════════════════════════════
+function uploadTokenFor(shopId, publicId) {
+  return crypto.createHmac('sha256', JWT_SECRET)
+    .update(`${shopId}|${publicId}`).digest('hex').slice(0, 32);
+}
+
+app.post('/api/upload/sign', async (req, res) => {
+  try {
+    const shopId = String(req.body.shopId || '').trim();
+    if (!shopId) return res.status(400).json({ error: 'Shop ID required' });
+    if (!CLOUD_NAME || !CLD_API_KEY || !CLD_API_SECRET) {
+      return res.status(500).json({ error: 'Cloudinary configure nahi hai' });
+    }
+    const s = await pool.query('SELECT id FROM shops WHERE id=$1', [shopId]);
+    if (!s.rows.length) return res.status(404).json({ error: 'Shop not found' });
+
+    const timestamp = Math.round(Date.now() / 1000);
+    const publicId = 'qrprint_' + uuidv4().substring(0, 8);
+    const signature = crypto.createHash('sha256')
+      .update(`public_id=${publicId}&timestamp=${timestamp}${CLD_API_SECRET}`).digest('hex');
+
+    res.json({
+      success: true, cloudName: CLOUD_NAME, apiKey: CLD_API_KEY,
+      timestamp, publicId, signature,
+      uploadUrl: `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`,
+      uploadToken: uploadTokenFor(shopId, publicId)
+    });
+  } catch(err) {
+    console.error('Upload sign error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Cloudinary se confirm karo ki file sach me wahan hai (aur uska asli URL lo)
+function cloudinaryResourceInfo(publicId) {
+  return new Promise((resolve, reject) => {
+    const r = https.request({
+      hostname: 'api.cloudinary.com',
+      path: `/v1_1/${CLOUD_NAME}/resources/raw/upload/${encodeURIComponent(publicId)}`,
+      method: 'GET',
+      headers: { 'Authorization': 'Basic ' + Buffer.from(`${CLD_API_KEY}:${CLD_API_SECRET}`).toString('base64') }
+    }, (resp) => {
+      let data = '';
+      resp.on('data', c => data += c);
+      resp.on('end', () => {
+        try {
+          const j = JSON.parse(data);
+          if (resp.statusCode !== 200) return reject(new Error(j?.error?.message || 'File Cloudinary par nahi mili'));
+          resolve(j);
+        } catch(e) { reject(e); }
+      });
+    });
+    r.on('error', reject);
+    r.setTimeout(15000, () => { r.destroy(); reject(new Error('Cloudinary timeout')); });
+    r.end();
+  });
+}
+
+app.post('/api/upload/confirm', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const shopId = String(b.shopId || '').trim();
+    const publicId = String(b.publicId || '').trim();
+    const token = String(b.uploadToken || '').trim();
+    if (!shopId || !publicId) return res.status(400).json({ error: 'shopId aur publicId chahiye' });
+
+    // 1) Token match — ye public_id humne hi is shop ke liye issue kiya tha?
+    if (token !== uploadTokenFor(shopId, publicId)) {
+      return res.status(403).json({ error: 'Upload token match nahi hua' });
+    }
+
+    const shopResult = await pool.query('SELECT * FROM shops WHERE id=$1', [shopId]);
+    if (!shopResult.rows.length) return res.status(404).json({ error: 'Shop not found' });
+    const shop = shopResult.rows[0];
+
+    // 2) Cloudinary se confirm — file sach me hai? URL bhi WAHIN se lo,
+    //    client ka bheja hua URL kabhi trust mat karo.
+    const info = await cloudinaryResourceInfo(publicId);
+    const fileUrl = info.secure_url || info.url;
+    if (!fileUrl) return res.status(400).json({ error: 'Cloudinary se file URL nahi mila' });
+
+    const jobId = 'JOB_' + uuidv4().substring(0, 10).toUpperCase();
+    const fileName = String(b.fileName || 'document.pdf').slice(0, 200);
+    const fileType = (path.extname(fileName).replace('.', '').toLowerCase()) || 'pdf';
+    const numCopies = parseInt(b.copies) || 1;
+    const numPages = parseInt(b.totalPages) || 1;
+    const colorMode = b.colorMode === 'color' ? 'color' : 'bw';
+    const pricePerPage = colorMode === 'color' ? shop.price_color : shop.price_bw;
+    const amount = pricePerPage * numPages * numCopies;
+
+    await pool.query(
+      'INSERT INTO print_jobs (id,shop_id,file_name,file_url,file_public_id,file_type,total_pages,copies,color_mode,amount,paper_size,orientation,service,photo_count) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)',
+      [jobId, shopId, fileName, fileUrl, publicId, fileType, numPages, numCopies, colorMode, amount,
+       ['4x6','a4','a5','letter','legal','a3','a2','a1'].includes(b.paperSize) ? b.paperSize : 'a4',
+       ['portrait','landscape'].includes(b.orientation) ? b.orientation : 'portrait',
+       ['doc','resume','photo4x6'].includes(b.service) ? b.service : 'doc',
+       [4,6].includes(parseInt(b.photoCount)) ? parseInt(b.photoCount) : 0]
+    );
+    console.log(`Direct upload confirmed: ${jobId} (${info.bytes || '?'} bytes, Render se nahi guzri)`);
+    res.json({ success: true, jobId, fileName, fileType, amount,
+      copies: numCopies, totalPages: numPages, colorMode });
+  } catch(err) {
+    console.error('Upload confirm error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Purana upload (fallback) — direct upload fail ho to isse kaam chalta rahe ──
 app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error:'No file uploaded' });
