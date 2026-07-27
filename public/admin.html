@@ -1560,7 +1560,7 @@ function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;',
 
 async function loadAdminBroadcast() {
   try {
-    const r = await fetch('/api/admin-broadcast');
+    const r = await fetch('/api/admin-broadcast' + (currentShop && currentShop.id ? '?shopId=' + encodeURIComponent(currentShop.id) : ''));
     const d = await r.json();
     const card = document.getElementById('adminBroadcastCard');
     const txt = document.getElementById('adminBroadcastText');
@@ -1732,7 +1732,7 @@ function resetAdvBtn() {
   if (btn) {
     btn.disabled = false;
     const fee = document.querySelector('.advFeeVal')?.textContent || '199';
-    btn.innerHTML = '🔓 Pay ₹<span class="advFeeVal" id="advFeeAmt">' + fee + '</span> — Abhi Unlock Karo';
+    btn.innerHTML = '🔓 Pay ₹<span class="advFeeVal">' + fee + '</span> — Abhi Unlock Karo';
   }
 }
 
@@ -2023,7 +2023,7 @@ function goUpgrade(plan) {
 }
 
 // ===== SUPPORT =====
-const SUPPORT_WA = '918404832414';
+let SUPPORT_WA = '918404832414';   // white-label shop ho to partner ka number lag jaata hai
 function initSupport(shop) {
   // Demo shops ko Support tab NAHI — sirf paid owners
   const nav = document.getElementById('navSupport');
@@ -2036,6 +2036,24 @@ function initSupport(shop) {
   if (dsId && shop) dsId.value = shop.id;
   const idField = document.getElementById('supShopId');
   if (idField && shop) idField.value = shop.id;
+
+  // White-label shop — support par PARTNER ka WhatsApp/email dikhega, hamara nahi
+  if (shop && shop.wl_support_phone) {
+    const digits = String(shop.wl_support_phone).replace(/\D/g, '');
+    if (digits.length === 10) SUPPORT_WA = '91' + digits;
+    else if (digits.length >= 11) SUPPORT_WA = digits;
+    const pretty = '📞 ' + String(shop.wl_support_phone).replace(/(\d{5})(\d{5})/, '$1 $2');
+    document.querySelectorAll('a[href^="https://wa.me/918404832414"]').forEach(a => {
+      a.setAttribute('href', 'https://wa.me/' + SUPPORT_WA);
+      a.textContent = pretty;
+    });
+  }
+  if (shop && shop.wl_support_email) {
+    document.querySelectorAll('a[href^="mailto:mahatonetcafe@gmail.com"]').forEach(a => {
+      a.setAttribute('href', 'mailto:' + shop.wl_support_email);
+      a.textContent = '📧 ' + shop.wl_support_email;
+    });
+  }
 }
 function copySupShopId() {
   const v = document.getElementById('supShopId').value;
