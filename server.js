@@ -2952,26 +2952,29 @@ app.post('/api/upload/confirm', async (req, res) => {
     if (!shopResult.rows.length) return res.status(404).json({ error: 'Shop not found' });
     const shop = shopResult.rows[0];
 
-    // 3) Cloudinary se confirm — file sach me hai? URL bhi WAHIN se lo.
-    //    Admin API kabhi-kabhi der karta hai (indexing), isliye fail hone par
-    //    client ka URL use karte hain — par sirf tab jab wo HAMARE cloud ka ho
-    //    AUR usme wahi public_id ho. Warna koi bhi URL daal sakta tha.
-    let fileUrl = '';
+    // 3) File ka URL.
+    //    Security pehle hi ho chuki hai: HMAC token proof hai ki ye public_id
+    //    HUMNE isi shop ke liye issue kiya tha, aur public_id prefix bhi match
+    //    kar chuka hai. Isliye URL banane ke liye Cloudinary se poochna
+    //    ZAROORI nahi — aur wahi Admin API call 500 de raha tha.
+    //
+    //    Rasta: URL client se lo par crypto-validate karo; na mile to khud
+    //    bana lo (raw upload ka URL format fixed hai). Cloudinary se verify
+    //    sirf "best effort" — fail ho to bhi job banega (file sach me na hui
+    //    to agent download par pata chal jayega aur job fail ho jayega).
+    let fileUrl = String(b.secureUrl || '').trim();
+    const okHost = fileUrl.startsWith(`https://res.cloudinary.com/${CLOUD_NAME}/`);
+    if (!fileUrl || !okHost || !fileUrl.includes(signedPublicId)) {
+      // Purana client ho ya URL galat — khud bana lo (deterministic)
+      fileUrl = `https://res.cloudinary.com/${CLOUD_NAME}/raw/upload/${publicId}`;
+    }
+
     try {
       const info = await cloudinaryResourceInfo(publicId);
-      fileUrl = info.secure_url || info.url || '';
+      if (info && (info.secure_url || info.url)) fileUrl = info.secure_url || info.url;
     } catch (e) {
-      const claimed = String(b.secureUrl || '').trim();
-      const okHost = claimed.startsWith(`https://res.cloudinary.com/${CLOUD_NAME}/`);
-      if (okHost && claimed.includes(signedPublicId)) {
-        fileUrl = claimed;
-        console.warn(`Cloudinary lookup fail (${e.message}) — client URL use kar rahe hain: ${publicId}`);
-      } else {
-        console.error(`Cloudinary lookup fail aur client URL bhi galat: ${e.message}`);
-        return res.status(400).json({ error: 'File Cloudinary par verify nahi hui' });
-      }
+      console.warn(`Cloudinary verify skip (${e.message}) — URL khud bana liya: ${publicId}`);
     }
-    if (!fileUrl) return res.status(400).json({ error: 'Cloudinary se file URL nahi mila' });
 
     const jobId = 'JOB_' + uuidv4().substring(0, 10).toUpperCase();
     const fileName = String(b.fileName || 'document.pdf').slice(0, 200);
