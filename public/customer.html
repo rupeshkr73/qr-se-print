@@ -2223,10 +2223,17 @@ async function uploadDirect(blob, fileName) {
   if (!cr.ok || !cd.public_id) throw new Error(cd?.error?.message || 'Cloudinary upload fail');
 
   // 3) Server ko sirf details bhejo (file nahi)
+  // Cloudinary raw upload par public_id me extension jud jaata hai
+  // (qrprint_abc -> qrprint_abc.pdf). Isliye dono bhejte hain:
+  // signedPublicId = jo server ne sign kiya, publicId = jo Cloudinary ne diya.
   const conf = await fetch('/api/upload/confirm', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      shopId, publicId: cd.public_id, uploadToken: sig.uploadToken, fileName,
+      shopId,
+      publicId: cd.public_id,
+      signedPublicId: sig.publicId,
+      secureUrl: cd.secure_url || cd.url || '',
+      uploadToken: sig.uploadToken, fileName,
       copies: state.copies, colorMode: state.colorMode, totalPages: pages.length,
       paperSize: state.paperSize, orientation: state.orientation,
       service: state.service || 'doc', photoCount: state.photoCount || 0
