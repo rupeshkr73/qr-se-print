@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>White Label — Apne Brand Se Becho | QR Se Print</title>
+<meta name="description" content="QR Se Print ka white label license lo — apna brand, apna logo, apna Razorpay, apna price. Shops ka poora paisa seedha aapke account me. qrseprint.in">
+<link rel="canonical" href="https://qrseprint.in/whitelabel">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏷️</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --ink:#111114;--muted:#6b7280;--yellow:#ffd22e;--pink:#ff2e63;
+  --paper:#fffdf8;--tint:#fff9ec;--line:#ece3d2;--card:#fff;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+body{
+  font-family:'Inter',sans-serif;background:var(--paper);color:var(--ink);
+  line-height:1.6;-webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(520px circle at 12% -5%,rgba(255,210,46,.14),transparent 60%),
+                   radial-gradient(460px circle at 92% 8%,rgba(255,46,99,.10),transparent 60%);
+  background-repeat:no-repeat;
+  padding-bottom:calc(40px + env(safe-area-inset-bottom));
+}
+.head{
+  position:sticky;top:0;z-index:20;background:rgba(255,253,248,.9);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1.5px solid var(--line);
+  padding:12px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+}
+.brand{display:flex;align-items:center;gap:8px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:17px;color:var(--ink);text-decoration:none}
+.brand-mark{width:30px;height:30px;border-radius:9px;background:var(--yellow);display:flex;align-items:center;justify-content:center;font-size:15px}
+.pill{background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:9px 13px;font-size:13px;font-weight:700;color:var(--ink);text-decoration:none}
+.wrap{max-width:680px;margin:0 auto;padding:26px 20px 40px}
+
+.hero{
+  position:relative;overflow:hidden;isolation:isolate;
+  background:linear-gradient(135deg,#1a1a22,#2b1f3d 55%,#3b1230);
+  border-radius:24px;padding:32px 22px;text-align:center;color:#fff;
+  box-shadow:0 26px 60px rgba(17,17,20,.3);margin-bottom:22px;
+}
+.hero::before{content:'';position:absolute;inset:0;z-index:-1;
+  background:radial-gradient(420px circle at 15% 0%,rgba(255,210,46,.2),transparent 60%),
+             radial-gradient(380px circle at 88% 100%,rgba(255,46,99,.22),transparent 60%)}
+.tag{display:inline-flex;align-items:center;gap:7px;background:rgba(255,210,46,.16);
+  border:1.5px solid rgba(255,210,46,.5);border-radius:999px;padding:6px 14px;
+  font-size:11.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--yellow);margin-bottom:14px}
+h1{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:clamp(25px,6.4vw,36px);line-height:1.14;margin-bottom:12px}
+h1 em{font-style:normal;color:var(--yellow)}
+.amt{display:inline-block;background:var(--yellow);color:var(--ink);
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:clamp(28px,7.5vw,40px);
+  border-radius:14px;padding:7px 20px;margin:8px 0 6px;box-shadow:0 12px 28px rgba(255,210,46,.32)}
+.amt small{font-size:.42em;font-weight:700;display:block;margin-top:2px}
+.sub{font-size:13.5px;color:#cfd2da;line-height:1.75;max-width:480px;margin:10px auto 0}
+
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:20px;
+  padding:22px 20px;margin-bottom:14px;box-shadow:0 10px 30px rgba(17,17,20,.05)}
+.card h2{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:18px;margin-bottom:14px}
+.feat{display:flex;gap:12px;align-items:flex-start;margin-bottom:14px}
+.feat:last-child{margin-bottom:0}
+.feat .ico{flex:none;width:38px;height:38px;border-radius:12px;background:var(--tint);
+  border:1.5px solid #f0e2ba;display:flex;align-items:center;justify-content:center;font-size:18px}
+.feat b{display:block;font-size:14px;font-weight:800;margin-bottom:2px}
+.feat span{font-size:12.5px;color:var(--muted);line-height:1.6}
+
+label{display:block;font-size:11.5px;font-weight:800;color:#6b6870;text-transform:uppercase;letter-spacing:.3px;margin:0 0 5px}
+input{width:100%;padding:12px 13px;border:1.5px solid var(--line);border-radius:11px;
+  font-size:14px;font-family:'Inter',sans-serif;box-sizing:border-box;margin-bottom:12px;background:#fffdf8}
+input:focus{outline:none;border-color:var(--pink);box-shadow:0 0 0 4px rgba(255,46,99,.1);background:#fff}
+.slug-row{display:flex;align-items:center;gap:0;margin-bottom:6px}
+.slug-row input{margin-bottom:0;border-radius:11px 0 0 11px;border-right:none}
+.slug-suffix{background:var(--tint);border:1.5px solid var(--line);border-left:none;
+  border-radius:0 11px 11px 0;padding:12px 12px;font-size:12.5px;font-weight:700;color:#8a6d1f;white-space:nowrap}
+.hint{font-size:11px;color:var(--muted);margin:-6px 0 12px;line-height:1.55}
+.msg{display:none;border-radius:11px;padding:11px 13px;font-size:12.5px;font-weight:600;margin-bottom:12px;line-height:1.6}
+.msg.err{background:#fef2f2;border:1.5px solid #fecaca;color:#991b1b}
+.msg.ok{background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534}
+.btn{width:100%;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-weight:800;
+  font-size:15.5px;padding:15px;border-radius:15px;color:#fff;background:var(--pink);
+  box-shadow:0 14px 32px rgba(255,46,99,.34);transition:transform .18s var(--ease)}
+.btn:hover{transform:translateY(-2px)}
+.btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+
+.cta-wrap{text-align:center;margin:6px 0 18px}
+.cta-big{
+  position:relative;overflow:hidden;isolation:isolate;display:inline-flex;align-items:center;gap:11px;
+  background:linear-gradient(135deg,#ff6a35,#ff2e63 55%,#c81e4a);color:#fff;border:none;cursor:pointer;
+  font-family:'Inter',sans-serif;font-weight:800;font-size:16.5px;padding:17px 34px;border-radius:999px;
+  box-shadow:0 16px 38px rgba(255,46,99,.4);transition:transform .18s var(--ease),box-shadow .18s var(--ease);
+}
+.cta-big::after{
+  content:'';position:absolute;top:-20%;bottom:-20%;left:-60%;width:38%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.5),transparent);
+  transform:skewX(-20deg);animation:ctaShine 2.9s ease-in-out infinite;
+}
+@keyframes ctaShine{0%,60%{left:-60%}88%,100%{left:135%}}
+.cta-big:hover{transform:translateY(-3px);box-shadow:0 22px 48px rgba(255,46,99,.5)}
+.cta-big:active{transform:translateY(0) scale(.98)}
+.cta-sub{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.6}
+#formCard{display:none;animation:formIn .45s var(--ease) both}
+@keyframes formIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.steps{counter-reset:s}
+.step{display:flex;gap:13px;align-items:flex-start;margin-bottom:15px}
+.step:last-child{margin-bottom:0}
+.step .n{flex:none;width:29px;height:29px;border-radius:10px;
+  background:linear-gradient(150deg,var(--yellow),#ffb703);display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:13px;color:var(--ink);box-shadow:0 6px 14px rgba(255,183,3,.3)}
+.step b{display:block;font-size:14px;font-weight:800;margin-bottom:2px}
+.step span{font-size:12.5px;color:var(--muted);line-height:1.6}
+@media (prefers-reduced-motion:reduce){.cta-big::after{animation:none;display:none}#formCard{animation:none}}
+.done{display:none;background:linear-gradient(160deg,#f0fdf4,#dcfce7);border:1.5px solid #86efac;
+  border-radius:20px;padding:24px 20px;text-align:center}
+.done h2{color:#166534;margin-bottom:6px}
+.cred{background:#fff;border:1.5px solid #bbf7d0;border-radius:14px;padding:15px;margin:14px 0;text-align:left}
+.cred div{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px dashed #d1fae5;font-size:13px}
+.cred div:last-child{border-bottom:none}
+.cred b{font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;letter-spacing:.4px}
+.warn{background:#fffbeb;border:1.5px solid #fde68a;color:#92400e;border-radius:11px;
+  padding:11px 13px;font-size:12px;line-height:1.65;font-weight:600;margin-bottom:14px}
+.note{font-size:11.5px;color:var(--muted);line-height:1.7;text-align:center;margin-top:16px}
+.note a{color:var(--pink);font-weight:700;text-decoration:none}
+</style>
+</head>
+<body>
+
+<div class="head">
+  <a href="/" class="brand"><span class="brand-mark">🖨️</span> QR Se Print</a>
+  <a href="/wl-admin" class="pill">🔑 Partner Login</a>
+</div>
+
+<div class="wrap">
+
+  <div class="hero">
+    <span class="tag">🏷️ White Label Partner</span>
+    <h1>Apne <em>brand</em> se becho,<br>poora paisa aapka</h1>
+    <div class="amt">₹<span id="feeAmt">—</span><small>ek baar · lifetime license</small></div>
+    <p class="sub">Apna brand naam, apna logo, apna price aur <b style="color:#fff;">apna Razorpay</b>. Aapki shops ka registration fee seedha <b style="color:#fff;">aapke account</b> me aata hai — humare paas ek rupaya bhi nahi.</p>
+  </div>
+
+  <div class="card">
+    <h2>Kya-kya milta hai</h2>
+    <div class="feat"><div class="ico">🏷️</div><div><b>Apna Brand</b><span>Shop owner ko har jagah aapka naam aur logo dikhega — "Powered by" bhi aapka.</span></div></div>
+    <div class="feat"><div class="ico">💳</div><div><b>Apna Razorpay</b><span>Shops ka poora registration fee seedha aapke bank me. Koi commission nahi.</span></div></div>
+    <div class="feat"><div class="ico">🏷️</div><div><b>Apna Price</b><span>Base price se upar jo chahe rakho — poora margin aapka.</span></div></div>
+    <div class="feat"><div class="ico">📊</div><div><b>Apna Dashboard</b><span>Kitni shops, kitne demo, kitne pending — sab ek jagah.</span></div></div>
+    <div class="feat"><div class="ico">📢</div><div><b>Apna Broadcast</b><span>Sirf aapki shops ko message bhejo, unke dashboard me dikhega.</span></div></div>
+    <div class="feat"><div class="ico">🔗</div><div><b>Apna Link</b><span>Apna share link milega — usse jo bhi register kare, wo aapki shop.</span></div></div>
+  </div>
+
+  <div class="card">
+    <h2>Kaise kaam karta hai</h2>
+    <div class="steps">
+      <div class="step"><div class="n">1</div><div><b>License lo</b><span>Ek baar ka payment — uske turant baad Partner ID aur password mil jata hai.</span></div></div>
+      <div class="step"><div class="n">2</div><div><b>Apna Razorpay lagao</b><span>Panel me apni Razorpay key daalo — shops ka poora paisa seedha aapke bank me aayega.</span></div></div>
+      <div class="step"><div class="n">3</div><div><b>Brand set karo</b><span>Apna naam, logo, "Powered by", support email aur WhatsApp — sab aapka.</span></div></div>
+      <div class="step"><div class="n">4</div><div><b>Apna price rakho</b><span>Base price se upar jo chahe — poora extra aapka margin.</span></div></div>
+      <div class="step"><div class="n">5</div><div><b>Link share karo</b><span>Aapke link se jo bhi register kare, wo aapki shop. Panel me sab dikhta rahega.</span></div></div>
+    </div>
+  </div>
+
+  <div class="card" style="background:linear-gradient(150deg,#fffdf5,var(--tint));border-color:#f0e2ba;">
+    <h2>💰 Paisa kaise chalta hai</h2>
+    <div style="font-size:13px;line-height:1.9;color:#4a4f58;">
+      <div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px dashed #e5dcc4;">
+        <span>Aapka license fee</span><b style="color:var(--ink);">ek baar → hamare paas</b></div>
+      <div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px dashed #e5dcc4;">
+        <span>Shops ka registration fee</span><b style="color:#166534;">100% → aapke paas</b></div>
+      <div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;">
+        <span>Shop ke customer ka print payment</span><b style="color:var(--ink);">→ shop ke apne account me</b></div>
+    </div>
+    <p style="font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.65;">
+      Matlab license lene ke baad har shop ka poora paisa aapka — hum usme se ek rupaya nahi lete.
+    </p>
+  </div>
+
+  <div class="cta-wrap">
+    <button class="cta-big" onclick="openForm()">🏷️ Partner Banein — Register Karein ›</button>
+    <p class="cta-sub">2 minute ka form · payment ke turant baad ID aur password mil jayega</p>
+  </div>
+
+  <div class="card" id="formCard">
+    <h2>Partner Banein</h2>
+    <div class="msg err" id="errBox"></div>
+
+    <label>Brand ka naam *</label>
+    <input id="fBrand" placeholder="jaise — ABC Print Solutions" maxlength="120">
+
+    <label>Apna link (slug) *</label>
+    <div class="slug-row">
+      <input id="fSlug" placeholder="abcprint" maxlength="40">
+      <span class="slug-suffix">.qrseprint.in</span>
+    </div>
+    <p class="hint">Sirf chhote akshar, number aur dash. Ye baad me badal nahi sakta — soch kar chuno.</p>
+
+    <label>Aapka naam *</label>
+    <input id="fOwner" placeholder="Poora naam" maxlength="120">
+
+    <label>Mobile number *</label>
+    <input id="fPhone" type="tel" maxlength="10" placeholder="10 digit">
+
+    <label>Email *</label>
+    <input id="fEmail" type="email" placeholder="aapka@email.com" maxlength="160">
+
+    <div class="warn">⚠️ Payment ke baad aapko <b>Partner ID aur Password</b> milega — usse hi login hoga. Wo sirf ek baar dikhega, note kar lena.</div>
+
+    <button class="btn" id="payBtn" onclick="startPay()">💳 ₹<span id="btnAmt">—</span> Pay Karke Partner Banein</button>
+  </div>
+
+  <div class="done" id="doneCard">
+    <div style="font-size:44px;">🎉</div>
+    <h2>Partner Ban Gaye!</h2>
+    <p style="font-size:13px;color:#166534;">Ye details abhi note kar lijiye — dobara nahi dikhengi.</p>
+    <div class="cred">
+      <div><span>Partner ID</span><b id="cId">—</b></div>
+      <div><span>Password</span><b id="cPass">—</b></div>
+      <div><span>Aapka link</span><b id="cSlug" style="font-size:13px;">—</b></div>
+    </div>
+    <div class="warn">📌 Login karke sabse pehle <b>apna Razorpay</b> lagana zaroori hai — uske bina aapke link se koi shop register nahi kar payegi.</div>
+    <a href="/wl-admin" class="btn" style="display:block;text-decoration:none;text-align:center;background:#166534;box-shadow:0 14px 32px rgba(22,101,52,.3);">🔑 Ab Login Karein ›</a>
+  </div>
+
+  <p class="note">Sawal hai? <a href="/#disclaimer">Legal &amp; policies</a> · <a href="/">qrseprint.in</a></p>
+</div>
+
+<script>
+let LICENSE_FEE = 0, WL_ID = '';
+
+function openForm() {
+  const f = document.getElementById('formCard');
+  f.style.display = 'block';
+  document.querySelector('.cta-wrap').style.display = 'none';
+  setTimeout(function () {
+    f.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    const first = document.getElementById('fBrand');
+    if (first) setTimeout(function () { first.focus(); }, 380);
+  }, 40);
+}
+
+async function loadFee() {
+  try {
+    const r = await fetch('/api/whitelabel/license-fee');
+    const d = await r.json();
+    LICENSE_FEE = d.licenseFee || 0;
+    document.getElementById('feeAmt').textContent = LICENSE_FEE.toLocaleString('en-IN');
+    document.getElementById('btnAmt').textContent = LICENSE_FEE.toLocaleString('en-IN');
+  } catch (e) {}
+}
+loadFee();
+
+// slug ko live saaf karo
+document.getElementById('fSlug').addEventListener('input', function () {
+  this.value = this.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+});
+
+function showErr(m) {
+  const e = document.getElementById('errBox');
+  e.textContent = '❌ ' + m;
+  e.style.display = 'block';
+  e.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function startPay() {
+  const btn = document.getElementById('payBtn');
+  document.getElementById('errBox').style.display = 'none';
+
+  const g = id => document.getElementById(id).value.trim();
+  const body = {
+    brand_name: g('fBrand'), slug: g('fSlug'), owner_name: g('fOwner'),
+    phone: g('fPhone'), email: g('fEmail')
+  };
+  if (body.brand_name.length < 2) return showErr('Brand ka naam daalo');
+  if (body.slug.length < 3) return showErr('Slug kam se kam 3 akshar ka ho');
+  if (!body.owner_name) return showErr('Apna naam daalo');
+  if (!/^\d{10}$/.test(body.phone)) return showErr('Sahi 10 digit mobile number daalo');
+  if (!/^\S+@\S+\.\S+$/.test(body.email)) return showErr('Sahi email daalo');
+
+  btn.disabled = true; btn.textContent = 'Ruko…';
+  try {
+    // 1) Register (abhi unpaid)
+    if (!WL_ID) {
+      const r = await fetch('/api/whitelabel/register', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      });
+      const d = await r.json();
+      if (!r.ok || !d.success) throw new Error(d.error || 'Register nahi hua');
+      WL_ID = d.wlId;
+    }
+
+    // 2) Razorpay order
+    const or = await fetch('/api/whitelabel/license/create', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wlId: WL_ID })
+    });
+    const od = await or.json();
+    if (!or.ok || !od.success) throw new Error(od.error || 'Payment order nahi bana');
+
+    // 3) Checkout
+    const rzp = new Razorpay({
+      key: od.keyId, amount: od.amount, currency: 'INR',
+      name: 'QR Se Print', description: 'White Label Partner License',
+      order_id: od.orderId,
+      prefill: { name: body.owner_name, email: body.email, contact: body.phone },
+      theme: { color: '#ff2e63' },
+      handler: async function (resp) {
+        try {
+          const vr = await fetch('/api/whitelabel/license/verify', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              razorpay_order_id: resp.razorpay_order_id,
+              razorpay_payment_id: resp.razorpay_payment_id,
+              razorpay_signature: resp.razorpay_signature,
+              wlId: WL_ID
+            })
+          });
+          const vd = await vr.json();
+          if (!vr.ok || !vd.success) throw new Error(vd.error || 'Verification fail');
+          document.getElementById('cId').textContent = vd.wlId;
+          document.getElementById('cPass').textContent = vd.password || '(pehle wala hi)';
+          document.getElementById('cSlug').textContent = location.origin + '/?wl=' + vd.slug;
+          document.getElementById('formCard').style.display = 'none';
+          document.getElementById('doneCard').style.display = 'block';
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        } catch (e) { showErr(e.message); btn.disabled = false; }
+      },
+      modal: {
+        ondismiss: function () {
+          btn.disabled = false;
+          btn.innerHTML = '💳 ₹' + LICENSE_FEE.toLocaleString('en-IN') + ' Pay Karke Partner Banein';
+        }
+      }
+    });
+    rzp.open();
+    btn.innerHTML = '💳 ₹' + LICENSE_FEE.toLocaleString('en-IN') + ' Pay Karke Partner Banein';
+  } catch (e) {
+    showErr(e.message);
+    btn.disabled = false;
+    btn.innerHTML = '💳 ₹' + LICENSE_FEE.toLocaleString('en-IN') + ' Pay Karke Partner Banein';
+  }
+}
+</script>
+
+</body>
+</html>

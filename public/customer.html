@@ -487,7 +487,7 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
   </div>
 
   <div class="footer">
-    <p style="font-weight:700;color:#6b6870;">⚡ Powered by <b style="color:#ff4d1c;">QR Se Print</b></p>
+    <p style="font-weight:700;color:#6b6870;">⚡ Powered by <b style="color:#ff4d1c;" id="poweredByName">QR Se Print</b></p>
     <p style="font-size:10px;color:#b8b3aa;">© 2026 QR Se Print · All Rights Reserved<br>Developed by Rupesh Kumar Mahato</p>
   </div>
 
@@ -2568,6 +2568,25 @@ window.addEventListener('load', ()=>{
   var off = function(){ z.classList.remove('dragover'); };
   ['dragenter','dragover'].forEach(function(ev){ z.addEventListener(ev, on); });
   ['dragleave','drop'].forEach(function(ev){ z.addEventListener(ev, off); });
+})();
+</script>
+
+<script>
+/* White-label shop ho to footer me PARTNER ka naam. Shop API se aata hai;
+   na mile to default 'QR Se Print' hi rehta hai. */
+(function(){
+  var m = location.pathname.match(/\/print\/([^\/?#]+)/);
+  if (!m) return;
+  fetch('/api/shop/' + encodeURIComponent(m[1]))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d && d.powered_by) {
+        var el = document.getElementById('poweredByName');
+        if (el) el.textContent = d.powered_by;
+        document.title = d.powered_by + ' — Print';
+      }
+    })
+    .catch(function(){});
 })();
 </script>
 

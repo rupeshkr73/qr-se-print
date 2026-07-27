@@ -745,6 +745,34 @@ html{scroll-behavior:smooth}
 .nav-link:hover::after,.nav-link.active::after{transform:scaleX(1)}
 .nav-link.active{color:var(--ink);font-weight:700}
 .nav-biz{color:var(--pink);font-weight:700}
+/* 🏷️ White Label nav button — premium dark gradient + shimmer */
+.nav-wl{
+  position:relative;overflow:hidden;isolation:isolate;
+  color:#fff!important;font-weight:800;
+  background:linear-gradient(135deg,#1a1a22,#3b1230 60%,#2b1f3d);
+  box-shadow:0 8px 20px rgba(17,17,20,.28);
+  border:1.5px solid rgba(255,210,46,.35);
+}
+.nav-wl::before{
+  content:'';position:absolute;inset:0;z-index:-1;
+  background:radial-gradient(120px circle at 10% 0%,rgba(255,210,46,.28),transparent 65%);
+}
+.nav-wl::after{
+  content:'';position:absolute;top:-20%;bottom:-20%;left:-60%;width:36%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.4),transparent);
+  transform:skewX(-20deg);animation:wlShine 3.4s ease-in-out infinite;
+}
+@keyframes wlShine{0%,62%{left:-60%}90%,100%{left:135%}}
+.nav-wl:hover{background:linear-gradient(135deg,#22222c,#4a1740 60%,#352649);color:#fff!important;transform:translateY(-1px)}
+.nav-wl .wl-tag{display:inline-block;animation:wlTagPulse 3.4s ease-in-out infinite;transform-origin:center}
+@keyframes wlTagPulse{
+  0%,58%{transform:scale(1) rotate(0);filter:drop-shadow(0 0 0 rgba(255,210,46,0))}
+  70%{transform:scale(1.18) rotate(-8deg);filter:drop-shadow(0 0 7px rgba(255,210,46,.9))}
+  82%{transform:scale(1.05) rotate(3deg)}
+  92%,100%{transform:scale(1) rotate(0);filter:drop-shadow(0 0 0 rgba(255,210,46,0))}
+}
+.nav-drop .nav-wl{border-radius:12px}
+@media (prefers-reduced-motion:reduce){.nav-wl::after,.nav-wl .wl-tag{animation:none}.nav-wl::after{display:none}}
 .nav-agent{
   color:var(--ink);font-weight:800;background:var(--yellow);
   box-shadow:0 6px 16px rgba(255,210,46,.34);
@@ -1521,6 +1549,7 @@ html.legal-open,body.legal-open{overflow:hidden}
       <a href="#guide" class="nav-link nav-guide"><span class="gd-compass">🧭</span> <span data-cfg="navGuide">How to Setup</span></a>
       <a href="#disclaimer" class="nav-link" data-cfg="navDisclaimer">Disclaimer</a>
       <button type="button" class="nav-link nav-biz" onclick="openInq()" data-cfg="navBusiness">💼 Business Inquiry</button>
+      <a href="/whitelabel" class="nav-link nav-wl"><span class="wl-tag">🏷️</span> <span data-cfg="navWl">White Label</span></a>
       <a href="/agent" class="nav-link nav-agent"><span class="hs">🤝</span> <span data-cfg="navAgent">Agent</span></a>
     </nav>
     <div class="head-right">
@@ -1535,6 +1564,7 @@ html.legal-open,body.legal-open{overflow:hidden}
     <a href="#guide" class="nav-link nav-guide"><span class="gd-compass">🧭</span> <span data-cfg="navGuideM">How to Setup</span></a>
     <a href="#disclaimer" class="nav-link" data-cfg="navDisclaimerM">📄 Disclaimer</a>
     <button type="button" class="nav-link nav-biz" onclick="openInq()" data-cfg="navBusinessM">💼 Business Inquiry</button>
+    <a href="/whitelabel" class="nav-link nav-wl"><span class="wl-tag">🏷️</span> <span data-cfg="navWlM">White Label — Apne Brand Se Becho</span></a>
     <a href="/agent" class="nav-link nav-agent"><span class="hs">🤝</span> <span data-cfg="navAgentM">Become an Agent</span></a>
   </div>
 </header>
@@ -2926,6 +2956,77 @@ function sendInq(via){
     else if(t.closest('a[href="#guide"]')) track('guide_click');
     else if(t.closest('a[href="/agent"]')) track('agent_click');
   }, true);
+})();
+
+/* ── White Label branding ──
+   ?wl=slug ya subdomain se aaye ho to poori site partner ke brand me
+   badal jaati hai. Koi partner na mile to kuch nahi hota (default site). */
+(function(){
+  var qp=function(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } };
+  var slug=qp('wl');
+  var host=location.hostname.split('.');
+  var isSub = host.length>2 && host[0]!=='www';
+  if(!slug && !isSub) return;
+
+  fetch('/api/whitelabel/branding' + (slug ? '?wl='+encodeURIComponent(slug) : ''))
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d || !d.isWhitelabel) return;
+      var brand = d.brandName || '';
+      var poweredBy = d.poweredBy || brand;
+
+      // Page title
+      if(brand) document.title = brand + ' — Cyber Cafe & Print Shop ka Auto Print Software';
+
+      // Header brand
+      var bw=document.getElementById('brandWrap');
+      if(bw && brand){
+        var mark=bw.querySelector('.brand-mark');
+        bw.textContent='';
+        if(d.logoUrl){
+          var img=document.createElement('img');
+          img.src=d.logoUrl; img.alt=brand;
+          img.style.cssText='width:30px;height:30px;border-radius:9px;object-fit:cover;margin-right:8px;';
+          bw.appendChild(img);
+        } else if(mark){ bw.appendChild(mark); }
+        bw.appendChild(document.createTextNode(brand));
+      }
+
+      // Footer copyright / powered by
+      var ft=document.querySelector('[data-cfg-html="ftCopyright"]');
+      if(ft) ft.innerHTML='\u00a9 '+new Date().getFullYear()+' \u00b7 Powered By <b>'+
+        String(poweredBy).replace(/[<>]/g,'')+'</b> \u00b7 All rights reserved.';
+
+      // Footer tagline se hamara naam hatao
+      var tag=document.querySelector('[data-cfg="ftTagline"]');
+      if(tag && brand) tag.textContent='Automated cyber cafe printing network';
+
+      // Support email / phone
+      if(d.supportEmail){
+        var fe=document.getElementById('ftEmail');
+        if(fe){ fe.setAttribute('href','mailto:'+d.supportEmail); fe.textContent='\ud83d\udce7 '+d.supportEmail; }
+      }
+      if(d.supportPhone){
+        var fp=document.getElementById('ftPhone');
+        if(fp){ fp.setAttribute('href','tel:'+d.supportPhone); fp.textContent='\ud83d\udcde '+d.supportPhone; }
+      }
+
+      // Partner ki site par hamare programs ka koi matlab nahi
+      document.querySelectorAll('a[href="/agent"],a[href="/whitelabel"]').forEach(function(a){
+        a.style.display='none';
+      });
+      var ab=document.querySelector('.agent-btn');
+      if(ab && ab.parentNode) ab.parentNode.style.display='none';
+
+      // Register links me wl chalta rahe
+      if(slug){
+        document.querySelectorAll('a[href^="/register"]').forEach(function(a){
+          var h=a.getAttribute('href')||'';
+          if(h.indexOf('wl=')===-1) a.setAttribute('href', h+(h.indexOf('?')===-1?'?':'&')+'wl='+encodeURIComponent(slug));
+        });
+      }
+    })
+    .catch(function(){});
 })();
 
 /* ── Legal pages (Disclaimer / Terms / Privacy / Refund) ── */

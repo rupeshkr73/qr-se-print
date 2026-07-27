@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Partner Dashboard — White Label</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏷️</text></svg>">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --ink:#111114;--muted:#6b7280;--yellow:#ffd22e;--pink:#ff2e63;
+  --paper:#fffdf8;--tint:#fff9ec;--line:#ece3d2;--card:#fff;
+  --ease:cubic-bezier(.22,.61,.36,1);
+}
+body{font-family:'Inter',sans-serif;background:var(--paper);color:var(--ink);line-height:1.6;
+  -webkit-font-smoothing:antialiased;padding-bottom:calc(40px + env(safe-area-inset-bottom))}
+.head{position:sticky;top:0;z-index:20;background:linear-gradient(135deg,#1a1a22,#3b1230);
+  color:#fff;padding:13px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  box-shadow:0 6px 20px rgba(17,17,20,.2)}
+.head b{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;display:block;line-height:1.25}
+.head small{font-size:11px;color:#c9ccd6}
+.head button{background:rgba(255,255,255,.14);color:#fff;border:none;border-radius:10px;
+  padding:9px 13px;font-size:12.5px;font-weight:700;cursor:pointer;flex:none}
+.wrap{max-width:700px;margin:0 auto;padding:20px 18px 40px}
+.card{background:var(--card);border:1.5px solid var(--line);border-radius:18px;padding:20px 18px;
+  margin-bottom:14px;box-shadow:0 8px 26px rgba(17,17,20,.05)}
+.card h2{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:16.5px;margin-bottom:13px;
+  display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+label{display:block;font-size:11px;font-weight:800;color:#6b6870;text-transform:uppercase;letter-spacing:.3px;margin:0 0 5px}
+input,textarea{width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:11px;
+  font-size:14px;font-family:'Inter',sans-serif;box-sizing:border-box;margin-bottom:11px;background:#fffdf8}
+textarea{min-height:80px;resize:vertical}
+input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 0 4px rgba(255,46,99,.1);background:#fff}
+.btn{width:100%;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-weight:800;font-size:14.5px;
+  padding:13px;border-radius:12px;color:#fff;background:var(--ink);transition:transform .18s var(--ease)}
+.btn:hover{transform:translateY(-2px)}
+.btn.green{background:#16a34a}.btn.pink{background:var(--pink)}
+.btn:disabled{opacity:.6;cursor:not-allowed;transform:none}
+.msg{display:none;border-radius:10px;padding:10px 12px;font-size:12.5px;font-weight:600;margin-bottom:10px;line-height:1.6}
+.msg.err{background:#fef2f2;border:1.5px solid #fecaca;color:#991b1b}
+.msg.ok{background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.stat{border-radius:13px;padding:12px 14px}
+.stat b{display:block;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:21px;line-height:1.1}
+.stat span{font-size:10.5px;font-weight:700}
+.hint{font-size:11.5px;color:var(--muted);line-height:1.65;margin-top:9px}
+.warnbox{background:#fef2f2;border:1.5px solid #fecaca;color:#991b1b;border-radius:12px;
+  padding:13px 15px;font-size:12.5px;line-height:1.7;font-weight:600;margin-bottom:14px}
+.okbox{background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534;border-radius:12px;
+  padding:11px 13px;font-size:12.5px;font-weight:700;margin-bottom:12px}
+.linkrow{display:flex;gap:8px;margin-bottom:9px}
+.linkrow input{margin-bottom:0;font-size:12.5px;background:#f7f7f9}
+.linkrow button{flex:none;background:var(--ink);color:#fff;border:none;border-radius:11px;
+  padding:11px 15px;font-size:12.5px;font-weight:800;cursor:pointer}
+.shop{border:1.5px solid var(--line);border-radius:13px;padding:12px 14px;margin-bottom:9px}
+.shop-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.badge{flex:none;font-size:10.5px;font-weight:800;border-radius:999px;padding:4px 10px;white-space:nowrap}
+#login{max-width:400px;margin:60px auto;padding:0 18px}
+#panel{display:none}
+</style>
+</head>
+<body>
+
+<!-- ═══ LOGIN ═══ -->
+<div id="login">
+  <div class="card" style="text-align:center;">
+    <div style="font-size:40px;">🏷️</div>
+    <h2 style="justify-content:center;font-size:19px;margin:6px 0 4px;">Partner Login</h2>
+    <p style="font-size:12.5px;color:var(--muted);margin-bottom:16px;">White Label partner dashboard</p>
+    <div class="msg err" id="loginErr"></div>
+    <input id="lgId" placeholder="Partner ID (WL_XXXXXXXX)" style="text-align:center;font-weight:700;">
+    <input id="lgPass" type="password" placeholder="Password" style="text-align:center;">
+    <button class="btn pink" onclick="doLogin()">Login</button>
+    <p class="hint">Partner nahi ho? <a href="/whitelabel" style="color:var(--pink);font-weight:700;text-decoration:none;">Yahan register karo ›</a></p>
+  </div>
+</div>
+
+<!-- ═══ PANEL ═══ -->
+<div id="panel">
+  <div class="head">
+    <div>
+      <b id="hBrand">—</b>
+      <small id="hSub">Partner Dashboard</small>
+    </div>
+    <button onclick="logout()">🚪 Logout</button>
+  </div>
+
+  <div class="wrap">
+
+    <div id="rzpWarn" class="warnbox" style="display:none;">
+      ⚠️ <b>Razorpay abhi set nahi hai.</b><br>
+      Jab tak aap apna Razorpay nahi lagate, aapke link se koi shop register nahi kar payegi —
+      kyunki paisa kahan jaayega ye pata nahi hoga. Neeche se lagayein.
+    </div>
+
+    <!-- Stats -->
+    <div class="card">
+      <h2>📊 Overview</h2>
+      <div class="stats" id="statsBox"></div>
+      <p class="hint" id="collectedNote"></p>
+    </div>
+
+    <!-- Razorpay -->
+    <div class="card">
+      <h2>💳 Apna Razorpay</h2>
+      <div id="rzpOkBox" class="okbox" style="display:none;">✅ Razorpay set hai — shops ka paisa seedha aapke account me aayega</div>
+      <p class="hint" style="margin:0 0 12px;">
+        Aapki shops ka registration fee <b>seedha aapke Razorpay</b> me jaayega. Keys
+        razorpay.com → Settings → API Keys se milengi.
+      </p>
+      <div class="msg err" id="rzpErr"></div>
+      <div class="msg ok" id="rzpOk"></div>
+      <label>Key ID</label>
+      <input id="rKey" placeholder="rzp_live_xxxxxxxx">
+      <label>Key Secret</label>
+      <input id="rSec" type="password" placeholder="Secret key">
+      <button class="btn green" onclick="saveRzp()">💾 Razorpay Save Karo</button>
+    </div>
+
+    <!-- Price -->
+    <div class="card">
+      <h2>🏷️ Shop Registration Price</h2>
+      <p class="hint" style="margin:0 0 12px;">
+        Base price <b>₹<span id="pBase">—</span></b> hai. Isse <b>upar</b> jo chahe rakho —
+        poora extra aapka margin. Isse neeche nahi ja sakte.
+      </p>
+      <div class="msg err" id="prErr"></div>
+      <div class="msg ok" id="prOk"></div>
+      <input id="pPrice" type="number" inputmode="numeric" style="font-size:17px;font-weight:800;">
+      <button class="btn" onclick="savePrice()">Price Save Karo</button>
+    </div>
+
+    <!-- Share link -->
+    <div class="card">
+      <h2>🔗 Aapka Link</h2>
+      <p class="hint" style="margin:0 0 10px;">Is link se jo bhi register karega, wo <b>aapki shop</b> banegi aur aapka price dekhegi.</p>
+      <div class="linkrow">
+        <input id="shareLink" readonly>
+        <button onclick="copyLink()">Copy</button>
+      </div>
+      <button class="btn green" onclick="shareWA()">💬 WhatsApp par Share Karo</button>
+      <p class="hint" id="subNote"></p>
+    </div>
+
+    <!-- Branding -->
+    <div class="card">
+      <h2>🎨 Branding</h2>
+      <p class="hint" style="margin:0 0 12px;">Ye aapki shops ko aur unke customers ko dikhega — humara naam kahin nahi aayega.</p>
+      <div class="msg err" id="brErr"></div>
+      <div class="msg ok" id="brOk"></div>
+      <label>Brand ka naam</label>
+      <input id="bBrand" maxlength="120">
+      <label>"Powered by" me kya likhe</label>
+      <input id="bPowered" maxlength="160" placeholder="jaise — ABC Print Solutions">
+      <label>Logo URL (optional)</label>
+      <input id="bLogo" maxlength="400" placeholder="https://...">
+      <label>Support Email</label>
+      <input id="bEmail" type="email" maxlength="160">
+      <label>Support Mobile</label>
+      <input id="bPhone" type="tel" maxlength="10">
+      <button class="btn green" onclick="saveBranding()">💾 Branding Save Karo</button>
+    </div>
+
+    <!-- Broadcast -->
+    <div class="card">
+      <h2>📢 Broadcast</h2>
+      <p class="hint" style="margin:0 0 12px;">Ye message <b>sirf aapki shops</b> ke dashboard me dikhega. Khaali karke save karo to hat jaayega.</p>
+      <div class="msg ok" id="bcOk"></div>
+      <textarea id="bcMsg" maxlength="1000" placeholder="jaise — Diwali offer: aaj se 20% off"></textarea>
+      <button class="btn" onclick="saveBroadcast()">📢 Bhejo</button>
+    </div>
+
+    <!-- Shops -->
+    <div class="card">
+      <h2>🏪 Meri Shops <button onclick="loadShops()" style="background:#f3f4f6;color:#4b5563;border:none;border-radius:9px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">↻ Refresh</button></h2>
+      <div id="shopsBox" style="font-size:13px;color:var(--muted);">Loading…</div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+let TOKEN = localStorage.getItem('qrsp_wl_token') || '';
+let ME = null;
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function show(id, msg, kind) {
+  const e = $(id); if (!e) return;
+  e.textContent = msg; e.className = 'msg ' + (kind || 'ok');
+  e.style.display = msg ? 'block' : 'none';
+  if (msg) setTimeout(() => { e.style.display = 'none'; }, 5000);
+}
+function api(path, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({ 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN }, opts.headers || {});
+  return fetch(path, opts).then(async r => {
+    const d = await r.json().catch(() => ({}));
+    if (r.status === 401) { logout(); throw new Error('Session khatam — dobara login karo'); }
+    if (!r.ok) throw new Error(d.error || 'Kuch galat hua');
+    return d;
+  });
+}
+
+async function doLogin() {
+  const id = $('lgId').value.trim(), pass = $('lgPass').value;
+  if (!id || !pass) return show('loginErr', '❌ ID aur password dono daalo', 'err');
+  try {
+    const r = await fetch('/api/whitelabel/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wlId: id, password: pass })
+    });
+    const d = await r.json();
+    if (!r.ok || !d.success) throw new Error(d.error || 'Login fail');
+    TOKEN = d.token;
+    localStorage.setItem('qrsp_wl_token', TOKEN);
+    boot();
+  } catch (e) { show('loginErr', '❌ ' + e.message, 'err'); }
+}
+function logout() {
+  TOKEN = ''; localStorage.removeItem('qrsp_wl_token');
+  $('login').style.display = 'block'; $('panel').style.display = 'none';
+}
+
+async function boot() {
+  if (!TOKEN) { $('login').style.display = 'block'; $('panel').style.display = 'none'; return; }
+  try {
+    ME = await api('/api/whitelabel/me');
+    $('login').style.display = 'none';
+    $('panel').style.display = 'block';
+
+    $('hBrand').textContent = ME.brandName || 'Partner';
+    $('hSub').textContent = ME.id + ' · ' + ME.slug;
+
+    const s = ME.stats || {};
+    $('statsBox').innerHTML =
+      stat(s.paid || 0, 'Paid shops', ['#f0fdf4','#bbf7d0','#166534']) +
+      stat(s.pending || 0, 'Payment pending', ['#fffbeb','#fde68a','#92400e']) +
+      stat(s.demo || 0, 'Demo', ['#f5f3ff','#ddd6fe','#5b21b6']) +
+      stat('₹' + (ME.collected || 0).toLocaleString('en-IN'), 'Total collected', ['#fff9ec','#f0e2ba','#8a6d1f']);
+    $('collectedNote').textContent = 'Total collected = aapki paid shops ne jo diya, wo seedha aapke Razorpay me gaya hai.';
+
+    $('rzpWarn').style.display = ME.razorpayReady ? 'none' : 'block';
+    $('rzpOkBox').style.display = ME.razorpayReady ? 'block' : 'none';
+    $('rKey').value = ME.razorpayKeyId || '';
+
+    $('pBase').textContent = ME.basePrice || 0;
+    $('pPrice').value = ME.shopPrice || ME.basePrice || 0;
+
+    $('shareLink').value = ME.shareLink || '';
+    $('subNote').innerHTML = 'Subdomain link: <b>' + esc(ME.subdomainLink || '') + '</b> — ye tabhi chalega jab admin DNS set kar de. Tab tak upar wala link use karo.';
+
+    $('bBrand').value = ME.brandName || '';
+    $('bPowered').value = ME.poweredBy || '';
+    $('bLogo').value = ME.logoUrl || '';
+    $('bEmail').value = ME.supportEmail || '';
+    $('bPhone').value = ME.supportPhone || '';
+    $('bcMsg').value = ME.broadcast || '';
+
+    loadShops();
+  } catch (e) {
+    $('login').style.display = 'block'; $('panel').style.display = 'none';
+    show('loginErr', '❌ ' + e.message, 'err');
+  }
+}
+function stat(v, l, c) {
+  return `<div class="stat" style="background:${c[0]};border:1.5px solid ${c[1]};">
+    <b style="color:${c[2]};">${v}</b><span style="color:${c[2]};">${l}</span></div>`;
+}
+
+async function saveRzp() {
+  try {
+    await api('/api/whitelabel/razorpay', { method: 'PUT', body: JSON.stringify({
+      razorpay_key_id: $('rKey').value, razorpay_key_secret: $('rSec').value }) });
+    show('rzpOk', '✅ Razorpay save ho gaya — ab aapke link se shops register kar sakti hain', 'ok');
+    $('rSec').value = '';
+    boot();
+  } catch (e) { show('rzpErr', '❌ ' + e.message, 'err'); }
+}
+async function savePrice() {
+  try {
+    const d = await api('/api/whitelabel/price', { method: 'PUT', body: JSON.stringify({ price: parseInt($('pPrice').value, 10) }) });
+    show('prOk', `✅ Price ₹${d.price} set — aapka margin ₹${d.price - d.base} per shop`, 'ok');
+    if (ME) ME.shopPrice = d.price;
+  } catch (e) { show('prErr', '❌ ' + e.message, 'err'); }
+}
+async function saveBranding() {
+  try {
+    await api('/api/whitelabel/branding', { method: 'PUT', body: JSON.stringify({
+      brand_name: $('bBrand').value, powered_by: $('bPowered').value, logo_url: $('bLogo').value,
+      support_email: $('bEmail').value, support_phone: $('bPhone').value }) });
+    show('brOk', '✅ Branding save ho gayi', 'ok');
+    boot();
+  } catch (e) { show('brErr', '❌ ' + e.message, 'err'); }
+}
+async function saveBroadcast() {
+  try {
+    await api('/api/whitelabel/broadcast', { method: 'PUT', body: JSON.stringify({ message: $('bcMsg').value }) });
+    show('bcOk', $('bcMsg').value.trim() ? '✅ Message aapki shops ko dikhne laga' : '✅ Message hata diya', 'ok');
+  } catch (e) { show('bcOk', '❌ ' + e.message, 'err'); }
+}
+function copyLink() {
+  const el = $('shareLink'); el.select();
+  try { document.execCommand('copy'); alert('✅ Link copy ho gaya'); } catch (e) {}
+}
+function shareWA() {
+  if (!ME) return;
+  const price = ME.shopPrice || ME.basePrice || 0;
+  const brand = ME.brandName || 'Print Software';
+  const msg = `🖨️ *${brand}* — cyber cafe ke liye automatic print software\n\n` +
+    `Dukaan me QR chipkao — customer apne phone se scan karke file bhejta hai, payment karta hai, ` +
+    `aur print aapke printer se KHUD nikal jata hai.\n\n` +
+    `✅ 0% commission — paisa seedha aapke account me\n✅ Unlimited print\n✅ Na WhatsApp pe file mangna, na pendrive ka virus\n\n` +
+    `💰 Setup: ₹${price} (one-time)\n\n👉 ${ME.shareLink}`;
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank', 'noopener');
+}
+
+async function loadShops() {
+  const box = $('shopsBox');
+  box.textContent = 'Loading…';
+  try {
+    const d = await api('/api/whitelabel/shops');
+    if (!d.shops || !d.shops.length) {
+      box.innerHTML = '<p style="color:var(--muted);">Abhi koi shop nahi. Apna link share karo.</p>';
+      return;
+    }
+    box.innerHTML = d.shops.map(s => {
+      const st = s.demo ? ['🎯 Demo', '#ede9fe', '#5b21b6']
+               : s.setup_paid ? ['✅ Paid', '#dcfce7', '#166534']
+               : ['⏳ Pending', '#fef3c7', '#92400e'];
+      const online = s.agent_last_seen && (Date.now() - new Date(s.agent_last_seen).getTime()) < 120000;
+      return `<div class="shop">
+        <div class="shop-top">
+          <div style="min-width:0;">
+            <b style="font-size:14px;">${esc(s.name || '—')}</b>
+            <div style="font-size:11.5px;color:var(--muted);margin-top:2px;">${esc(s.id)} · 📱 ${esc(s.phone || '-')}</div>
+          </div>
+          <span class="badge" style="background:${st[1]};color:${st[2]};">${st[0]}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:10px;margin-top:8px;font-size:12px;color:var(--muted);">
+          <span>₹${s.setup_amount || 0}</span>
+          <span>${online ? '🟢 Agent online' : '🔴 Agent offline'}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) { box.innerHTML = '<p style="color:#c22;">Load nahi hua</p>'; }
+}
+
+boot();
+</script>
+
+</body>
+</html>

@@ -203,6 +203,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <button class="nav-it" data-nav="demos"       onclick="navTo('demos',this)"><span class="ico">🎯</span> Demo Accounts</button>
     <button class="nav-it" data-nav="agents"      onclick="navTo('agents',this)"><span class="ico">💼</span> Agents</button>
     <button class="nav-it" data-nav="analytics"   onclick="navTo('analytics',this)"><span class="ico">📊</span> Analytics</button>
+    <button class="nav-it" data-nav="whitelabel"  onclick="navTo('whitelabel',this)"><span class="ico">🏷️</span> White Label</button>
     <button class="nav-it" data-nav="withdrawals" onclick="navTo('withdrawals',this)"><span class="ico">💸</span> Withdrawals</button>
     <button class="nav-it" data-nav="agent"       onclick="navTo('agent',this)"><span class="ico">🔄</span> Agent Software</button>
     <button class="nav-it" data-nav="pricing"     onclick="navTo('pricing',this)"><span class="ico">💰</span> Setup Fee</button>
@@ -432,6 +433,25 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         <div id="agentBasePreviewLine" style="margin-top:10px;font-size:12px;color:#9aa0ab;"></div>
       </div>
 
+      <!-- White Label pricing -->
+      <div style="background:linear-gradient(135deg,#2b1f3d,#3b1230);border-radius:16px;padding:16px 17px;margin-bottom:16px;">
+        <label style="font-size:12.5px;font-weight:800;color:#ffd22e;display:block;margin-bottom:6px;">🏷️ White Label</label>
+        <p style="font-size:11.5px;color:#c9ccd6;line-height:1.65;margin-bottom:11px;">
+          <b style="color:#fff;">License Fee</b> = partner banne ke liye ek baar ka charge (ye paisa hamare paas aata hai).<br>
+          <b style="color:#fff;">Base Price</b> = partner apni shops ko isse neeche nahi bech sakta. 0 = normal Offer Price.
+        </p>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div>
+            <label style="font-size:10.5px;color:#c9ccd6;">License Fee (₹)</label>
+            <input type="number" id="wlLicenseFeeInput" min="1" style="width:100%;padding:11px 13px;border:1.5px solid rgba(255,210,46,.4);border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#ffd22e;background:rgba(255,255,255,.06);">
+          </div>
+          <div>
+            <label style="font-size:10.5px;color:#c9ccd6;">Base Price (₹)</label>
+            <input type="number" id="wlBasePriceInput" min="0" placeholder="0 = Offer Price" style="width:100%;padding:11px 13px;border:1.5px solid rgba(255,210,46,.4);border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#ffd22e;background:rgba(255,255,255,.06);">
+          </div>
+        </div>
+      </div>
+
       <button class="filter-tab" style="padding:11px 22px;background:#00c853;color:#fff;border-color:#00c853;font-size:13px;width:100%;" onclick="updateSetupFee()">💾 Update Karo</button>
       <p style="font-size:11px;color:#6b6870;margin-top:10px;">Yeh prices homepage, dashboard, aur payment page pe turant reflect honge. Naye registrations isi naye Offer Price pe honge. Purani shops ka price change nahi hota.</p>
       <div id="setupFeeMsg" style="font-size:12px;margin-top:8px;display:none;"></div>
@@ -559,6 +579,20 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
             <div id="anClicks" style="font-size:12.5px;color:#9b9690;">Loading…</div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div data-sect="whitelabel">
+      <div class="card">
+        <h2><span>🏷️ White Label Partners</span>
+          <button onclick="loadWhitelabels()" style="background:#f3f4f6;color:#4b5563;border:none;border-radius:9px;padding:8px 13px;font-size:12px;font-weight:700;cursor:pointer;">↻ Refresh</button>
+        </h2>
+        <p style="font-size:11.5px;color:#9b9690;margin:-6px 0 14px;">
+          Partner apne brand + apne Razorpay se bechta hai — uski shops ka paisa <b>seedha usi ke account</b> me jaata hai.
+          Humein sirf ek baar ka license fee milta hai.
+        </p>
+        <div id="wlSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px;"></div>
+        <div id="wlList" style="font-size:13px;color:#9b9690;">Loading…</div>
       </div>
     </div>
 
@@ -826,6 +860,131 @@ async function loadDemos(){
 
 // ═══ AGENTS (superadmin) ═══
 let _agents = [];
+// ═══ WHITE LABEL (superadmin) ═══
+let _wls = [];
+async function loadWhitelabels() {
+  const box = document.getElementById('wlList');
+  if (!box) return;
+  box.innerHTML = 'Loading…';
+  try {
+    const r = await fetch('/api/superadmin/whitelabels', { headers: { 'Authorization': 'Bearer ' + authToken } });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'fail');
+    _wls = d.whitelabels || [];
+    renderWhitelabels(d);
+  } catch (e) { box.innerHTML = `<span style="color:#c22;">❌ ${e.message}</span>`; }
+}
+
+function renderWhitelabels(d) {
+  const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const paidWls = _wls.filter(w => w.paid);
+  const totalShops = _wls.reduce((n, w) => n + (w.stats.paid || 0), 0);
+  const licenseRevenue = paidWls.reduce((n, w) => n + (w.licenseFee || 0), 0);
+  const theirRevenue = _wls.reduce((n, w) => n + (w.stats.collected || 0), 0);
+
+  const box = (v, l, c) => `<div style="background:${c[0]};border:1.5px solid ${c[1]};border-radius:13px;padding:12px 14px;">
+    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:${c[2]};">${v}</div>
+    <div style="font-size:10.5px;font-weight:700;color:${c[2]};line-height:1.4;">${l}</div></div>`;
+
+  document.getElementById('wlSummary').innerHTML =
+    box(paidWls.length, 'Paid partners', ['#f5f3ff','#ddd6fe','#5b21b6']) +
+    box(_wls.length - paidWls.length, 'Registered, unpaid', ['#fffbeb','#fde68a','#92400e']) +
+    box('₹' + licenseRevenue.toLocaleString('en-IN'), 'License se hamari kamai', ['#f0fdf4','#bbf7d0','#166534']) +
+    box(totalShops, 'Unki total paid shops', ['#eff6ff','#bfdbfe','#1e40af']) +
+    box('₹' + theirRevenue.toLocaleString('en-IN'), 'Unki kamai (hamare paas nahi)', ['#fff9ec','#f0e2ba','#8a6d1f']);
+
+  if (!_wls.length) {
+    document.getElementById('wlList').innerHTML = '<p style="color:#9b9690;">Abhi koi white label partner nahi hai.</p>';
+    return;
+  }
+
+  document.getElementById('wlList').innerHTML = _wls.map(w => {
+    const st = w.stats || {};
+    const statusChip = !w.paid
+      ? '<span style="font-size:10px;background:#fef3c7;color:#92400e;border-radius:999px;padding:2px 9px;font-weight:800;">UNPAID</span>'
+      : w.blocked
+        ? '<span style="font-size:10px;background:#fee2e2;color:#991b1b;border-radius:999px;padding:2px 9px;font-weight:800;">PAUSED</span>'
+        : '<span style="font-size:10px;background:#dcfce7;color:#166534;border-radius:999px;padding:2px 9px;font-weight:800;">ACTIVE</span>';
+    const rzpChip = w.razorpayReady
+      ? '<span style="font-size:10.5px;color:#166534;font-weight:700;">💳 Razorpay ✓</span>'
+      : '<span style="font-size:10.5px;color:#991b1b;font-weight:700;">💳 Razorpay nahi lagaya</span>';
+
+    return `<details style="background:#f7f7f9;border:1.5px solid ${w.blocked ? '#fecaca' : '#e2ddd6'};border-radius:14px;padding:13px 15px;margin-bottom:11px;">
+      <summary style="cursor:pointer;font-weight:800;font-size:14px;list-style:none;">
+        <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+          <div style="min-width:0;">
+            ${esc(w.brandName)} ${statusChip}
+            <div style="font-weight:600;font-size:11.5px;color:#6b6870;margin-top:3px;">
+              <span style="background:#111114;color:#ffd22e;border-radius:5px;padding:2px 7px;font-weight:800;">${esc(w.slug)}</span>
+              &nbsp;${esc(w.ownerName || '')} · 📱 ${esc(w.phone || '-')} · ${esc(w.id)}
+            </div>
+          </div>
+          <div style="text-align:right;font-weight:600;font-size:11.5px;color:#6b6870;white-space:nowrap;">
+            <div><b style="color:#166534;font-size:15px;">₹${(w.licenseFee || 0).toLocaleString('en-IN')}</b> license</div>
+            <div>${st.paid || 0} paid shops</div>
+          </div>
+        </div>
+      </summary>
+
+      <div style="margin-top:13px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:11.5px;">
+        <span style="background:#fff;border:1.5px solid #e2ddd6;border-radius:8px;padding:6px 10px;">${rzpChip}</span>
+        <span style="background:#fff;border:1.5px solid #e2ddd6;border-radius:8px;padding:6px 10px;">📧 ${esc(w.email || '-')}</span>
+        <span style="background:#fff;border:1.5px solid #e2ddd6;border-radius:8px;padding:6px 10px;">Base <b>₹${w.basePrice}</b> → bech raha <b>₹${w.shopPrice}</b></span>
+        <span style="background:#fff;border:1.5px solid #e2ddd6;border-radius:8px;padding:6px 10px;">Unki kamai <b>₹${(st.collected || 0).toLocaleString('en-IN')}</b></span>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin-top:12px;">
+        <div style="background:#fff;border:1.5px solid #e2ddd6;border-radius:10px;padding:9px 11px;">
+          <b style="font-size:16px;color:#166534;">${st.paid || 0}</b><div style="font-size:10px;color:#6b6870;font-weight:700;">Paid</div></div>
+        <div style="background:#fff;border:1.5px solid #e2ddd6;border-radius:10px;padding:9px 11px;">
+          <b style="font-size:16px;color:#92400e;">${st.pending || 0}</b><div style="font-size:10px;color:#6b6870;font-weight:700;">Pending</div></div>
+        <div style="background:#fff;border:1.5px solid #e2ddd6;border-radius:10px;padding:9px 11px;">
+          <b style="font-size:16px;color:#5b21b6;">${st.demo || 0}</b><div style="font-size:10px;color:#6b6870;font-weight:700;">Demo</div></div>
+        <div style="background:#fff;border:1.5px solid #e2ddd6;border-radius:10px;padding:9px 11px;">
+          <b style="font-size:16px;color:#1e40af;">${st.total || 0}</b><div style="font-size:10px;color:#6b6870;font-weight:700;">Total</div></div>
+      </div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px;">
+        <input id="wlBase_${w.id}" type="number" value="${w.basePrice}" style="width:110px;padding:8px 10px;border:1.5px solid #e2ddd6;border-radius:9px;font-size:13px;font-weight:700;">
+        <button onclick="saveWlBase('${w.id}')" style="background:#111114;color:#fff;border:none;border-radius:9px;padding:9px 13px;font-size:12px;font-weight:700;cursor:pointer;">Base Price Save</button>
+        ${w.paid ? `<button onclick="toggleWlBlock('${w.id}',${w.blocked ? 'false' : 'true'})" style="background:${w.blocked ? '#16a34a' : '#fee2e2'};color:${w.blocked ? '#fff' : '#dc2626'};border:none;border-radius:9px;padding:9px 13px;font-size:12px;font-weight:700;cursor:pointer;">${w.blocked ? '▶️ Unblock' : '⏸️ Pause karo'}</button>` : ''}
+      </div>
+      <p style="font-size:10.5px;color:#9b9690;margin-top:8px;line-height:1.55;">
+        Base price = ye partner isse neeche shop ko nahi bech sakta. Badalne par agar iska price base se neeche ho, wo bhi upar utha diya jaayega.
+      </p>
+    </details>`;
+  }).join('');
+}
+
+async function saveWlBase(id) {
+  const v = document.getElementById('wlBase_' + id).value;
+  try {
+    const r = await fetch(`/api/superadmin/whitelabel/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+      body: JSON.stringify({ base_price: v })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'fail');
+    alert('✅ Base price ₹' + d.base_price + ' set');
+    loadWhitelabels();
+  } catch (e) { alert('❌ ' + e.message); }
+}
+
+async function toggleWlBlock(id, blocked) {
+  if (!confirm(blocked
+    ? 'Is partner ko pause karein?\nUnka link band ho jayega aur nayi shops register nahi kar payengi.'
+    : 'Is partner ko wapas chalu karein?')) return;
+  try {
+    const r = await fetch(`/api/superadmin/whitelabel/${id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+      body: JSON.stringify({ blocked })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'fail');
+    loadWhitelabels();
+  } catch (e) { alert('❌ ' + e.message); }
+}
+
 // ═══ ANALYTICS ═══
 async function loadAnalytics() {
   const box = document.getElementById('anChart');
@@ -1220,6 +1379,7 @@ async function loadPanel() {
   loadDemos();
   loadAgents();
   loadAnalytics();
+  loadWhitelabels();
   loadDemoConfig();
   loadCloudinaryStatus();
   loadDbCounts();
@@ -1264,6 +1424,10 @@ async function loadPanel() {
       document.getElementById('monthlyActualInput').value = feeData.monthlyActualPrice || 0;
       document.getElementById('advancedActualInput').value = feeData.advancedActualPrice || 0;
       document.getElementById('agentBasePriceInput').value = feeData.agentBasePriceIsSet ? feeData.agentBasePrice : 0;
+      document.getElementById('wlLicenseFeeInput').value = feeData.wlLicenseFee || 25000;
+      document.getElementById('wlBasePriceInput').value = feeData.wlBasePrice || 0;
+    document.getElementById('wlLicenseFeeInput').value = feeData.wlLicenseFee || 25000;
+    document.getElementById('wlBasePriceInput').value = feeData.wlBasePrice || 0;
       updatePreview();
     }
 
@@ -1363,6 +1527,8 @@ async function refreshSetupFeeDisplay() {
     document.getElementById('monthlyActualInput').value = feeData.monthlyActualPrice || 0;
     document.getElementById('advancedActualInput').value = feeData.advancedActualPrice || 0;
     document.getElementById('agentBasePriceInput').value = feeData.agentBasePriceIsSet ? feeData.agentBasePrice : 0;
+    document.getElementById('wlLicenseFeeInput').value = feeData.wlLicenseFee || 25000;
+    document.getElementById('wlBasePriceInput').value = feeData.wlBasePrice || 0;
     updatePreview();
   } catch(e) {}
 }
@@ -1426,7 +1592,9 @@ async function updateSetupFee() {
         advancedFee: document.getElementById('advancedFeeInput').value,
         monthlyActualPrice: document.getElementById('monthlyActualInput').value,
         advancedActualPrice: document.getElementById('advancedActualInput').value,
-        agentBasePrice: document.getElementById('agentBasePriceInput').value
+        agentBasePrice: document.getElementById('agentBasePriceInput').value,
+        wlLicenseFee: document.getElementById('wlLicenseFeeInput').value,
+        wlBasePrice: document.getElementById('wlBasePriceInput').value
       })
     });
     const data = await res.json();
@@ -1818,7 +1986,7 @@ async function deletePendingShop(shopId, name){
 
 
 // ===== SIDEBAR NAV =====
-const PAGE_TITLES = {overview:'Overview', shops:'Shops', demos:'Demo Accounts', agents:'Agents', withdrawals:'Withdrawals', agent:'Agent Software', pricing:'Setup Fee', analytics:'Analytics'};
+const PAGE_TITLES = {overview:'Overview', shops:'Shops', demos:'Demo Accounts', agents:'Agents', withdrawals:'Withdrawals', agent:'Agent Software', pricing:'Setup Fee', analytics:'Analytics', whitelabel:'White Label'};
 function navTo(sect, btn){
   document.querySelectorAll('[data-sect]').forEach(el=>el.classList.toggle('show', el.getAttribute('data-sect')===sect));
   document.querySelectorAll('.nav-it[data-nav]').forEach(n=>n.classList.toggle('active', n.getAttribute('data-nav')===sect));
