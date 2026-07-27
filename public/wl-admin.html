@@ -14,24 +14,65 @@
   --paper:#fffdf8;--tint:#fff9ec;--line:#ece3d2;--card:#fff;
   --ease:cubic-bezier(.22,.61,.36,1);
 }
-body{font-family:'Inter',sans-serif;background:var(--paper);color:var(--ink);line-height:1.6;
-  -webkit-font-smoothing:antialiased;padding-bottom:calc(40px + env(safe-area-inset-bottom))}
-.head{position:sticky;top:0;z-index:20;background:linear-gradient(135deg,#1a1a22,#3b1230);
-  color:#fff;padding:13px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;
-  box-shadow:0 6px 20px rgba(17,17,20,.2)}
-.head b{font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;display:block;line-height:1.25}
-.head small{font-size:11px;color:#c9ccd6}
-.head button{background:rgba(255,255,255,.14);color:#fff;border:none;border-radius:10px;
-  padding:9px 13px;font-size:12.5px;font-weight:700;cursor:pointer;flex:none}
-.wrap{max-width:700px;margin:0 auto;padding:20px 18px 40px}
+body{font-family:'Inter',sans-serif;background:var(--paper);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased}
+
+/* ── Shell ── */
+.app-shell{display:flex;min-height:100vh}
+.side{position:fixed;top:0;left:0;bottom:0;width:248px;z-index:120;
+  background:linear-gradient(180deg,#1a1a22 0%,#3b1230 100%);
+  display:flex;flex-direction:column;padding:22px 15px;transition:transform .28s var(--ease)}
+.side-brand{display:flex;align-items:center;gap:10px;color:#fff;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:15.5px;
+  padding:0 6px 13px;border-bottom:1px solid rgba(255,255,255,.1);margin-bottom:11px}
+.side-brand .bm{width:34px;height:34px;border-radius:10px;flex:none;
+  background:linear-gradient(120deg,var(--yellow),#ffb703);color:#111;
+  display:flex;align-items:center;justify-content:center;font-size:16px;overflow:hidden}
+.side-brand .bm img{width:100%;height:100%;object-fit:cover}
+.side-role{padding:0 6px 13px;font-size:10.5px;color:rgba(255,255,255,.45);line-height:1.5}
+.side-role b{color:var(--yellow);display:block;font-size:11.5px;margin-top:2px;letter-spacing:.3px;word-break:break-all}
+.nav-it{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:12px;
+  color:rgba(255,255,255,.72);font-size:13.5px;font-weight:600;cursor:pointer;margin-bottom:3px;
+  transition:.15s;border:none;background:none;width:100%;text-align:left;font-family:'Inter',sans-serif}
+.nav-it:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-it.active{background:linear-gradient(120deg,var(--pink),#ff6b35);color:#fff;box-shadow:0 6px 18px rgba(255,46,99,.35)}
+.nav-it .ico{font-size:15.5px;width:20px;text-align:center;flex:none}
+.nav-it .dot{margin-left:auto;width:8px;height:8px;border-radius:50%;background:#ef4444;
+  animation:dotPulse 1.8s ease-in-out infinite;display:none;flex:none}
+@keyframes dotPulse{0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.55)}60%{box-shadow:0 0 0 6px rgba(239,68,68,0)}}
+.side-foot{margin-top:auto;padding-top:12px;border-top:1px solid rgba(255,255,255,.1)}
+.side-lg{display:flex;align-items:center;gap:10px;padding:11px 13px;border-radius:12px;color:#ff8a9b;
+  font-weight:700;font-size:13.5px;cursor:pointer;background:rgba(255,80,100,.12);border:none;width:100%;font-family:'Inter',sans-serif}
+.side-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:110}
+.side-overlay.show{display:block}
+
+.app-main{flex:1;margin-left:248px;min-height:100vh}
+.app-topbar{position:sticky;top:0;z-index:90;background:rgba(255,253,248,.88);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+  border-bottom:1.5px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:14px}
+.hamburger{display:none;background:none;border:none;font-size:21px;cursor:pointer;color:var(--ink)}
+.page-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:18.5px}
+.app-content{padding:22px 24px 60px;max-width:860px;margin:0 auto}
+[data-sect]{display:none;animation:fadeUp .3s var(--ease)}
+[data-sect].show{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media(max-width:899px){
+  .side{transform:translateX(-100%)}.side.open{transform:translateX(0)}
+  .app-main{margin-left:0}.hamburger{display:block}
+  .app-content{padding:18px 15px 50px}
+}
+@media (prefers-reduced-motion:reduce){
+  .nav-it .dot,[data-sect]{animation:none}
+}
+
+/* ── Cards & controls ── */
 .card{background:var(--card);border:1.5px solid var(--line);border-radius:18px;padding:20px 18px;
-  margin-bottom:14px;box-shadow:0 8px 26px rgba(17,17,20,.05)}
-.card h2{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:16.5px;margin-bottom:13px;
+  margin-bottom:16px;box-shadow:0 8px 26px rgba(17,17,20,.05)}
+.card h2{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:16.5px;margin-bottom:12px;
   display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 label{display:block;font-size:11px;font-weight:800;color:#6b6870;text-transform:uppercase;letter-spacing:.3px;margin:0 0 5px}
 input,textarea{width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:11px;
   font-size:14px;font-family:'Inter',sans-serif;box-sizing:border-box;margin-bottom:11px;background:#fffdf8}
-textarea{min-height:80px;resize:vertical}
+textarea{min-height:88px;resize:vertical}
 input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 0 4px rgba(255,46,99,.1);background:#fff}
 .btn{width:100%;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-weight:800;font-size:14.5px;
   padding:13px;border-radius:12px;color:#fff;background:var(--ink);transition:transform .18s var(--ease)}
@@ -41,13 +82,15 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
 .msg{display:none;border-radius:10px;padding:10px 12px;font-size:12.5px;font-weight:600;margin-bottom:10px;line-height:1.6}
 .msg.err{background:#fef2f2;border:1.5px solid #fecaca;color:#991b1b}
 .msg.ok{background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534}
-.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
-.stat{border-radius:13px;padding:12px 14px}
-.stat b{display:block;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:21px;line-height:1.1}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:11px}
+.stat{border-radius:14px;padding:14px 15px}
+.stat b{display:block;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:23px;line-height:1.1}
 .stat span{font-size:10.5px;font-weight:700}
 .hint{font-size:11.5px;color:var(--muted);line-height:1.65;margin-top:9px}
-.warnbox{background:#fef2f2;border:1.5px solid #fecaca;color:#991b1b;border-radius:12px;
-  padding:13px 15px;font-size:12.5px;line-height:1.7;font-weight:600;margin-bottom:14px}
+.warnbox{background:#fef2f2;border:1.5px solid #fecaca;color:#991b1b;border-radius:14px;
+  padding:14px 16px;font-size:12.5px;line-height:1.7;font-weight:600;margin-bottom:16px}
+.warnbox button{margin-top:10px;background:#991b1b;color:#fff;border:none;border-radius:10px;
+  padding:9px 15px;font-size:12.5px;font-weight:800;cursor:pointer;font-family:'Inter',sans-serif}
 .okbox{background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534;border-radius:12px;
   padding:11px 13px;font-size:12.5px;font-weight:700;margin-bottom:12px}
 .linkrow{display:flex;gap:8px;margin-bottom:9px}
@@ -57,6 +100,8 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
 .shop{border:1.5px solid var(--line);border-radius:13px;padding:12px 14px;margin-bottom:9px}
 .shop-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .badge{flex:none;font-size:10.5px;font-weight:800;border-radius:999px;padding:4px 10px;white-space:nowrap}
+
+/* ── Login ── */
 #login{max-width:400px;margin:60px auto;padding:0 18px}
 #panel{display:none}
 </style>
@@ -79,113 +124,165 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
 
 <!-- ═══ PANEL ═══ -->
 <div id="panel">
-  <div class="head">
-    <div>
-      <b id="hBrand">—</b>
-      <small id="hSub">Partner Dashboard</small>
+<div class="app-shell">
+
+  <aside class="side" id="sideNav">
+    <div class="side-brand"><span class="bm" id="sideLogo">🏷️</span><span id="hBrand">Partner</span></div>
+    <div class="side-role">Partner Dashboard<b id="hSub">—</b></div>
+
+    <button class="nav-it active" data-nav="overview"  onclick="navTo('overview',this)"><span class="ico">📊</span> Overview</button>
+    <button class="nav-it"        data-nav="shops"     onclick="navTo('shops',this)"><span class="ico">🏪</span> Meri Shops</button>
+    <button class="nav-it"        data-nav="payment"   onclick="navTo('payment',this)"><span class="ico">💳</span> Payment &amp; Price<span class="dot" id="payDot"></span></button>
+    <button class="nav-it"        data-nav="branding"  onclick="navTo('branding',this)"><span class="ico">🎨</span> Branding</button>
+    <button class="nav-it"        data-nav="broadcast" onclick="navTo('broadcast',this)"><span class="ico">📢</span> Broadcast</button>
+
+    <div class="side-foot">
+      <button class="side-lg" onclick="logout()"><span>🚪</span> Logout</button>
     </div>
-    <button onclick="logout()">🚪 Logout</button>
-  </div>
+  </aside>
+  <div class="side-overlay" id="sideOverlay" onclick="closeSide()"></div>
 
-  <div class="wrap">
-
-    <div id="rzpWarn" class="warnbox" style="display:none;">
-      ⚠️ <b>Razorpay abhi set nahi hai.</b><br>
-      Jab tak aap apna Razorpay nahi lagate, aapke link se koi shop register nahi kar payegi —
-      kyunki paisa kahan jaayega ye pata nahi hoga. Neeche se lagayein.
-    </div>
-
-    <!-- Stats -->
-    <div class="card">
-      <h2>📊 Overview</h2>
-      <div class="stats" id="statsBox"></div>
-      <p class="hint" id="collectedNote"></p>
-    </div>
-
-    <!-- Razorpay -->
-    <div class="card">
-      <h2>💳 Apna Razorpay</h2>
-      <div id="rzpOkBox" class="okbox" style="display:none;">✅ Razorpay set hai — shops ka paisa seedha aapke account me aayega</div>
-      <p class="hint" style="margin:0 0 12px;">
-        Aapki shops ka registration fee <b>seedha aapke Razorpay</b> me jaayega. Keys
-        razorpay.com → Settings → API Keys se milengi.
-      </p>
-      <div class="msg err" id="rzpErr"></div>
-      <div class="msg ok" id="rzpOk"></div>
-      <label>Key ID</label>
-      <input id="rKey" placeholder="rzp_live_xxxxxxxx">
-      <label>Key Secret</label>
-      <input id="rSec" type="password" placeholder="Secret key">
-      <button class="btn green" onclick="saveRzp()">💾 Razorpay Save Karo</button>
+  <main class="app-main">
+    <div class="app-topbar">
+      <button class="hamburger" onclick="openSide()">☰</button>
+      <div class="page-title" id="pageTitle">Overview</div>
     </div>
 
-    <!-- Price -->
-    <div class="card">
-      <h2>🏷️ Shop Registration Price</h2>
-      <p class="hint" style="margin:0 0 12px;">
-        Base price <b>₹<span id="pBase">—</span></b> hai. Isse <b>upar</b> jo chahe rakho —
-        poora extra aapka margin. Isse neeche nahi ja sakte.
-      </p>
-      <div class="msg err" id="prErr"></div>
-      <div class="msg ok" id="prOk"></div>
-      <input id="pPrice" type="number" inputmode="numeric" style="font-size:17px;font-weight:800;">
-      <button class="btn" onclick="savePrice()">Price Save Karo</button>
-    </div>
+    <div class="app-content">
 
-    <!-- Share link -->
-    <div class="card">
-      <h2>🔗 Aapka Link</h2>
-      <p class="hint" style="margin:0 0 10px;">Is link se jo bhi register karega, wo <b>aapki shop</b> banegi aur aapka price dekhegi.</p>
-      <div class="linkrow">
-        <input id="shareLink" readonly>
-        <button onclick="copyLink()">Copy</button>
+      <!-- ═══ OVERVIEW ═══ -->
+      <div data-sect="overview" class="show">
+        <div id="rzpWarn" class="warnbox" style="display:none;">
+          ⚠️ <b>Razorpay abhi set nahi hai.</b><br>
+          Jab tak aap apna Razorpay nahi lagate, aapke link se koi shop register nahi kar payegi —
+          kyunki paisa kahan jayega ye pata nahi hoga.
+          <br><button onclick="navTo('payment',document.querySelector('[data-nav=payment]'))">💳 Abhi Set Karo ›</button>
+        </div>
+
+        <div class="card">
+          <h2>📊 Overview</h2>
+          <div class="stats" id="statsBox"></div>
+          <p class="hint">Total collected = aapki paid shops ne jo diya, wo seedha aapke Razorpay me gaya hai.</p>
+        </div>
+
+        <div class="card">
+          <h2>🔗 Aapka Link</h2>
+          <p class="hint" style="margin:0 0 10px;">Is link se jo bhi register karega, wo <b>aapki shop</b> banegi aur aapka price dekhegi.</p>
+          <div class="linkrow">
+            <input id="shareLink" readonly>
+            <button onclick="copyLink()">Copy</button>
+          </div>
+          <button class="btn green" onclick="shareWA()">💬 WhatsApp par Share Karo</button>
+          <p class="hint" id="subNote"></p>
+        </div>
       </div>
-      <button class="btn green" onclick="shareWA()">💬 WhatsApp par Share Karo</button>
-      <p class="hint" id="subNote"></p>
-    </div>
 
-    <!-- Branding -->
-    <div class="card">
-      <h2>🎨 Branding</h2>
-      <p class="hint" style="margin:0 0 12px;">Ye aapki shops ko aur unke customers ko dikhega — humara naam kahin nahi aayega.</p>
-      <div class="msg err" id="brErr"></div>
-      <div class="msg ok" id="brOk"></div>
-      <label>Brand ka naam</label>
-      <input id="bBrand" maxlength="120">
-      <label>"Powered by" me kya likhe</label>
-      <input id="bPowered" maxlength="160" placeholder="jaise — ABC Print Solutions">
-      <label>Logo URL (optional)</label>
-      <input id="bLogo" maxlength="400" placeholder="https://...">
-      <label>Support Email</label>
-      <input id="bEmail" type="email" maxlength="160">
-      <label>Support Mobile</label>
-      <input id="bPhone" type="tel" maxlength="10">
-      <button class="btn green" onclick="saveBranding()">💾 Branding Save Karo</button>
-    </div>
+      <!-- ═══ SHOPS ═══ -->
+      <div data-sect="shops">
+        <div class="card">
+          <h2>🏪 Meri Shops
+            <button onclick="loadShops()" style="background:#f3f4f6;color:#4b5563;border:none;border-radius:9px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">↻ Refresh</button>
+          </h2>
+          <div id="shopsBox" style="font-size:13px;color:var(--muted);">Loading…</div>
+        </div>
+      </div>
 
-    <!-- Broadcast -->
-    <div class="card">
-      <h2>📢 Broadcast</h2>
-      <p class="hint" style="margin:0 0 12px;">Ye message <b>sirf aapki shops</b> ke dashboard me dikhega. Khaali karke save karo to hat jaayega.</p>
-      <div class="msg ok" id="bcOk"></div>
-      <textarea id="bcMsg" maxlength="1000" placeholder="jaise — Diwali offer: aaj se 20% off"></textarea>
-      <button class="btn" onclick="saveBroadcast()">📢 Bhejo</button>
-    </div>
+      <!-- ═══ PAYMENT & PRICE ═══ -->
+      <div data-sect="payment">
+        <div class="card">
+          <h2>💳 Apna Razorpay</h2>
+          <div id="rzpOkBox" class="okbox" style="display:none;">✅ Razorpay set hai — shops ka paisa seedha aapke account me aayega</div>
+          <p class="hint" style="margin:0 0 12px;">
+            Aapki shops ka registration fee <b>seedha aapke Razorpay</b> me jayega.
+            Keys razorpay.com → Settings → API Keys se milengi.
+          </p>
+          <div class="msg err" id="rzpErr"></div>
+          <div class="msg ok" id="rzpOk"></div>
+          <label>Key ID</label>
+          <input id="rKey" placeholder="rzp_live_xxxxxxxx">
+          <label>Key Secret</label>
+          <input id="rSec" type="password" placeholder="Secret key">
+          <button class="btn green" onclick="saveRzp()">💾 Razorpay Save Karo</button>
+        </div>
 
-    <!-- Shops -->
-    <div class="card">
-      <h2>🏪 Meri Shops <button onclick="loadShops()" style="background:#f3f4f6;color:#4b5563;border:none;border-radius:9px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">↻ Refresh</button></h2>
-      <div id="shopsBox" style="font-size:13px;color:var(--muted);">Loading…</div>
-    </div>
+        <div class="card">
+          <h2>🏷️ Shop Registration Price</h2>
+          <p class="hint" style="margin:0 0 12px;">
+            Base price <b>₹<span id="pBase">—</span></b> hai. Isse <b>upar</b> jo chahe rakho —
+            poora extra aapka margin. Isse neeche nahi ja sakte.
+          </p>
+          <div class="msg err" id="prErr"></div>
+          <div class="msg ok" id="prOk"></div>
+          <input id="pPrice" type="number" inputmode="numeric" style="font-size:18px;font-weight:800;">
+          <div id="marginNote" style="font-size:12.5px;font-weight:700;color:#166534;margin-bottom:11px;"></div>
+          <button class="btn" onclick="savePrice()">Price Save Karo</button>
+        </div>
+      </div>
 
-  </div>
+      <!-- ═══ BRANDING ═══ -->
+      <div data-sect="branding">
+        <div class="card">
+          <h2>🎨 Branding</h2>
+          <p class="hint" style="margin:0 0 12px;">Ye aapki shops ko aur unke customers ko dikhega — humara naam kahin nahi aayega.</p>
+          <div class="msg err" id="brErr"></div>
+          <div class="msg ok" id="brOk"></div>
+          <label>Brand ka naam</label>
+          <input id="bBrand" maxlength="120">
+          <label>"Powered by" me kya likhe</label>
+          <input id="bPowered" maxlength="160" placeholder="jaise — ABC Print Solutions">
+          <label>Logo URL (optional)</label>
+          <input id="bLogo" maxlength="400" placeholder="https://...">
+          <button class="btn green" onclick="saveBranding()">💾 Branding Save Karo</button>
+        </div>
+
+        <div class="card">
+          <h2>📞 Support Contact</h2>
+          <p class="hint" style="margin:0 0 12px;">
+            Ye aapki shops ke dashboard me <b>Support</b> par dikhega — unka WhatsApp aur email
+            seedha <b>aapke paas</b> aayega, humare paas nahi.
+          </p>
+          <div class="msg err" id="scErr"></div>
+          <div class="msg ok" id="scOk"></div>
+          <label>Support Email</label>
+          <input id="bEmail" type="email" maxlength="160" placeholder="support@aapkibrand.com">
+          <label>Support Mobile / WhatsApp</label>
+          <input id="bPhone" type="tel" maxlength="10" placeholder="10 digit">
+          <button class="btn green" onclick="saveContact()">💾 Contact Save Karo</button>
+        </div>
+      </div>
+
+      <!-- ═══ BROADCAST ═══ -->
+      <div data-sect="broadcast">
+        <div class="card">
+          <h2>📢 Broadcast</h2>
+          <p class="hint" style="margin:0 0 12px;">Ye message <b>sirf aapki shops</b> ke dashboard me dikhega. Khaali karke save karo to hat jayega.</p>
+          <div class="msg ok" id="bcOk"></div>
+          <textarea id="bcMsg" maxlength="1000" placeholder="jaise — Diwali offer: aaj se 20% off"></textarea>
+          <button class="btn" onclick="saveBroadcast()">📢 Bhejo</button>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
 </div>
 
 <script>
+const PAGE_TITLES = { overview:'Overview', shops:'Meri Shops', payment:'Payment & Price', branding:'Branding', broadcast:'Broadcast' };
 let TOKEN = localStorage.getItem('qrsp_wl_token') || '';
 let ME = null;
 const $ = id => document.getElementById(id);
 const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function navTo(sect, btn){
+  document.querySelectorAll('[data-sect]').forEach(el => el.classList.toggle('show', el.getAttribute('data-sect') === sect));
+  document.querySelectorAll('.nav-it[data-nav]').forEach(n => n.classList.toggle('active', n.getAttribute('data-nav') === sect));
+  const t = $('pageTitle'); if (t) t.textContent = PAGE_TITLES[sect] || '';
+  closeSide(); window.scrollTo(0,0);
+}
+function openSide(){ $('sideNav').classList.add('open'); $('sideOverlay').classList.add('show'); }
+function closeSide(){ $('sideNav').classList.remove('open'); $('sideOverlay').classList.remove('show'); }
+
 function show(id, msg, kind) {
   const e = $(id); if (!e) return;
   e.textContent = msg; e.className = 'msg ' + (kind || 'ok');
@@ -231,7 +328,8 @@ async function boot() {
     $('panel').style.display = 'block';
 
     $('hBrand').textContent = ME.brandName || 'Partner';
-    $('hSub').textContent = ME.id + ' · ' + ME.slug;
+    $('hSub').textContent = (ME.slug || '') + ' · ' + (ME.id || '');
+    if (ME.logoUrl) $('sideLogo').innerHTML = '<img src="' + esc(ME.logoUrl) + '" alt="">';
 
     const s = ME.stats || {};
     $('statsBox').innerHTML =
@@ -239,17 +337,20 @@ async function boot() {
       stat(s.pending || 0, 'Payment pending', ['#fffbeb','#fde68a','#92400e']) +
       stat(s.demo || 0, 'Demo', ['#f5f3ff','#ddd6fe','#5b21b6']) +
       stat('₹' + (ME.collected || 0).toLocaleString('en-IN'), 'Total collected', ['#fff9ec','#f0e2ba','#8a6d1f']);
-    $('collectedNote').textContent = 'Total collected = aapki paid shops ne jo diya, wo seedha aapke Razorpay me gaya hai.';
 
-    $('rzpWarn').style.display = ME.razorpayReady ? 'none' : 'block';
-    $('rzpOkBox').style.display = ME.razorpayReady ? 'block' : 'none';
+    const ready = !!ME.razorpayReady;
+    $('rzpWarn').style.display = ready ? 'none' : 'block';
+    $('rzpOkBox').style.display = ready ? 'block' : 'none';
+    $('payDot').style.display = ready ? 'none' : 'block';
     $('rKey').value = ME.razorpayKeyId || '';
 
     $('pBase').textContent = ME.basePrice || 0;
     $('pPrice').value = ME.shopPrice || ME.basePrice || 0;
+    updateMargin();
 
     $('shareLink').value = ME.shareLink || '';
-    $('subNote').innerHTML = 'Subdomain link: <b>' + esc(ME.subdomainLink || '') + '</b> — ye tabhi chalega jab admin DNS set kar de. Tab tak upar wala link use karo.';
+    $('subNote').innerHTML = 'Subdomain link: <b>' + esc(ME.subdomainLink || '') +
+      '</b> — ye tabhi chalega jab admin DNS set kar de. Tab tak upar wala link use karo.';
 
     $('bBrand').value = ME.brandName || '';
     $('bPowered').value = ME.poweredBy || '';
@@ -268,6 +369,13 @@ function stat(v, l, c) {
   return `<div class="stat" style="background:${c[0]};border:1.5px solid ${c[1]};">
     <b style="color:${c[2]};">${v}</b><span style="color:${c[2]};">${l}</span></div>`;
 }
+function updateMargin() {
+  const el = $('marginNote'); if (!el || !ME) return;
+  const p = parseInt($('pPrice').value, 10) || 0;
+  const m = p - (ME.basePrice || 0);
+  el.textContent = m > 0 ? `Har shop par aapka margin: ₹${m}` : 'Base price par bech rahe ho — koi extra margin nahi';
+  el.style.color = m > 0 ? '#166534' : '#92400e';
+}
 
 async function saveRzp() {
   try {
@@ -283,16 +391,24 @@ async function savePrice() {
     const d = await api('/api/whitelabel/price', { method: 'PUT', body: JSON.stringify({ price: parseInt($('pPrice').value, 10) }) });
     show('prOk', `✅ Price ₹${d.price} set — aapka margin ₹${d.price - d.base} per shop`, 'ok');
     if (ME) ME.shopPrice = d.price;
+    updateMargin();
   } catch (e) { show('prErr', '❌ ' + e.message, 'err'); }
 }
 async function saveBranding() {
   try {
     await api('/api/whitelabel/branding', { method: 'PUT', body: JSON.stringify({
-      brand_name: $('bBrand').value, powered_by: $('bPowered').value, logo_url: $('bLogo').value,
-      support_email: $('bEmail').value, support_phone: $('bPhone').value }) });
+      brand_name: $('bBrand').value, powered_by: $('bPowered').value, logo_url: $('bLogo').value }) });
     show('brOk', '✅ Branding save ho gayi', 'ok');
     boot();
   } catch (e) { show('brErr', '❌ ' + e.message, 'err'); }
+}
+async function saveContact() {
+  try {
+    await api('/api/whitelabel/branding', { method: 'PUT', body: JSON.stringify({
+      support_email: $('bEmail').value, support_phone: $('bPhone').value }) });
+    show('scOk', '✅ Support contact save ho gaya — aapki shops ko yahi dikhega', 'ok');
+    boot();
+  } catch (e) { show('scErr', '❌ ' + e.message, 'err'); }
 }
 async function saveBroadcast() {
   try {
@@ -347,6 +463,10 @@ async function loadShops() {
   } catch (e) { box.innerHTML = '<p style="color:#c22;">Load nahi hua</p>'; }
 }
 
+document.addEventListener('DOMContentLoaded', function () {
+  const p = $('pPrice');
+  if (p) p.addEventListener('input', updateMargin);
+});
 boot();
 </script>
 
