@@ -437,6 +437,22 @@ async function initDB() {
         created_at TIMESTAMP DEFAULT NOW()
       );
 
+      -- ══ ANALYTICS — homepage funnel (pageviews + CTA clicks) ══
+      -- Demo-create aur paid-conversion ka asli data 'shops' table me
+      -- pehle se hai; ye table sirf TOP-of-funnel capture karti hai jo
+      -- kahin aur record nahi hoti.
+      CREATE TABLE IF NOT EXISTS analytics_events (
+        id SERIAL PRIMARY KEY,
+        event_type VARCHAR(40) NOT NULL,
+        path VARCHAR(200) DEFAULT '',
+        ref VARCHAR(100) DEFAULT '',
+        utm_source VARCHAR(100) DEFAULT '',
+        visitor_id VARCHAR(64) DEFAULT '',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_analytics_created ON analytics_events(created_at);
+      CREATE INDEX IF NOT EXISTS idx_analytics_type ON analytics_events(event_type);
+
       CREATE TABLE IF NOT EXISTS withdrawals (
         id SERIAL PRIMARY KEY,
         shop_id VARCHAR(50),
@@ -1403,6 +1419,68 @@ async function priceForRef(ref) {
   }
   return { price: base, base, agent: s || null };
 }
+
+// ══════════════════════════════════════════════════════════════
+// ANALYTICS — homepage funnel tracking (first-party, no external service)
+// ══════════════════════════════════════════════════════════════
+const ANALYTICS_EVENTS = ['pageview', 'demo_click', 'register_click', 'inquiry_click', 'guide_click', 'agent_click'];
+
+// Public, halka beacon — koi auth nahi (anonymous pageview/click hi hai).
+// Kabhi bhi page ko block/error nahi karta, client se fire-and-forget.
+app.post('/api/track', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const eventType = String(b.event_type || '').slice(0, 40);
+    if (!ANALYTICS_EVENTS.includes(eventType)) return res.status(400).json({ error: 'invalid event' });
+    await pool.query(
+      `INSERT INTO analytics_events (event_type, path, ref, utm_source, visitor_id)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [
+        eventType,
+        String(b.path || '').slice(0, 200),
+        String(b.ref || '').slice(0, 100),
+        String(b.utm_source || '').slice(0, 100),
+        String(b.visitor_id || '').slice(0, 64)
+      ]
+    );
+    res.json({ success: true });
+  } catch (err) { res.status(200).json({ success: false }); } // kabhi bhi client ko error na dikhe
+});
+
+// Superadmin: aggregated funnel data — daily breakdown + totals + source split
+app.get('/api/superadmin/analytics', verifySuperAdmin, async (req, res) => {
+  try {
+    const days = Math.min(90, Math.max(1, parseInt(req.query.days, 10) || 30));
+
+    const daily = await pool.query(
+      `SELECT event_type, TO_CHAR(created_at, 'YYYY-MM-DD') AS day,
+              COUNT(*)::int AS cnt, COUNT(DISTINCT NULLIF(visitor_id,''))::int AS uniq
+       FROM analytics_events
+       WHERE created_at > NOW() - ($1 || ' days')::interval
+       GROUP BY event_type, day ORDER BY day ASC`, [days]);
+
+    const shopsDaily = await pool.query(
+      `SELECT TO_CHAR(created_at, 'YYYY-MM-DD') AS day,
+              COUNT(*) FILTER (WHERE demo=true)::int AS demo_created,
+              COUNT(*) FILTER (WHERE demo=false AND setup_paid=true)::int AS paid_created
+       FROM shops
+       WHERE created_at > NOW() - ($1 || ' days')::interval
+       GROUP BY day ORDER BY day ASC`, [days]);
+
+    const totals = await pool.query(
+      `SELECT event_type, COUNT(*)::int AS cnt, COUNT(DISTINCT NULLIF(visitor_id,''))::int AS uniq
+       FROM analytics_events WHERE created_at > NOW() - ($1 || ' days')::interval
+       GROUP BY event_type`, [days]);
+
+    const bySource = await pool.query(
+      `SELECT COALESCE(NULLIF(utm_source,''),'direct') AS source, COUNT(*)::int AS cnt
+       FROM analytics_events
+       WHERE event_type='pageview' AND created_at > NOW() - ($1 || ' days')::interval
+       GROUP BY source ORDER BY cnt DESC LIMIT 10`, [days]);
+
+    res.json({ daily: daily.rows, shopsDaily: shopsDaily.rows, totals: totals.rows, bySource: bySource.rows, days });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
 app.get('/api/setup-fee/current', async (req, res) => {
   try {
