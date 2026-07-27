@@ -42,7 +42,7 @@ SHOP_ID_TEMPLATE   = "AAPKA_SHOP_ID"
 SERVER_URL         = "https://qrseprint.in"
 CHECK_INTERVAL     = 5          # Print jobs check karne ka interval (seconds)
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 19           # Integer version number — server ke agent_version se compare hota hai
+VERSION            = 20           # Integer version number — server ke agent_version se compare hota hai
 SUPPORT_WA         = "918404832414"  # Admin WhatsApp (shop-login Support jaisa) — Contact Admin isi par khulega
 
 # Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
@@ -503,7 +503,7 @@ def convert_image_to_pdf(image_path):
         return None
 
 # ─── Page Range: Specific pages extract karo PDF se ────────
-def extract_selected_pages(pdf_path, selected_pages_str):
+def extract_selected_pages(pdf_path, selected_pages_str, total_pages=None):
     """
     Agar customer ne specific pages select kiye hain (jaise "5" ya "1,3,5-8")
     to PyPDF2 se sirf wahi pages ka naya PDF banao.
@@ -548,14 +548,19 @@ def extract_selected_pages(pdf_path, selected_pages_str):
             log("⚠️  Page list empty hai — original PDF print hoga", "WARN")
             return pdf_path
 
-        # FAST-PATH: single page "1" = poora document (customer-uploaded PDFs
-        # aksar 1 hi page ke — 4x6 photo, single doc). Yahan PdfReader kholne
-        # ki zaroorat NAHI — aur wahi crash ka source tha (PyPDF2 encrypted-
-        # check pycryptodome ko lazy-import karta, jo bundle me missing hone
-        # par 'Cannot load Crypto.Util._cpuid_c' deta aur HAR print tootta).
-        if page_numbers == [1]:
-            log("📄 Single page (1) — poora document, extract skip")
-            return pdf_path
+        # ── KOI FAST-PATH NAHI ── hamesha extract karo.
+        #
+        # Pehle yahan do shortcut the aur DONO galat the:
+        #   1) "page_numbers == [1]"  -> 2-page PDF me page 1 chunne par bhi
+        #      poora document print ho jata tha.
+        #   2) "len(page_numbers) >= total_pages" -> ye bhi kaam nahi karta,
+        #      kyunki total_pages BILLING ka count hai (kitne page ka paisa
+        #      liya), PDF ka asli page count NAHI. Page 1 chuno to
+        #      total_pages=1 aata hai, isliye check hamesha TRUE ho jata tha.
+        #
+        # Ab pycryptodome .exe me sahi bundle hai (v20+), isliye PDF kholna
+        # safe hai. Saare page chune ho tab bhi extract karna nuksan nahi —
+        # wahi PDF wapas banta hai, bas thoda CPU lagta hai.
 
         log(f"📑 Specific pages extract ho rahe hain: {page_numbers}")
 
@@ -600,8 +605,13 @@ def extract_selected_pages(pdf_path, selected_pages_str):
         # Aise me poori file print karo (fail+requeue+DOUBLE print se behtar).
         emsg = str(e).lower()
         if 'crypto' in emsg or 'cpuid' in emsg or 'native module' in emsg:
-            log(f"⚠️  Crypto module issue ({e}) — poora document print kar rahe hain (safe fallback)", "WARN")
-            return pdf_path
+            # Poora document print karna yahan GALAT hai — customer ne shayad
+            # sirf 1 page ka paisa diya ho aur 10 page nikal jayein.
+            # Print rokna hi sahi hai: shop bata dega, customer dobara bhej dega.
+            log(f"❌ Crypto module missing ({e}) — specific pages nikal nahi sakte", "ERROR")
+            log("⚠️  Print ROKA gaya taaki extra page print na ho.", "WARN")
+            log("👉 Agent ko v20 ya usse naya update karo — usme ye theek hai.", "WARN")
+            return None
         log(f"❌ Page extract error: {e}", "ERROR")
         log(f"⚠️  SAFETY: Print ROK rahe hain taaki galat (zyada) pages print na ho", "WARN")
         return None
@@ -765,7 +775,7 @@ def print_word(filepath, copies=1, color_mode="bw", printer_name=None):
             log(f"❌ Word print failed: {e}", "ERROR")
             return False
 
-def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_name=None, duplex_on=False, duplex_mode="", duplex_pages=1, paper_size="a4"):
+def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_name=None, duplex_on=False, duplex_mode="", duplex_pages=1, paper_size="a4", total_pages=None):
     """Main print function — sab file types handle karta hai"""
     ext = Path(filepath).suffix.lower()
     log(f"🖨️  Printing: {os.path.basename(filepath)}")
@@ -789,7 +799,7 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
             print_path = filepath
             # Page Range: agar specific pages selected hain to extract karo
             if selected_pages:
-                extracted_pdf = extract_selected_pages(filepath, selected_pages)
+                extracted_pdf = extract_selected_pages(filepath, selected_pages, total_pages)
                 if extracted_pdf is None:
                     log("❌ Page extraction fail hua — SAFETY ke liye print ROK rahe hain (taaki poora document galti se print na ho)", "ERROR")
                     return False
@@ -1328,7 +1338,8 @@ def process_job(job):
         _dup_pages = int(job.get("total_pages", 1) or 1)
     success = print_file(filepath, copies, color, selected_pages, target_printer,
                          duplex_on=_dup_on, duplex_mode=_dup_mode, duplex_pages=_dup_pages,
-                         paper_size=job.get("paper_size", "a4") or "a4")
+                         paper_size=job.get("paper_size", "a4") or "a4",
+                         total_pages=job.get("total_pages", 0))
 
     try:
         time.sleep(3)
