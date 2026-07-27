@@ -486,8 +486,11 @@ async function initDB() {
         ref VARCHAR(100) DEFAULT '',
         utm_source VARCHAR(100) DEFAULT '',
         visitor_id VARCHAR(64) DEFAULT '',
+        wl VARCHAR(40) DEFAULT '',
         created_at TIMESTAMP DEFAULT NOW()
       );
+      ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS wl VARCHAR(40) DEFAULT '';
+      CREATE INDEX IF NOT EXISTS idx_analytics_wl ON analytics_events(wl);
       CREATE INDEX IF NOT EXISTS idx_analytics_created ON analytics_events(created_at);
       CREATE INDEX IF NOT EXISTS idx_analytics_type ON analytics_events(event_type);
 
@@ -1532,14 +1535,15 @@ app.post('/api/track', async (req, res) => {
     const eventType = String(b.event_type || '').slice(0, 40);
     if (!ANALYTICS_EVENTS.includes(eventType)) return res.status(400).json({ error: 'invalid event' });
     await pool.query(
-      `INSERT INTO analytics_events (event_type, path, ref, utm_source, visitor_id)
-       VALUES ($1,$2,$3,$4,$5)`,
+      `INSERT INTO analytics_events (event_type, path, ref, utm_source, visitor_id, wl)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
       [
         eventType,
         String(b.path || '').slice(0, 200),
         String(b.ref || '').slice(0, 100),
         String(b.utm_source || '').slice(0, 100),
-        String(b.visitor_id || '').slice(0, 64)
+        String(b.visitor_id || '').slice(0, 64),
+        cleanSlug(b.wl || '')
       ]
     );
     res.json({ success: true });
@@ -1915,6 +1919,187 @@ app.put('/api/superadmin/whitelabel/:id', verifySuperAdmin, async (req, res) => 
     }
     const out = await pool.query('SELECT blocked, base_price, shop_price FROM whitelabels WHERE id=$1', [req.params.id]);
     res.json({ success: true, ...out.rows[0] });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ══════════ WHITE LABEL — apni shops par control ══════════
+// SABSE ZAROORI: har action se pehle confirm karo ki shop ISI partner ki hai.
+// Warna ek partner doosre ki (ya hamari) shops chhu sakta hai.
+async function assertWlShop(wlId, shopId) {
+  const r = await pool.query(
+    'SELECT id, name, setup_paid, setup_amount, demo, whitelabel_id FROM shops WHERE id=$1', [shopId]);
+  if (!r.rows.length) return { err: 'Shop nahi mila' };
+  if ((r.rows[0].whitelabel_id || '') !== wlId) return { err: 'Ye shop aapki nahi hai' };
+  return { shop: r.rows[0] };
+}
+
+// Partner apna password badle
+app.put('/api/whitelabel/password', verifyWhitelabel, async (req, res) => {
+  try {
+    const oldPass = String(req.body.old_password || '');
+    const newPass = String(req.body.new_password || '');
+    if (newPass.length < 6) return res.status(400).json({ error: 'Naya password kam se kam 6 akshar ka ho' });
+
+    const r = await pool.query('SELECT password_hash FROM whitelabels WHERE id=$1', [req.wlId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Account nahi mila' });
+    if (crypto.createHash('sha256').update(oldPass).digest('hex') !== r.rows[0].password_hash) {
+      return res.status(401).json({ error: 'Purana password galat hai' });
+    }
+    await pool.query('UPDATE whitelabels SET password_hash=$2 WHERE id=$1',
+      [req.wlId, crypto.createHash('sha256').update(newPass).digest('hex')]);
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Partner khud shop onboard kare (Shop ID + password turant)
+app.post('/api/whitelabel/onboard', verifyWhitelabel, async (req, res) => {
+  try {
+    const me = await pool.query(
+      'SELECT blocked, shop_price, base_price, razorpay_key_id FROM whitelabels WHERE id=$1', [req.wlId]);
+    if (!me.rows.length) return res.status(404).json({ error: 'Account nahi mila' });
+    if (me.rows[0].blocked) return res.status(403).json({ error: 'Aapka account abhi paused hai' });
+    if (!me.rows[0].razorpay_key_id) {
+      return res.status(400).json({ error: 'Pehle apna Razorpay set karo — warna shop payment nahi kar payegi' });
+    }
+
+    const name = String(req.body.name || '').trim().slice(0, 200);
+    const phone = String(req.body.phone || '').trim();
+    const address = String(req.body.address || '').trim().slice(0, 300);
+    const printerModel = String(req.body.printer_model || '').trim().slice(0, 120);
+    if (!name) return res.status(400).json({ error: 'Shop ka naam zaroori hai' });
+    if (!/^\d{10}$/.test(phone)) return res.status(400).json({ error: 'Sahi 10 digit mobile number daalo' });
+
+    const wlBase = me.rows[0].base_price || await getWlBasePrice();
+    const sold = (me.rows[0].shop_price && me.rows[0].shop_price > wlBase) ? me.rows[0].shop_price : wlBase;
+
+    const priceBw = parseInt(req.body.price_bw, 10);
+    const priceColor = parseInt(req.body.price_color, 10);
+    const shopId = 'SHOP_' + uuidv4().substring(0, 8).toUpperCase();
+    let password = String(req.body.password || '').trim();
+    if (password.length < 4) {
+      password = Math.random().toString(36).slice(-4).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
+    }
+
+    await pool.query(
+      `INSERT INTO shops (id,name,address,phone,printer_model,price_bw,price_color,payment_mode,
+         password_hash,setup_paid,setup_amount,plan_type,base_price_at_signup,sold_price,whitelabel_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,'counter_only',$8,false,$9,'onetime',$10,$9,$11)`,
+      [shopId, name, address, phone, printerModel,
+       Number.isInteger(priceBw) && priceBw > 0 ? priceBw : 5,
+       Number.isInteger(priceColor) && priceColor > 0 ? priceColor : 10,
+       crypto.createHash('sha256').update(password).digest('hex'),
+       sold, wlBase, req.wlId]);
+
+    res.json({ success: true, shopId, password, amount: sold,
+      pay_url: `${BASE_URL}/setup-payment/${shopId}` });
+  } catch(err) {
+    console.error('WL onboard error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Shop ka password reset
+app.post('/api/whitelabel/shop/:shopId/reset-password', verifyWhitelabel, async (req, res) => {
+  try {
+    const chk = await assertWlShop(req.wlId, req.params.shopId);
+    if (chk.err) return res.status(403).json({ error: chk.err });
+    const temp = 'QSP' + crypto.randomBytes(3).toString('hex');
+    await pool.query('UPDATE shops SET password_hash=$1 WHERE id=$2',
+      [crypto.createHash('sha256').update(temp).digest('hex'), req.params.shopId]);
+    console.log(`WL ${req.wlId} reset password for ${req.params.shopId}`);
+    res.json({ success: true, tempPassword: temp });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Manual activate — partner ne cash le liya (paisa uska hai, risk bhi uska)
+app.post('/api/whitelabel/shop/:shopId/activate', verifyWhitelabel, async (req, res) => {
+  try {
+    const chk = await assertWlShop(req.wlId, req.params.shopId);
+    if (chk.err) return res.status(403).json({ error: chk.err });
+    if (chk.shop.setup_paid) return res.status(400).json({ error: 'Shop pehle se active hai' });
+    const ref = String(req.body.payment_ref || '').trim().slice(0, 60);
+    if (!ref) return res.status(400).json({ error: 'Payment reference daalo (cash ho to "CASH" likh do)' });
+    const { qrUrl } = await activateShop(req.params.shopId, 'WLMANUAL_' + ref);
+    console.log(`WL manual activation: ${req.params.shopId} by ${req.wlId} | ref: ${ref}`);
+    res.json({ success: true, qrUrl });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Pending shop delete — paid shop kabhi nahi
+app.delete('/api/whitelabel/shop/:shopId', verifyWhitelabel, async (req, res) => {
+  try {
+    const chk = await assertWlShop(req.wlId, req.params.shopId);
+    if (chk.err) return res.status(403).json({ error: chk.err });
+    if (chk.shop.setup_paid) return res.status(403).json({ error: 'Paid shop delete nahi ho sakti' });
+    await pool.query('DELETE FROM print_jobs WHERE shop_id=$1', [req.params.shopId]);
+    await pool.query('DELETE FROM shops WHERE id=$1', [req.params.shopId]);
+    console.log(`WL ${req.wlId} deleted pending shop ${req.params.shopId}`);
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Shop ke PC ka printer list + selection
+app.get('/api/whitelabel/shop/:shopId/printers', verifyWhitelabel, async (req, res) => {
+  try {
+    const chk = await assertWlShop(req.wlId, req.params.shopId);
+    if (chk.err) return res.status(403).json({ error: chk.err });
+    const s = await pool.query(
+      `SELECT id, name, agent_last_seen, printer_name_bw, printer_name_color,
+              printer_name_4x6, printer_name_a3
+       FROM shops WHERE id=$1`, [req.params.shopId]);
+    const p = await pool.query('SELECT value, updated_at FROM system_settings WHERE key=$1',
+      [`printers_${req.params.shopId}`]);
+    let available = [];
+    if (p.rows.length) { try { available = JSON.parse(p.rows[0].value) || []; } catch(e) { available = []; } }
+    res.json({ shop: s.rows[0], available: Array.isArray(available) ? available : [],
+      reported_at: p.rows.length ? p.rows[0].updated_at : null });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/whitelabel/shop/:shopId/printers', verifyWhitelabel, async (req, res) => {
+  try {
+    const chk = await assertWlShop(req.wlId, req.params.shopId);
+    if (chk.err) return res.status(403).json({ error: chk.err });
+    const clean = v => (typeof v === 'string' ? v.trim().slice(0, 300) : null);
+    await pool.query(
+      `UPDATE shops SET
+         printer_name_bw    = COALESCE($2, printer_name_bw),
+         printer_name_color = COALESCE($3, printer_name_color),
+         printer_name_4x6   = COALESCE($4, printer_name_4x6),
+         printer_name_a3    = COALESCE($5, printer_name_a3)
+       WHERE id=$1`,
+      [req.params.shopId, clean(req.body.printer_name_bw), clean(req.body.printer_name_color),
+       clean(req.body.printer_name_4x6), clean(req.body.printer_name_a3)]);
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Partner ke apne link ka analytics
+app.get('/api/whitelabel/analytics', verifyWhitelabel, async (req, res) => {
+  try {
+    const days = Math.min(90, Math.max(1, parseInt(req.query.days, 10) || 30));
+    const me = await pool.query('SELECT slug FROM whitelabels WHERE id=$1', [req.wlId]);
+    const slug = me.rows[0]?.slug || '';
+
+    const totals = await pool.query(
+      `SELECT event_type, COUNT(*)::int AS cnt, COUNT(DISTINCT NULLIF(visitor_id,''))::int AS uniq
+       FROM analytics_events
+       WHERE wl=$1 AND created_at > NOW() - ($2 || ' days')::interval
+       GROUP BY event_type`, [slug, days]);
+
+    const daily = await pool.query(
+      `SELECT TO_CHAR(created_at,'YYYY-MM-DD') AS day, COUNT(*)::int AS cnt
+       FROM analytics_events
+       WHERE wl=$1 AND event_type='pageview' AND created_at > NOW() - ($2 || ' days')::interval
+       GROUP BY day ORDER BY day ASC`, [slug, days]);
+
+    const shopsDaily = await pool.query(
+      `SELECT TO_CHAR(created_at,'YYYY-MM-DD') AS day,
+              COUNT(*) FILTER (WHERE setup_paid=true AND demo=false)::int AS paid
+       FROM shops WHERE whitelabel_id=$1 AND created_at > NOW() - ($2 || ' days')::interval
+       GROUP BY day ORDER BY day ASC`, [req.wlId, days]);
+
+    res.json({ slug, days, totals: totals.rows, daily: daily.rows, shopsDaily: shopsDaily.rows });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
