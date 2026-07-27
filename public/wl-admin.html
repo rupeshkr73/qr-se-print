@@ -133,8 +133,11 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
     <button class="nav-it active" data-nav="overview"  onclick="navTo('overview',this)"><span class="ico">📊</span> Overview</button>
     <button class="nav-it"        data-nav="shops"     onclick="navTo('shops',this)"><span class="ico">🏪</span> Meri Shops</button>
     <button class="nav-it"        data-nav="payment"   onclick="navTo('payment',this)"><span class="ico">💳</span> Payment &amp; Price<span class="dot" id="payDot"></span></button>
+    <button class="nav-it"        data-nav="onboard"   onclick="navTo('onboard',this)"><span class="ico">➕</span> Shop Onboard</button>
+    <button class="nav-it"        data-nav="analytics" onclick="navTo('analytics',this)"><span class="ico">📈</span> Analytics</button>
     <button class="nav-it"        data-nav="branding"  onclick="navTo('branding',this)"><span class="ico">🎨</span> Branding</button>
     <button class="nav-it"        data-nav="broadcast" onclick="navTo('broadcast',this)"><span class="ico">📢</span> Broadcast</button>
+    <button class="nav-it"        data-nav="account"   onclick="navTo('account',this)"><span class="ico">🔐</span> Account</button>
 
     <div class="side-foot">
       <button class="side-lg" onclick="logout()"><span>🚪</span> Logout</button>
@@ -181,7 +184,10 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
       <div data-sect="shops">
         <div class="card">
           <h2>🏪 Meri Shops
-            <button onclick="loadShops()" style="background:#f3f4f6;color:#4b5563;border:none;border-radius:9px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">↻ Refresh</button>
+            <span style="display:flex;gap:7px;">
+              <button onclick="exportCsv()" style="background:#166534;color:#fff;border:none;border-radius:9px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">⬇️ CSV</button>
+              <button onclick="loadShops()" style="background:#f3f4f6;color:#4b5563;border:none;border-radius:9px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">↻ Refresh</button>
+            </span>
           </h2>
           <div id="shopsBox" style="font-size:13px;color:var(--muted);">Loading…</div>
         </div>
@@ -251,6 +257,78 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
         </div>
       </div>
 
+      <!-- ═══ SHOP ONBOARD ═══ -->
+      <div data-sect="onboard">
+        <div class="card">
+          <h2>➕ Shop Onboard Karo</h2>
+          <p class="hint" style="margin:0 0 12px;">
+            Kisi ki dukaan khud register kar do — Shop ID aur password turant ban jayega.
+            Payment aap online kar do ya cash lekar <b>Meri Shops</b> me jaakar activate kar do.
+          </p>
+          <div class="msg err" id="obErr"></div>
+          <div id="obOk" style="display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534;border-radius:12px;padding:14px;font-size:13px;line-height:1.9;margin-bottom:12px;"></div>
+
+          <label>Shop ka naam *</label>
+          <input id="obName" maxlength="200">
+          <label>Mobile number *</label>
+          <input id="obPhone" type="tel" maxlength="10" placeholder="10 digit">
+          <label>Address</label>
+          <input id="obAddr" maxlength="300">
+          <label>Printer ka model</label>
+          <input id="obPrinter" maxlength="120" placeholder="jaise HP LaserJet 1020">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;">
+            <div><label>B&amp;W rate (₹)</label><input id="obBw" type="number" value="5"></div>
+            <div><label>Color rate (₹)</label><input id="obColor" type="number" value="10"></div>
+          </div>
+          <label>Password (khaali = apne aap banega)</label>
+          <input id="obPass" maxlength="40">
+          <button class="btn pink" onclick="doOnboard()">Shop ID Banao</button>
+        </div>
+      </div>
+
+      <!-- ═══ ANALYTICS ═══ -->
+      <div data-sect="analytics">
+        <div class="card">
+          <h2>📈 Mere Link Ka Analytics
+            <select id="anRange" onchange="loadWlAnalytics()" style="border:1.5px solid var(--line);border-radius:9px;padding:7px 10px;font-size:12px;font-weight:700;">
+              <option value="7">7 din</option><option value="14">14 din</option>
+              <option value="30" selected>30 din</option><option value="90">90 din</option>
+            </select>
+          </h2>
+          <p class="hint" style="margin:-4px 0 14px;">Aapke link (<b id="anSlug">—</b>) se kitne log aaye aur kitni shops bani.</p>
+          <div class="stats" id="anStats"></div>
+          <div style="background:#fafaf9;border:1.5px solid var(--line);border-radius:14px;padding:14px 10px 6px;margin-top:14px;">
+            <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;padding:0 8px;font-size:11px;font-weight:700;color:#6b6870;">
+              <span><i style="display:inline-block;width:9px;height:9px;background:#ffd22e;border-radius:2px;margin-right:5px;"></i>Visits</span>
+              <span><i style="display:inline-block;width:9px;height:9px;background:#ff2e63;border-radius:2px;margin-right:5px;"></i>Paid shops</span>
+            </div>
+            <div id="anChart" style="width:100%;overflow-x:auto;">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ ACCOUNT ═══ -->
+      <div data-sect="account">
+        <div class="card">
+          <h2>🔐 Password Badlo</h2>
+          <p class="hint" style="margin:0 0 12px;">Registration ke waqt jo password mila tha, use badal lo — apna yaad rehne wala rakho.</p>
+          <div class="msg err" id="pwErr"></div>
+          <div class="msg ok" id="pwOk"></div>
+          <label>Purana password</label>
+          <input id="pwOld" type="password">
+          <label>Naya password (kam se kam 6 akshar)</label>
+          <input id="pwNew" type="password">
+          <label>Naya password dobara</label>
+          <input id="pwNew2" type="password">
+          <button class="btn green" onclick="changePassword()">🔐 Password Badlo</button>
+        </div>
+
+        <div class="card">
+          <h2>ℹ️ Account Info</h2>
+          <div id="acctInfo" style="font-size:13px;color:#4a4f58;line-height:2;"></div>
+        </div>
+      </div>
+
       <!-- ═══ BROADCAST ═══ -->
       <div data-sect="broadcast">
         <div class="card">
@@ -268,7 +346,7 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
 </div>
 
 <script>
-const PAGE_TITLES = { overview:'Overview', shops:'Meri Shops', payment:'Payment & Price', branding:'Branding', broadcast:'Broadcast' };
+const PAGE_TITLES = { overview:'Overview', shops:'Meri Shops', onboard:'Shop Onboard', analytics:'Analytics', payment:'Payment & Price', branding:'Branding', broadcast:'Broadcast', account:'Account' };
 let TOKEN = localStorage.getItem('qrsp_wl_token') || '';
 let ME = null;
 const $ = id => document.getElementById(id);
@@ -359,7 +437,17 @@ async function boot() {
     $('bPhone').value = ME.supportPhone || '';
     $('bcMsg').value = ME.broadcast || '';
 
+    $('acctInfo').innerHTML =
+      `<div><b>Partner ID:</b> ${esc(ME.id)}</div>
+       <div><b>Slug:</b> ${esc(ME.slug)}</div>
+       <div><b>Owner:</b> ${esc(ME.ownerName || '-')}</div>
+       <div><b>Mobile:</b> ${esc(ME.phone || '-')}</div>
+       <div><b>Email:</b> ${esc(ME.email || '-')}</div>
+       <div><b>License fee:</b> ₹${(ME.licenseFee || 0).toLocaleString('en-IN')}</div>
+       <div><b>Partner bane:</b> ${ME.paidAt ? new Date(ME.paidAt).toLocaleDateString('en-IN') : '-'}</div>`;
+
     loadShops();
+    loadWlAnalytics();
   } catch (e) {
     $('login').style.display = 'block'; $('panel').style.display = 'none';
     show('loginErr', '❌ ' + e.message, 'err');
@@ -432,21 +520,204 @@ function shareWA() {
   window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank', 'noopener');
 }
 
+// ═══ SHOP ONBOARD ═══
+async function doOnboard() {
+  $('obErr').style.display = 'none';
+  $('obOk').style.display = 'none';
+  try {
+    const d = await api('/api/whitelabel/onboard', { method: 'POST', body: JSON.stringify({
+      name: $('obName').value, phone: $('obPhone').value, address: $('obAddr').value,
+      printer_model: $('obPrinter').value,
+      price_bw: parseInt($('obBw').value, 10), price_color: parseInt($('obColor').value, 10),
+      password: $('obPass').value
+    })});
+    $('obOk').innerHTML = `<b>✅ Shop ban gayi!</b><br>
+      <b>Shop ID:</b> ${esc(d.shopId)}<br><b>Password:</b> ${esc(d.password)}<br><b>Amount:</b> ₹${d.amount}<br><br>
+      <span style="color:#92400e;">⚠️ Ye abhi note kar lo — dobara nahi dikhega.</span><br><br>
+      <a href="${esc(d.pay_url)}" target="_blank" style="display:inline-block;background:#16a34a;color:#fff;padding:11px 18px;border-radius:10px;font-weight:800;text-decoration:none;">💳 Ab Payment Karo ›</a>
+      <span style="display:block;margin-top:8px;font-size:11.5px;color:#6b6870;">Ya cash liya ho to <b>Meri Shops</b> me jaakar "Activate" dabao.</span>`;
+    $('obOk').style.display = 'block';
+    ['obName','obPhone','obAddr','obPrinter','obPass'].forEach(id => { $(id).value = ''; });
+    $('obBw').value = 5; $('obColor').value = 10;
+    loadShops(); boot();
+  } catch (e) { show('obErr', '❌ ' + e.message, 'err'); }
+}
+
+// ═══ SHOP ACTIONS ═══
+async function resetShopPass(id, name) {
+  if (!confirm(`"${name}" ka password reset karein?\nPurana password band ho jayega.`)) return;
+  try {
+    const d = await api(`/api/whitelabel/shop/${id}/reset-password`, { method: 'POST' });
+    alert('✅ Naya password: ' + d.tempPassword + '\n\nShop owner ko bhej do — ye dobara nahi dikhega.');
+  } catch (e) { alert('❌ ' + e.message); }
+}
+async function activateShopWl(id, name, amount) {
+  const ref = prompt(`"${name}" ko activate karna hai?\n\nPayment reference daalo — cash liya ho to CASH likh do.\n\n⚠️ Dhyan: ye shop ₹${amount} ki hai. Bina paisa liye activate kiya to nuksan aapka hoga.`);
+  if (!ref) return;
+  try {
+    await api(`/api/whitelabel/shop/${id}/activate`, { method: 'POST', body: JSON.stringify({ payment_ref: ref }) });
+    alert('✅ Shop activate ho gayi — QR aur software ab mil jayega');
+    loadShops(); boot();
+  } catch (e) { alert('❌ ' + e.message); }
+}
+async function delShop(id, name) {
+  if (!confirm(`"${name}" ko delete karein?\nYe wapas nahi aayegi.`)) return;
+  try {
+    await api(`/api/whitelabel/shop/${id}`, { method: 'DELETE' });
+    loadShops(); boot();
+  } catch (e) { alert('❌ ' + e.message); }
+}
+
+// ═══ PRINTER PANEL ═══
+let _prnShopId = null;
+async function openPrn(id, name) {
+  _prnShopId = id;
+  $('prnShop').textContent = name + ' · ' + id;
+  $('prnBody').innerHTML = 'Loading…';
+  $('prnOverlay').style.display = 'flex';
+  try {
+    const d = await api(`/api/whitelabel/shop/${id}/printers`);
+    const s = d.shop || {}, list = d.available || [];
+    const online = s.agent_last_seen && (Date.now() - new Date(s.agent_last_seen).getTime()) < 120000;
+    const field = (fid, label, val, hint) => `<div style="margin-bottom:12px;">
+      <label style="margin-bottom:5px;">${label}</label>
+      <input id="${fid}" list="prnList" value="${esc(val || '')}" placeholder="— koi printer select nahi —" style="margin-bottom:3px;">
+      ${hint ? `<div style="font-size:10.5px;color:var(--muted);">${hint}</div>` : ''}</div>`;
+    const box = list.length
+      ? `<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:11px;padding:11px 13px;margin-bottom:13px;">
+           <div style="font-size:11.5px;font-weight:800;color:#166534;margin-bottom:5px;">✅ PC se mili printer list (${list.length})</div>
+           <div style="font-size:12px;color:#166534;line-height:1.8;">${list.map(p => '• ' + esc(p)).join('<br>')}</div></div>`
+      : `<div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:11px;padding:11px 13px;margin-bottom:13px;font-size:12px;color:#92400e;line-height:1.65;">
+           ⚠️ Is shop ke PC se abhi tak printer list nahi aayi. Agent chalu hone ke 30 min me aati hai — tab tak naam khud type kar sakte ho.</div>`;
+    $('prnBody').innerHTML = `<datalist id="prnList">${list.map(p => `<option value="${esc(p)}"></option>`).join('')}</datalist>
+      <div style="margin-bottom:12px;"><span style="font-size:11px;font-weight:800;background:${online?'#dcfce7':'#fee2e2'};color:${online?'#166534':'#991b1b'};border-radius:999px;padding:5px 11px;">${online?'🟢 Agent online':'🔴 Agent offline'}</span></div>
+      ${box}
+      ${field('prBw','⚫ B&W Printer', s.printer_name_bw, 'Black & white print isi se niklega')}
+      ${field('prColor','🌈 Color Printer', s.printer_name_color, 'Khaali chhodo to B&W wala use hoga')}
+      ${field('prA3','📄 A3 / Bade Size', s.printer_name_a3, 'Sirf tab jab alag bada printer ho')}
+      ${field('pr4x6','🖼️ 4×6 Photo', s.printer_name_4x6, 'Passport photo ke liye alag printer ho to')}`;
+  } catch (e) { $('prnBody').innerHTML = `<div style="color:#c22;font-size:13px;">❌ ${esc(e.message)}</div>`; }
+}
+function closePrn() { $('prnOverlay').style.display = 'none'; _prnShopId = null; }
+async function savePrn() {
+  if (!_prnShopId) return;
+  const b = $('prnSave'); b.disabled = true; b.textContent = 'Saving…';
+  try {
+    await api(`/api/whitelabel/shop/${_prnShopId}/printers`, { method: 'PUT', body: JSON.stringify({
+      printer_name_bw: $('prBw').value, printer_name_color: $('prColor').value,
+      printer_name_4x6: $('pr4x6').value, printer_name_a3: $('prA3').value })});
+    b.textContent = '✅ Save ho gaya';
+    setTimeout(() => { b.disabled = false; b.textContent = '💾 Save Karo'; closePrn(); }, 800);
+  } catch (e) { alert('❌ ' + e.message); b.disabled = false; b.textContent = '💾 Save Karo'; }
+}
+
+// ═══ PASSWORD ═══
+async function changePassword() {
+  $('pwErr').style.display = 'none'; $('pwOk').style.display = 'none';
+  const o = $('pwOld').value, n = $('pwNew').value, n2 = $('pwNew2').value;
+  if (n.length < 6) return show('pwErr', '❌ Naya password kam se kam 6 akshar ka ho', 'err');
+  if (n !== n2) return show('pwErr', '❌ Dono naye password same nahi hain', 'err');
+  try {
+    await api('/api/whitelabel/password', { method: 'PUT', body: JSON.stringify({ old_password: o, new_password: n }) });
+    show('pwOk', '✅ Password badal gaya — agli baar isi se login karna', 'ok');
+    ['pwOld','pwNew','pwNew2'].forEach(id => { $(id).value = ''; });
+  } catch (e) { show('pwErr', '❌ ' + e.message, 'err'); }
+}
+
+// ═══ CSV EXPORT ═══
+let _shopsCache = [];
+function exportCsv() {
+  if (!_shopsCache.length) return alert('Abhi koi shop nahi hai');
+  const head = ['Shop ID','Naam','Mobile','Address','Status','Amount','Plan','Register Date'];
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+  const rows = _shopsCache.map(s => [
+    s.id, s.name || '', s.phone || '', s.address || '',
+    s.demo ? 'Demo' : (s.setup_paid ? 'Paid' : 'Pending'),
+    s.setup_amount || 0, s.plan_type || '',
+    s.created_at ? new Date(s.created_at).toLocaleDateString('en-IN') : ''
+  ].map(q).join(','));
+  const csv = '\ufeff' + [head.map(q).join(','), ...rows].join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+  a.download = 'meri-shops-' + new Date().toISOString().slice(0, 10) + '.csv';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+// ═══ ANALYTICS ═══
+async function loadWlAnalytics() {
+  const box = $('anChart'); if (!box) return;
+  box.innerHTML = 'Loading…';
+  try {
+    const days = parseInt($('anRange').value, 10) || 30;
+    const d = await api('/api/whitelabel/analytics?days=' + days);
+    $('anSlug').textContent = d.slug || '—';
+    const tot = k => (d.totals || []).find(t => t.event_type === k) || { cnt: 0, uniq: 0 };
+    const pv = tot('pageview'), reg = tot('register_click');
+    const paid = (d.shopsDaily || []).reduce((n, r) => n + (r.paid || 0), 0);
+    const pct = (a, b) => b > 0 ? Math.round((a / b) * 100) : 0;
+    $('anStats').innerHTML =
+      stat(pv.cnt, `Link visits (${pv.uniq} unique)`, ['#fff9ec','#f0e2ba','#8a6d1f']) +
+      stat(reg.cnt, 'Register button click', ['#eff6ff','#bfdbfe','#1e40af']) +
+      stat(paid, 'Paid shops bani', ['#f0fdf4','#bbf7d0','#166534']) +
+      stat(pct(paid, pv.cnt) + '%', 'Visit → Paid', ['#f5f3ff','#ddd6fe','#5b21b6']);
+
+    const dates = [];
+    const today = new Date();
+    for (let i = days - 1; i >= 0; i--) { const t = new Date(today); t.setDate(t.getDate() - i); dates.push(t.toISOString().slice(0,10)); }
+    const vBy = {}, pBy = {};
+    (d.daily || []).forEach(r => { vBy[r.day] = r.cnt; });
+    (d.shopsDaily || []).forEach(r => { pBy[r.day] = r.paid; });
+    const v = dates.map(x => vBy[x] || 0), p = dates.map(x => pBy[x] || 0);
+    const mv = Math.max(1, ...v), mp = Math.max(1, ...p);
+    const colW = days > 45 ? 14 : days > 20 ? 22 : 34;
+    const W = dates.length * colW + 20, laneH = 76, gap = 8, pLane = 18, H = laneH + gap + pLane + 20;
+    const every = days > 45 ? 7 : days > 20 ? 3 : 1;
+    let bars = '';
+    dates.forEach((day, i) => {
+      const x = 10 + i * colW, bw = Math.max(4, colW - 6);
+      const vh = Math.round((v[i] / mv) * (laneH - 4)), ph = Math.round((p[i] / mp) * (pLane - 2));
+      bars += `<g><title>${day}: ${v[i]} visits, ${p[i]} paid</title>
+        <rect x="${x}" y="${laneH - vh}" width="${bw}" height="${Math.max(1,vh)}" rx="2" fill="#ffd22e"></rect>
+        <rect x="${x}" y="${laneH+gap+pLane-ph}" width="${bw}" height="${Math.max(1,ph)}" rx="2" fill="#ff2e63"></rect></g>`;
+      if (i % every === 0 || i === dates.length - 1)
+        bars += `<text x="${x + bw/2}" y="${H-4}" font-size="8.5" fill="#9b9690" text-anchor="middle">${day.slice(5).replace('-','/')}</text>`;
+    });
+    box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block;min-width:${W}px;">${bars}</svg>`;
+  } catch (e) { box.innerHTML = `<span style="color:#c22;font-size:12px;">❌ ${esc(e.message)}</span>`; }
+}
+
 async function loadShops() {
   const box = $('shopsBox');
   box.textContent = 'Loading…';
   try {
     const d = await api('/api/whitelabel/shops');
-    if (!d.shops || !d.shops.length) {
-      box.innerHTML = '<p style="color:var(--muted);">Abhi koi shop nahi. Apna link share karo.</p>';
+    _shopsCache = d.shops || [];
+    if (!_shopsCache.length) {
+      box.innerHTML = '<p style="color:var(--muted);">Abhi koi shop nahi. Apna link share karo ya <b>Shop Onboard</b> tab se khud banao.</p>';
       return;
     }
-    box.innerHTML = d.shops.map(s => {
+    const btn = (txt, fn, bg, fg) =>
+      `<button onclick="${fn}" style="background:${bg};color:${fg};border:none;border-radius:9px;padding:8px 11px;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;">${txt}</button>`;
+
+    box.innerHTML = _shopsCache.map(s => {
       const st = s.demo ? ['🎯 Demo', '#ede9fe', '#5b21b6']
                : s.setup_paid ? ['✅ Paid', '#dcfce7', '#166534']
                : ['⏳ Pending', '#fef3c7', '#92400e'];
       const online = s.agent_last_seen && (Date.now() - new Date(s.agent_last_seen).getTime()) < 120000;
-      return `<div class="shop">
+      const nm = esc(s.name || '—').replace(/'/g, '');
+      const pending = !s.setup_paid && !s.demo;
+
+      let actions = '';
+      if (pending) {
+        actions += `<a href="/setup-payment/${esc(s.id)}" target="_blank" style="background:#16a34a;color:#fff;border-radius:9px;padding:8px 11px;font-size:11.5px;font-weight:700;text-decoration:none;white-space:nowrap;">💳 Pay ₹${s.setup_amount || 0}</a>`;
+        actions += btn('💰 Activate', `activateShopWl('${s.id}','${nm}',${s.setup_amount || 0})`, '#0f766e', '#fff');
+      }
+      actions += btn('🖨️ Printer', `openPrn('${s.id}','${nm}')`, '#111114', '#fff');
+      actions += btn('🔑 Reset Pass', `resetShopPass('${s.id}','${nm}')`, '#f3f4f6', '#4b5563');
+      if (pending) actions += btn('🗑️ Delete', `delShop('${s.id}','${nm}')`, '#fee2e2', '#dc2626');
+
+      return `<div class="shop" style="${pending ? 'border-color:#fde68a;' : ''}">
         <div class="shop-top">
           <div style="min-width:0;">
             <b style="font-size:14px;">${esc(s.name || '—')}</b>
@@ -458,6 +729,7 @@ async function loadShops() {
           <span>₹${s.setup_amount || 0}</span>
           <span>${online ? '🟢 Agent online' : '🔴 Agent offline'}</span>
         </div>
+        <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;">${actions}</div>
       </div>`;
     }).join('');
   } catch (e) { box.innerHTML = '<p style="color:#c22;">Load nahi hua</p>'; }
@@ -469,6 +741,24 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 boot();
 </script>
+
+<!-- ═══ PRINTER PANEL ═══ -->
+<div id="prnOverlay" onclick="if(event.target===this)closePrn()" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(20,18,16,.55);backdrop-filter:blur(3px);align-items:flex-start;justify-content:center;padding:20px 14px;overflow-y:auto;">
+  <div style="background:#fff;border-radius:18px;max-width:500px;width:100%;box-shadow:0 30px 70px rgba(0,0,0,.3);overflow:hidden;margin:auto;">
+    <div style="background:linear-gradient(135deg,#1a1a22,#3b1230);padding:17px 19px;color:#fff;display:flex;justify-content:space-between;align-items:center;gap:10px;">
+      <div>
+        <div style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:16px;">🖨️ Printer Select</div>
+        <div id="prnShop" style="font-size:11.5px;opacity:.9;margin-top:2px;">—</div>
+      </div>
+      <button onclick="closePrn()" style="background:rgba(255,255,255,.2);color:#fff;border:none;border-radius:9px;width:31px;height:31px;font-size:17px;cursor:pointer;flex:none;">×</button>
+    </div>
+    <div id="prnBody" style="padding:17px 19px;max-height:66vh;overflow-y:auto;">Loading…</div>
+    <div style="padding:13px 19px 17px;border-top:1.5px solid #f0ece6;display:flex;gap:10px;">
+      <button onclick="closePrn()" style="flex:1;background:#f3f4f6;color:#4b5563;border:none;border-radius:11px;padding:12px;font-weight:700;font-size:13px;cursor:pointer;">Band karo</button>
+      <button id="prnSave" onclick="savePrn()" style="flex:2;background:#16a34a;color:#fff;border:none;border-radius:11px;padding:12px;font-weight:800;font-size:13px;cursor:pointer;">💾 Save Karo</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
