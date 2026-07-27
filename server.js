@@ -86,7 +86,11 @@ if (PRIMARY_HOST) {
     const host = (req.headers.host || '').toLowerCase().split(':')[0];
     // www.qrseprint.in, onrender.com — sab canonical par (SEO: ek hi domain
     // rank kare, duplicate content na bane)
-    if (host && host !== PRIMARY_HOST && host !== 'localhost' && host !== '127.0.0.1') {
+    // White-label subdomain (abc.qrseprint.in) ko redirect NAHI karna —
+    // warna reseller ka brand khulte hi main site par phenk deta hai.
+    // www aur baaki hosts (onrender.com waghairah) pehle jaise hi redirect.
+    const isWlSubdomain = PRIMARY_HOST && host.endsWith('.' + PRIMARY_HOST) && host !== 'www.' + PRIMARY_HOST;
+    if (host && host !== PRIMARY_HOST && !isWlSubdomain && host !== 'localhost' && host !== '127.0.0.1') {
       return res.redirect(301, 'https://' + PRIMARY_HOST + req.originalUrl);
     }
     next();
@@ -350,6 +354,8 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS payment_mode VARCHAR(20) DEFAULT 'both';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_last_seen TIMESTAMP;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_version INT;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS whitelabel_id VARCHAR(50) DEFAULT '';
+      CREATE INDEX IF NOT EXISTS idx_shops_wl ON shops(whitelabel_id);
       -- ══ AGENT PROGRAM ══
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS is_agent BOOLEAN DEFAULT false;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_code VARCHAR(20);
@@ -437,6 +443,38 @@ async function initDB() {
         created_at TIMESTAMP DEFAULT NOW()
       );
 
+      -- ══ WHITE LABEL — reseller apne brand se bechta hai ══
+      -- Reseller apna Razorpay lagata hai, isliye uski shops ka setup fee
+      -- SEEDHA usi ke account me jaata hai (hamare paas nahi aata).
+      -- Hamein sirf ek baar ka license fee milta hai.
+      CREATE TABLE IF NOT EXISTS whitelabels (
+        id VARCHAR(50) PRIMARY KEY,
+        slug VARCHAR(40) UNIQUE,
+        brand_name VARCHAR(120) NOT NULL,
+        owner_name VARCHAR(120) DEFAULT '',
+        phone VARCHAR(20) DEFAULT '',
+        email VARCHAR(160) DEFAULT '',
+        password_hash VARCHAR(200) NOT NULL,
+        logo_url VARCHAR(400) DEFAULT '',
+        powered_by VARCHAR(160) DEFAULT '',
+        support_email VARCHAR(160) DEFAULT '',
+        support_phone VARCHAR(20) DEFAULT '',
+        razorpay_key_id VARCHAR(120) DEFAULT '',
+        razorpay_key_secret VARCHAR(200) DEFAULT '',
+        shop_price INTEGER DEFAULT 0,
+        base_price INTEGER DEFAULT 0,
+        license_fee INTEGER DEFAULT 0,
+        license_order_id VARCHAR(120) DEFAULT '',
+        paid BOOLEAN DEFAULT false,
+        blocked BOOLEAN DEFAULT false,
+        broadcast TEXT DEFAULT '',
+        license_expires_at TIMESTAMP,
+        shop_credits INTEGER DEFAULT -1,
+        created_at TIMESTAMP DEFAULT NOW(),
+        paid_at TIMESTAMP
+      );
+      CREATE INDEX IF NOT EXISTS idx_wl_slug ON whitelabels(slug);
+
       -- ══ ANALYTICS — homepage funnel (pageviews + CTA clicks) ══
       -- Demo-create aur paid-conversion ka asli data 'shops' table me
       -- pehle se hai; ye table sirf TOP-of-funnel capture karti hai jo
@@ -504,6 +542,9 @@ async function initDB() {
     // Offer Price hi rahega). Monthly/Advanced Actual Price bhi 0 = strikethrough
     // hide rahega jab tak superadmin explicitly na daale.
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('agent_base_price','0') ON CONFLICT DO NOTHING");
+    // White Label — license fee (ek baar) aur reseller ka minimum shop price
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('wl_license_fee','25000') ON CONFLICT DO NOTHING");
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('wl_base_price','0') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('monthly_actual_price','0') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('advanced_actual_price','0') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('homepage_config', $1) ON CONFLICT DO NOTHING", ["{\"logoUrl\": \"\", \"statShops\": \"\", \"statPrints\": \"\", \"showStats\": true, \"supportEmail\": \"mahatonetcafe@gmail.com\", \"supportPhone\": \"9999999999\", \"planDemo\": [\"Demo Auto Print Software\", \"Personalize QR For Shop\", \"Unlimited Print 24/Hrs\", \"Setup Guide (README) included\"], \"planMonthly\": [\"Auto Print Software\", \"Personalize QR For Shop\", \"Unlimited Print\", \"Advance Feature (4x6 Photo, Resume, A3, Duplex) \\u2014 sab included\", \"Assistant in Setup\", \"On Demand Service will be added\", \"Bug fix on update\", \"WhatsApp Assistant\"], \"planOnetime\": [\"Sab kuch Monthly wala\", \"Assistant in Online Payment Gateway Setup\", \"Bug Fix Within 2Hr\", \"AnyDesk Remote Support\", \"Lifetime Access & Update\", \"No renewal \\u2014 ek baar pay\"], \"faqs\": [{\"q\": \"QR Se Print kya hai?\", \"a\": \"QR Se Print cyber cafe aur print shop ke liye ek automatic print software hai. Aap apni shop ka QR code lagate ho \\u2014 customer apne phone se scan karke file upload karta hai, payment karta hai, aur print aapke printer se automatic nikal jata hai. Na WhatsApp pe file mangni padti hai, na pendrive, na email.\"}, {\"q\": \"Customer file kaise bhejta hai?\", \"a\": \"Shop par laga QR code scan karo, file select karo (PDF, photo \\u2014 ek saath kai files), edit karo (crop, rotate, brightness), payment karo (online ya counter cash) \\u2014 print automatic nikal jata hai. Poora kaam customer ke phone se, 1 minute me.\"}, {\"q\": \"WhatsApp pe file lene se ye better kyun hai?\", \"a\": \"WhatsApp me aapka personal number public ho jata hai, chat me files kho jaati hain, aur hisaab manually rakhna padta hai. QR Se Print me number private rehta hai, har print ka payment record automatic banta hai, aur customer ki file print ke 90 minute baad khud delete ho jaati hai.\"}, {\"q\": \"Kaunse printer ke saath chalta hai?\", \"a\": \"Har Windows printer ke saath \\u2014 HP, Canon, Epson, Brother, sab. B&W aur Color ke liye alag printer set kar sakte ho. Advance me 4x6 photo printer, A3 bada printer aur duplex (dono side) printing bhi support hai.\"}, {\"q\": \"Payment kaise milta hai? Koi commission?\", \"a\": \"Do tarike: counter par cash, ya online payment (Razorpay/PhonePe) jo seedha aapke account me jata hai. Hum beech me nahi aate \\u2014 koi commission nahi, unlimited prints.\"}, {\"q\": \"Kitna kharcha aata hai?\", \"a\": \"Free demo se shuru karo. Phir Rs 399/month ka monthly plan ya Rs 999 one-time lifetime plan \\u2014 ek baar do, hamesha chalao. Koi hidden charge nahi, koi per-print commission nahi.\"}, {\"q\": \"Internet chala jaye to print ka kya hoga?\", \"a\": \"Customer ke jobs queue me safe rehte hain. Internet wapas aate hi software khud jobs utha ke print nikal deta hai \\u2014 kuch khota nahi.\"}]}"]);
@@ -1386,6 +1427,64 @@ const AGENT_PRICE_MAX    = 2999;  // agent isse upar price nahi rakh sakta
 const AGENT_BONUS_EVERY  = 10;    // har 10 shop par
 const AGENT_BONUS_AMOUNT = 300;   // itna extra bonus
 
+// ══════════════════════════════════════════════════════════════
+// WHITE LABEL — helpers
+// Reseller apne brand + apne Razorpay se shops bechta hai. Uski shops ka
+// setup fee SEEDHA uske Razorpay me jaata hai; hamare paas sirf ek baar
+// ka license fee aata hai.
+// ══════════════════════════════════════════════════════════════
+async function getWlLicenseFee() {
+  try {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key='wl_license_fee'");
+    return Math.max(1, parseInt(r.rows[0]?.value) || 25000);
+  } catch(e) { return 25000; }
+}
+
+// Reseller isse neeche shop price nahi rakh sakta. 0/unset = public Offer Price.
+async function getWlBasePrice() {
+  try {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key='wl_base_price'");
+    const v = parseInt(r.rows[0]?.value) || 0;
+    if (v > 0) return v;
+  } catch(e) {}
+  return await getSetupFeeAmount();
+}
+
+// slug: sirf chhote akshar, number aur dash
+function cleanSlug(s) {
+  return String(s || '').toLowerCase().trim().replace(/[^a-z0-9-]/g, '').slice(0, 40);
+}
+
+// Reseller dhoondo — ?wl=slug se, ya subdomain (abc.qrseprint.in) se
+async function resolveWhitelabel(req) {
+  try {
+    let slug = cleanSlug(req.query.wl || req.body?.wl || '');
+    if (!slug) {
+      const host = String(req.headers.host || '').toLowerCase().split(':')[0];
+      const parts = host.split('.');
+      // abc.qrseprint.in -> abc  (www aur main domain chhod do)
+      if (parts.length > 2 && parts[0] !== 'www') slug = cleanSlug(parts[0]);
+    }
+    if (!slug) return null;
+    const r = await pool.query(
+      'SELECT * FROM whitelabels WHERE slug=$1 AND paid=true AND blocked=false', [slug]);
+    return r.rows[0] || null;
+  } catch(e) { return null; }
+}
+
+// Reseller ka JWT verify
+function verifyWhitelabel(req, res, next) {
+  const auth = req.headers.authorization || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  if (!token) return res.status(401).json({ error: 'Login zaroori hai' });
+  try {
+    const d = jwt.verify(token, JWT_SECRET);
+    if (!d.wlId) return res.status(403).json({ error: 'Ye whitelabel token nahi hai' });
+    req.wlId = d.wlId;
+    next();
+  } catch(e) { return res.status(401).json({ error: 'Session expire ho gaya, dobara login karo' }); }
+}
+
 async function genAgentCode() {
   for (let i = 0; i < 40; i++) {
     const code = 'QRA-' + Math.floor(1000 + Math.random() * 9000);
@@ -1482,6 +1581,343 @@ app.get('/api/superadmin/analytics', verifySuperAdmin, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Razorpay order banane ka reusable helper (kiske keys se — wo caller decide kare)
+function createRazorpayOrder(keyId, keySecret, payload) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify(payload);
+    const req2 = https.request({
+      hostname: 'api.razorpay.com', path: '/v1/orders', method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Basic ' + Buffer.from(`${keyId}:${keySecret}`).toString('base64'),
+        'Content-Length': Buffer.byteLength(body)
+      }
+    }, (resp) => {
+      let data = '';
+      resp.on('data', c => data += c);
+      resp.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
+    });
+    req2.on('error', reject);
+    req2.write(body);
+    req2.end();
+  });
+}
+
+// ══════════════ WHITE LABEL — public ══════════════
+
+// License ka price (registration page dikhata hai)
+app.get('/api/whitelabel/license-fee', async (req, res) => {
+  try {
+    res.json({ licenseFee: await getWlLicenseFee(), basePrice: await getWlBasePrice() });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Branding — homepage/customer page yahan se apna brand uthate hain
+// (?wl=slug se ya subdomain se). Koi WL nahi mila to default QR Se Print.
+app.get('/api/whitelabel/branding', async (req, res) => {
+  try {
+    const wl = await resolveWhitelabel(req);
+    if (!wl) return res.json({ isWhitelabel: false });
+    res.json({
+      isWhitelabel: true,
+      slug: wl.slug,
+      brandName: wl.brand_name,
+      logoUrl: wl.logo_url || '',
+      poweredBy: wl.powered_by || wl.brand_name,
+      supportEmail: wl.support_email || '',
+      supportPhone: wl.support_phone || '',
+      shopPrice: wl.shop_price || 0
+    });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Step 1 — reseller register kare (abhi paid=false)
+app.post('/api/whitelabel/register', async (req, res) => {
+  try {
+    const b = req.body || {};
+    const brand = String(b.brand_name || '').trim().slice(0, 120);
+    const owner = String(b.owner_name || '').trim().slice(0, 120);
+    const phone = String(b.phone || '').trim();
+    const email = String(b.email || '').trim().slice(0, 160);
+    const slug  = cleanSlug(b.slug);
+
+    if (brand.length < 2) return res.status(400).json({ error: 'Brand ka naam daalo' });
+    if (!owner) return res.status(400).json({ error: 'Apna naam daalo' });
+    if (!/^\d{10}$/.test(phone)) return res.status(400).json({ error: 'Sahi 10 digit mobile number daalo' });
+    if (!/^\S+@\S+\.\S+$/.test(email)) return res.status(400).json({ error: 'Sahi email daalo' });
+    if (slug.length < 3) return res.status(400).json({ error: 'Slug kam se kam 3 akshar ka ho (sirf a-z, 0-9, dash)' });
+
+    const RESERVED = ['www','api','admin','superadmin','app','mail','shop','print','register','agent','wl','whitelabel'];
+    if (RESERVED.includes(slug)) return res.status(400).json({ error: 'Ye slug reserved hai, dusra chuno' });
+
+    const dup = await pool.query('SELECT id FROM whitelabels WHERE slug=$1', [slug]);
+    if (dup.rows.length) return res.status(400).json({ error: 'Ye slug already liya jaa chuka hai' });
+
+    const wlId = 'WL_' + uuidv4().substring(0, 8).toUpperCase();
+    const fee = await getWlLicenseFee();
+    const base = await getWlBasePrice();
+    // Password abhi random — payment ke baad hi reseller ko dikhaya jaayega
+    const tempPass = crypto.randomBytes(16).toString('hex');
+
+    await pool.query(
+      `INSERT INTO whitelabels (id, slug, brand_name, owner_name, phone, email, password_hash,
+        powered_by, support_email, support_phone, license_fee, base_price, shop_price)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12)`,
+      [wlId, slug, brand, owner, phone, email,
+       crypto.createHash('sha256').update(tempPass).digest('hex'),
+       brand, email, phone, fee, base]);
+
+    res.json({ success: true, wlId, slug, licenseFee: fee });
+  } catch(err) {
+    console.error('WL register error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Step 2 — license fee ka order (ye paisa HAMARE account me aata hai)
+app.post('/api/whitelabel/license/create', async (req, res) => {
+  try {
+    const wlId = String(req.body.wlId || '').trim();
+    const r = await pool.query('SELECT id, paid, license_fee FROM whitelabels WHERE id=$1', [wlId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Registration nahi mila' });
+    if (r.rows[0].paid) return res.status(400).json({ error: 'License already paid hai' });
+
+    if (!OWNER_RAZORPAY_KEY_ID || !OWNER_RAZORPAY_KEY_SECRET) {
+      return res.status(500).json({ error: 'Payment gateway configure nahi hai.' });
+    }
+
+    const amount = r.rows[0].license_fee || await getWlLicenseFee();
+    const order = await createRazorpayOrder(OWNER_RAZORPAY_KEY_ID, OWNER_RAZORPAY_KEY_SECRET, {
+      amount: amount * 100, currency: 'INR',
+      receipt: 'WL_' + wlId, notes: { wlId, type: 'whitelabel_license' }
+    });
+    if (!order.id) {
+      const why = order?.error?.description || 'Razorpay ne order reject kiya';
+      console.error('WL license create — Razorpay:', JSON.stringify(order));
+      return res.status(400).json({ error: 'Order create nahi hua: ' + why });
+    }
+    await pool.query('UPDATE whitelabels SET license_order_id=$1 WHERE id=$2', [order.id, wlId]);
+    res.json({ success: true, orderId: order.id, amount: amount * 100, keyId: OWNER_RAZORPAY_KEY_ID, wlId });
+  } catch(err) {
+    console.error('WL license create error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Step 3 — payment verify -> account activate + login credentials
+app.post('/api/whitelabel/license/verify', async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, wlId } = req.body;
+    const expected = crypto.createHmac('sha256', OWNER_RAZORPAY_KEY_SECRET)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`).digest('hex');
+    if (expected !== razorpay_signature) return res.status(400).json({ error: 'Payment verification failed' });
+
+    const r = await pool.query('SELECT id, slug, paid FROM whitelabels WHERE id=$1 AND license_order_id=$2',
+      [wlId, razorpay_order_id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Order match nahi hua' });
+
+    // Idempotent — dobara verify aaye to naya password mat banao
+    if (r.rows[0].paid) return res.json({ success: true, alreadyPaid: true, wlId, slug: r.rows[0].slug });
+
+    const password = Math.random().toString(36).slice(-4).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
+    await pool.query(
+      `UPDATE whitelabels SET paid=true, paid_at=NOW(), password_hash=$2 WHERE id=$1`,
+      [wlId, crypto.createHash('sha256').update(password).digest('hex')]);
+
+    console.log(`White label activated: ${wlId} (${r.rows[0].slug})`);
+    res.json({ success: true, wlId, slug: r.rows[0].slug, password,
+      loginUrl: `${BASE_URL}/wl-admin` });
+  } catch(err) {
+    console.error('WL license verify error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reseller login
+app.post('/api/whitelabel/login', async (req, res) => {
+  try {
+    const wlId = String(req.body.wlId || '').trim().toUpperCase();
+    const password = String(req.body.password || '');
+    const r = await pool.query('SELECT id, brand_name, paid, blocked, password_hash FROM whitelabels WHERE id=$1', [wlId]);
+    if (!r.rows.length) return res.status(401).json({ error: 'ID ya password galat hai' });
+    const wl = r.rows[0];
+    if (crypto.createHash('sha256').update(password).digest('hex') !== wl.password_hash) {
+      return res.status(401).json({ error: 'ID ya password galat hai' });
+    }
+    if (!wl.paid) return res.status(403).json({ error: 'License payment abhi complete nahi hua' });
+    if (wl.blocked) return res.status(403).json({ error: 'Aapka account abhi paused hai. Admin se baat kariye.' });
+
+    const token = jwt.sign({ wlId: wl.id }, JWT_SECRET, { expiresIn: '24h' });
+    res.json({ success: true, token, brandName: wl.brand_name });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ══════════════ WHITE LABEL — reseller ka apna panel ══════════════
+
+app.get('/api/whitelabel/me', verifyWhitelabel, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM whitelabels WHERE id=$1', [req.wlId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Account nahi mila' });
+    const wl = r.rows[0];
+
+    const s = await pool.query(
+      `SELECT COUNT(*) FILTER (WHERE demo=false AND setup_paid=true)::int  AS paid,
+              COUNT(*) FILTER (WHERE demo=false AND setup_paid=false)::int AS pending,
+              COUNT(*) FILTER (WHERE demo=true)::int                       AS demo,
+              COUNT(*)::int                                                AS total
+       FROM shops WHERE whitelabel_id=$1`, [req.wlId]);
+
+    const earned = await pool.query(
+      `SELECT COALESCE(SUM(setup_amount),0)::int AS total
+       FROM shops WHERE whitelabel_id=$1 AND setup_paid=true AND demo=false`, [req.wlId]);
+
+    res.json({
+      id: wl.id, slug: wl.slug, brandName: wl.brand_name, ownerName: wl.owner_name,
+      phone: wl.phone, email: wl.email, logoUrl: wl.logo_url || '',
+      poweredBy: wl.powered_by || '', supportEmail: wl.support_email || '',
+      supportPhone: wl.support_phone || '', broadcast: wl.broadcast || '',
+      shopPrice: wl.shop_price || 0, basePrice: wl.base_price || 0,
+      razorpayKeyId: wl.razorpay_key_id || '',
+      razorpayReady: !!(wl.razorpay_key_id && wl.razorpay_key_secret),
+      blocked: !!wl.blocked, licenseFee: wl.license_fee || 0, paidAt: wl.paid_at,
+      stats: s.rows[0], collected: earned.rows[0].total,
+      shareLink: `${BASE_URL}/?wl=${wl.slug}`,
+      subdomainLink: `https://${wl.slug}.${(BASE_URL || '').replace(/^https?:\/\//, '')}`
+    });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Branding — powered by, logo, support contact, brand naam
+app.put('/api/whitelabel/branding', verifyWhitelabel, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const cut = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : null);
+    const email = cut(b.support_email, 160);
+    if (email && email !== '' && !/^\S+@\S+\.\S+$/.test(email)) {
+      return res.status(400).json({ error: 'Sahi support email daalo' });
+    }
+    const phone = cut(b.support_phone, 20);
+    if (phone && phone !== '' && !/^\d{10}$/.test(phone)) {
+      return res.status(400).json({ error: 'Sahi 10 digit support number daalo' });
+    }
+    await pool.query(
+      `UPDATE whitelabels SET
+         brand_name    = COALESCE(NULLIF($2,''), brand_name),
+         powered_by    = COALESCE($3, powered_by),
+         logo_url      = COALESCE($4, logo_url),
+         support_email = COALESCE($5, support_email),
+         support_phone = COALESCE($6, support_phone)
+       WHERE id=$1`,
+      [req.wlId, cut(b.brand_name, 120) || '', cut(b.powered_by, 160), cut(b.logo_url, 400), email, phone]);
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Apna Razorpay — shops ka setup fee SEEDHA yahan aayega
+app.put('/api/whitelabel/razorpay', verifyWhitelabel, async (req, res) => {
+  try {
+    const keyId = String(req.body.razorpay_key_id || '').trim().slice(0, 120);
+    const secret = String(req.body.razorpay_key_secret || '').trim().slice(0, 200);
+    if (!keyId || !secret) return res.status(400).json({ error: 'Key ID aur Secret dono daalo' });
+    if (!/^rzp_/i.test(keyId)) return res.status(400).json({ error: 'Key ID rzp_ se shuru honi chahiye' });
+    await pool.query('UPDATE whitelabels SET razorpay_key_id=$2, razorpay_key_secret=$3 WHERE id=$1',
+      [req.wlId, keyId, secret]);
+    res.json({ success: true, razorpayReady: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Shop registration ka price — base se neeche nahi
+app.put('/api/whitelabel/price', verifyWhitelabel, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT base_price, blocked FROM whitelabels WHERE id=$1', [req.wlId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Account nahi mila' });
+    if (r.rows[0].blocked) return res.status(403).json({ error: 'Account paused hai' });
+
+    const base = r.rows[0].base_price || await getWlBasePrice();
+    const p = parseInt(req.body.price, 10);
+    if (!Number.isInteger(p)) return res.status(400).json({ error: 'Sahi price daalo' });
+    if (p < base) return res.status(400).json({ error: `Price \u20b9${base} se kam nahi ho sakta` });
+    if (p > 9999) return res.status(400).json({ error: 'Price \u20b99999 se zyada nahi ho sakta' });
+
+    await pool.query('UPDATE whitelabels SET shop_price=$2 WHERE id=$1', [req.wlId, p]);
+    res.json({ success: true, price: p, base });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Broadcast — sirf ISKI shops ko dikhega
+app.put('/api/whitelabel/broadcast', verifyWhitelabel, async (req, res) => {
+  try {
+    const msg = String(req.body.message || '').slice(0, 1000);
+    await pool.query('UPDATE whitelabels SET broadcast=$2 WHERE id=$1', [req.wlId, msg]);
+    res.json({ success: true, message: msg });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Meri shops
+app.get('/api/whitelabel/shops', verifyWhitelabel, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT id, name, phone, address, created_at, setup_paid, demo, demo_expires_at,
+              plan_type, setup_amount, agent_last_seen, paused
+       FROM shops WHERE whitelabel_id=$1 ORDER BY created_at DESC LIMIT 500`, [req.wlId]);
+    res.json({ shops: r.rows });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ══════════════ SUPERADMIN: WHITE LABELS ══════════════
+app.get('/api/superadmin/whitelabels', verifySuperAdmin, async (req, res) => {
+  try {
+    const wls = await pool.query('SELECT * FROM whitelabels ORDER BY created_at DESC');
+    const out = [];
+    for (const w of wls.rows) {
+      const s = await pool.query(
+        `SELECT COUNT(*) FILTER (WHERE demo=false AND setup_paid=true)::int  AS paid,
+                COUNT(*) FILTER (WHERE demo=false AND setup_paid=false)::int AS pending,
+                COUNT(*) FILTER (WHERE demo=true)::int                       AS demo,
+                COUNT(*)::int                                                AS total,
+                COALESCE(SUM(setup_amount) FILTER (WHERE setup_paid=true AND demo=false),0)::int AS collected
+         FROM shops WHERE whitelabel_id=$1`, [w.id]);
+      out.push({
+        id: w.id, slug: w.slug, brandName: w.brand_name, ownerName: w.owner_name,
+        phone: w.phone, email: w.email, paid: !!w.paid, blocked: !!w.blocked,
+        licenseFee: w.license_fee || 0, basePrice: w.base_price || 0, shopPrice: w.shop_price || 0,
+        razorpayReady: !!(w.razorpay_key_id && w.razorpay_key_secret),
+        poweredBy: w.powered_by || '', createdAt: w.created_at, paidAt: w.paid_at,
+        stats: s.rows[0]
+      });
+    }
+    res.json({
+      whitelabels: out,
+      licenseFee: await getWlLicenseFee(),
+      defaultBasePrice: await getWlBasePrice()
+    });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Block/unblock + is reseller ka apna base price
+app.put('/api/superadmin/whitelabel/:id', verifySuperAdmin, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const chk = await pool.query('SELECT id, shop_price FROM whitelabels WHERE id=$1', [req.params.id]);
+    if (!chk.rows.length) return res.status(404).json({ error: 'White label nahi mila' });
+
+    if (b.blocked !== undefined) {
+      await pool.query('UPDATE whitelabels SET blocked=$2 WHERE id=$1', [req.params.id, !!b.blocked]);
+    }
+    if (b.base_price !== undefined && b.base_price !== '') {
+      const bp = parseInt(b.base_price, 10);
+      if (isNaN(bp) || bp < 0) return res.status(400).json({ error: 'Valid base price daalo' });
+      await pool.query('UPDATE whitelabels SET base_price=$2 WHERE id=$1', [req.params.id, bp]);
+      // Reseller ka price base se neeche reh gaya ho to usko bhi upar utha do
+      if (chk.rows[0].shop_price < bp) {
+        await pool.query('UPDATE whitelabels SET shop_price=$2 WHERE id=$1', [req.params.id, bp]);
+      }
+    }
+    const out = await pool.query('SELECT blocked, base_price, shop_price FROM whitelabels WHERE id=$1', [req.params.id]);
+    res.json({ success: true, ...out.rows[0] });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/setup-fee/current', async (req, res) => {
   try {
     const pricing = await getSetupPricing();
@@ -1568,6 +2004,22 @@ app.post('/api/shop/register', async (req, res) => {
       oneTimePrice = (refShop.agent_price && refShop.agent_price > agentBase) ? refShop.agent_price : agentBase;
       onetimeBaseForRecord = agentBase;
     }
+
+    // ── WHITE LABEL ── ?wl=slug ya subdomain se aaya ho to reseller ka
+    // price lagta hai, aur setup fee SEEDHA uske Razorpay me jaayega.
+    const wl = await resolveWhitelabel(req);
+    let whitelabelId = '';
+    if (wl) {
+      // Reseller ne apna Razorpay nahi lagaya — paisa galti se hamare paas
+      // aa jaata, isliye registration hi rok do (saaf message ke saath)
+      if (!wl.razorpay_key_id || !wl.razorpay_key_secret) {
+        return res.status(503).json({ error: 'Ye partner abhi payment setup complete nahi kiya hai. Thodi der baad try kariye.' });
+      }
+      whitelabelId = wl.id;
+      const wlBase = wl.base_price || await getWlBasePrice();
+      oneTimePrice = (wl.shop_price && wl.shop_price > wlBase) ? wl.shop_price : wlBase;
+      onetimeBaseForRecord = wlBase;
+    }
     const firstPayment = plan === 'monthly' ? monthlyFee : oneTimePrice;
     const soldPrice = plan === 'monthly' ? monthlyFee : oneTimePrice;
     const basePrice  = plan === 'monthly' ? monthlyFee : onetimeBaseForRecord;
@@ -1578,11 +2030,11 @@ app.post('/api/shop/register', async (req, res) => {
       `INSERT INTO shops 
         (id,name,address,phone,printer_model,price_bw,price_color,payment_mode,password_hash,
          payment_gateway,razorpay_key_id,razorpay_key_secret,phonepe_merchant_id,phonepe_salt_key,phonepe_salt_index,
-         setup_paid,setup_amount,plan_type,referred_by,onboarded_by,base_price_at_signup,sold_price)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,false,$16,$17,$18,$19,$20,$21)`,
+         setup_paid,setup_amount,plan_type,referred_by,onboarded_by,base_price_at_signup,sold_price,whitelabel_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,false,$16,$17,$18,$19,$20,$21,$22)`,
       [shopId, name, address, phone, printer_model, price_bw||5, price_color||10, finalPaymentMode, passwordHash,
        finalGateway, razorpay_key_id||'', razorpay_key_secret||'', phonepe_merchant_id||'', phonepe_salt_key||'', phonepe_salt_index||'1',
-       firstPayment, plan, referredBy, onboardedBy, basePrice, soldPrice]
+       firstPayment, plan, referredBy, onboardedBy, basePrice, soldPrice, whitelabelId]
     );
 
     res.json({ success: true, shopId, setupFeeAmount: firstPayment, plan });
@@ -1595,15 +2047,30 @@ app.post('/api/setup-fee/create', async (req, res) => {
     const { shopId } = req.body;
     if (!shopId) return res.status(400).json({ error: 'Shop ID required' });
 
-    const shopResult = await pool.query('SELECT id, setup_paid, setup_amount FROM shops WHERE id=$1', [shopId]);
+    const shopResult = await pool.query('SELECT id, setup_paid, setup_amount, whitelabel_id FROM shops WHERE id=$1', [shopId]);
     if (!shopResult.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
     if (shopResult.rows[0].setup_paid) return res.status(400).json({ error: 'Setup fee already paid hai' });
 
-    // Owner Razorpay keys missing hain to Razorpay 'Authentication failed'
-    // dega aur order.id kabhi nahi aayega — isse pehle hi clear error do.
-    if (!OWNER_RAZORPAY_KEY_ID || !OWNER_RAZORPAY_KEY_SECRET) {
-      console.error('Setup fee create error: OWNER_RAZORPAY_KEY_ID/SECRET missing in environment');
-      return res.status(500).json({ error: 'Payment gateway configure nahi hai. Admin ko OWNER_RAZORPAY keys set karni hongi.' });
+    // ── Paisa kiske account me? ──
+    // Normal shop -> hamara Razorpay. White-label ki shop -> RESELLER ka
+    // Razorpay (uski kamai seedha usi ke paas jaati hai, hamare paas nahi).
+    let payKeyId = OWNER_RAZORPAY_KEY_ID, payKeySecret = OWNER_RAZORPAY_KEY_SECRET;
+    const wlIdOfShop = shopResult.rows[0].whitelabel_id || '';
+    if (wlIdOfShop) {
+      const w = await pool.query(
+        'SELECT razorpay_key_id, razorpay_key_secret, blocked FROM whitelabels WHERE id=$1', [wlIdOfShop]);
+      const wrow = w.rows[0];
+      if (!wrow || !wrow.razorpay_key_id || !wrow.razorpay_key_secret) {
+        return res.status(503).json({ error: 'Partner ka payment setup adhoora hai. Unse sampark kariye.' });
+      }
+      if (wrow.blocked) return res.status(403).json({ error: 'Ye partner account abhi active nahi hai.' });
+      payKeyId = wrow.razorpay_key_id;
+      payKeySecret = wrow.razorpay_key_secret;
+    }
+
+    if (!payKeyId || !payKeySecret) {
+      console.error('Setup fee create error: Razorpay keys missing');
+      return res.status(500).json({ error: 'Payment gateway configure nahi hai.' });
     }
 
     const amount = shopResult.rows[0].setup_amount || SETUP_FEE_AMOUNT;
@@ -1616,7 +2083,7 @@ app.post('/api/setup-fee/create', async (req, res) => {
       notes: { shopId, type: 'setup_fee' }
     });
 
-    const authHeader = 'Basic ' + Buffer.from(`${OWNER_RAZORPAY_KEY_ID}:${OWNER_RAZORPAY_KEY_SECRET}`).toString('base64');
+    const authHeader = 'Basic ' + Buffer.from(`${payKeyId}:${payKeySecret}`).toString('base64');
 
     const razorpayOrder = await new Promise((resolve, reject) => {
       const options = {
@@ -1655,7 +2122,7 @@ app.post('/api/setup-fee/create', async (req, res) => {
       success: true,
       orderId: razorpayOrder.id,
       amount: amountInPaise,
-      keyId: OWNER_RAZORPAY_KEY_ID,
+      keyId: payKeyId,
       shopId
     });
   } catch(err) {
@@ -1808,8 +2275,18 @@ app.post('/api/setup-fee/verify', async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, shopId } = req.body;
 
+    // Signature usi SECRET se verify hoga jisse order bana tha —
+    // white-label ki shop ka order reseller ke keys se banta hai.
+    let vSecret = OWNER_RAZORPAY_KEY_SECRET;
+    const wlq = await pool.query('SELECT whitelabel_id FROM shops WHERE id=$1', [shopId]);
+    const wlIdV = wlq.rows[0]?.whitelabel_id || '';
+    if (wlIdV) {
+      const w = await pool.query('SELECT razorpay_key_secret FROM whitelabels WHERE id=$1', [wlIdV]);
+      if (w.rows[0]?.razorpay_key_secret) vSecret = w.rows[0].razorpay_key_secret;
+    }
+
     const expectedSignature = crypto
-      .createHmac('sha256', OWNER_RAZORPAY_KEY_SECRET)
+      .createHmac('sha256', vSecret)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest('hex');
 
@@ -2006,6 +2483,22 @@ app.get('/api/shop/:shopId', async (req, res) => {
     const shopInfo = r.rows[0];
     // Customer ke liye advance tabhi ON jab kharida (unlocked) AUR owner ne active rakha
     shopInfo.advanced_unlocked = !!(shopInfo.advanced_unlocked && shopInfo.advanced_active !== false);
+
+    // White-label ki shop hai to customer page par PARTNER ka brand dikhega
+    try {
+      const wq = await pool.query('SELECT whitelabel_id FROM shops WHERE id=$1', [req.params.shopId]);
+      const wlId = wq.rows[0]?.whitelabel_id || '';
+      if (wlId) {
+        const w = await pool.query(
+          'SELECT brand_name, powered_by, support_email, support_phone, blocked FROM whitelabels WHERE id=$1', [wlId]);
+        if (w.rows.length && !w.rows[0].blocked) {
+          shopInfo.powered_by = w.rows[0].powered_by || w.rows[0].brand_name || '';
+          shopInfo.wl_brand = w.rows[0].brand_name || '';
+          shopInfo.wl_support_email = w.rows[0].support_email || '';
+          shopInfo.wl_support_phone = w.rows[0].support_phone || '';
+        }
+      }
+    } catch(e) { /* branding fail ho to default hi rahega */ }
     shopInfo.subscription_expired = !isSubscriptionActive(shopInfo);
     delete shopInfo.paid_until; // customer ko exact date nahi dikhani
     res.json(shopInfo);
@@ -2953,6 +3446,17 @@ app.post('/api/superadmin/login', async (req, res) => {
 // Shop panel isse fetch karta hai (public, token nahi chahiye)
 app.get('/api/admin-broadcast', async (req, res) => {
   try {
+    // White-label ki shop ko RESELLER ka message dikhega, hamara nahi —
+    // warna do alag brand ke message ek hi dashboard me mix ho jaate.
+    const shopId = String(req.query.shopId || '').trim();
+    if (shopId) {
+      const s = await pool.query('SELECT whitelabel_id FROM shops WHERE id=$1', [shopId]);
+      const wlId = s.rows[0]?.whitelabel_id || '';
+      if (wlId) {
+        const w = await pool.query('SELECT broadcast FROM whitelabels WHERE id=$1', [wlId]);
+        return res.json({ message: w.rows[0]?.broadcast || '' });
+      }
+    }
     const r = await pool.query("SELECT value FROM system_settings WHERE key='admin_broadcast'");
     res.json({ message: r.rows.length ? r.rows[0].value : '' });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -3248,6 +3752,8 @@ app.get('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
       monthlyActualPrice: await getMonthlyActualFee(),
       advancedActualPrice: await getAdvancedActualFee(),
       agentBasePrice: await getAgentBasePrice(),
+      wlLicenseFee: await getWlLicenseFee(),
+      wlBasePrice: await getWlBasePrice(),
       agentBasePriceIsSet: (await pool.query("SELECT value FROM system_settings WHERE key='agent_base_price'")).rows[0]?.value > 0,
       defaultOfferPrice: SETUP_FEE_AMOUNT,
       defaultActualPrice: SETUP_ACTUAL_PRICE
@@ -3305,6 +3811,20 @@ app.put('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
     }
     // Agent Base Price — 0/khaali = "abhi set nahi", agent ka floor = public Offer Price hi rahega.
     // Value diya ho to Offer Price se kam nahi ho sakta — warna agent public se sasta bech payega.
+    // White Label — license fee (ek baar) aur reseller ka minimum shop price
+    if (req.body.wlLicenseFee !== undefined && req.body.wlLicenseFee !== '') {
+      const lf = parseInt(req.body.wlLicenseFee, 10);
+      if (isNaN(lf) || lf < 1) return res.status(400).json({ error: 'Valid White Label license fee daalo' });
+      await pool.query("UPDATE system_settings SET value=$1 WHERE key='wl_license_fee'", [String(lf)]);
+    }
+    if (req.body.wlBasePrice !== undefined && req.body.wlBasePrice !== '') {
+      const wbp = parseInt(req.body.wlBasePrice, 10);
+      if (isNaN(wbp) || wbp < 0) return res.status(400).json({ error: 'Valid White Label base price daalo' });
+      if (wbp > 0 && wbp < newOfferPrice) {
+        return res.status(400).json({ error: 'White Label base price, Offer Price se kam nahi ho sakta' });
+      }
+      await pool.query("UPDATE system_settings SET value=$1 WHERE key='wl_base_price'", [String(wbp)]);
+    }
     if (req.body.agentBasePrice !== undefined && req.body.agentBasePrice !== '') {
       const abp = parseInt(req.body.agentBasePrice);
       if (isNaN(abp) || abp < 0) return res.status(400).json({ error: 'Valid Agent Base Price daalo' });
@@ -3649,6 +4169,8 @@ setInterval(backgroundMaintenance, 2 * 60 * 1000).unref();
 app.get('/print/:shopId', (req,res) => res.sendFile(path.join(__dirname,'public','customer.html')));
 app.get('/register',  (req,res) => res.sendFile(path.join(__dirname,'public','register.html')));
 app.get('/agent',     (req,res) => res.sendFile(path.join(__dirname,'public','agent.html')));
+app.get('/whitelabel',(req,res) => res.sendFile(path.join(__dirname,'public','whitelabel.html')));
+app.get('/wl-admin',  (req,res) => res.sendFile(path.join(__dirname,'public','wl-admin.html')));
 app.get('/dashboard', (req,res) => res.sendFile(path.join(__dirname,'public','dashboard.html')));
 app.get('/admin', (req,res) => res.sendFile(path.join(__dirname,'public','admin.html')));
 app.get('/superadmin', (req,res) => res.sendFile(path.join(__dirname,'public','superadmin.html')));
