@@ -2198,28 +2198,74 @@ async function buildOutputFile() {
   return { blob, fileName: 'document.pdf' };
 }
 
+// File ab SEEDHA Cloudinary jaati hai — server se hoke nahi.
+// Isse server ka bandwidth bachta hai aur upload tez bhi hota hai.
+// Direct upload kisi wajah se fail ho to purana tarika apne aap chal jata hai.
+async function uploadDirect(blob, fileName) {
+  // 1) Server se signature lo (chhota request)
+  const sr = await fetch('/api/upload/sign', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shopId })
+  });
+  const sig = await sr.json();
+  if (!sr.ok || !sig.success) throw new Error(sig.error || 'Signature nahi mila');
+
+  // 2) File SEEDHA Cloudinary ko
+  const fd = new FormData();
+  fd.append('file', blob, fileName);
+  fd.append('api_key', sig.apiKey);
+  fd.append('timestamp', sig.timestamp);
+  fd.append('public_id', sig.publicId);
+  fd.append('signature', sig.signature);
+
+  const cr = await fetch(sig.uploadUrl, { method: 'POST', body: fd });
+  const cd = await cr.json();
+  if (!cr.ok || !cd.public_id) throw new Error(cd?.error?.message || 'Cloudinary upload fail');
+
+  // 3) Server ko sirf details bhejo (file nahi)
+  const conf = await fetch('/api/upload/confirm', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      shopId, publicId: cd.public_id, uploadToken: sig.uploadToken, fileName,
+      copies: state.copies, colorMode: state.colorMode, totalPages: pages.length,
+      paperSize: state.paperSize, orientation: state.orientation,
+      service: state.service || 'doc', photoCount: state.photoCount || 0
+    })
+  });
+  const data = await conf.json();
+  if (!conf.ok || !data.success) throw new Error(data.error || 'Confirm fail');
+  return data;
+}
+
+async function uploadViaServer(blob, fileName) {
+  const fd = new FormData();
+  fd.append('file', blob, fileName);
+  fd.append('shopId', shopId);
+  fd.append('copies', state.copies);
+  fd.append('colorMode', state.colorMode);
+  fd.append('totalPages', pages.length);
+  fd.append('paperSize', state.paperSize);
+  fd.append('orientation', state.orientation);
+  fd.append('service', state.service || 'doc');
+  fd.append('photoCount', state.photoCount || 0);
+  const res = await fetch('/api/upload', { method: 'POST', body: fd });
+  const data = await res.json();
+  if (!data.success) throw new Error(data.error || 'Upload failed');
+  return data;
+}
+
 async function uploadAllPages() {
   try {
     const { blob, fileName } = await buildOutputFile();
-    const fd = new FormData();
-    fd.append('file', blob, fileName);
-    fd.append('shopId', shopId);
-    fd.append('copies', state.copies);
-    fd.append('colorMode', state.colorMode);
-    fd.append('totalPages', pages.length);
-    fd.append('paperSize', state.paperSize);
-    fd.append('orientation', state.orientation);
-    fd.append('service', state.service || 'doc');
-    fd.append('photoCount', state.photoCount || 0);
-
-    const res = await fetch('/api/upload', { method: 'POST', body: fd });
-    const data = await res.json();
-    if (data.success) {
-      state.jobId = data.jobId;
-      toast('✅ File ready!');
-    } else {
-      toast('❌ Upload failed: ' + data.error);
+    let data;
+    try {
+      data = await uploadDirect(blob, fileName);
+    } catch (e) {
+      console.warn('Direct upload fail, purane tarike se try kar rahe hain:', e.message);
+      data = await uploadViaServer(blob, fileName);
     }
+    state.jobId = data.jobId;
+    toast('✅ File ready!');
   } catch(e) {
     toast('❌ Upload error: ' + e.message);
   }
