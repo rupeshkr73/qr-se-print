@@ -2929,23 +2929,48 @@ app.post('/api/upload/confirm', async (req, res) => {
   try {
     const b = req.body || {};
     const shopId = String(b.shopId || '').trim();
+    // Cloudinary raw upload par public_id ke aage extension jod deta hai
+    // (qrprint_abc -> qrprint_abc.pdf). Isliye do alag values aati hain:
+    //   signedPublicId = jo humne sign kiya (token isi se bana)
+    //   publicId       = jo Cloudinary ne wapas diya (lookup isi se hoga)
     const publicId = String(b.publicId || '').trim();
+    const signedPublicId = String(b.signedPublicId || b.publicId || '').trim();
     const token = String(b.uploadToken || '').trim();
     if (!shopId || !publicId) return res.status(400).json({ error: 'shopId aur publicId chahiye' });
 
     // 1) Token match — ye public_id humne hi is shop ke liye issue kiya tha?
-    if (token !== uploadTokenFor(shopId, publicId)) {
+    if (token !== uploadTokenFor(shopId, signedPublicId)) {
       return res.status(403).json({ error: 'Upload token match nahi hua' });
+    }
+    // 2) Cloudinary ka public_id wahi hona chahiye jo humne sign kiya
+    //    (bas extension juda ho sakta hai) — warna koi doosri file point kar sakta hai
+    if (publicId !== signedPublicId && !publicId.startsWith(signedPublicId + '.')) {
+      return res.status(403).json({ error: 'Public ID match nahi hua' });
     }
 
     const shopResult = await pool.query('SELECT * FROM shops WHERE id=$1', [shopId]);
     if (!shopResult.rows.length) return res.status(404).json({ error: 'Shop not found' });
     const shop = shopResult.rows[0];
 
-    // 2) Cloudinary se confirm — file sach me hai? URL bhi WAHIN se lo,
-    //    client ka bheja hua URL kabhi trust mat karo.
-    const info = await cloudinaryResourceInfo(publicId);
-    const fileUrl = info.secure_url || info.url;
+    // 3) Cloudinary se confirm — file sach me hai? URL bhi WAHIN se lo.
+    //    Admin API kabhi-kabhi der karta hai (indexing), isliye fail hone par
+    //    client ka URL use karte hain — par sirf tab jab wo HAMARE cloud ka ho
+    //    AUR usme wahi public_id ho. Warna koi bhi URL daal sakta tha.
+    let fileUrl = '';
+    try {
+      const info = await cloudinaryResourceInfo(publicId);
+      fileUrl = info.secure_url || info.url || '';
+    } catch (e) {
+      const claimed = String(b.secureUrl || '').trim();
+      const okHost = claimed.startsWith(`https://res.cloudinary.com/${CLOUD_NAME}/`);
+      if (okHost && claimed.includes(signedPublicId)) {
+        fileUrl = claimed;
+        console.warn(`Cloudinary lookup fail (${e.message}) — client URL use kar rahe hain: ${publicId}`);
+      } else {
+        console.error(`Cloudinary lookup fail aur client URL bhi galat: ${e.message}`);
+        return res.status(400).json({ error: 'File Cloudinary par verify nahi hui' });
+      }
+    }
     if (!fileUrl) return res.status(400).json({ error: 'Cloudinary se file URL nahi mila' });
 
     const jobId = 'JOB_' + uuidv4().substring(0, 10).toUpperCase();
