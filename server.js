@@ -108,6 +108,12 @@ const upload = multer({
   }
 });
 
+// ─── Fallback upload tracking (diagnostics — Render bandwidth debug) ───
+// Direct-to-Cloudinary upload fail hone par jab bhi /api/upload (purana,
+// Render-se-guzarne-wala) route hit hota hai, yahan count/reason record hota hai.
+// Check karo: GET /api/superadmin/fallback-stats
+let fallbackUploadStats = { count: 0, lastAt: null, lastShopId: null, lastReason: null, lastSizeMB: null };
+
 const PRINTER_MODELS = [
   '🔍 Auto Detect (System Installed Printer)',
   'Epson L120', 'Epson L130', 'Epson L210', 'Epson L220', 'Epson L360', 'Epson L361',
@@ -1178,6 +1184,12 @@ app.get('/api/superadmin/db-counts', verifySuperAdmin, async (req, res) => {
     }
     res.json(counts);
   } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Fallback upload diagnostics — kitni baar /api/upload (Render-se-guzarne-wala,
+// direct-Cloudinary fail hone ka fallback) trigger hua, kis shop pe, kis wajah se.
+app.get('/api/superadmin/fallback-stats', verifySuperAdmin, (req, res) => {
+  res.json(fallbackUploadStats);
 });
 
 app.get('/api/superadmin/cloudinary-status', verifySuperAdmin, async (req, res) => {
@@ -3386,8 +3398,17 @@ app.post('/api/upload/confirm', async (req, res) => {
 app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error:'No file uploaded' });
-    const { shopId, copies, colorMode, totalPages } = req.body;
+    const { shopId, copies, colorMode, totalPages, fallbackReason } = req.body;
     if (!shopId) return res.status(400).json({ error:'Shop ID required' });
+
+    // Diagnostics: kitni baar aur kis wajah se direct-Cloudinary upload
+    // fail hoke yahan (Render bandwidth wale route) par aa raha hai
+    fallbackUploadStats = {
+      count: fallbackUploadStats.count + 1, lastAt: new Date().toISOString(),
+      lastShopId: shopId, lastReason: fallbackReason || 'unknown',
+      lastSizeMB: (req.file.size / (1024 * 1024)).toFixed(2)
+    };
+    console.warn(`⚠️ FALLBACK UPLOAD #${fallbackUploadStats.count} — shop:${shopId} reason:"${fallbackUploadStats.lastReason}" size:${fallbackUploadStats.lastSizeMB}MB`);
 
     const shopResult = await pool.query('SELECT * FROM shops WHERE id=$1', [shopId]);
     if (!shopResult.rows.length) return res.status(404).json({ error:'Shop not found' });
