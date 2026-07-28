@@ -12,6 +12,7 @@ const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const archiver = require('archiver');
 const nodemailer = require('nodemailer');
+const compression = require('compression');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -70,7 +71,36 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use(express.static('public'));
+// ══════════════════════════════════════════════════════════════
+// BANDWIDTH — sabse bada kharcha yahi tha
+//
+// 1) gzip/brotli: HTML ~182 KB se ~30 KB ho jaata hai (6x kam).
+//    Ek visitor = 182 KB tha, ab ~30 KB.
+// 2) Cache headers: dobara aane wale visitor ko file dobara nahi
+//    bhejni padti — server sirf "304 Not Modified" bhejta hai (0 bytes).
+// ══════════════════════════════════════════════════════════════
+app.use(compression({
+  level: 6,                       // speed aur size ka balance
+  threshold: 1024,                // 1 KB se chhoti cheez compress karna faaltu hai
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) return false;
+    return compression.filter(req, res);
+  }
+}));
+
+app.use(express.static('public', {
+  etag: true,
+  lastModified: true,
+  setHeaders: (res, filePath) => {
+    if (/\.(js|css|png|jpg|jpeg|svg|ico|woff2?)$/i.test(filePath)) {
+      // Assets — 7 din cache, phir bhi badal jaye to naam/etag se pata chal jaata hai
+      res.setHeader('Cache-Control', 'public, max-age=604800');
+    } else if (/\.html$/i.test(filePath)) {
+      // HTML — har baar check karo par badla na ho to 304 (0 bytes)
+      res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate');
+    }
+  }
+}));
 
 // ─── Canonical host redirect ───
 // Purane customers ka QR / bookmark / WhatsApp me shared link
@@ -107,12 +137,6 @@ const upload = multer({
     allowed.includes(ext) ? cb(null, true) : cb(new Error('File type not allowed'));
   }
 });
-
-// ─── Fallback upload tracking (diagnostics — Render bandwidth debug) ───
-// Direct-to-Cloudinary upload fail hone par jab bhi /api/upload (purana,
-// Render-se-guzarne-wala) route hit hota hai, yahan count/reason record hota hai.
-// Check karo: GET /api/superadmin/fallback-stats
-let fallbackUploadStats = { count: 0, lastAt: null, lastShopId: null, lastReason: null, lastSizeMB: null };
 
 const PRINTER_MODELS = [
   '🔍 Auto Detect (System Installed Printer)',
@@ -592,6 +616,8 @@ async function initDB() {
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('brevo_api_key','') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('brevo_sender','') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('wl_license_fee','25000') ON CONFLICT DO NOTHING");
+    // License ka "kata hua" price — 0 = dikhega hi nahi
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('wl_license_actual','0') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('wl_base_price','0') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('monthly_actual_price','0') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('advanced_actual_price','0') ON CONFLICT DO NOTHING");
@@ -1186,18 +1212,6 @@ app.get('/api/superadmin/db-counts', verifySuperAdmin, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
-// Fallback upload diagnostics — kitni baar /api/upload (Render-se-guzarne-wala,
-// direct-Cloudinary fail hone ka fallback) trigger hua, kis shop pe, kis wajah se.
-// Do tarike se check kar sakte ho: (1) superadmin dashboard token se, jaisa baaki
-// superadmin routes, (2) seedha phone browser se — URL ke aage ?key=TUMHARA_SUPER_ADMIN_PASSWORD
-// laga do, login karne ki zaroorat nahi.
-app.get('/api/superadmin/fallback-stats', (req, res, next) => {
-  if (req.query.key && SUPER_ADMIN_PASSWORD && req.query.key === SUPER_ADMIN_PASSWORD) return next();
-  return verifySuperAdmin(req, res, next);
-}, (req, res) => {
-  res.json(fallbackUploadStats);
-});
-
 app.get('/api/superadmin/cloudinary-status', verifySuperAdmin, async (req, res) => {
   try {
     let cursor = '', all = [];
@@ -1501,6 +1515,13 @@ async function getWlLicenseFee() {
 }
 
 // Reseller isse neeche shop price nahi rakh sakta. 0/unset = public Offer Price.
+async function getWlLicenseActual() {
+  try {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key='wl_license_actual'");
+    return Math.max(0, parseInt(r.rows[0]?.value) || 0);
+  } catch(e) { return 0; }
+}
+
 async function getWlBasePrice() {
   try {
     const r = await pool.query("SELECT value FROM system_settings WHERE key='wl_base_price'");
@@ -1669,7 +1690,11 @@ function createRazorpayOrder(keyId, keySecret, payload) {
 // License ka price (registration page dikhata hai)
 app.get('/api/whitelabel/license-fee', async (req, res) => {
   try {
-    res.json({ licenseFee: await getWlLicenseFee(), basePrice: await getWlBasePrice() });
+    res.json({
+      licenseFee: await getWlLicenseFee(),
+      licenseActual: await getWlLicenseActual(),
+      basePrice: await getWlBasePrice()
+    });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1951,6 +1976,7 @@ app.get('/api/superadmin/whitelabels', verifySuperAdmin, async (req, res) => {
     res.json({
       whitelabels: out,
       licenseFee: await getWlLicenseFee(),
+      licenseActual: await getWlLicenseActual(),
       defaultBasePrice: await getWlBasePrice()
     });
   } catch(err) { res.status(500).json({ error: err.message }); }
@@ -3404,17 +3430,8 @@ app.post('/api/upload/confirm', async (req, res) => {
 app.post('/api/upload', upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error:'No file uploaded' });
-    const { shopId, copies, colorMode, totalPages, fallbackReason } = req.body;
+    const { shopId, copies, colorMode, totalPages } = req.body;
     if (!shopId) return res.status(400).json({ error:'Shop ID required' });
-
-    // Diagnostics: kitni baar aur kis wajah se direct-Cloudinary upload
-    // fail hoke yahan (Render bandwidth wale route) par aa raha hai
-    fallbackUploadStats = {
-      count: fallbackUploadStats.count + 1, lastAt: new Date().toISOString(),
-      lastShopId: shopId, lastReason: fallbackReason || 'unknown',
-      lastSizeMB: (req.file.size / (1024 * 1024)).toFixed(2)
-    };
-    console.warn(`⚠️ FALLBACK UPLOAD #${fallbackUploadStats.count} — shop:${shopId} reason:"${fallbackUploadStats.lastReason}" size:${fallbackUploadStats.lastSizeMB}MB`);
 
     const shopResult = await pool.query('SELECT * FROM shops WHERE id=$1', [shopId]);
     if (!shopResult.rows.length) return res.status(404).json({ error:'Shop not found' });
@@ -3891,17 +3908,17 @@ app.get('/api/jobs/pending/:shopId', async (req, res) => {
     // Agent heartbeat — dashboard ka Online/Offline indicator isi se chalta hai.
     // Agent apna version bhi bhejta hai (?v=), taaki superadmin dekh sake kis
     // shop par kaun sa version chal raha hai.
+    // Heartbeat + shop info EK HI query me (pehle do alag queries thi).
+    // Har agent har 5 second me poll karta hai — ek query kam matlab
+    // roz lakhon round-trip kam, aur utna hi bandwidth bacha.
     const _av = parseInt(req.query.v, 10);
-    if (Number.isInteger(_av) && _av > 0 && _av < 100000) {
-      await pool.query('UPDATE shops SET agent_last_seen=NOW(), agent_version=$2 WHERE id=$1',
-        [req.params.shopId, _av]);
-    } else {
-      await pool.query('UPDATE shops SET agent_last_seen=NOW() WHERE id=$1', [req.params.shopId]);
-    }
-
-    // ── DEMO: machine-lock + expiry ──
     const shopRow = await pool.query(
-      'SELECT demo, demo_expires_at FROM shops WHERE id=$1', [req.params.shopId]);
+      `UPDATE shops
+         SET agent_last_seen = NOW(),
+             agent_version   = COALESCE($2, agent_version)
+       WHERE id = $1
+       RETURNING demo, demo_expires_at`,
+      [req.params.shopId, (Number.isInteger(_av) && _av > 0 && _av < 100000) ? _av : null]);
     if (shopRow.rows.length && shopRow.rows[0].demo) {
       const sh = shopRow.rows[0];
       // Layer 3: ek machine = ek demo PERMANENT. Agent ?m=MachineGuid bhejta
@@ -4496,6 +4513,7 @@ app.get('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
       advancedActualPrice: await getAdvancedActualFee(),
       agentBasePrice: await getAgentBasePrice(),
       wlLicenseFee: await getWlLicenseFee(),
+      wlLicenseActual: await getWlLicenseActual(),
       wlBasePrice: await getWlBasePrice(),
       agentBasePriceIsSet: (await pool.query("SELECT value FROM system_settings WHERE key='agent_base_price'")).rows[0]?.value > 0,
       defaultOfferPrice: SETUP_FEE_AMOUNT,
@@ -4559,6 +4577,15 @@ app.put('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
       const lf = parseInt(req.body.wlLicenseFee, 10);
       if (isNaN(lf) || lf < 1) return res.status(400).json({ error: 'Valid White Label license fee daalo' });
       await pool.query("UPDATE system_settings SET value=$1 WHERE key='wl_license_fee'", [String(lf)]);
+    }
+    if (req.body.wlLicenseActual !== undefined && req.body.wlLicenseActual !== '') {
+      const la = parseInt(req.body.wlLicenseActual, 10);
+      if (isNaN(la) || la < 0) return res.status(400).json({ error: 'Valid White Label actual price daalo' });
+      const lfNow = parseInt(req.body.wlLicenseFee, 10) || await getWlLicenseFee();
+      if (la > 0 && la < lfNow) {
+        return res.status(400).json({ error: 'Actual Price, License Fee se kam nahi ho sakta' });
+      }
+      await pool.query("UPDATE system_settings SET value=$1 WHERE key='wl_license_actual'", [String(la)]);
     }
     if (req.body.wlBasePrice !== undefined && req.body.wlBasePrice !== '') {
       const wbp = parseInt(req.body.wlBasePrice, 10);

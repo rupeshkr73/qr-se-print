@@ -40,9 +40,15 @@ except Exception:
 UNCONFIGURED_MARKER = "AAPKA" + "_SHOP_ID"
 SHOP_ID_TEMPLATE   = "AAPKA_SHOP_ID"
 SERVER_URL         = "https://qrseprint.in"
-CHECK_INTERVAL     = 5          # Print jobs check karne ka interval (seconds)
+CHECK_INTERVAL     = 5          # Job aane par / turant baad — itni jaldi check
+IDLE_INTERVAL_1    = 12         # 2 minute khaali gaye to itna
+IDLE_INTERVAL_2    = 25         # 10 minute khaali gaye to itna
+# Dukaan din bhar me sirf kuch der busy rehti hai. Har 5 second poll karne se
+# roz lakhon request jaati hain aur server ka bandwidth khatam ho jaata hai.
+# Isliye khaali waqt me dheere check karo — par job aate hi turant 5s par
+# wapas aa jao, taaki print me deri na ho.
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 20           # Integer version number — server ke agent_version se compare hota hai
+VERSION            = 21           # Integer version number — server ke agent_version se compare hota hai
 SUPPORT_WA         = "918404832414"  # Admin WhatsApp (shop-login Support jaisa) — Contact Admin isi par khulega
 
 # Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
@@ -1805,12 +1811,15 @@ def run_tray_icon():
 # ─── MAIN PRINT LOOP (background thread mein chalta hai jab tray active ho) ──
 def print_loop():
     log("=" * 50)
-    log(f"Har {CHECK_INTERVAL}s mein print jobs check ho raha hai...")
+    log(f"Print jobs check: har {CHECK_INTERVAL}s (khaali ho to {IDLE_INTERVAL_1}s/{IDLE_INTERVAL_2}s — job aate hi wapas {CHECK_INTERVAL}s)")
     log("=" * 50)
     update_tray_status("Running — waiting for jobs")
 
     errors = 0
     check_count = 0
+    idle_since = time.time()      # aakhri job kab aaya tha
+    cur_interval = CHECK_INTERVAL
+    elapsed_min = 0.0
 
     while agent_state["running"]:
         try:
@@ -1823,10 +1832,26 @@ def print_loop():
                     process_job(job)
                 errors = 0
                 update_tray_status("Running — waiting for jobs")
+                # Job aaya = dukaan busy hai. Turant tez check par wapas.
+                idle_since = time.time()
+                if cur_interval != CHECK_INTERVAL:
+                    cur_interval = CHECK_INTERVAL
+                    log(f"⚡ Fast mode — har {CHECK_INTERVAL}s check")
             else:
+                idle_sec = time.time() - idle_since
+                if idle_sec > 600:
+                    new_interval = IDLE_INTERVAL_2
+                elif idle_sec > 120:
+                    new_interval = IDLE_INTERVAL_1
+                else:
+                    new_interval = CHECK_INTERVAL
+                if new_interval != cur_interval:
+                    cur_interval = new_interval
+                    log(f"💤 Khaali chal raha hai — ab har {cur_interval}s check (bandwidth bachane ke liye)")
+                elapsed_min += cur_interval / 60.0
                 if check_count % 60 == 0:
-                    log(f"👀 Waiting... ({check_count * CHECK_INTERVAL // 60} min)")
-            time.sleep(CHECK_INTERVAL)
+                    log(f"👀 Waiting... ({int(elapsed_min)} min)")
+            time.sleep(cur_interval)
         except KeyboardInterrupt:
             log("\n👋 Band ho raha hai...")
             break
