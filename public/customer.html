@@ -2250,10 +2250,11 @@ async function uploadDirect(blob, fileName) {
   return data;
 }
 
-async function uploadViaServer(blob, fileName) {
+async function uploadViaServer(blob, fileName, reason) {
   const fd = new FormData();
   fd.append('file', blob, fileName);
   fd.append('shopId', shopId);
+  fd.append('fallbackReason', reason || 'unknown');
   fd.append('copies', state.copies);
   fd.append('colorMode', state.colorMode);
   fd.append('totalPages', pages.length);
@@ -2275,7 +2276,7 @@ async function uploadAllPages() {
       data = await uploadDirect(blob, fileName);
     } catch (e) {
       console.warn('Direct upload fail, purane tarike se try kar rahe hain:', e.message);
-      data = await uploadViaServer(blob, fileName);
+      data = await uploadViaServer(blob, fileName, e.message);
     }
     state.jobId = data.jobId;
     toast('✅ File ready!');
