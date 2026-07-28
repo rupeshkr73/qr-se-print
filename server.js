@@ -2963,6 +2963,7 @@ app.post('/api/upload/confirm', async (req, res) => {
     //    sirf "best effort" — fail ho to bhi job banega (file sach me na hui
     //    to agent download par pata chal jayega aur job fail ho jayega).
     let fileUrl = String(b.secureUrl || '').trim();
+    let cldInfo = null;
     const okHost = fileUrl.startsWith(`https://res.cloudinary.com/${CLOUD_NAME}/`);
     if (!fileUrl || !okHost || !fileUrl.includes(signedPublicId)) {
       // Purana client ho ya URL galat — khud bana lo (deterministic)
@@ -2970,8 +2971,8 @@ app.post('/api/upload/confirm', async (req, res) => {
     }
 
     try {
-      const info = await cloudinaryResourceInfo(publicId);
-      if (info && (info.secure_url || info.url)) fileUrl = info.secure_url || info.url;
+      cldInfo = await cloudinaryResourceInfo(publicId);
+      if (cldInfo && (cldInfo.secure_url || cldInfo.url)) fileUrl = cldInfo.secure_url || cldInfo.url;
     } catch (e) {
       console.warn(`Cloudinary verify skip (${e.message}) — URL khud bana liya: ${publicId}`);
     }
@@ -2993,7 +2994,7 @@ app.post('/api/upload/confirm', async (req, res) => {
        ['doc','resume','photo4x6'].includes(b.service) ? b.service : 'doc',
        [4,6].includes(parseInt(b.photoCount)) ? parseInt(b.photoCount) : 0]
     );
-    console.log(`Direct upload confirmed: ${jobId} (${info.bytes || '?'} bytes, Render se nahi guzri)`);
+    console.log(`Direct upload confirmed: ${jobId} (${(cldInfo && cldInfo.bytes) || '?'} bytes, Render se nahi guzri)`);
     res.json({ success: true, jobId, fileName, fileType, amount,
       copies: numCopies, totalPages: numPages, colorMode });
   } catch(err) {
