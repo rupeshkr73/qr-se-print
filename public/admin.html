@@ -298,7 +298,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 <div class="app-shell">
   <div class="side-overlay" id="sideOverlay" onclick="closeSide()"></div>
   <aside class="side" id="sideNav">
-    <div class="side-brand"><span class="bm">🖨️</span> QR Se Print</div>
+    <div class="side-brand"><span class="bm">🖨️</span> <span id="sideBrandName">QR Se Print</span></div>
     <div class="side-shop">Shop<b id="adminShopName">Shop Dashboard</b></div>
     <button class="nav-it active" data-nav="overview" onclick="navTo('overview',this)"><span class="ico">📊</span> Overview</button>
     <button class="nav-it" data-nav="refer" onclick="navTo('refer',this)"><span class="ico">🎁</span> Refer &amp; Earn</button>
@@ -2037,23 +2037,49 @@ function initSupport(shop) {
   const idField = document.getElementById('supShopId');
   if (idField && shop) idField.value = shop.id;
 
-  // White-label shop — support par PARTNER ka WhatsApp/email dikhega, hamara nahi
-  if (shop && shop.wl_support_phone) {
+  applyWhitelabelBranding(shop);
+}
+
+// White-label shop ho to poora dashboard PARTNER ke brand me —
+// humara naam, humara number, aur humare programs kahin nahi dikhne chahiye.
+let WL_BRAND = '';
+function applyWhitelabelBranding(shop) {
+  if (!shop || !shop.powered_by) return;   // normal shop — kuch mat badlo
+  WL_BRAND = shop.wl_brand || shop.powered_by;
+
+  // 1) Brand naam (sidebar + page title)
+  const sb = document.getElementById('sideBrandName');
+  if (sb) sb.textContent = WL_BRAND;
+  document.title = WL_BRAND + ' - Admin Panel';
+
+  // 2) Support ka WhatsApp — partner ka number
+  if (shop.wl_support_phone) {
     const digits = String(shop.wl_support_phone).replace(/\D/g, '');
     if (digits.length === 10) SUPPORT_WA = '91' + digits;
     else if (digits.length >= 11) SUPPORT_WA = digits;
-    const pretty = '📞 ' + String(shop.wl_support_phone).replace(/(\d{5})(\d{5})/, '$1 $2');
+    const pretty = '📞 ' + String(shop.wl_support_phone).replace(/^(\d{5})(\d{5})$/, '$1 $2');
     document.querySelectorAll('a[href^="https://wa.me/918404832414"]').forEach(a => {
       a.setAttribute('href', 'https://wa.me/' + SUPPORT_WA);
       a.textContent = pretty;
     });
   }
-  if (shop && shop.wl_support_email) {
-    document.querySelectorAll('a[href^="mailto:mahatonetcafe@gmail.com"]').forEach(a => {
+
+  // 3) Support ka email — partner ka
+  if (shop.wl_support_email) {
+    document.querySelectorAll('a[href^="mailto:"]').forEach(a => {
       a.setAttribute('href', 'mailto:' + shop.wl_support_email);
-      a.textContent = '📧 ' + shop.wl_support_email;
+      if ((a.textContent || '').includes('@')) a.textContent = '📧 ' + shop.wl_support_email;
     });
   }
+
+  // 4) HAMARE programs partner ki shop me nahi dikhne chahiye —
+  //    Refer & Earn aur Agent dono humare hain, partner ke nahi.
+  ['refer', 'agent'].forEach(k => {
+    document.querySelectorAll(`.nav-it[data-nav="${k}"]`).forEach(n => { n.style.display = 'none'; });
+    document.querySelectorAll(`[data-sect="${k}"]`).forEach(s => { s.style.display = 'none'; });
+  });
+  const ab = document.getElementById('agentBanner');
+  if (ab) ab.style.display = 'none';
 }
 function copySupShopId() {
   const v = document.getElementById('supShopId').value;
@@ -2068,14 +2094,14 @@ function copyDemoShopId() {
 function sendDemoWhatsApp() {
   const sid = document.getElementById('demoSupShopId').value;
   const msg = document.getElementById('demoSupMsg').value.trim();
-  const text = `Hello, QR Se Print Support 🙏%0A%0AShop ID: ${sid}%0A%0AProblem: ${encodeURIComponent(msg || '(likha nahi)')}`;
+  const text = `Hello, ${WL_BRAND || 'QR Se Print'} Support 🙏%0A%0AShop ID: ${sid}%0A%0AProblem: ${encodeURIComponent(msg || '(likha nahi)')}`;
   window.open(`https://wa.me/${SUPPORT_WA}?text=${text}`, '_blank');
 }
 
 function sendWhatsApp() {
   const sid = document.getElementById('supShopId').value;
   const msg = document.getElementById('supMsg').value.trim();
-  const text = `Hello, QR Se Print Support 🙏%0A%0AShop ID: ${sid}%0A%0AProblem: ${encodeURIComponent(msg || '(likha nahi)')}`;
+  const text = `Hello, ${WL_BRAND || 'QR Se Print'} Support 🙏%0A%0AShop ID: ${sid}%0A%0AProblem: ${encodeURIComponent(msg || '(likha nahi)')}`;
   window.open(`https://wa.me/${SUPPORT_WA}?text=${text}`, '_blank');
 }
 

@@ -255,6 +255,26 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
           <input id="bPhone" type="tel" maxlength="10" placeholder="10 digit">
           <button class="btn green" onclick="saveContact()">💾 Contact Save Karo</button>
         </div>
+
+        <div class="card">
+          <h2>🔔 Naya Shop Alert</h2>
+          <p class="hint" style="margin:0 0 12px;">
+            Aapke link se nayi shop register ho ya payment aaye — turant aapke WhatsApp par message.<br><br>
+            <b>Setup (1 minute):</b> apne WhatsApp se <b>+34 644 51 95 23</b> par ye message bhejo —<br>
+            <span style="display:inline-block;background:var(--tint);border:1.5px solid #f0e2ba;border-radius:7px;padding:4px 9px;margin-top:5px;font-family:monospace;font-size:11.5px;">I allow callmebot to send me messages</span><br>
+            Jawab me jo <b>API key</b> aaye wo neeche daalo.
+          </p>
+          <div class="msg err" id="ntErr"></div>
+          <div class="msg ok" id="ntOk"></div>
+          <label>WhatsApp number (91 ke saath)</label>
+          <input id="ntPhone" placeholder="917992384657">
+          <label>CallMeBot API key</label>
+          <input id="ntKey" placeholder="123456">
+          <div style="display:flex;gap:9px;">
+            <button class="btn green" style="flex:2;" onclick="saveNotify()">💾 Save</button>
+            <button class="btn" style="flex:1;" onclick="testNotify()">📤 Test</button>
+          </div>
+        </div>
       </div>
 
       <!-- ═══ SHOP ONBOARD ═══ -->
@@ -436,6 +456,8 @@ async function boot() {
     $('bEmail').value = ME.supportEmail || '';
     $('bPhone').value = ME.supportPhone || '';
     $('bcMsg').value = ME.broadcast || '';
+    $('ntPhone').value = ME.notifyPhone || '';
+    $('ntKey').value = ME.notifyApikey || '';
 
     $('acctInfo').innerHTML =
       `<div><b>Partner ID:</b> ${esc(ME.id)}</div>
@@ -498,6 +520,22 @@ async function saveContact() {
     boot();
   } catch (e) { show('scErr', '❌ ' + e.message, 'err'); }
 }
+async function saveNotify() {
+  try {
+    await api('/api/whitelabel/notify', { method: 'PUT', body: JSON.stringify({
+      phone: $('ntPhone').value, apikey: $('ntKey').value }) });
+    show('ntOk', '✅ Save ho gaya — ab Test dabao', 'ok');
+    if (ME) { ME.notifyPhone = $('ntPhone').value; ME.notifyApikey = $('ntKey').value; }
+  } catch (e) { show('ntErr', '❌ ' + e.message, 'err'); }
+}
+async function testNotify() {
+  show('ntOk', '📤 Bhej rahe hain…', 'ok');
+  try {
+    await api('/api/whitelabel/notify/test', { method: 'POST' });
+    show('ntOk', '✅ Bhej diya — apna WhatsApp check karo', 'ok');
+  } catch (e) { show('ntErr', '❌ ' + e.message, 'err'); }
+}
+
 async function saveBroadcast() {
   try {
     await api('/api/whitelabel/broadcast', { method: 'PUT', body: JSON.stringify({ message: $('bcMsg').value }) });
