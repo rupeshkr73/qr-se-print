@@ -581,6 +581,10 @@ async function initDB() {
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('smtp_user','') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('smtp_pass','') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('notify_email','') ON CONFLICT DO NOTHING");
+    // Brevo HTTPS API — Render jaise hosts SMTP ports block karte hain,
+    // isliye default yahi hai (port 443 kabhi block nahi hota).
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('brevo_api_key','') ON CONFLICT DO NOTHING");
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('brevo_sender','') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('wl_license_fee','25000') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('wl_base_price','0') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('monthly_actual_price','0') ON CONFLICT DO NOTHING");
@@ -2245,19 +2249,75 @@ async function getMailer() {
   return _mailer;
 }
 
+// Brevo ka HTTPS API — SMTP ki tarah block nahi hota
+function sendViaBrevo(apiKey, senderEmail, senderName, to, subject, text, html) {
+  return new Promise((resolve) => {
+    try {
+      const payload = JSON.stringify({
+        sender: { name: senderName || 'QR Se Print', email: senderEmail },
+        to: [{ email: to }],
+        subject, textContent: text, htmlContent: html
+      });
+      const req = https.request({
+        hostname: 'api.brevo.com', path: '/v3/smtp/email', method: 'POST',
+        headers: {
+          'api-key': apiKey,
+          'content-type': 'application/json',
+          'accept': 'application/json',
+          'Content-Length': Buffer.byteLength(payload)
+        }
+      }, (resp) => {
+        let d = '';
+        resp.on('data', c => d += c);
+        resp.on('end', () => {
+          let j = {}; try { j = JSON.parse(d); } catch (e) {}
+          if (resp.statusCode >= 200 && resp.statusCode < 300) {
+            resolve({ ok: true, messageId: j.messageId || '', response: 'Brevo ' + resp.statusCode + ' OK' });
+          } else {
+            resolve({ ok: false, why: (j && (j.message || j.code)) || ('Brevo ' + resp.statusCode) });
+          }
+        });
+      });
+      req.on('error', e => resolve({ ok: false, why: e.message }));
+      req.setTimeout(15000, () => { req.destroy(); resolve({ ok: false, why: 'Brevo timeout' }); });
+      req.write(payload); req.end();
+    } catch (e) { resolve({ ok: false, why: e.message }); }
+  });
+}
+
 async function sendEmailAlert(to, subject, body, fromName) {
   try {
     if (!to) return { ok: false, why: 'email set nahi hai' };
+
+    const html = '<pre style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.7;white-space:pre-wrap;margin:0;">'
+      + String(body).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</pre>';
+
+    // 1) Brevo (HTTPS) — Render par yahi chalta hai
+    const bc = await pool.query(
+      "SELECT key,value FROM system_settings WHERE key IN ('brevo_api_key','brevo_sender')");
+    const bm = {}; bc.rows.forEach(r => { bm[r.key] = r.value; });
+    if (bm.brevo_api_key && bm.brevo_sender) {
+      const r = await sendViaBrevo(bm.brevo_api_key, bm.brevo_sender, fromName, to, subject, body, html);
+      if (r.ok) return { ok: true, from: bm.brevo_sender, via: 'Brevo', messageId: r.messageId, response: r.response, accepted: [to], rejected: [] };
+      return { ok: false, why: r.why, via: 'Brevo' };
+    }
+
+    // 2) SMTP — sirf tab jab host block na kare
     const t = await getMailer();
-    if (!t) return { ok: false, why: 'SMTP configure nahi hai' };
-    await t.sendMail({
+    if (!t) return { ok: false, why: 'Email setup nahi hai — Brevo API key daalo (ya SMTP)' };
+    const info = await t.sendMail({
       from: `"${(fromName || 'QR Se Print').replace(/"/g, '')}" <${t._fromAddr}>`,
-      to, subject,
-      text: body,
-      html: '<pre style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.7;white-space:pre-wrap;margin:0;">'
-            + String(body).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</pre>'
+      to, subject, text: body, html
     });
-    return { ok: true };
+    // SMTP ne kya jawab diya — yahi asli proof hai ki mail accept hui
+    return {
+      ok: true, via: 'SMTP',
+      from: t._fromAddr,
+      messageId: info && info.messageId,
+      response: info && info.response,
+      accepted: (info && info.accepted) || [],
+      rejected: (info && info.rejected) || []
+    };
   } catch (e) {
     _mailer = null;                     // agli baar naya transport banega
     return { ok: false, why: e.message };
@@ -2312,14 +2372,16 @@ async function alertNewShop(shopId, kind) {
 app.get('/api/superadmin/notify', verifySuperAdmin, async (req, res) => {
   try {
     const c = await pool.query(
-      "SELECT key,value FROM system_settings WHERE key IN ('smtp_host','smtp_port','smtp_user','smtp_pass','notify_email')");
+      "SELECT key,value FROM system_settings WHERE key IN ('smtp_host','smtp_port','smtp_user','smtp_pass','notify_email','brevo_api_key','brevo_sender')");
     const m = {}; c.rows.forEach(r => { m[r.key] = r.value; });
     res.json({
       host: m.smtp_host || 'smtp.gmail.com',
       port: m.smtp_port || '587',
       user: m.smtp_user || '',
       hasPass: !!m.smtp_pass,          // password kabhi wapas nahi bhejte
-      notifyEmail: m.notify_email || ''
+      notifyEmail: m.notify_email || '',
+      brevoSender: m.brevo_sender || '',
+      hasBrevoKey: !!m.brevo_api_key
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -2342,6 +2404,12 @@ app.put('/api/superadmin/notify', verifySuperAdmin, async (req, res) => {
       if (e && !/^\S+@\S+\.\S+$/.test(e)) return res.status(400).json({ error: 'Sahi email daalo' });
       await set('notify_email', e);
     }
+    if (b.brevoSender !== undefined) {
+      const e = String(b.brevoSender).trim();
+      if (e && !/^\S+@\S+\.\S+$/.test(e)) return res.status(400).json({ error: 'Sahi sender email daalo' });
+      await set('brevo_sender', e);
+    }
+    if (b.brevoKey) await set('brevo_api_key', String(b.brevoKey).trim());
     _mailer = null;   // settings badli — naya transport banega
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -2352,10 +2420,35 @@ app.post('/api/superadmin/notify/test', verifySuperAdmin, async (req, res) => {
     const c = await pool.query("SELECT value FROM system_settings WHERE key='notify_email'");
     const to = c.rows[0]?.value || '';
     if (!to) return res.status(400).json({ error: 'Pehle alert email save karo' });
+
+    // Brevo set hai to seedha bhejo. Warna SMTP ka connection pehle check karo.
+    const bk = await pool.query("SELECT value FROM system_settings WHERE key='brevo_api_key'");
+    const usingBrevo = !!(bk.rows[0]?.value);
+    if (!usingBrevo) {
+      const t = await getMailer();
+      if (!t) return res.status(400).json({ error: 'Email setup nahi hai — Brevo API key daalo (recommended) ya SMTP bharo' });
+      try {
+        await t.verify();
+      } catch (e) {
+        _mailer = null;
+        const hint = /timeout|ETIMEDOUT|ECONNREFUSED/i.test(e.message)
+          ? ' — lagta hai hosting ne SMTP port block kiya hai. Brevo API key use karo (upar wala option).'
+          : '';
+        return res.status(400).json({ error: 'SMTP connect nahi hua: ' + e.message + hint });
+      }
+    }
+
     const r = await sendEmailAlert(to, '✅ Test — QR Se Print alerts',
       'Ye ek test email hai.\n\nAgar ye mil gaya, matlab alerts chalu ho gaye hain.\nAb nayi shop register hone par aapko yahan message aayega.\n\n— QR Se Print');
     if (!r.ok) return res.status(400).json({ error: 'Bheja nahi ja saka: ' + r.why });
-    res.json({ success: true, to });
+    if (r.rejected && r.rejected.length) {
+      return res.status(400).json({ error: 'Server ne reject kiya: ' + r.rejected.join(', ') });
+    }
+    console.log(`Test mail -> ${to} | ${r.response} | id=${r.messageId}`);
+    res.json({
+      success: true, to, from: r.from, via: r.via,
+      accepted: r.accepted, messageId: r.messageId, response: r.response
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
