@@ -436,25 +436,39 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       </div>
 
       <div style="background:linear-gradient(135deg,#0f766e,#134e4a);border-radius:16px;padding:16px 17px;margin-bottom:16px;">
-        <label style="font-size:12.5px;font-weight:800;color:#5eead4;display:block;margin-bottom:6px;">🔔 Naya Shop Alert (WhatsApp)</label>
-        <p style="font-size:11.5px;color:#cbd5d1;line-height:1.7;margin-bottom:11px;">
-          Nayi shop register ho ya payment aaye — turant WhatsApp par message.<br>
-          <b style="color:#fff;">Setup (1 minute):</b> apne WhatsApp se
-          <b style="color:#5eead4;">+34 644 51 95 23</b> par ye message bhejo:<br>
-          <span style="display:inline-block;background:rgba(255,255,255,.1);border-radius:7px;padding:4px 9px;margin-top:5px;font-family:monospace;font-size:11px;">I allow callmebot to send me messages</span><br>
-          Jawab me jo <b style="color:#fff;">API key</b> aaye, wo neeche daal do.
+        <label style="font-size:12.5px;font-weight:800;color:#5eead4;display:block;margin-bottom:6px;">🔔 Naya Shop Alert (Email)</label>
+        <p style="font-size:11.5px;color:#cbd5d1;line-height:1.7;margin-bottom:12px;">
+          Nayi shop register ho ya payment aaye — turant email.<br><br>
+          <b style="color:#fff;">Gmail se setup (2 minute, free):</b><br>
+          1. Google account me <b style="color:#5eead4;">2-Step Verification</b> chalu karo<br>
+          2. <b style="color:#5eead4;">myaccount.google.com/apppasswords</b> par jaakar
+             ek App Password banao<br>
+          3. Wahi 16-akshar ka password neeche daalo (apna normal Gmail password NAHI)
         </p>
         <div id="ntMsg" style="display:none;border-radius:9px;padding:9px 11px;font-size:12px;font-weight:700;margin-bottom:10px;"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:10px;">
+
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:11px;margin-bottom:10px;">
           <div>
-            <label style="font-size:10.5px;color:#cbd5d1;">WhatsApp number (91 ke saath)</label>
-            <input type="text" id="ntPhone" placeholder="918404832414" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:14px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
+            <label style="font-size:10.5px;color:#cbd5d1;">SMTP host</label>
+            <input type="text" id="ntHost" placeholder="smtp.gmail.com" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
           </div>
           <div>
-            <label style="font-size:10.5px;color:#cbd5d1;">CallMeBot API key</label>
-            <input type="text" id="ntKey" placeholder="123456" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:14px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
+            <label style="font-size:10.5px;color:#cbd5d1;">Port</label>
+            <input type="text" id="ntPort" placeholder="587" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
           </div>
         </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:10px;">
+          <div>
+            <label style="font-size:10.5px;color:#cbd5d1;">Gmail address (bhejne wala)</label>
+            <input type="text" id="ntUser" placeholder="aapka@gmail.com" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
+          </div>
+          <div>
+            <label style="font-size:10.5px;color:#cbd5d1;">App Password <span id="ntPassNote"></span></label>
+            <input type="password" id="ntPass" placeholder="16 akshar" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
+          </div>
+        </div>
+        <label style="font-size:10.5px;color:#cbd5d1;">Alert kis email par aaye</label>
+        <input type="text" id="ntTo" placeholder="aapka@gmail.com" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);margin-bottom:11px;">
         <div style="display:flex;gap:9px;">
           <button onclick="saveNotify()" style="flex:2;background:#5eead4;color:#134e4a;border:none;border-radius:10px;padding:11px;font-weight:800;font-size:13px;cursor:pointer;">💾 Save</button>
           <button onclick="testNotify()" style="flex:1;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:10px;padding:11px;font-weight:700;font-size:13px;cursor:pointer;">📤 Test</button>
@@ -1068,20 +1082,32 @@ async function loadNotify() {
     const r = await fetch('/api/superadmin/notify', { headers: { 'Authorization': 'Bearer ' + authToken } });
     const d = await r.json();
     if (!r.ok) return;
-    document.getElementById('ntPhone').value = d.phone || '';
-    document.getElementById('ntKey').value = d.apikey || '';
+    document.getElementById('ntHost').value = d.host || 'smtp.gmail.com';
+    document.getElementById('ntPort').value = d.port || '587';
+    document.getElementById('ntUser').value = d.user || '';
+    document.getElementById('ntTo').value = d.notifyEmail || '';
+    const note = document.getElementById('ntPassNote');
+    if (note) note.textContent = d.hasPass ? '(saved)' : '';
+    if (d.hasPass) document.getElementById('ntPass').placeholder = '•••••• saved — khaali chhodo';
   } catch(e) {}
 }
 async function saveNotify() {
   try {
     const r = await fetch('/api/superadmin/notify', {
       method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
-      body: JSON.stringify({ phone: document.getElementById('ntPhone').value,
-                             apikey: document.getElementById('ntKey').value })
+      body: JSON.stringify({
+        host: document.getElementById('ntHost').value,
+        port: document.getElementById('ntPort').value,
+        user: document.getElementById('ntUser').value,
+        pass: document.getElementById('ntPass').value,
+        notifyEmail: document.getElementById('ntTo').value
+      })
     });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'fail');
+    document.getElementById('ntPass').value = '';
     ntShow('✅ Save ho gaya — ab Test dabao', true);
+    loadNotify();
   } catch(e) { ntShow('❌ ' + e.message, false); }
 }
 async function testNotify() {
@@ -1091,7 +1117,7 @@ async function testNotify() {
       method: 'POST', headers: { 'Authorization': 'Bearer ' + authToken } });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'fail');
-    ntShow('✅ Bhej diya — apna WhatsApp check karo', true);
+    ntShow('✅ Bhej diya — ' + (d.to || '') + ' check karo (spam folder bhi)', true);
   } catch(e) { ntShow('❌ ' + e.message, false); }
 }
 
