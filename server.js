@@ -445,6 +445,20 @@ async function initDB() {
         created_at TIMESTAMP DEFAULT NOW()
       );
 
+      -- ══ TRANSLATIONS ══
+      -- source = Hinglish text jo HTML me likha hai (yahi "key" hai).
+      -- Har language ke liye ek row. Missing ho to source hi dikhta hai —
+      -- isliye adhoori translation se bhi kuch tootta nahi.
+      CREATE TABLE IF NOT EXISTS translations (
+        id SERIAL PRIMARY KEY,
+        lang VARCHAR(8) NOT NULL,
+        source TEXT NOT NULL,
+        text TEXT NOT NULL,
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_tr_lang_src ON translations(lang, md5(source));
+      CREATE INDEX IF NOT EXISTS idx_tr_lang ON translations(lang);
+
       -- ══ REVIEWS — homepage par dikhne wale customer reviews ══
       CREATE TABLE IF NOT EXISTS reviews (
         id SERIAL PRIMARY KEY,
@@ -2328,6 +2342,83 @@ app.post('/api/whitelabel/notify/test', verifyWhitelabel, async (req, res) => {
     if (!r.ok) return res.status(400).json({ error: 'Bheja nahi ja saka: ' + (r.why || r.body || r.status) });
     res.json({ success: true });
   } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ══════════════════════════════════════════════════════════════
+// TRANSLATIONS (i18n)
+// HTML me jo Hinglish text likha hai wahi "source" hai. Har language ki
+// dictionary DB me rehti hai — superadmin kabhi bhi add/edit kar sakta hai,
+// deploy karne ki zaroorat nahi. Translation na mile to source hi dikhta
+// hai, isliye adhoori translation se kuch tootta nahi.
+// ══════════════════════════════════════════════════════════════
+const I18N_LANGS = {
+  hin: 'Hinglish', hi: 'हिंदी', en: 'English',
+  bn: 'বাংলা', ta: 'தமிழ்', te: 'తెలుగు', kn: 'ಕನ್ನಡ'
+};
+let _i18nCache = {};        // lang -> { dict, at }
+const I18N_TTL = 5 * 60 * 1000;
+
+app.get('/api/i18n/:lang', async (req, res) => {
+  try {
+    const lang = String(req.params.lang || '').slice(0, 8);
+    if (!I18N_LANGS[lang]) return res.json({ lang, dict: {} });
+    if (lang === 'hin') return res.json({ lang, dict: {} });   // source hi hai
+
+    const c = _i18nCache[lang];
+    if (c && (Date.now() - c.at) < I18N_TTL) {
+      return res.json({ lang, dict: c.dict, cached: true });
+    }
+    const r = await pool.query('SELECT source, text FROM translations WHERE lang=$1', [lang]);
+    const dict = {};
+    r.rows.forEach(row => { dict[row.source] = row.text; });
+    _i18nCache[lang] = { dict, at: Date.now() };
+    res.json({ lang, dict });
+  } catch (err) { res.status(500).json({ error: err.message, dict: {} }); }
+});
+
+app.get('/api/i18n', (req, res) => res.json({ langs: I18N_LANGS }));
+
+// ── Superadmin: translations manage ──
+app.get('/api/superadmin/translations', verifySuperAdmin, async (req, res) => {
+  try {
+    const lang = String(req.query.lang || '').slice(0, 8);
+    if (!I18N_LANGS[lang] || lang === 'hin') return res.status(400).json({ error: 'Galat language' });
+    const r = await pool.query(
+      'SELECT id, source, text FROM translations WHERE lang=$1 ORDER BY source', [lang]);
+    const counts = await pool.query(
+      'SELECT lang, COUNT(*)::int AS n FROM translations GROUP BY lang');
+    const byLang = {}; counts.rows.forEach(x => { byLang[x.lang] = x.n; });
+    res.json({ lang, rows: r.rows, counts: byLang, langs: I18N_LANGS });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Bulk save — { lang, items: [{source, text}, ...] }
+app.put('/api/superadmin/translations', verifySuperAdmin, async (req, res) => {
+  try {
+    const lang = String(req.body.lang || '').slice(0, 8);
+    if (!I18N_LANGS[lang] || lang === 'hin') return res.status(400).json({ error: 'Galat language' });
+    const items = Array.isArray(req.body.items) ? req.body.items.slice(0, 2000) : [];
+    if (!items.length) return res.status(400).json({ error: 'Kuch bheja hi nahi' });
+
+    let saved = 0, removed = 0;
+    for (const it of items) {
+      const source = String(it.source || '').trim();
+      const text = String(it.text || '').trim();
+      if (!source) continue;
+      if (!text) {
+        await pool.query('DELETE FROM translations WHERE lang=$1 AND source=$2', [lang, source]);
+        removed++;
+      } else {
+        await pool.query(
+          `INSERT INTO translations (lang, source, text) VALUES ($1,$2,$3)
+           ON CONFLICT (lang, md5(source)) DO UPDATE SET text=EXCLUDED.text, updated_at=NOW()`,
+          [lang, source, text.slice(0, 2000)]);
+        saved++;
+      }
+    }
+    delete _i18nCache[lang];   // cache saaf — turant live ho jaye
+    res.json({ success: true, saved, removed });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/setup-fee/current', async (req, res) => {
