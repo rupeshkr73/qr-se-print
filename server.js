@@ -355,6 +355,8 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_last_seen TIMESTAMP;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_version INT;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS whitelabel_id VARCHAR(50) DEFAULT '';
+      ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS notify_wa_phone VARCHAR(20) DEFAULT '';
+      ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS notify_wa_apikey VARCHAR(60) DEFAULT '';
       CREATE INDEX IF NOT EXISTS idx_shops_wl ON shops(whitelabel_id);
       -- ══ AGENT PROGRAM ══
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS is_agent BOOLEAN DEFAULT false;
@@ -440,6 +442,18 @@ async function initDB() {
         commission INTEGER DEFAULT 0,
         bonus INTEGER DEFAULT 0,
         total INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      -- ══ REVIEWS — homepage par dikhne wale customer reviews ══
+      CREATE TABLE IF NOT EXISTS reviews (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(120) NOT NULL,
+        stars SMALLINT DEFAULT 5,
+        text TEXT DEFAULT '',
+        city VARCHAR(120) DEFAULT '',
+        active BOOLEAN DEFAULT true,
+        sort_order INT DEFAULT 0,
         created_at TIMESTAMP DEFAULT NOW()
       );
 
@@ -546,6 +560,9 @@ async function initDB() {
     // hide rahega jab tak superadmin explicitly na daale.
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('agent_base_price','0') ON CONFLICT DO NOTHING");
     // White Label — license fee (ek baar) aur reseller ka minimum shop price
+    // Naye shop ka WhatsApp alert (CallMeBot — free)
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('notify_wa_phone','') ON CONFLICT DO NOTHING");
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('notify_wa_apikey','') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('wl_license_fee','25000') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('wl_base_price','0') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('monthly_actual_price','0') ON CONFLICT DO NOTHING");
@@ -1783,6 +1800,7 @@ app.get('/api/whitelabel/me', verifyWhitelabel, async (req, res) => {
       shopPrice: wl.shop_price || 0, basePrice: wl.base_price || 0,
       razorpayKeyId: wl.razorpay_key_id || '',
       razorpayReady: !!(wl.razorpay_key_id && wl.razorpay_key_secret),
+      notifyPhone: wl.notify_wa_phone || '', notifyApikey: wl.notify_wa_apikey || '',
       blocked: !!wl.blocked, licenseFee: wl.license_fee || 0, paidAt: wl.paid_at,
       stats: s.rows[0], collected: earned.rows[0].total,
       shareLink: `${BASE_URL}/?wl=${wl.slug}`,
@@ -2103,6 +2121,215 @@ app.get('/api/whitelabel/analytics', verifyWhitelabel, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// ══════════════ REVIEWS ══════════════
+// Public — homepage in par dikhata hai
+app.get('/api/reviews', async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT id, name, stars, text, city FROM reviews
+       WHERE active=true ORDER BY sort_order ASC, created_at DESC LIMIT 50`);
+    const avg = await pool.query(
+      'SELECT COALESCE(AVG(stars),0)::numeric(3,1) AS avg, COUNT(*)::int AS total FROM reviews WHERE active=true');
+    res.json({ reviews: r.rows, average: parseFloat(avg.rows[0].avg) || 0, total: avg.rows[0].total });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/superadmin/reviews', verifySuperAdmin, async (req, res) => {
+  try {
+    const r = await pool.query('SELECT * FROM reviews ORDER BY sort_order ASC, created_at DESC');
+    res.json({ reviews: r.rows });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/superadmin/reviews', verifySuperAdmin, async (req, res) => {
+  try {
+    const name = String(req.body.name || '').trim().slice(0, 120);
+    const text = String(req.body.text || '').trim().slice(0, 1000);
+    const city = String(req.body.city || '').trim().slice(0, 120);
+    let stars = parseInt(req.body.stars, 10);
+    if (!name) return res.status(400).json({ error: 'Naam daalo' });
+    if (!text) return res.status(400).json({ error: 'Review likho' });
+    if (!Number.isInteger(stars) || stars < 1 || stars > 5) stars = 5;
+    const r = await pool.query(
+      `INSERT INTO reviews (name, stars, text, city, sort_order)
+       VALUES ($1,$2,$3,$4,COALESCE((SELECT MAX(sort_order)+1 FROM reviews),0)) RETURNING *`,
+      [name, stars, text, city]);
+    res.json({ success: true, review: r.rows[0] });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/superadmin/reviews/:id', verifySuperAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id)) return res.status(400).json({ error: 'Galat id' });
+    const b = req.body || {};
+    let stars = parseInt(b.stars, 10);
+    if (!Number.isInteger(stars) || stars < 1 || stars > 5) stars = null;
+    const r = await pool.query(
+      `UPDATE reviews SET
+         name   = COALESCE(NULLIF($2,''), name),
+         text   = COALESCE(NULLIF($3,''), text),
+         city   = COALESCE($4, city),
+         stars  = COALESCE($5, stars),
+         active = COALESCE($6, active),
+         sort_order = COALESCE($7, sort_order)
+       WHERE id=$1 RETURNING *`,
+      [id,
+       typeof b.name === 'string' ? b.name.trim().slice(0,120) : '',
+       typeof b.text === 'string' ? b.text.trim().slice(0,1000) : '',
+       typeof b.city === 'string' ? b.city.trim().slice(0,120) : null,
+       stars,
+       typeof b.active === 'boolean' ? b.active : null,
+       Number.isInteger(parseInt(b.sort_order,10)) ? parseInt(b.sort_order,10) : null]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Review nahi mila' });
+    res.json({ success: true, review: r.rows[0] });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/superadmin/reviews/:id', verifySuperAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isInteger(id)) return res.status(400).json({ error: 'Galat id' });
+    await pool.query('DELETE FROM reviews WHERE id=$1', [id]);
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ══════════════════════════════════════════════════════════════
+// ALERTS — naya shop aane par WhatsApp message
+//
+// CallMeBot use kar rahe hain: free hai, koi account/API package nahi
+// chahiye. Recipient ek baar +34 644 51 95 23 par
+// "I allow callmebot to send me messages" bhejta hai aur apikey mil jaati hai.
+//
+// Ye poori tarah "fire and forget" hai — alert fail ho to bhi registration
+// ya payment kabhi nahi rukega.
+// ══════════════════════════════════════════════════════════════
+function sendWhatsAppAlert(phone, apikey, text) {
+  return new Promise((resolve) => {
+    try {
+      const p = String(phone || '').replace(/\D/g, '');
+      const k = String(apikey || '').trim();
+      if (!p || !k) return resolve({ ok: false, why: 'phone/apikey set nahi hai' });
+      const url = `/whatsapp.php?phone=${encodeURIComponent(p)}` +
+                  `&text=${encodeURIComponent(String(text).slice(0, 900))}` +
+                  `&apikey=${encodeURIComponent(k)}`;
+      const req = https.request({ hostname: 'api.callmebot.com', path: url, method: 'GET' }, (resp) => {
+        let body = '';
+        resp.on('data', c => body += c);
+        resp.on('end', () => resolve({ ok: resp.statusCode === 200, status: resp.statusCode, body: body.slice(0, 200) }));
+      });
+      req.on('error', e => resolve({ ok: false, why: e.message }));
+      req.setTimeout(10000, () => { req.destroy(); resolve({ ok: false, why: 'timeout' }); });
+      req.end();
+    } catch (e) { resolve({ ok: false, why: e.message }); }
+  });
+}
+
+// Kis ko bhejna hai wo khud dhoondh leta hai:
+// white-label ki shop -> us PARTNER ko, warna hamein.
+async function alertNewShop(shopId, kind) {
+  try {
+    const s = await pool.query(
+      'SELECT id,name,phone,address,setup_amount,whitelabel_id,demo FROM shops WHERE id=$1', [shopId]);
+    if (!s.rows.length) return;
+    const shop = s.rows[0];
+    if (shop.demo) return;   // demo par alert nahi — bahut zyada ho jaayenge
+
+    let to = null, brand = 'QR Se Print';
+    if (shop.whitelabel_id) {
+      const w = await pool.query(
+        'SELECT brand_name, notify_wa_phone, notify_wa_apikey FROM whitelabels WHERE id=$1', [shop.whitelabel_id]);
+      if (!w.rows.length) return;
+      brand = w.rows[0].brand_name || brand;
+      to = { phone: w.rows[0].notify_wa_phone, apikey: w.rows[0].notify_wa_apikey };
+    } else {
+      const c = await pool.query(
+        "SELECT key,value FROM system_settings WHERE key IN ('notify_wa_phone','notify_wa_apikey')");
+      const m = {}; c.rows.forEach(r => { m[r.key] = r.value; });
+      to = { phone: m.notify_wa_phone, apikey: m.notify_wa_apikey };
+    }
+    if (!to || !to.phone || !to.apikey) return;   // set nahi hai — chup rehna
+
+    const head = kind === 'paid' ? '💰 PAYMENT AAYA' : '🆕 NAYI SHOP REGISTER HUI';
+    const text =
+      `${head}\n\n` +
+      `🏪 ${shop.name || '-'}\n` +
+      `📱 ${shop.phone || '-'}\n` +
+      (shop.address ? `📍 ${shop.address}\n` : '') +
+      `🆔 ${shop.id}\n` +
+      `💵 ₹${shop.setup_amount || 0}\n\n` +
+      (kind === 'paid' ? `✅ Shop active ho gayi` : `⏳ Payment abhi baaki hai — follow-up karo`) +
+      `\n\n— ${brand}`;
+
+    const r = await sendWhatsAppAlert(to.phone, to.apikey, text);
+    console.log(`Alert (${kind}) ${shopId} -> ${to.phone}: ${r.ok ? 'sent' : 'FAIL ' + (r.why || r.status)}`);
+  } catch (e) {
+    console.error('alertNewShop error:', e.message);   // kabhi throw nahi karega
+  }
+}
+
+// ── Superadmin: alert settings ──
+app.get('/api/superadmin/notify', verifySuperAdmin, async (req, res) => {
+  try {
+    const c = await pool.query(
+      "SELECT key,value FROM system_settings WHERE key IN ('notify_wa_phone','notify_wa_apikey')");
+    const m = {}; c.rows.forEach(r => { m[r.key] = r.value; });
+    res.json({ phone: m.notify_wa_phone || '', apikey: m.notify_wa_apikey || '' });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/superadmin/notify', verifySuperAdmin, async (req, res) => {
+  try {
+    const phone = String(req.body.phone || '').replace(/\D/g, '').slice(0, 15);
+    const apikey = String(req.body.apikey || '').trim().slice(0, 60);
+    await pool.query("UPDATE system_settings SET value=$1 WHERE key='notify_wa_phone'", [phone]);
+    await pool.query("UPDATE system_settings SET value=$1 WHERE key='notify_wa_apikey'", [apikey]);
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/superadmin/notify/test', verifySuperAdmin, async (req, res) => {
+  try {
+    const c = await pool.query(
+      "SELECT key,value FROM system_settings WHERE key IN ('notify_wa_phone','notify_wa_apikey')");
+    const m = {}; c.rows.forEach(r => { m[r.key] = r.value; });
+    if (!m.notify_wa_phone || !m.notify_wa_apikey) {
+      return res.status(400).json({ error: 'Pehle number aur API key save karo' });
+    }
+    const r = await sendWhatsAppAlert(m.notify_wa_phone, m.notify_wa_apikey,
+      '✅ Test message — QR Se Print ke alerts chalu ho gaye hain.');
+    if (!r.ok) return res.status(400).json({ error: 'Bheja nahi ja saka: ' + (r.why || r.body || r.status) });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── White label partner: apne alert settings ──
+app.put('/api/whitelabel/notify', verifyWhitelabel, async (req, res) => {
+  try {
+    const phone = String(req.body.phone || '').replace(/\D/g, '').slice(0, 15);
+    const apikey = String(req.body.apikey || '').trim().slice(0, 60);
+    await pool.query('UPDATE whitelabels SET notify_wa_phone=$2, notify_wa_apikey=$3 WHERE id=$1',
+      [req.wlId, phone, apikey]);
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/whitelabel/notify/test', verifyWhitelabel, async (req, res) => {
+  try {
+    const w = await pool.query(
+      'SELECT brand_name, notify_wa_phone, notify_wa_apikey FROM whitelabels WHERE id=$1', [req.wlId]);
+    const row = w.rows[0];
+    if (!row || !row.notify_wa_phone || !row.notify_wa_apikey) {
+      return res.status(400).json({ error: 'Pehle number aur API key save karo' });
+    }
+    const r = await sendWhatsAppAlert(row.notify_wa_phone, row.notify_wa_apikey,
+      `✅ Test message — ${row.brand_name || 'aapke'} alerts chalu ho gaye hain.`);
+    if (!r.ok) return res.status(400).json({ error: 'Bheja nahi ja saka: ' + (r.why || r.body || r.status) });
+    res.json({ success: true });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/setup-fee/current', async (req, res) => {
   try {
     const pricing = await getSetupPricing();
@@ -2223,6 +2450,8 @@ app.post('/api/shop/register', async (req, res) => {
     );
 
     res.json({ success: true, shopId, setupFeeAmount: firstPayment, plan });
+    // Alert baad me — response pehle ja chuka hai, isliye customer ko wait nahi karna padta
+    alertNewShop(shopId, 'new');
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -2397,6 +2626,9 @@ async function activateShop(shopId, paymentId) {
     "UPDATE shops SET paid_until = NOW() + INTERVAL '30 days' WHERE id=$1 AND plan_type='monthly'",
     [shopId]);
   console.log(`Setup fee paid: ${shopId} | Payment: ${paymentId}`);
+
+  // Naya paid shop — alert bhejo (fail ho to bhi activation nahi rukega)
+  alertNewShop(shopId, 'paid');
 
   // ── AGENT COMMISSION ── kya ye shop kisi agent ne onboard ki thi?
   try {
