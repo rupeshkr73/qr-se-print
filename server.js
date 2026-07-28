@@ -1188,7 +1188,13 @@ app.get('/api/superadmin/db-counts', verifySuperAdmin, async (req, res) => {
 
 // Fallback upload diagnostics — kitni baar /api/upload (Render-se-guzarne-wala,
 // direct-Cloudinary fail hone ka fallback) trigger hua, kis shop pe, kis wajah se.
-app.get('/api/superadmin/fallback-stats', verifySuperAdmin, (req, res) => {
+// Do tarike se check kar sakte ho: (1) superadmin dashboard token se, jaisa baaki
+// superadmin routes, (2) seedha phone browser se — URL ke aage ?key=TUMHARA_SUPER_ADMIN_PASSWORD
+// laga do, login karne ki zaroorat nahi.
+app.get('/api/superadmin/fallback-stats', (req, res, next) => {
+  if (req.query.key && SUPER_ADMIN_PASSWORD && req.query.key === SUPER_ADMIN_PASSWORD) return next();
+  return verifySuperAdmin(req, res, next);
+}, (req, res) => {
   res.json(fallbackUploadStats);
 });
 
