@@ -438,13 +438,39 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       <div style="background:linear-gradient(135deg,#0f766e,#134e4a);border-radius:16px;padding:16px 17px;margin-bottom:16px;">
         <label style="font-size:12.5px;font-weight:800;color:#5eead4;display:block;margin-bottom:6px;">🔔 Naya Shop Alert (Email)</label>
         <p style="font-size:11.5px;color:#cbd5d1;line-height:1.7;margin-bottom:12px;">
-          Nayi shop register ho ya payment aaye — turant email.<br><br>
-          <b style="color:#fff;">Gmail se setup (2 minute, free):</b><br>
-          1. Google account me <b style="color:#5eead4;">2-Step Verification</b> chalu karo<br>
-          2. <b style="color:#5eead4;">myaccount.google.com/apppasswords</b> par jaakar
-             ek App Password banao<br>
-          3. Wahi 16-akshar ka password neeche daalo (apna normal Gmail password NAHI)
+          Nayi shop register ho ya payment aaye — turant email.
         </p>
+
+        <div style="background:rgba(94,234,212,.12);border:1.5px solid rgba(94,234,212,.35);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:800;color:#5eead4;margin-bottom:7px;">✅ Brevo — recommended (free, 300 email/din)</div>
+          <p style="font-size:11.5px;color:#cbd5d1;line-height:1.7;margin-bottom:10px;">
+            Hosting (Render) SMTP ports block karti hai, isliye Gmail/SMTP wahan
+            <b style="color:#fff;">kaam nahi karega</b>. Brevo HTTPS se bhejta hai — wo hamesha chalta hai.<br><br>
+            <b style="color:#fff;">Setup (3 minute):</b><br>
+            1. <b style="color:#5eead4;">brevo.com</b> par free account banao<br>
+            2. <b style="color:#5eead4;">Senders</b> me apna email add karke verify karo<br>
+            3. <b style="color:#5eead4;">SMTP &amp; API → API Keys</b> se ek key banao<br>
+            4. Dono neeche daal do
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label style="font-size:10.5px;color:#cbd5d1;">Verified sender email</label>
+              <input type="text" id="ntBrevoSender" placeholder="aapka@gmail.com" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
+            </div>
+            <div>
+              <label style="font-size:10.5px;color:#cbd5d1;">Brevo API key <span id="ntBrevoNote"></span></label>
+              <input type="password" id="ntBrevoKey" placeholder="xkeysib-..." style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
+            </div>
+          </div>
+        </div>
+
+        <details style="margin-bottom:12px;">
+          <summary style="cursor:pointer;font-size:11.5px;font-weight:700;color:#cbd5d1;">⚙️ SMTP (advanced — apna server ho tabhi)</summary>
+          <p style="font-size:11px;color:#9fb3af;line-height:1.65;margin:8px 0 10px;">
+            Gmail SMTP Render par <b>timeout</b> deta hai (port block). Ye sirf tab bharo
+            jab aapki hosting SMTP allow karti ho.
+          </p>
+        </details>
         <div id="ntMsg" style="display:none;border-radius:9px;padding:9px 11px;font-size:12px;font-weight:700;margin-bottom:10px;"></div>
 
         <div style="display:grid;grid-template-columns:2fr 1fr;gap:11px;margin-bottom:10px;">
@@ -1086,6 +1112,10 @@ async function loadNotify() {
     document.getElementById('ntPort').value = d.port || '587';
     document.getElementById('ntUser').value = d.user || '';
     document.getElementById('ntTo').value = d.notifyEmail || '';
+    document.getElementById('ntBrevoSender').value = d.brevoSender || '';
+    const bn = document.getElementById('ntBrevoNote');
+    if (bn) bn.textContent = d.hasBrevoKey ? '(saved)' : '';
+    if (d.hasBrevoKey) document.getElementById('ntBrevoKey').placeholder = '•••••• saved — khaali chhodo';
     const note = document.getElementById('ntPassNote');
     if (note) note.textContent = d.hasPass ? '(saved)' : '';
     if (d.hasPass) document.getElementById('ntPass').placeholder = '•••••• saved — khaali chhodo';
@@ -1100,12 +1130,15 @@ async function saveNotify() {
         port: document.getElementById('ntPort').value,
         user: document.getElementById('ntUser').value,
         pass: document.getElementById('ntPass').value,
-        notifyEmail: document.getElementById('ntTo').value
+        notifyEmail: document.getElementById('ntTo').value,
+        brevoSender: document.getElementById('ntBrevoSender').value,
+        brevoKey: document.getElementById('ntBrevoKey').value
       })
     });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'fail');
     document.getElementById('ntPass').value = '';
+    document.getElementById('ntBrevoKey').value = '';
     ntShow('✅ Save ho gaya — ab Test dabao', true);
     loadNotify();
   } catch(e) { ntShow('❌ ' + e.message, false); }
@@ -1117,7 +1150,19 @@ async function testNotify() {
       method: 'POST', headers: { 'Authorization': 'Bearer ' + authToken } });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'fail');
-    ntShow('✅ Bhej diya — ' + (d.to || '') + ' check karo (spam folder bhi)', true);
+    // Server ka asli jawab dikhao — "bhej diya" kehna kaafi nahi
+    const e = document.getElementById('ntMsg');
+    e.style.background = 'rgba(94,234,212,.2)';
+    e.style.color = '#5eead4';
+    e.style.display = 'block';
+    e.innerHTML =
+      '<b>✅ Mail accept ho gayi</b> <span style="opacity:.8;">(' + (d.via || '?') + ')</span><br>' +
+      'Bheja: <b>' + (d.from || '?') + '</b><br>' +
+      'Gaya: <b>' + (d.to || '?') + '</b><br>' +
+      'Server ka jawab: <code style="font-size:11px;">' + (d.response || '-') + '</code><br><br>' +
+      '📥 Ab <b>' + (d.to || '') + '</b> kholo. Inbox me na mile to <b>Spam</b> aur ' +
+      '<b>All Mail</b> zaroor dekho — pehli baar aksar wahan jaata hai.';
+    setTimeout(function(){ e.style.display = 'none'; }, 60000);
   } catch(e) { ntShow('❌ ' + e.message, false); }
 }
 
