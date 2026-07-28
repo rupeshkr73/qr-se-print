@@ -11,6 +11,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const archiver = require('archiver');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -355,8 +356,7 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_last_seen TIMESTAMP;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_version INT;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS whitelabel_id VARCHAR(50) DEFAULT '';
-      ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS notify_wa_phone VARCHAR(20) DEFAULT '';
-      ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS notify_wa_apikey VARCHAR(60) DEFAULT '';
+      ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS notify_email VARCHAR(160) DEFAULT '';
       CREATE INDEX IF NOT EXISTS idx_shops_wl ON shops(whitelabel_id);
       -- ══ AGENT PROGRAM ══
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS is_agent BOOLEAN DEFAULT false;
@@ -574,9 +574,13 @@ async function initDB() {
     // hide rahega jab tak superadmin explicitly na daale.
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('agent_base_price','0') ON CONFLICT DO NOTHING");
     // White Label — license fee (ek baar) aur reseller ka minimum shop price
-    // Naye shop ka WhatsApp alert (CallMeBot — free)
-    await pool.query("INSERT INTO system_settings (key,value) VALUES ('notify_wa_phone','') ON CONFLICT DO NOTHING");
-    await pool.query("INSERT INTO system_settings (key,value) VALUES ('notify_wa_apikey','') ON CONFLICT DO NOTHING");
+    // Naye shop ka EMAIL alert. SMTP sirf ek baar superadmin set karta hai;
+    // partners ko kuch setup nahi karna — wo sirf apna email daalte hain.
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('smtp_host','smtp.gmail.com') ON CONFLICT DO NOTHING");
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('smtp_port','587') ON CONFLICT DO NOTHING");
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('smtp_user','') ON CONFLICT DO NOTHING");
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('smtp_pass','') ON CONFLICT DO NOTHING");
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('notify_email','') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('wl_license_fee','25000') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('wl_base_price','0') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('monthly_actual_price','0') ON CONFLICT DO NOTHING");
@@ -1814,7 +1818,7 @@ app.get('/api/whitelabel/me', verifyWhitelabel, async (req, res) => {
       shopPrice: wl.shop_price || 0, basePrice: wl.base_price || 0,
       razorpayKeyId: wl.razorpay_key_id || '',
       razorpayReady: !!(wl.razorpay_key_id && wl.razorpay_key_secret),
-      notifyPhone: wl.notify_wa_phone || '', notifyApikey: wl.notify_wa_apikey || '',
+      notifyEmail: wl.notify_email || '',
       blocked: !!wl.blocked, licenseFee: wl.license_fee || 0, paidAt: wl.paid_at,
       stats: s.rows[0], collected: earned.rows[0].total,
       shareLink: `${BASE_URL}/?wl=${wl.slug}`,
@@ -2210,34 +2214,54 @@ app.delete('/api/superadmin/reviews/:id', verifySuperAdmin, async (req, res) => 
 });
 
 // ══════════════════════════════════════════════════════════════
-// ALERTS — naya shop aane par WhatsApp message
+// ALERTS — naya shop aane par EMAIL
 //
-// CallMeBot use kar rahe hain: free hai, koi account/API package nahi
-// chahiye. Recipient ek baar +34 644 51 95 23 par
-// "I allow callmebot to send me messages" bhejta hai aur apikey mil jaati hai.
+// SMTP sirf EK BAAR superadmin set karta hai (Gmail app password se
+// 2 minute me ho jaata hai — free hai). Uske baad:
+//   normal shop      -> superadmin ke email par
+//   white-label shop -> us PARTNER ke email par
+// Partner ko koi SMTP setup nahi karna — wo bas apna email daalta hai.
 //
-// Ye poori tarah "fire and forget" hai — alert fail ho to bhi registration
-// ya payment kabhi nahi rukega.
+// Poori tarah "fire and forget" — email fail ho to bhi registration ya
+// payment kabhi nahi rukega.
 // ══════════════════════════════════════════════════════════════
-function sendWhatsAppAlert(phone, apikey, text) {
-  return new Promise((resolve) => {
-    try {
-      const p = String(phone || '').replace(/\D/g, '');
-      const k = String(apikey || '').trim();
-      if (!p || !k) return resolve({ ok: false, why: 'phone/apikey set nahi hai' });
-      const url = `/whatsapp.php?phone=${encodeURIComponent(p)}` +
-                  `&text=${encodeURIComponent(String(text).slice(0, 900))}` +
-                  `&apikey=${encodeURIComponent(k)}`;
-      const req = https.request({ hostname: 'api.callmebot.com', path: url, method: 'GET' }, (resp) => {
-        let body = '';
-        resp.on('data', c => body += c);
-        resp.on('end', () => resolve({ ok: resp.statusCode === 200, status: resp.statusCode, body: body.slice(0, 200) }));
-      });
-      req.on('error', e => resolve({ ok: false, why: e.message }));
-      req.setTimeout(10000, () => { req.destroy(); resolve({ ok: false, why: 'timeout' }); });
-      req.end();
-    } catch (e) { resolve({ ok: false, why: e.message }); }
+let _mailer = null, _mailerAt = 0;
+
+async function getMailer() {
+  // 5 min cache — har mail par DB hit na ho
+  if (_mailer && (Date.now() - _mailerAt) < 5 * 60 * 1000) return _mailer;
+  const r = await pool.query(
+    "SELECT key,value FROM system_settings WHERE key IN ('smtp_host','smtp_port','smtp_user','smtp_pass')");
+  const m = {}; r.rows.forEach(x => { m[x.key] = x.value; });
+  if (!m.smtp_host || !m.smtp_user || !m.smtp_pass) return null;
+  const port = parseInt(m.smtp_port, 10) || 587;
+  _mailer = nodemailer.createTransport({
+    host: m.smtp_host, port,
+    secure: port === 465,               // 465 = SSL, 587 = STARTTLS
+    auth: { user: m.smtp_user, pass: m.smtp_pass }
   });
+  _mailer._fromAddr = m.smtp_user;
+  _mailerAt = Date.now();
+  return _mailer;
+}
+
+async function sendEmailAlert(to, subject, body, fromName) {
+  try {
+    if (!to) return { ok: false, why: 'email set nahi hai' };
+    const t = await getMailer();
+    if (!t) return { ok: false, why: 'SMTP configure nahi hai' };
+    await t.sendMail({
+      from: `"${(fromName || 'QR Se Print').replace(/"/g, '')}" <${t._fromAddr}>`,
+      to, subject,
+      text: body,
+      html: '<pre style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.7;white-space:pre-wrap;margin:0;">'
+            + String(body).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</pre>'
+    });
+    return { ok: true };
+  } catch (e) {
+    _mailer = null;                     // agli baar naya transport banega
+    return { ok: false, why: e.message };
+  }
 }
 
 // Kis ko bhejna hai wo khud dhoondh leta hai:
@@ -2250,174 +2274,113 @@ async function alertNewShop(shopId, kind) {
     const shop = s.rows[0];
     if (shop.demo) return;   // demo par alert nahi — bahut zyada ho jaayenge
 
-    let to = null, brand = 'QR Se Print';
+    let to = '', brand = 'QR Se Print';
     if (shop.whitelabel_id) {
       const w = await pool.query(
-        'SELECT brand_name, notify_wa_phone, notify_wa_apikey FROM whitelabels WHERE id=$1', [shop.whitelabel_id]);
+        'SELECT brand_name, notify_email, email FROM whitelabels WHERE id=$1', [shop.whitelabel_id]);
       if (!w.rows.length) return;
       brand = w.rows[0].brand_name || brand;
-      to = { phone: w.rows[0].notify_wa_phone, apikey: w.rows[0].notify_wa_apikey };
+      to = w.rows[0].notify_email || w.rows[0].email || '';   // alert email na ho to login wala
     } else {
-      const c = await pool.query(
-        "SELECT key,value FROM system_settings WHERE key IN ('notify_wa_phone','notify_wa_apikey')");
-      const m = {}; c.rows.forEach(r => { m[r.key] = r.value; });
-      to = { phone: m.notify_wa_phone, apikey: m.notify_wa_apikey };
+      const c = await pool.query("SELECT value FROM system_settings WHERE key='notify_email'");
+      to = c.rows[0]?.value || '';
     }
-    if (!to || !to.phone || !to.apikey) return;   // set nahi hai — chup rehna
+    if (!to) return;   // set nahi hai — chup rehna
 
     const head = kind === 'paid' ? '💰 PAYMENT AAYA' : '🆕 NAYI SHOP REGISTER HUI';
-    const text =
+    const body =
       `${head}\n\n` +
-      `🏪 ${shop.name || '-'}\n` +
-      `📱 ${shop.phone || '-'}\n` +
-      (shop.address ? `📍 ${shop.address}\n` : '') +
-      `🆔 ${shop.id}\n` +
-      `💵 ₹${shop.setup_amount || 0}\n\n` +
-      (kind === 'paid' ? `✅ Shop active ho gayi` : `⏳ Payment abhi baaki hai — follow-up karo`) +
+      `🏪 Shop     : ${shop.name || '-'}\n` +
+      `📱 Mobile   : ${shop.phone || '-'}\n` +
+      (shop.address ? `📍 Address  : ${shop.address}\n` : '') +
+      `🆔 Shop ID  : ${shop.id}\n` +
+      `💵 Amount   : ₹${shop.setup_amount || 0}\n\n` +
+      (kind === 'paid'
+        ? `✅ Shop active ho gayi hai.`
+        : `⏳ Payment abhi baaki hai — follow-up kar lena.`) +
       `\n\n— ${brand}`;
 
-    const r = await sendWhatsAppAlert(to.phone, to.apikey, text);
-    console.log(`Alert (${kind}) ${shopId} -> ${to.phone}: ${r.ok ? 'sent' : 'FAIL ' + (r.why || r.status)}`);
+    const subject = `${kind === 'paid' ? '💰 Payment aaya' : '🆕 Nayi shop'}: ${shop.name || shop.id}`;
+    const r = await sendEmailAlert(to, subject, body, brand);
+    console.log(`Alert (${kind}) ${shopId} -> ${to}: ${r.ok ? 'sent' : 'FAIL ' + r.why}`);
   } catch (e) {
     console.error('alertNewShop error:', e.message);   // kabhi throw nahi karega
   }
 }
 
-// ── Superadmin: alert settings ──
+// ── Superadmin: email alert settings ──
 app.get('/api/superadmin/notify', verifySuperAdmin, async (req, res) => {
   try {
     const c = await pool.query(
-      "SELECT key,value FROM system_settings WHERE key IN ('notify_wa_phone','notify_wa_apikey')");
+      "SELECT key,value FROM system_settings WHERE key IN ('smtp_host','smtp_port','smtp_user','smtp_pass','notify_email')");
     const m = {}; c.rows.forEach(r => { m[r.key] = r.value; });
-    res.json({ phone: m.notify_wa_phone || '', apikey: m.notify_wa_apikey || '' });
-  } catch(err) { res.status(500).json({ error: err.message }); }
+    res.json({
+      host: m.smtp_host || 'smtp.gmail.com',
+      port: m.smtp_port || '587',
+      user: m.smtp_user || '',
+      hasPass: !!m.smtp_pass,          // password kabhi wapas nahi bhejte
+      notifyEmail: m.notify_email || ''
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.put('/api/superadmin/notify', verifySuperAdmin, async (req, res) => {
   try {
-    const phone = String(req.body.phone || '').replace(/\D/g, '').slice(0, 15);
-    const apikey = String(req.body.apikey || '').trim().slice(0, 60);
-    await pool.query("UPDATE system_settings SET value=$1 WHERE key='notify_wa_phone'", [phone]);
-    await pool.query("UPDATE system_settings SET value=$1 WHERE key='notify_wa_apikey'", [apikey]);
+    const b = req.body || {};
+    const set = async (k, v) => {
+      await pool.query(
+        `INSERT INTO system_settings (key,value) VALUES ($1,$2)
+         ON CONFLICT (key) DO UPDATE SET value=$2`, [k, String(v || '').slice(0, 300)]);
+    };
+    if (b.host !== undefined) await set('smtp_host', String(b.host).trim());
+    if (b.port !== undefined) await set('smtp_port', String(parseInt(b.port, 10) || 587));
+    if (b.user !== undefined) await set('smtp_user', String(b.user).trim());
+    // Password khaali bheja = purana rehne do (form me dobara type na karna pade)
+    if (b.pass) await set('smtp_pass', String(b.pass).trim());
+    if (b.notifyEmail !== undefined) {
+      const e = String(b.notifyEmail).trim();
+      if (e && !/^\S+@\S+\.\S+$/.test(e)) return res.status(400).json({ error: 'Sahi email daalo' });
+      await set('notify_email', e);
+    }
+    _mailer = null;   // settings badli — naya transport banega
     res.json({ success: true });
-  } catch(err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/superadmin/notify/test', verifySuperAdmin, async (req, res) => {
   try {
-    const c = await pool.query(
-      "SELECT key,value FROM system_settings WHERE key IN ('notify_wa_phone','notify_wa_apikey')");
-    const m = {}; c.rows.forEach(r => { m[r.key] = r.value; });
-    if (!m.notify_wa_phone || !m.notify_wa_apikey) {
-      return res.status(400).json({ error: 'Pehle number aur API key save karo' });
-    }
-    const r = await sendWhatsAppAlert(m.notify_wa_phone, m.notify_wa_apikey,
-      '✅ Test message — QR Se Print ke alerts chalu ho gaye hain.');
-    if (!r.ok) return res.status(400).json({ error: 'Bheja nahi ja saka: ' + (r.why || r.body || r.status) });
-    res.json({ success: true });
-  } catch(err) { res.status(500).json({ error: err.message }); }
+    const c = await pool.query("SELECT value FROM system_settings WHERE key='notify_email'");
+    const to = c.rows[0]?.value || '';
+    if (!to) return res.status(400).json({ error: 'Pehle alert email save karo' });
+    const r = await sendEmailAlert(to, '✅ Test — QR Se Print alerts',
+      'Ye ek test email hai.\n\nAgar ye mil gaya, matlab alerts chalu ho gaye hain.\nAb nayi shop register hone par aapko yahan message aayega.\n\n— QR Se Print');
+    if (!r.ok) return res.status(400).json({ error: 'Bheja nahi ja saka: ' + r.why });
+    res.json({ success: true, to });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── White label partner: apne alert settings ──
+// ── White label partner: sirf apna email (koi SMTP setup nahi) ──
 app.put('/api/whitelabel/notify', verifyWhitelabel, async (req, res) => {
   try {
-    const phone = String(req.body.phone || '').replace(/\D/g, '').slice(0, 15);
-    const apikey = String(req.body.apikey || '').trim().slice(0, 60);
-    await pool.query('UPDATE whitelabels SET notify_wa_phone=$2, notify_wa_apikey=$3 WHERE id=$1',
-      [req.wlId, phone, apikey]);
+    const e = String(req.body.notifyEmail || '').trim();
+    if (e && !/^\S+@\S+\.\S+$/.test(e)) return res.status(400).json({ error: 'Sahi email daalo' });
+    await pool.query('UPDATE whitelabels SET notify_email=$2 WHERE id=$1', [req.wlId, e]);
     res.json({ success: true });
-  } catch(err) { res.status(500).json({ error: err.message }); }
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/whitelabel/notify/test', verifyWhitelabel, async (req, res) => {
   try {
     const w = await pool.query(
-      'SELECT brand_name, notify_wa_phone, notify_wa_apikey FROM whitelabels WHERE id=$1', [req.wlId]);
+      'SELECT brand_name, notify_email, email FROM whitelabels WHERE id=$1', [req.wlId]);
     const row = w.rows[0];
-    if (!row || !row.notify_wa_phone || !row.notify_wa_apikey) {
-      return res.status(400).json({ error: 'Pehle number aur API key save karo' });
-    }
-    const r = await sendWhatsAppAlert(row.notify_wa_phone, row.notify_wa_apikey,
-      `✅ Test message — ${row.brand_name || 'aapke'} alerts chalu ho gaye hain.`);
-    if (!r.ok) return res.status(400).json({ error: 'Bheja nahi ja saka: ' + (r.why || r.body || r.status) });
-    res.json({ success: true });
-  } catch(err) { res.status(500).json({ error: err.message }); }
-});
-
-// ══════════════════════════════════════════════════════════════
-// TRANSLATIONS (i18n)
-// HTML me jo Hinglish text likha hai wahi "source" hai. Har language ki
-// dictionary DB me rehti hai — superadmin kabhi bhi add/edit kar sakta hai,
-// deploy karne ki zaroorat nahi. Translation na mile to source hi dikhta
-// hai, isliye adhoori translation se kuch tootta nahi.
-// ══════════════════════════════════════════════════════════════
-const I18N_LANGS = {
-  hin: 'Hinglish', hi: 'हिंदी', en: 'English',
-  bn: 'বাংলা', ta: 'தமிழ்', te: 'తెలుగు', kn: 'ಕನ್ನಡ'
-};
-let _i18nCache = {};        // lang -> { dict, at }
-const I18N_TTL = 5 * 60 * 1000;
-
-app.get('/api/i18n/:lang', async (req, res) => {
-  try {
-    const lang = String(req.params.lang || '').slice(0, 8);
-    if (!I18N_LANGS[lang]) return res.json({ lang, dict: {} });
-    if (lang === 'hin') return res.json({ lang, dict: {} });   // source hi hai
-
-    const c = _i18nCache[lang];
-    if (c && (Date.now() - c.at) < I18N_TTL) {
-      return res.json({ lang, dict: c.dict, cached: true });
-    }
-    const r = await pool.query('SELECT source, text FROM translations WHERE lang=$1', [lang]);
-    const dict = {};
-    r.rows.forEach(row => { dict[row.source] = row.text; });
-    _i18nCache[lang] = { dict, at: Date.now() };
-    res.json({ lang, dict });
-  } catch (err) { res.status(500).json({ error: err.message, dict: {} }); }
-});
-
-app.get('/api/i18n', (req, res) => res.json({ langs: I18N_LANGS }));
-
-// ── Superadmin: translations manage ──
-app.get('/api/superadmin/translations', verifySuperAdmin, async (req, res) => {
-  try {
-    const lang = String(req.query.lang || '').slice(0, 8);
-    if (!I18N_LANGS[lang] || lang === 'hin') return res.status(400).json({ error: 'Galat language' });
-    const r = await pool.query(
-      'SELECT id, source, text FROM translations WHERE lang=$1 ORDER BY source', [lang]);
-    const counts = await pool.query(
-      'SELECT lang, COUNT(*)::int AS n FROM translations GROUP BY lang');
-    const byLang = {}; counts.rows.forEach(x => { byLang[x.lang] = x.n; });
-    res.json({ lang, rows: r.rows, counts: byLang, langs: I18N_LANGS });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// Bulk save — { lang, items: [{source, text}, ...] }
-app.put('/api/superadmin/translations', verifySuperAdmin, async (req, res) => {
-  try {
-    const lang = String(req.body.lang || '').slice(0, 8);
-    if (!I18N_LANGS[lang] || lang === 'hin') return res.status(400).json({ error: 'Galat language' });
-    const items = Array.isArray(req.body.items) ? req.body.items.slice(0, 2000) : [];
-    if (!items.length) return res.status(400).json({ error: 'Kuch bheja hi nahi' });
-
-    let saved = 0, removed = 0;
-    for (const it of items) {
-      const source = String(it.source || '').trim();
-      const text = String(it.text || '').trim();
-      if (!source) continue;
-      if (!text) {
-        await pool.query('DELETE FROM translations WHERE lang=$1 AND source=$2', [lang, source]);
-        removed++;
-      } else {
-        await pool.query(
-          `INSERT INTO translations (lang, source, text) VALUES ($1,$2,$3)
-           ON CONFLICT (lang, md5(source)) DO UPDATE SET text=EXCLUDED.text, updated_at=NOW()`,
-          [lang, source, text.slice(0, 2000)]);
-        saved++;
-      }
-    }
-    delete _i18nCache[lang];   // cache saaf — turant live ho jaye
-    res.json({ success: true, saved, removed });
+    const to = (row && (row.notify_email || row.email)) || '';
+    if (!to) return res.status(400).json({ error: 'Pehle apna email save karo' });
+    const brand = row.brand_name || 'Partner';
+    const r = await sendEmailAlert(to, `✅ Test — ${brand} alerts`,
+      `Ye ek test email hai.\n\nAgar ye mil gaya, matlab alerts chalu ho gaye hain.\nAb aapke link se nayi shop register hone par yahan message aayega.\n\n— ${brand}`, brand);
+    if (!r.ok) return res.status(400).json({ error: 'Bheja nahi ja saka: ' + r.why });
+    res.json({ success: true, to });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
