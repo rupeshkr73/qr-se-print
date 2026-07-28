@@ -205,6 +205,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <button class="nav-it" data-nav="analytics"   onclick="navTo('analytics',this)"><span class="ico">📊</span> Analytics</button>
     <button class="nav-it" data-nav="whitelabel"  onclick="navTo('whitelabel',this)"><span class="ico">🏷️</span> White Label</button>
     <button class="nav-it" data-nav="reviews"     onclick="navTo('reviews',this)"><span class="ico">⭐</span> Reviews</button>
+    <button class="nav-it" data-nav="langs"       onclick="navTo('langs',this)"><span class="ico">🌐</span> Languages</button>
     <button class="nav-it" data-nav="withdrawals" onclick="navTo('withdrawals',this)"><span class="ico">💸</span> Withdrawals</button>
     <button class="nav-it" data-nav="agent"       onclick="navTo('agent',this)"><span class="ico">🔄</span> Agent Software</button>
     <button class="nav-it" data-nav="pricing"     onclick="navTo('pricing',this)"><span class="ico">💰</span> Setup Fee</button>
@@ -658,6 +659,33 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       </div>
     </div>
 
+    <div data-sect="langs">
+      <div class="card">
+        <h2><span>🌐 Translations</span>
+          <select id="lgSel" onchange="loadTranslations()" style="border:1.5px solid #e2ddd6;border-radius:9px;padding:8px 11px;font-size:13px;font-weight:700;"></select>
+        </h2>
+        <p style="font-size:11.5px;color:#9b9690;margin:-6px 0 12px;line-height:1.7;">
+          Website ka text <b>Hinglish</b> me likha hai — wahi "original" hai.
+          Har language ke liye uska tarjuma yahan daalo. Jo tarjuma nahi hoga,
+          wahan Hinglish hi dikhega (kuch tootega nahi).<br>
+          Save karte hi website par <b>turant</b> live ho jaata hai.
+        </p>
+        <div id="lgCounts" style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;"></div>
+        <div id="lgMsg" style="display:none;border-radius:10px;padding:10px 12px;font-size:12.5px;font-weight:600;margin-bottom:11px;"></div>
+
+        <div style="background:#f7f7f9;border:1.5px solid #e2ddd6;border-radius:13px;padding:13px 15px;margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:800;margin-bottom:9px;">➕ Naya word add karo</div>
+          <input id="lgNewSrc" placeholder="Hinglish text (jaisa website par likha hai)" style="width:100%;padding:10px 12px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:13.5px;box-sizing:border-box;margin-bottom:8px;">
+          <input id="lgNewTxt" placeholder="Iska tarjuma" style="width:100%;padding:10px 12px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:13.5px;box-sizing:border-box;margin-bottom:8px;">
+          <button onclick="addTranslation()" style="width:100%;background:#00c853;color:#fff;border:none;border-radius:10px;padding:11px;font-weight:800;font-size:13px;cursor:pointer;">➕ Add</button>
+        </div>
+
+        <input id="lgFilter" oninput="renderTranslations()" placeholder="🔍 Dhoondo…" style="width:100%;padding:10px 12px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:13.5px;box-sizing:border-box;margin-bottom:11px;">
+        <div id="lgList" style="font-size:13px;color:#9b9690;max-height:520px;overflow-y:auto;">Loading…</div>
+        <button onclick="saveTranslations()" style="width:100%;margin-top:12px;background:#111114;color:#fff;border:none;border-radius:11px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;">💾 Sab Save Karo</button>
+      </div>
+    </div>
+
     <div data-sect="withdrawals">
     <!-- WITHDRAWAL REQUESTS -->
     <div class="card" style="margin-bottom:20px;">
@@ -922,6 +950,110 @@ async function loadDemos(){
 
 // ═══ AGENTS (superadmin) ═══
 let _agents = [];
+// ═══ TRANSLATIONS ═══
+let _trRows = [], _trLangs = {}, _trCounts = {};
+function lgShow(msg, ok) {
+  const e = document.getElementById('lgMsg'); if (!e) return;
+  e.textContent = msg;
+  e.style.background = ok ? '#f0fdf4' : '#fef2f2';
+  e.style.border = '1.5px solid ' + (ok ? '#bbf7d0' : '#fecaca');
+  e.style.color = ok ? '#166534' : '#991b1b';
+  e.style.display = msg ? 'block' : 'none';
+  if (msg) setTimeout(() => { e.style.display = 'none'; }, 4000);
+}
+
+async function loadTranslations() {
+  const sel = document.getElementById('lgSel');
+  const box = document.getElementById('lgList');
+  if (!sel || !box) return;
+  // Pehli baar — languages bhar do (Hinglish source hai, wo edit nahi hota)
+  if (!sel.options.length) {
+    try {
+      const lr = await fetch('/api/i18n');
+      const ld = await lr.json();
+      _trLangs = ld.langs || {};
+      Object.keys(_trLangs).filter(k => k !== 'hin').forEach(k => {
+        const o = document.createElement('option');
+        o.value = k; o.textContent = _trLangs[k];
+        sel.appendChild(o);
+      });
+    } catch(e) {}
+  }
+  const lang = sel.value || 'en';
+  box.innerHTML = 'Loading…';
+  try {
+    const r = await fetch('/api/superadmin/translations?lang=' + encodeURIComponent(lang),
+      { headers: { 'Authorization': 'Bearer ' + authToken } });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'fail');
+    _trRows = d.rows || [];
+    _trCounts = d.counts || {};
+    const cbox = document.getElementById('lgCounts');
+    if (cbox) cbox.innerHTML = Object.keys(_trLangs).filter(k => k !== 'hin').map(k =>
+      `<span style="background:${k===lang?'#111114':'#f3f4f6'};color:${k===lang?'#ffd22e':'#4b5563'};border-radius:999px;padding:5px 11px;font-size:11.5px;font-weight:700;">${_trLangs[k]}: ${_trCounts[k]||0}</span>`).join('');
+    renderTranslations();
+  } catch(e) { box.innerHTML = `<span style="color:#c22;">❌ ${e.message}</span>`; }
+}
+
+function renderTranslations() {
+  const box = document.getElementById('lgList');
+  const q = (document.getElementById('lgFilter').value || '').toLowerCase();
+  const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const rows = _trRows.filter(r => !q || r.source.toLowerCase().includes(q) || (r.text||'').toLowerCase().includes(q));
+  if (!rows.length) {
+    box.innerHTML = '<p style="color:#9b9690;">' + (q ? 'Kuch nahi mila.' : 'Abhi koi translation nahi. Upar se add karo.') + '</p>';
+    return;
+  }
+  box.innerHTML = rows.map(r => `
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center;padding:7px 0;border-bottom:1px dashed #ece7e0;">
+      <div style="font-size:12.5px;color:#6b6870;word-break:break-word;">${esc(r.source)}</div>
+      <input value="${esc(r.text)}" data-tr-src="${esc(r.source)}"
+        style="width:100%;padding:8px 10px;border:1.5px solid #e2ddd6;border-radius:8px;font-size:13px;box-sizing:border-box;">
+      <button onclick="clearTranslation(this)" title="Hatao"
+        style="background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:7px 10px;font-size:12px;font-weight:700;cursor:pointer;">✕</button>
+    </div>`).join('');
+}
+
+function clearTranslation(btn) {
+  const inp = btn.parentNode.querySelector('input[data-tr-src]');
+  if (inp) { inp.value = ''; inp.style.background = '#fef2f2'; }
+}
+
+function addTranslation() {
+  const s = document.getElementById('lgNewSrc').value.trim();
+  const t = document.getElementById('lgNewTxt').value.trim();
+  if (!s || !t) return lgShow('❌ Dono field bharo', false);
+  const ex = _trRows.find(r => r.source === s);
+  if (ex) ex.text = t; else _trRows.unshift({ id: 0, source: s, text: t });
+  document.getElementById('lgNewSrc').value = '';
+  document.getElementById('lgNewTxt').value = '';
+  document.getElementById('lgFilter').value = '';
+  renderTranslations();
+  lgShow('✅ List me aa gaya — ab "Sab Save Karo" dabao', true);
+}
+
+async function saveTranslations() {
+  const lang = document.getElementById('lgSel').value;
+  const items = [];
+  document.querySelectorAll('#lgList input[data-tr-src]').forEach(i => {
+    items.push({ source: i.getAttribute('data-tr-src'), text: i.value });
+  });
+  // Jo filter ki wajah se dikh nahi rahe, unhe bhi bhejo (warna gayab ho jayenge)
+  const shown = new Set(items.map(i => i.source));
+  _trRows.forEach(r => { if (!shown.has(r.source)) items.push({ source: r.source, text: r.text }); });
+  if (!items.length) return lgShow('❌ Kuch hai hi nahi', false);
+  try {
+    const r = await fetch('/api/superadmin/translations', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+      body: JSON.stringify({ lang, items })
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'fail');
+    lgShow(`✅ ${d.saved} save${d.removed ? ', ' + d.removed + ' hataye' : ''} — website par live`, true);
+    loadTranslations();
+  } catch(e) { lgShow('❌ ' + e.message, false); }
+}
+
 // ═══ ALERTS ═══
 function ntShow(msg, ok) {
   const e = document.getElementById('ntMsg'); if (!e) return;
@@ -1572,6 +1704,7 @@ async function loadPanel() {
   loadWhitelabels();
   loadReviews();
   loadNotify();
+  loadTranslations();
   loadDemoConfig();
   loadCloudinaryStatus();
   loadDbCounts();
@@ -2178,7 +2311,7 @@ async function deletePendingShop(shopId, name){
 
 
 // ===== SIDEBAR NAV =====
-const PAGE_TITLES = {overview:'Overview', shops:'Shops', demos:'Demo Accounts', agents:'Agents', withdrawals:'Withdrawals', agent:'Agent Software', pricing:'Setup Fee', analytics:'Analytics', whitelabel:'White Label', reviews:'Reviews'};
+const PAGE_TITLES = {overview:'Overview', shops:'Shops', demos:'Demo Accounts', agents:'Agents', withdrawals:'Withdrawals', agent:'Agent Software', pricing:'Setup Fee', analytics:'Analytics', whitelabel:'White Label', reviews:'Reviews', langs:'Languages'};
 function navTo(sect, btn){
   document.querySelectorAll('[data-sect]').forEach(el=>el.classList.toggle('show', el.getAttribute('data-sect')===sect));
   document.querySelectorAll('.nav-it[data-nav]').forEach(n=>n.classList.toggle('active', n.getAttribute('data-nav')===sect));

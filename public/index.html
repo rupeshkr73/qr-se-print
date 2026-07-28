@@ -2701,52 +2701,7 @@ async function createDemo(){
     <option value="bn">🇧🇩 বাংলা</option>
   </select>
 </div>
-<script>
-const I18N = {
-  en: {
-    'Customer ke phone se':'From customer\'s phone','seedha aapke printer par —':'straight to your printer —',
-    'One-time setup fee • No monthly fee • Lifetime use':'One-time setup fee • No monthly fee • Lifetime use',
-    'QR Scan':'QR Scan','File Upload':'File Upload','Pay':'Pay','Auto Print':'Auto Print',
-    'Abhi Start Karein':'Start Now','Shop Login':'Shop Login','Shop Owner Login':'Shop Owner Login',
-    '2 Ghante FREE Demo':'2 Hours FREE Demo','— bina payment ke try karo':'— try without payment',
-    'Refer & Earn':'Refer & Earn','— har referral par ₹50':'— ₹50 per referral',
-  },
-  bn: {
-    'Customer ke phone se':'কাস্টমারের ফোন থেকে','seedha aapke printer par —':'সরাসরি আপনার প্রিন্টারে —',
-    'One-time setup fee • No monthly fee • Lifetime use':'এককালীন সেটআপ ফি • মাসিক ফি নেই • লাইফটাইম',
-    'QR Scan':'QR স্ক্যান','File Upload':'ফাইল আপলোড','Pay':'পেমেন্ট','Auto Print':'অটো প্রিন্ট',
-    'Abhi Start Karein':'এখনই শুরু করুন','Shop Login':'শপ লগইন','Shop Owner Login':'শপ ওনার লগইন',
-    '2 Ghante FREE Demo':'২ ঘণ্টা ফ্রি ডেমো','— bina payment ke try karo':'— পেমেন্ট ছাড়া ট্রাই করুন',
-    'Refer & Earn':'রেফার করুন আয় করুন','— har referral par ₹50':'— প্রতি রেফারে ₹৫০',
-  }
-};
-let _origText = new Map();
-function setLang(lang){
-  try{ localStorage.setItem('qsp_lang', lang); }catch(e){}
-  const dict = I18N[lang];
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  const nodes = [];
-  while (walker.nextNode()) nodes.push(walker.currentNode);
-  nodes.forEach(node=>{
-    const t = node.textContent.trim();
-    if (!t) return;
-    if (!_origText.has(node)) _origText.set(node, node.textContent);
-    const orig = _origText.get(node).trim();
-    if (!dict) { node.textContent = _origText.get(node); return; }
-    if (dict[orig]) node.textContent = node.textContent.replace(orig, dict[orig]);
-    else node.textContent = _origText.get(node);
-  });
-  const sel = document.getElementById('langSel');
-  if (sel) sel.value = lang;
-}
-window.addEventListener('load', ()=>{
-  let saved = 'hi';
-  try{ saved = localStorage.getItem('qsp_lang') || 'hi'; }catch(e){}
-  if (saved !== 'hi') setTimeout(()=>setLang(saved), 300);
-  const sel = document.getElementById('langSel');
-  if (sel) sel.value = saved;
-});
-</script>
+<script src="/i18n.js" defer></script>
 <script>
 /* ── Design enhancements: scroll reveal + sticky header shadow ──
    (Content aur functionality untouched — sirf visual polish) */

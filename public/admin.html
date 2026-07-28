@@ -309,7 +309,8 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <button class="nav-it" data-nav="advance" onclick="navTo('advance',this)"><span class="ico">⚡</span> Advance Feature</button>
     <button class="nav-it" data-nav="payment" onclick="navTo('payment',this)"><span class="ico">💳</span> Payment Setup</button>
     <button class="nav-it" data-nav="support" id="navSupport" onclick="navTo('support',this)"><span class="ico">💬</span> Support</button>
-    <div class="side-foot"><button class="side-lg" onclick="logout()"><span>🚪</span> Logout</button></div>
+    <div class="side-foot"><select data-i18n-select aria-label="Language" style="width:100%;margin-bottom:8px;padding:9px 11px;border-radius:11px;border:1.5px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;"></select>
+    <button class="side-lg" onclick="logout()"><span>🚪</span> Logout</button></div>
   </aside>
   <div class="app-main">
     <div class="app-topbar">
@@ -2532,5 +2533,6 @@ function logout() {
   location.reload();
 }
 </script>
+<script src="/i18n.js" defer></script>
 </body>
 </html>
