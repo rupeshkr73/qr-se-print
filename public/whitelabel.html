@@ -53,6 +53,17 @@ h1 em{font-style:normal;color:var(--yellow)}
   font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:clamp(28px,7.5vw,40px);
   border-radius:14px;padding:7px 20px;margin:8px 0 6px;box-shadow:0 12px 28px rgba(255,210,46,.32)}
 .amt small{font-size:.42em;font-weight:700;display:block;margin-top:2px}
+.amt-wrap{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
+.amt-cut{
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;
+  font-size:clamp(19px,4.6vw,26px);color:rgba(255,255,255,.45);
+  text-decoration:line-through;
+}
+.amt-off{
+  display:inline-block;background:#00c853;color:#fff;border-radius:999px;
+  padding:5px 15px;font-size:12.5px;font-weight:800;letter-spacing:.4px;margin-top:2px;
+  box-shadow:0 8px 20px rgba(0,200,83,.32);
+}
 .sub{font-size:13.5px;color:#cfd2da;line-height:1.75;max-width:480px;margin:10px auto 0}
 
 .card{background:var(--card);border:1.5px solid var(--line);border-radius:20px;
@@ -135,7 +146,11 @@ input:focus{outline:none;border-color:var(--pink);box-shadow:0 0 0 4px rgba(255,
   <div class="hero">
     <span class="tag">🏷️ White Label Partner</span>
     <h1>Apne <em>brand</em> se becho,<br>poora paisa aapka</h1>
-    <div class="amt">₹<span id="feeAmt">—</span><small>ek baar · lifetime license</small></div>
+    <div class="amt-wrap">
+      <span class="amt-cut" id="feeCut" style="display:none;">₹0</span>
+      <span class="amt">₹<span id="feeAmt">—</span><small>ek baar · lifetime license</small></span>
+    </div>
+    <div class="amt-off" id="feeOff" style="display:none;">0% OFF</div>
     <p class="sub">Apna brand naam, apna logo, apna price aur <b style="color:#fff;">apna Razorpay</b>. Aapki shops ka registration fee seedha <b style="color:#fff;">aapke account</b> me aata hai — humare paas ek rupaya bhi nahi.</p>
   </div>
 
@@ -245,6 +260,16 @@ async function loadFee() {
     LICENSE_FEE = d.licenseFee || 0;
     document.getElementById('feeAmt').textContent = LICENSE_FEE.toLocaleString('en-IN');
     document.getElementById('btnAmt').textContent = LICENSE_FEE.toLocaleString('en-IN');
+    // Kata hua price sirf tab jab wo asli price se zyada ho
+    const actual = d.licenseActual || 0;
+    if (actual > LICENSE_FEE && LICENSE_FEE > 0) {
+      const cut = document.getElementById('feeCut');
+      const off = document.getElementById('feeOff');
+      cut.textContent = '₹' + actual.toLocaleString('en-IN');
+      cut.style.display = '';
+      off.textContent = Math.round(((actual - LICENSE_FEE) / actual) * 100) + '% OFF';
+      off.style.display = 'inline-block';
+    }
   } catch (e) {}
 }
 loadFee();

@@ -206,6 +206,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <button class="nav-it" data-nav="whitelabel"  onclick="navTo('whitelabel',this)"><span class="ico">🏷️</span> White Label</button>
     <button class="nav-it" data-nav="reviews"     onclick="navTo('reviews',this)"><span class="ico">⭐</span> Reviews</button>
     <button class="nav-it" data-nav="langs"       onclick="navTo('langs',this)"><span class="ico">🌐</span> Languages</button>
+    <button class="nav-it" data-nav="notify"      onclick="navTo('notify',this)"><span class="ico">🔔</span> Email Alerts</button>
     <button class="nav-it" data-nav="withdrawals" onclick="navTo('withdrawals',this)"><span class="ico">💸</span> Withdrawals</button>
     <button class="nav-it" data-nav="agent"       onclick="navTo('agent',this)"><span class="ico">🔄</span> Agent Software</button>
     <button class="nav-it" data-nav="pricing"     onclick="navTo('pricing',this)"><span class="ico">💰</span> Setup Fee</button>
@@ -435,72 +436,6 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         <div id="agentBasePreviewLine" style="margin-top:10px;font-size:12px;color:#9aa0ab;"></div>
       </div>
 
-      <div style="background:linear-gradient(135deg,#0f766e,#134e4a);border-radius:16px;padding:16px 17px;margin-bottom:16px;">
-        <label style="font-size:12.5px;font-weight:800;color:#5eead4;display:block;margin-bottom:6px;">🔔 Naya Shop Alert (Email)</label>
-        <p style="font-size:11.5px;color:#cbd5d1;line-height:1.7;margin-bottom:12px;">
-          Nayi shop register ho ya payment aaye — turant email.
-        </p>
-
-        <div style="background:rgba(94,234,212,.12);border:1.5px solid rgba(94,234,212,.35);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
-          <div style="font-size:12px;font-weight:800;color:#5eead4;margin-bottom:7px;">✅ Brevo — recommended (free, 300 email/din)</div>
-          <p style="font-size:11.5px;color:#cbd5d1;line-height:1.7;margin-bottom:10px;">
-            Hosting (Render) SMTP ports block karti hai, isliye Gmail/SMTP wahan
-            <b style="color:#fff;">kaam nahi karega</b>. Brevo HTTPS se bhejta hai — wo hamesha chalta hai.<br><br>
-            <b style="color:#fff;">Setup (3 minute):</b><br>
-            1. <b style="color:#5eead4;">brevo.com</b> par free account banao<br>
-            2. <b style="color:#5eead4;">Senders</b> me apna email add karke verify karo<br>
-            3. <b style="color:#5eead4;">SMTP &amp; API → API Keys</b> se ek key banao<br>
-            4. Dono neeche daal do
-          </p>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            <div>
-              <label style="font-size:10.5px;color:#cbd5d1;">Verified sender email</label>
-              <input type="text" id="ntBrevoSender" placeholder="aapka@gmail.com" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
-            </div>
-            <div>
-              <label style="font-size:10.5px;color:#cbd5d1;">Brevo API key <span id="ntBrevoNote"></span></label>
-              <input type="password" id="ntBrevoKey" placeholder="xkeysib-..." style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
-            </div>
-          </div>
-        </div>
-
-        <details style="margin-bottom:12px;">
-          <summary style="cursor:pointer;font-size:11.5px;font-weight:700;color:#cbd5d1;">⚙️ SMTP (advanced — apna server ho tabhi)</summary>
-          <p style="font-size:11px;color:#9fb3af;line-height:1.65;margin:8px 0 10px;">
-            Gmail SMTP Render par <b>timeout</b> deta hai (port block). Ye sirf tab bharo
-            jab aapki hosting SMTP allow karti ho.
-          </p>
-        </details>
-        <div id="ntMsg" style="display:none;border-radius:9px;padding:9px 11px;font-size:12px;font-weight:700;margin-bottom:10px;"></div>
-
-        <div style="display:grid;grid-template-columns:2fr 1fr;gap:11px;margin-bottom:10px;">
-          <div>
-            <label style="font-size:10.5px;color:#cbd5d1;">SMTP host</label>
-            <input type="text" id="ntHost" placeholder="smtp.gmail.com" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
-          </div>
-          <div>
-            <label style="font-size:10.5px;color:#cbd5d1;">Port</label>
-            <input type="text" id="ntPort" placeholder="587" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:10px;">
-          <div>
-            <label style="font-size:10.5px;color:#cbd5d1;">Gmail address (bhejne wala)</label>
-            <input type="text" id="ntUser" placeholder="aapka@gmail.com" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
-          </div>
-          <div>
-            <label style="font-size:10.5px;color:#cbd5d1;">App Password <span id="ntPassNote"></span></label>
-            <input type="password" id="ntPass" placeholder="16 akshar" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
-          </div>
-        </div>
-        <label style="font-size:10.5px;color:#cbd5d1;">Alert kis email par aaye</label>
-        <input type="text" id="ntTo" placeholder="aapka@gmail.com" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);margin-bottom:11px;">
-        <div style="display:flex;gap:9px;">
-          <button onclick="saveNotify()" style="flex:2;background:#5eead4;color:#134e4a;border:none;border-radius:10px;padding:11px;font-weight:800;font-size:13px;cursor:pointer;">💾 Save</button>
-          <button onclick="testNotify()" style="flex:1;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:10px;padding:11px;font-weight:700;font-size:13px;cursor:pointer;">📤 Test</button>
-        </div>
-      </div>
-
       <!-- White Label pricing -->
       <div style="background:linear-gradient(135deg,#2b1f3d,#3b1230);border-radius:16px;padding:16px 17px;margin-bottom:16px;">
         <label style="font-size:12.5px;font-weight:800;color:#ffd22e;display:block;margin-bottom:6px;">🏷️ White Label</label>
@@ -508,15 +443,25 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           <b style="color:#fff;">License Fee</b> = partner banne ke liye ek baar ka charge (ye paisa hamare paas aata hai).<br>
           <b style="color:#fff;">Base Price</b> = partner apni shops ko isse neeche nahi bech sakta. 0 = normal Offer Price.
         </p>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:11px;">
           <div>
-            <label style="font-size:10.5px;color:#c9ccd6;">License Fee (₹)</label>
-            <input type="number" id="wlLicenseFeeInput" min="1" style="width:100%;padding:11px 13px;border:1.5px solid rgba(255,210,46,.4);border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#ffd22e;background:rgba(255,255,255,.06);">
+            <label style="font-size:10.5px;color:#c9ccd6;">Actual Price (₹) <span style="opacity:.7;">— katega hua</span></label>
+            <input type="number" id="wlLicenseActualInput" min="0" placeholder="0 = hide" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid rgba(255,255,255,.25);border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#fff;background:rgba(255,255,255,.06);">
           </div>
           <div>
-            <label style="font-size:10.5px;color:#c9ccd6;">Base Price (₹)</label>
-            <input type="number" id="wlBasePriceInput" min="0" placeholder="0 = Offer Price" style="width:100%;padding:11px 13px;border:1.5px solid rgba(255,210,46,.4);border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#ffd22e;background:rgba(255,255,255,.06);">
+            <label style="font-size:10.5px;color:#c9ccd6;">License Fee (₹) <span style="opacity:.7;">— yahi dega</span></label>
+            <input type="number" id="wlLicenseFeeInput" min="1" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid rgba(255,210,46,.4);border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#ffd22e;background:rgba(255,255,255,.06);">
           </div>
+        </div>
+        <div id="wlLicPreview" style="display:none;align-items:center;gap:10px;background:rgba(0,0,0,.28);border-radius:11px;padding:10px 13px;margin-bottom:11px;">
+          <span style="font-size:11px;color:#9aa0ab;">Preview:</span>
+          <span id="wlLicCut" style="font-size:14px;color:#9aa0ab;text-decoration:line-through;">₹0</span>
+          <span id="wlLicNow" style="font-size:19px;font-weight:800;color:#ffd22e;font-family:'Plus Jakarta Sans',sans-serif;">₹0</span>
+          <span id="wlLicOff" style="background:#00c853;color:#fff;font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:20px;">0% OFF</span>
+        </div>
+        <div>
+          <label style="font-size:10.5px;color:#c9ccd6;">Base Price (₹) — partner isse neeche shop nahi bech sakta</label>
+          <input type="number" id="wlBasePriceInput" min="0" placeholder="0 = Offer Price" style="width:100%;padding:11px 13px;border:1.5px solid rgba(255,210,46,.4);border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#ffd22e;background:rgba(255,255,255,.06);">
         </div>
       </div>
 
@@ -723,6 +668,88 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         <input id="lgFilter" oninput="renderTranslations()" placeholder="🔍 Dhoondo…" style="width:100%;padding:10px 12px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:13.5px;box-sizing:border-box;margin-bottom:11px;">
         <div id="lgList" style="font-size:13px;color:#9b9690;max-height:520px;overflow-y:auto;">Loading…</div>
         <button onclick="saveTranslations()" style="width:100%;margin-top:12px;background:#111114;color:#fff;border:none;border-radius:11px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;">💾 Sab Save Karo</button>
+      </div>
+    </div>
+
+    <div data-sect="notify">
+      <div class="card" style="padding:0;overflow:hidden;background:none;border:none;box-shadow:none;">
+      <div style="background:linear-gradient(135deg,#0f766e,#134e4a);border-radius:18px;padding:20px 18px;">
+        <label style="font-size:15px;font-weight:800;color:#5eead4;display:block;margin-bottom:8px;font-family:'Syne',sans-serif;">🔔 Naya Shop Alert</label>
+        <p style="font-size:11.5px;color:#cbd5d1;line-height:1.7;margin-bottom:12px;">
+          Nayi shop register ho ya payment aaye — turant email.
+        </p>
+
+        <div style="background:rgba(94,234,212,.12);border:1.5px solid rgba(94,234,212,.35);border-radius:12px;padding:12px 14px;margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:800;color:#5eead4;margin-bottom:7px;">✅ Brevo — recommended (free, 300 email/din)</div>
+          <p style="font-size:11.5px;color:#cbd5d1;line-height:1.7;margin-bottom:10px;">
+            Hosting (Render) SMTP ports block karti hai, isliye Gmail/SMTP wahan
+            <b style="color:#fff;">kaam nahi karega</b>. Brevo HTTPS se bhejta hai — wo hamesha chalta hai.<br><br>
+            <b style="color:#fff;">Setup (3 minute):</b><br>
+            1. <b style="color:#5eead4;">brevo.com</b> par free account banao<br>
+            2. <b style="color:#5eead4;">Senders</b> me apna email add karke verify karo<br>
+            3. <b style="color:#5eead4;">SMTP &amp; API → API Keys</b> se ek key banao<br>
+            4. Dono neeche daal do
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label style="font-size:10.5px;color:#cbd5d1;">Verified sender email</label>
+              <input type="text" id="ntBrevoSender" placeholder="aapka@gmail.com" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
+            </div>
+            <div>
+              <label style="font-size:10.5px;color:#cbd5d1;">Brevo API key <span id="ntBrevoNote"></span></label>
+              <input type="password" id="ntBrevoKey" placeholder="xkeysib-..." style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
+            </div>
+          </div>
+        </div>
+
+        <details style="margin-bottom:12px;">
+          <summary style="cursor:pointer;font-size:11.5px;font-weight:700;color:#cbd5d1;">⚙️ SMTP (advanced — apna server ho tabhi)</summary>
+          <p style="font-size:11px;color:#9fb3af;line-height:1.65;margin:8px 0 10px;">
+            Gmail SMTP Render par <b>timeout</b> deta hai (port block). Ye sirf tab bharo
+            jab aapki hosting SMTP allow karti ho.
+          </p>
+        </details>
+        <div id="ntMsg" style="display:none;border-radius:9px;padding:9px 11px;font-size:12px;font-weight:700;margin-bottom:10px;"></div>
+
+        <div style="display:grid;grid-template-columns:2fr 1fr;gap:11px;margin-bottom:10px;">
+          <div>
+            <label style="font-size:10.5px;color:#cbd5d1;">SMTP host</label>
+            <input type="text" id="ntHost" placeholder="smtp.gmail.com" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
+          </div>
+          <div>
+            <label style="font-size:10.5px;color:#cbd5d1;">Port</label>
+            <input type="text" id="ntPort" placeholder="587" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;margin-bottom:10px;">
+          <div>
+            <label style="font-size:10.5px;color:#cbd5d1;">Gmail address (bhejne wala)</label>
+            <input type="text" id="ntUser" placeholder="aapka@gmail.com" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
+          </div>
+          <div>
+            <label style="font-size:10.5px;color:#cbd5d1;">App Password <span id="ntPassNote"></span></label>
+            <input type="password" id="ntPass" placeholder="16 akshar" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);">
+          </div>
+        </div>
+        <label style="font-size:10.5px;color:#cbd5d1;">Alert kis email par aaye</label>
+        <input type="text" id="ntTo" placeholder="aapka@gmail.com" style="width:100%;padding:10px 12px;border:1.5px solid rgba(94,234,212,.35);border-radius:10px;font-size:13.5px;font-weight:700;color:#5eead4;background:rgba(255,255,255,.07);margin-bottom:11px;">
+        <div style="display:flex;gap:9px;">
+          <button onclick="saveNotify()" style="flex:2;background:#5eead4;color:#134e4a;border:none;border-radius:10px;padding:11px;font-weight:800;font-size:13px;cursor:pointer;">💾 Save</button>
+          <button onclick="testNotify()" style="flex:1;background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:10px;padding:11px;font-weight:700;font-size:13px;cursor:pointer;">📤 Test</button>
+        </div>
+      </div>
+      </div>
+      <div class="card">
+        <h2><span>ℹ️ Ye kaise kaam karta hai</span></h2>
+        <div style="font-size:13px;color:#4a4f58;line-height:1.95;">
+          <div>🆕 Nayi shop register ho → <b>turant email</b></div>
+          <div>💰 Payment aaye → <b>dobara email</b></div>
+          <div>🎯 Demo shop → <b>koi email nahi</b> (warna spam ho jata)</div>
+          <div style="margin-top:9px;padding-top:9px;border-top:1px dashed #ece7e0;">
+            🏷️ <b>White-label ki shop</b> ka alert us <b>partner ke email</b> par jata hai,
+            aapke paas nahi — kyunki wo unka business hai.
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1821,8 +1848,11 @@ async function loadPanel() {
       document.getElementById('advancedActualInput').value = feeData.advancedActualPrice || 0;
       document.getElementById('agentBasePriceInput').value = feeData.agentBasePriceIsSet ? feeData.agentBasePrice : 0;
       document.getElementById('wlLicenseFeeInput').value = feeData.wlLicenseFee || 25000;
+      document.getElementById('wlLicenseActualInput').value = feeData.wlLicenseActual || 0;
+    document.getElementById('wlLicenseActualInput').value = feeData.wlLicenseActual || 0;
       document.getElementById('wlBasePriceInput').value = feeData.wlBasePrice || 0;
     document.getElementById('wlLicenseFeeInput').value = feeData.wlLicenseFee || 25000;
+    document.getElementById('wlLicenseActualInput').value = feeData.wlLicenseActual || 0;
     document.getElementById('wlBasePriceInput').value = feeData.wlBasePrice || 0;
       updatePreview();
     }
@@ -1924,6 +1954,7 @@ async function refreshSetupFeeDisplay() {
     document.getElementById('advancedActualInput').value = feeData.advancedActualPrice || 0;
     document.getElementById('agentBasePriceInput').value = feeData.agentBasePriceIsSet ? feeData.agentBasePrice : 0;
     document.getElementById('wlLicenseFeeInput').value = feeData.wlLicenseFee || 25000;
+    document.getElementById('wlLicenseActualInput').value = feeData.wlLicenseActual || 0;
     document.getElementById('wlBasePriceInput').value = feeData.wlBasePrice || 0;
     updatePreview();
   } catch(e) {}
@@ -1960,6 +1991,19 @@ function updatePreview() {
     }
   };
   mini('monthlyActualInput','monthlyFeeInput','monthlyPreviewLine','monthlyPreviewActual','monthlyPreviewOffer','monthlyPreviewDiscount');
+  // White Label license ka preview
+  (function(){
+    const a = parseInt((document.getElementById('wlLicenseActualInput')||{}).value, 10) || 0;
+    const f = parseInt((document.getElementById('wlLicenseFeeInput')||{}).value, 10) || 0;
+    const box = document.getElementById('wlLicPreview');
+    if (!box) return;
+    if (a > 0 && f > 0 && a > f) {
+      document.getElementById('wlLicCut').textContent = '₹' + a.toLocaleString('en-IN');
+      document.getElementById('wlLicNow').textContent = '₹' + f.toLocaleString('en-IN');
+      document.getElementById('wlLicOff').textContent = Math.round(((a - f) / a) * 100) + '% OFF';
+      box.style.display = 'flex';
+    } else { box.style.display = 'none'; }
+  })();
   mini('advancedActualInput','advancedFeeInput','advancedPreviewLine','advancedPreviewActual','advancedPreviewOffer','advancedPreviewDiscount');
 
   // Agent base price ka chhota explainer
@@ -1990,6 +2034,7 @@ async function updateSetupFee() {
         advancedActualPrice: document.getElementById('advancedActualInput').value,
         agentBasePrice: document.getElementById('agentBasePriceInput').value,
         wlLicenseFee: document.getElementById('wlLicenseFeeInput').value,
+        wlLicenseActual: document.getElementById('wlLicenseActualInput').value,
         wlBasePrice: document.getElementById('wlBasePriceInput').value
       })
     });
@@ -2382,7 +2427,7 @@ async function deletePendingShop(shopId, name){
 
 
 // ===== SIDEBAR NAV =====
-const PAGE_TITLES = {overview:'Overview', shops:'Shops', demos:'Demo Accounts', agents:'Agents', withdrawals:'Withdrawals', agent:'Agent Software', pricing:'Setup Fee', analytics:'Analytics', whitelabel:'White Label', reviews:'Reviews', langs:'Languages'};
+const PAGE_TITLES = {overview:'Overview', shops:'Shops', demos:'Demo Accounts', agents:'Agents', withdrawals:'Withdrawals', agent:'Agent Software', pricing:'Setup Fee', analytics:'Analytics', whitelabel:'White Label', reviews:'Reviews', langs:'Languages', notify:'Email Alerts'};
 function navTo(sect, btn){
   document.querySelectorAll('[data-sect]').forEach(el=>el.classList.toggle('show', el.getAttribute('data-sect')===sect));
   document.querySelectorAll('.nav-it[data-nav]').forEach(n=>n.classList.toggle('active', n.getAttribute('data-nav')===sect));
