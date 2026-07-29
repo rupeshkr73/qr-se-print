@@ -767,6 +767,13 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         </div>
         <div class="form-group"><label>Address</label><input id="setAddr"></div>
         <div class="form-group"><label>Phone</label><input id="setPhone"></div>
+        <div class="form-group full">
+          <label>Email</label>
+          <input id="setEmail" type="email" placeholder="aapka@email.com">
+          <div id="setEmailHint" style="display:none;font-size:12px;color:#b45309;background:#fef3c7;border-radius:6px;padding:7px 10px;margin-top:6px;line-height:1.5;">
+            📧 Email abhi set nahi hai — payment aur zaroori update isi par aate hain. Bhar ke Save kar dijiye.
+          </div>
+        </div>
         <div class="form-group"><label>B&W Price</label>
           <div class="price-wrap"><span>₹</span><input type="number" id="setPriceBW" min="1"></div>
         </div>
@@ -993,7 +1000,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         <label style="margin:14px 0 10px;display:block;">Payment Gateway</label>
         <div class="gateway-tabs">
           <div class="gateway-tab active" id="adminTabRazorpay" onclick="selectGatewayAdmin('razorpay')">Razorpay</div>
-          <div class="gateway-tab" id="adminTabPhonepe" onclick="selectGatewayAdmin('phonepe')">PhonePe</div>
+          <div class="gateway-tab" id="adminTabCashfree" onclick="selectGatewayAdmin('cashfree')">Cashfree</div>
         </div>
         <div class="gateway-fields show" id="adminFieldsRazorpay">
           <div class="rzp-guide-box">
@@ -1023,30 +1030,30 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           </div>
           <div class="key-status" id="rzpKeyStatus"></div>
         </div>
-        <div class="gateway-fields" id="adminFieldsPhonepe">
+        <div class="gateway-fields" id="adminFieldsCashfree">
           <div class="rzp-guide-box">
-            <div class="rzp-guide-header" onclick="togglePpGuideAdmin()">
+            <div class="rzp-guide-header" onclick="toggleCfGuideAdmin()">
               <span>📖 Keys Kaise Milegi? (Step-by-Step)</span>
-              <span id="ppGuideArrowAdmin">▼</span>
+              <span id="cfGuideArrowAdmin">▼</span>
             </div>
-            <div class="rzp-guide-body" id="ppGuideBodyAdmin">
+            <div class="rzp-guide-body" id="cfGuideBodyAdmin">
               <ol class="rzp-steps">
                 <li style="background:#fef3c7;border-radius:6px;padding:2px 8px;"><b>Business/Website URL puchhe to likho: qrseprint.in</b></li>
-                <li>Niche button se PhonePe Business Dashboard kholo</li>
+                <li>Niche button se Cashfree Merchant Dashboard kholo</li>
                 <li>Apne business account se login karo</li>
-                <li>Left menu mein <strong>"Developer Settings"</strong> ya <strong>"API & Webhooks"</strong> dhundo</li>
-                <li><strong>Merchant ID</strong> aur <strong>Salt Key</strong> wahan milegi</li>
+                <li>Left menu mein <strong>"Developers"</strong> → <strong>"API Keys"</strong> kholo</li>
+                <li><strong>App ID</strong> aur <strong>Secret Key</strong> wahan milegi</li>
+                <li><b>Production</b> (Live) wali keys leni hain — Test wali nahi chalengi</li>
                 <li>Dono yahan paste kar do neeche</li>
               </ol>
-              <a href="https://business.phonepe.com" target="_blank" rel="noopener" class="rzp-open-btn">🔗 PhonePe Business Kholo</a>
+              <a href="https://merchant.cashfree.com" target="_blank" rel="noopener" class="rzp-open-btn">🔗 Cashfree Dashboard Kholo</a>
             </div>
           </div>
           <div class="form-grid">
-            <div class="form-group full"><label>PhonePe Merchant ID</label><input id="adminPpMerchantId" placeholder="MERCHANTUAT"></div>
-            <div class="form-group full"><label>PhonePe Salt Key</label><input type="password" id="adminPpSaltKey" placeholder="Naya salt key daalo ya khali chodo"></div>
-            <div class="form-group"><label>Salt Index</label><input id="adminPpSaltIndex" value="1"></div>
+            <div class="form-group full"><label>Cashfree App ID</label><input id="adminCfAppId" placeholder="1234567890abcdef"></div>
+            <div class="form-group full"><label>Cashfree Secret Key</label><input type="password" id="adminCfSecretKey" placeholder="Nayi secret key daalo ya khali chodo"></div>
           </div>
-          <div class="key-status" id="ppKeyStatus"></div>
+          <div class="key-status" id="cfKeyStatus"></div>
         </div>
       </div>
 
@@ -1333,6 +1340,9 @@ async function loadAdminPanel() {
     document.getElementById('setName').value = shop.name;
     document.getElementById('setAddr').value = shop.address || '';
     document.getElementById('setPhone').value = shop.phone || '';
+    document.getElementById('setEmail').value = shop.email || '';
+    // Purani shop jisme email nahi hai — usko saaf dikha do ki bharna hai
+    document.getElementById('setEmailHint').style.display = shop.email ? 'none' : 'block';
     document.getElementById('setPriceBW').value = shop.price_bw;
     document.getElementById('setPriceColor').value = shop.price_color;
 
@@ -1340,11 +1350,10 @@ async function loadAdminPanel() {
     document.querySelector(`input[name="setPaymentMode"][value="${mode}"]`).checked = true;
     onAdminPaymentModeChange(mode);
 
-    if (shop.payment_gateway === 'phonepe') {
-      selectGatewayAdmin('phonepe');
-      document.getElementById('adminPpMerchantId').value = shop.phonepe_merchant_id || '';
-      document.getElementById('adminPpSaltIndex').value = shop.phonepe_salt_index || '1';
-      document.getElementById('ppKeyStatus').textContent = shop.has_phonepe_salt ? '✅ Salt Key already set hai (khali rakho agar change nahi karna)' : '';
+    if (shop.payment_gateway === 'cashfree') {
+      selectGatewayAdmin('cashfree');
+      document.getElementById('adminCfAppId').value = shop.cashfree_app_id || '';
+      document.getElementById('cfKeyStatus').textContent = shop.has_cashfree_secret ? '✅ Secret Key already set hai (khali rakho agar change nahi karna)' : '';
     } else {
       selectGatewayAdmin('razorpay');
       document.getElementById('adminRzpKeyId').value = shop.razorpay_key_id || '';
@@ -1483,9 +1492,9 @@ function toggleRzpGuideAdmin() {
   arrow.textContent = body.classList.contains('show') ? '▲' : '▼';
 }
 
-function togglePpGuideAdmin() {
-  const body = document.getElementById('ppGuideBodyAdmin');
-  const arrow = document.getElementById('ppGuideArrowAdmin');
+function toggleCfGuideAdmin() {
+  const body = document.getElementById('cfGuideBodyAdmin');
+  const arrow = document.getElementById('cfGuideArrowAdmin');
   body.classList.toggle('show');
   arrow.textContent = body.classList.contains('show') ? '▲' : '▼';
 }
@@ -1493,9 +1502,9 @@ function togglePpGuideAdmin() {
 function selectGatewayAdmin(gw) {
   adminSelectedGateway = gw;
   document.getElementById('adminTabRazorpay').classList.toggle('active', gw === 'razorpay');
-  document.getElementById('adminTabPhonepe').classList.toggle('active', gw === 'phonepe');
+  document.getElementById('adminTabCashfree').classList.toggle('active', gw === 'cashfree');
   document.getElementById('adminFieldsRazorpay').classList.toggle('show', gw === 'razorpay');
-  document.getElementById('adminFieldsPhonepe').classList.toggle('show', gw === 'phonepe');
+  document.getElementById('adminFieldsCashfree').classList.toggle('show', gw === 'cashfree');
 }
 
 // ═══ REFER & EARN ═══
@@ -2455,7 +2464,8 @@ async function saveSettings() {
       price_color_duplex: document.getElementById('setPriceColorDuplex').value || 0,
     price_bw: parseInt(document.getElementById('setPriceBW').value),
     price_color: parseInt(document.getElementById('setPriceColor').value),
-    payment_mode: paymentMode
+    payment_mode: paymentMode,
+    email: document.getElementById('setEmail').value.trim()
   };
 
   if (needsGateway) {
@@ -2466,10 +2476,9 @@ async function saveSettings() {
       // Agar naya secret nahi daala, purana wala backend mein already hai use retain karo
       payload.razorpay_key_secret = newSecret || (currentShop.has_razorpay_secret ? '__KEEP__' : '');
     } else {
-      payload.phonepe_merchant_id = document.getElementById('adminPpMerchantId').value.trim();
-      const newSalt = document.getElementById('adminPpSaltKey').value.trim();
-      payload.phonepe_salt_key = newSalt || (currentShop.has_phonepe_salt ? '__KEEP__' : '');
-      payload.phonepe_salt_index = document.getElementById('adminPpSaltIndex').value.trim() || '1';
+      payload.cashfree_app_id = document.getElementById('adminCfAppId').value.trim();
+      const newCfSecret = document.getElementById('adminCfSecretKey').value.trim();
+      payload.cashfree_secret_key = newCfSecret || (currentShop.has_cashfree_secret ? '__KEEP__' : '');
     }
   }
 

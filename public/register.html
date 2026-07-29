@@ -53,7 +53,6 @@ h1 .mark{background:linear-gradient(transparent 62%,var(--yellow) 62%);padding:0
 .pm b{font-size:13px;display:block}
 .pm span{font-size:11px;color:var(--muted)}
 
-#gatewayCard{display:none}
 .plan-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px}
 .plan-card{border:2px solid #e5e0d8;border-radius:14px;padding:14px;cursor:pointer;text-align:center;background:#fff;transition:.15s}
 .plan-card.sel{border-color:#ff3b6b;background:#fff5f7;box-shadow:0 4px 14px rgba(255,59,107,.15)}
@@ -105,6 +104,13 @@ h1 .mark{background:linear-gradient(transparent 62%,var(--yellow) 62%);padding:0
     <div class="fg"><label class="fl">Shop ka Naam *</label><input class="fi" id="f_name" placeholder="Sharma Cyber Cafe"></div>
     <div class="fg"><label class="fl">Address</label><input class="fi" id="f_addr" placeholder="Main Road, Khowai"></div>
     <div class="fg"><label class="fl">Phone</label><input class="fi" id="f_phone" type="tel" placeholder="98XXXXXXXX"></div>
+    <div class="fg">
+      <label class="fl">Email *</label>
+      <input class="fi" id="f_email" type="email" placeholder="aapka@email.com" autocomplete="email">
+      <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5">
+        📧 Payment ki receipt aur Shop ID isi email par bheje jaayenge.
+      </div>
+    </div>
     <div class="row2">
       <div class="fg">
         <label class="fl">Printer Brand</label>
@@ -187,22 +193,10 @@ h1 .mark{background:linear-gradient(transparent 62%,var(--yellow) 62%);padding:0
 </div>
 
 <script>
-let gateway = 'razorpay';
-
-function pmChange(input){
-  document.querySelectorAll('.pm').forEach(p=>p.classList.remove('sel'));
-  input.closest('.pm').classList.add('sel');
-  const needsGw = input.value !== 'counter_only';
-  document.getElementById('gatewayCard').style.display = needsGw ? 'block' : 'none';
-}
-
-function gwTab(g){
-  gateway = g;
-  document.getElementById('tabRzp').classList.toggle('sel', g==='razorpay');
-  document.getElementById('tabPp').classList.toggle('sel', g==='phonepe');
-  document.getElementById('panelRzp').classList.toggle('show', g==='razorpay');
-  document.getElementById('panelPp').classList.toggle('show', g==='phonepe');
-}
+// NOTE: Register hamesha counter-only hota hai — payment gateway (Razorpay/
+// Cashfree) shop owner baad me Admin -> Settings se lagata hai. Pehle yahan
+// pmChange()/gwTab() aur gateway ka panel tha, par un sabke element file se
+// hat chuke the (koi caller bhi nahi tha) — isliye wo dead code hata diya.
 
 const gv = id => document.getElementById(id).value.trim();
 
@@ -267,31 +261,19 @@ async function doRegister(){
   // Shop Login -> Settings se set hota hai (register simple rahe)
   const paymode = 'counter_only';
   if(!gv('f_name')) return showErr('Shop ka naam daalo');
+  if(!gv('f_email')) return showErr('Email daalo — payment ki receipt isi par aayegi');
+  if(!/^\S+@\S+\.\S+$/.test(gv('f_email'))) return showErr('Email sahi nahi lag raha — dobara check karo');
   if(gv('f_pass').length < 4) return showErr('Password kam se kam 4 character ka rakho');
 
   const body = {
     plan: selectedPlan,
     name: gv('f_name'), address: gv('f_addr'), phone: gv('f_phone'),
+    email: gv('f_email').toLowerCase(),
     printer_model: buildPrinterModel(),
     price_bw: parseInt(gv('f_bw'))||5, price_color: parseInt(gv('f_color'))||10,
     payment_mode: paymode, password: document.getElementById('f_pass').value,
     ref: new URLSearchParams(location.search).get('ref') || ''
   };
-  if(paymode !== 'counter_only'){
-    body.payment_gateway = gateway;
-    if(gateway === 'razorpay'){
-      body.razorpay_key_id = gv('f_rzp_id');
-      body.razorpay_key_secret = document.getElementById('f_rzp_secret').value.trim();
-      if(!body.razorpay_key_id || !body.razorpay_key_secret)
-        return showErr('Razorpay Key ID aur Secret dono daalo — ya "Sirf Counter Cash" choose karo');
-    } else {
-      body.phonepe_merchant_id = gv('f_pp_mid');
-      body.phonepe_salt_key = document.getElementById('f_pp_salt').value.trim();
-      body.phonepe_salt_index = gv('f_pp_idx') || '1';
-      if(!body.phonepe_merchant_id || !body.phonepe_salt_key)
-        return showErr('PhonePe Merchant ID aur Salt Key dono daalo — ya "Sirf Counter Cash" choose karo');
-    }
-  }
 
   btn.disabled = true;
   btn.textContent = '⏳ Register ho raha hai...';

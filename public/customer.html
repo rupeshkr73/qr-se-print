@@ -9,6 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;-webkit-tap-highlight-color:transparent}
@@ -2868,8 +2869,20 @@ async function payOnline() {
       const rzp = new Razorpay(options);
       rzp.on('payment.failed', () => toast('❌ Payment failed! Try again.'));
       rzp.open();
-    } else if (data.gateway === 'phonepe') {
-      window.location.href = data.paymentUrl;
+    } else if (data.gateway === 'cashfree') {
+      // Cashfree Razorpay se alag hai: yahan popup nahi, payment_session_id
+      // se checkout khulta hai aur customer return_url par wapas aata hai.
+      if (typeof Cashfree !== 'function') {
+        toast('❌ Payment page load nahi hua — internet check karke dobara try karo');
+        return;
+      }
+      const cf = Cashfree({ mode: 'production' });   // sirf LIVE
+      cf.checkout({
+        paymentSessionId: data.paymentSessionId,
+        redirectTarget: '_self'
+      });
+      // Yahan se page chala jaata hai. Wapas aane par /print-success
+      // khulta hai jo status endpoint se confirm karta hai.
     }
   } catch(e) {
     toast('❌ Network error: ' + e.message);

@@ -65,8 +65,10 @@ async function checkPaymentStatus() {
     try {
       let statusCode = null;
 
-      if (gateway === 'phonepe') {
-        const res = await fetch(`/api/payment/phonepe/status/${jobId}`);
+      // Cashfree se wapas aaye ho to seedha usse status pooch lo — webhook
+      // late aaye to bhi customer atakta nahi.
+      if (gateway === 'cashfree') {
+        const res = await fetch(`/api/payment/cashfree/status/${jobId}`);
         const data = await res.json();
         statusCode = data.status;
       }
@@ -88,7 +90,7 @@ async function checkPaymentStatus() {
         }
 
         if (job.status === 'printed') clearInterval(interval);
-      } else if (statusCode === 'PAYMENT_ERROR' || statusCode === 'PAYMENT_DECLINED') {
+      } else if (statusCode === 'EXPIRED' || statusCode === 'TERMINATED') {
         document.getElementById('statusIcon').className = 'icon failed';
         document.getElementById('statusIcon').textContent = '✕';
         document.getElementById('statusTitle').textContent = 'Payment Fail Hua';
