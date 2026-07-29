@@ -343,6 +343,9 @@ async function initDB() {
         payment_gateway VARCHAR(20) DEFAULT '',
         razorpay_key_id VARCHAR(200) DEFAULT '',
         razorpay_key_secret VARCHAR(200) DEFAULT '',
+        cashfree_app_id VARCHAR(200) DEFAULT '',
+        cashfree_secret_key VARCHAR(300) DEFAULT '',
+        email VARCHAR(160) DEFAULT '',
         phonepe_merchant_id VARCHAR(200) DEFAULT '',
         phonepe_salt_key VARCHAR(200) DEFAULT '',
         phonepe_salt_index VARCHAR(10) DEFAULT '1',
@@ -387,6 +390,9 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_version INT;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS whitelabel_id VARCHAR(50) DEFAULT '';
       ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS notify_email VARCHAR(160) DEFAULT '';
+      -- Partner ka apna domain (jaise https://sharmadigital.in). Set hai to
+      -- uski shops ke mail me yahi link jaata hai — mera domain nahi dikhta.
+      ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS site_url VARCHAR(200) DEFAULT '';
       CREATE INDEX IF NOT EXISTS idx_shops_wl ON shops(whitelabel_id);
       -- ══ AGENT PROGRAM ══
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS is_agent BOOLEAN DEFAULT false;
@@ -407,6 +413,12 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS payment_gateway VARCHAR(20) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS razorpay_key_id VARCHAR(200) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS razorpay_key_secret VARCHAR(200) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS cashfree_app_id VARCHAR(200) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS cashfree_secret_key VARCHAR(300) DEFAULT '';
+      -- Shop owner ka email — payment confirmation mail isi par jaata hai
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS email VARCHAR(160) DEFAULT '';
+      -- PhonePe ab support nahi hai. Columns JAAN-BUJH KAR rakhe hain: data
+      -- delete karna wapas nahi aata. Code inhe ab kahin use nahi karta.
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS phonepe_merchant_id VARCHAR(200) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS phonepe_salt_key VARCHAR(200) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS phonepe_salt_index VARCHAR(10) DEFAULT '1';
@@ -441,6 +453,12 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS shop_notice VARCHAR(200) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS advanced_active BOOLEAN DEFAULT true;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS shop_logo VARCHAR(400) DEFAULT '';
+      -- ── PhonePe hataya gaya ── jo shops PhonePe par thi unka online payment
+      -- ab kaam nahi karega, isliye unhe counter-cash par daal rahe hain.
+      -- Owner apne panel se Razorpay/Cashfree lagate hi online wapas chalu.
+      -- Dobara chale to kuch nahi hota — pehli baar ke baad koi row match hi nahi karti.
+      UPDATE shops SET payment_mode='counter_only', payment_gateway=''
+        WHERE payment_gateway='phonepe';
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS feedback SMALLINT DEFAULT 0;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS duplex BOOLEAN DEFAULT false;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS failure_reason VARCHAR(200) DEFAULT '';
@@ -621,7 +639,7 @@ async function initDB() {
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('wl_base_price','0') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('monthly_actual_price','0') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('advanced_actual_price','0') ON CONFLICT DO NOTHING");
-    await pool.query("INSERT INTO system_settings (key,value) VALUES ('homepage_config', $1) ON CONFLICT DO NOTHING", ["{\"logoUrl\": \"\", \"statShops\": \"\", \"statPrints\": \"\", \"showStats\": true, \"supportEmail\": \"mahatonetcafe@gmail.com\", \"supportPhone\": \"9999999999\", \"planDemo\": [\"Demo Auto Print Software\", \"Personalize QR For Shop\", \"Unlimited Print 24/Hrs\", \"Setup Guide (README) included\"], \"planMonthly\": [\"Auto Print Software\", \"Personalize QR For Shop\", \"Unlimited Print\", \"Advance Feature (4x6 Photo, Resume, A3, Duplex) \\u2014 sab included\", \"Assistant in Setup\", \"On Demand Service will be added\", \"Bug fix on update\", \"WhatsApp Assistant\"], \"planOnetime\": [\"Sab kuch Monthly wala\", \"Assistant in Online Payment Gateway Setup\", \"Bug Fix Within 2Hr\", \"AnyDesk Remote Support\", \"Lifetime Access & Update\", \"No renewal \\u2014 ek baar pay\"], \"faqs\": [{\"q\": \"QR Se Print kya hai?\", \"a\": \"QR Se Print cyber cafe aur print shop ke liye ek automatic print software hai. Aap apni shop ka QR code lagate ho \\u2014 customer apne phone se scan karke file upload karta hai, payment karta hai, aur print aapke printer se automatic nikal jata hai. Na WhatsApp pe file mangni padti hai, na pendrive, na email.\"}, {\"q\": \"Customer file kaise bhejta hai?\", \"a\": \"Shop par laga QR code scan karo, file select karo (PDF, photo \\u2014 ek saath kai files), edit karo (crop, rotate, brightness), payment karo (online ya counter cash) \\u2014 print automatic nikal jata hai. Poora kaam customer ke phone se, 1 minute me.\"}, {\"q\": \"WhatsApp pe file lene se ye better kyun hai?\", \"a\": \"WhatsApp me aapka personal number public ho jata hai, chat me files kho jaati hain, aur hisaab manually rakhna padta hai. QR Se Print me number private rehta hai, har print ka payment record automatic banta hai, aur customer ki file print ke 90 minute baad khud delete ho jaati hai.\"}, {\"q\": \"Kaunse printer ke saath chalta hai?\", \"a\": \"Har Windows printer ke saath \\u2014 HP, Canon, Epson, Brother, sab. B&W aur Color ke liye alag printer set kar sakte ho. Advance me 4x6 photo printer, A3 bada printer aur duplex (dono side) printing bhi support hai.\"}, {\"q\": \"Payment kaise milta hai? Koi commission?\", \"a\": \"Do tarike: counter par cash, ya online payment (Razorpay/PhonePe) jo seedha aapke account me jata hai. Hum beech me nahi aate \\u2014 koi commission nahi, unlimited prints.\"}, {\"q\": \"Kitna kharcha aata hai?\", \"a\": \"Free demo se shuru karo. Phir Rs 399/month ka monthly plan ya Rs 999 one-time lifetime plan \\u2014 ek baar do, hamesha chalao. Koi hidden charge nahi, koi per-print commission nahi.\"}, {\"q\": \"Internet chala jaye to print ka kya hoga?\", \"a\": \"Customer ke jobs queue me safe rehte hain. Internet wapas aate hi software khud jobs utha ke print nikal deta hai \\u2014 kuch khota nahi.\"}]}"]);
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('homepage_config', $1) ON CONFLICT DO NOTHING", ["{\"logoUrl\": \"\", \"statShops\": \"\", \"statPrints\": \"\", \"showStats\": true, \"supportEmail\": \"mahatonetcafe@gmail.com\", \"supportPhone\": \"9999999999\", \"planDemo\": [\"Demo Auto Print Software\", \"Personalize QR For Shop\", \"Unlimited Print 24/Hrs\", \"Setup Guide (README) included\"], \"planMonthly\": [\"Auto Print Software\", \"Personalize QR For Shop\", \"Unlimited Print\", \"Advance Feature (4x6 Photo, Resume, A3, Duplex) \\u2014 sab included\", \"Assistant in Setup\", \"On Demand Service will be added\", \"Bug fix on update\", \"WhatsApp Assistant\"], \"planOnetime\": [\"Sab kuch Monthly wala\", \"Assistant in Online Payment Gateway Setup\", \"Bug Fix Within 2Hr\", \"AnyDesk Remote Support\", \"Lifetime Access & Update\", \"No renewal \\u2014 ek baar pay\"], \"faqs\": [{\"q\": \"QR Se Print kya hai?\", \"a\": \"QR Se Print cyber cafe aur print shop ke liye ek automatic print software hai. Aap apni shop ka QR code lagate ho \\u2014 customer apne phone se scan karke file upload karta hai, payment karta hai, aur print aapke printer se automatic nikal jata hai. Na WhatsApp pe file mangni padti hai, na pendrive, na email.\"}, {\"q\": \"Customer file kaise bhejta hai?\", \"a\": \"Shop par laga QR code scan karo, file select karo (PDF, photo \\u2014 ek saath kai files), edit karo (crop, rotate, brightness), payment karo (online ya counter cash) \\u2014 print automatic nikal jata hai. Poora kaam customer ke phone se, 1 minute me.\"}, {\"q\": \"WhatsApp pe file lene se ye better kyun hai?\", \"a\": \"WhatsApp me aapka personal number public ho jata hai, chat me files kho jaati hain, aur hisaab manually rakhna padta hai. QR Se Print me number private rehta hai, har print ka payment record automatic banta hai, aur customer ki file print ke 90 minute baad khud delete ho jaati hai.\"}, {\"q\": \"Kaunse printer ke saath chalta hai?\", \"a\": \"Har Windows printer ke saath \\u2014 HP, Canon, Epson, Brother, sab. B&W aur Color ke liye alag printer set kar sakte ho. Advance me 4x6 photo printer, A3 bada printer aur duplex (dono side) printing bhi support hai.\"}, {\"q\": \"Payment kaise milta hai? Koi commission?\", \"a\": \"Do tarike: counter par cash, ya online payment (Razorpay/Cashfree) jo seedha aapke account me jata hai. Hum beech me nahi aate \\u2014 koi commission nahi, unlimited prints.\"}, {\"q\": \"Kitna kharcha aata hai?\", \"a\": \"Free demo se shuru karo. Phir Rs 399/month ka monthly plan ya Rs 999 one-time lifetime plan \\u2014 ek baar do, hamesha chalao. Koi hidden charge nahi, koi per-print commission nahi.\"}, {\"q\": \"Internet chala jaye to print ka kya hoga?\", \"a\": \"Customer ke jobs queue me safe rehte hain. Internet wapas aate hi software khud jobs utha ke print nikal deta hai \\u2014 kuch khota nahi.\"}]}"]);
 
     // Broken demo logins repair (bcrypt hash galti se gaya tha; login sha256
     // expect karta hai). Idempotent — sirf $2 (bcrypt) wale demo shops.
@@ -1461,10 +1479,11 @@ Settings me payment mode chuno:
    - Online + Counter dono
    - Sirf Online (gateway zaroori)
 
-ONLINE PAYMENT ke liye (Razorpay ya PhonePe):
+ONLINE PAYMENT ke liye (Razorpay ya Cashfree):
    Settings me "Keys Kaise Milegi" guide diya hai —
-   step by step Key ID / Secret / Salt Key kahan se
-   milegi aur kahan paste karni hai, sab likha hai.
+   step by step Key ID / Secret (Razorpay) ya App ID /
+   Secret Key (Cashfree) kahan se milegi aur kahan
+   paste karni hai, sab likha hai.
    Business/Website URL puchhe to likho: qrseprint.in
 
 ----------------------------------------
@@ -2329,12 +2348,15 @@ function sendViaBrevo(apiKey, senderEmail, senderName, to, subject, text, html) 
   });
 }
 
-async function sendEmailAlert(to, subject, body, fromName) {
+// htmlOverride: designed mail (jaise payment confirmation) ke liye. Na do to
+// pehle jaisa hi <pre> wala plain look — purane saare alert waise ke waise.
+async function sendEmailAlert(to, subject, body, fromName, htmlOverride) {
   try {
     if (!to) return { ok: false, why: 'email set nahi hai' };
 
-    const html = '<pre style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.7;white-space:pre-wrap;margin:0;">'
-      + String(body).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</pre>';
+    const html = htmlOverride ||
+      ('<pre style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.7;white-space:pre-wrap;margin:0;">'
+      + String(body).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</pre>');
 
     // 1) Brevo (HTTPS) — Render par yahi chalta hai
     const bc = await pool.query(
@@ -2409,6 +2431,233 @@ async function alertNewShop(shopId, kind) {
     console.log(`Alert (${kind}) ${shopId} -> ${to}: ${r.ok ? 'sent' : 'FAIL ' + r.why}`);
   } catch (e) {
     console.error('alertNewShop error:', e.message);   // kabhi throw nahi karega
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  SHOP KO PAYMENT CONFIRMATION EMAIL
+//  Payment confirm hone par shop owner ko jaata hai (aapke alert se alag).
+//  White-label ki shop ko PARTNER ke brand aur PARTNER ke support se.
+// ═══════════════════════════════════════════════════════════════════
+
+// Render UTC me chalta hai — isliye har date zabardasti IST me
+function fmtIST(d) {
+  if (!d) return '-';
+  try {
+    return new Date(d).toLocaleString('en-IN', {
+      timeZone: 'Asia/Kolkata', day: 'numeric', month: 'long',
+      year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
+    }).replace(/\u202f/g, ' ');   // kuch Node build me narrow-space aata hai
+  } catch (e) { return String(d); }
+}
+
+// Wahi regex jo baaki server me pehle se chal raha hai — behaviour ek jaisa rahe
+function isValidEmail(e) {
+  return /^\S+@\S+\.\S+$/.test(String(e || '').trim());
+}
+
+// Shop ka naam customer ka diya hua hai — HTML me daalne se pehle escape ZAROORI
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function buildShopPaymentEmailHtml(d) {
+  const ink = '#12181F', paper = '#FFFFFF', rule = '#DDDFD8',
+        muted = '#6B7280', green = '#1B7A4B', pageBg = '#ECEDE8',
+        mono = "'DejaVu Sans Mono','Courier New',monospace",
+        sans = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif";
+
+  // Receipt jaisi perforated line — yahi is mail ki pehchaan hai
+  const perf = '<tr><td style="padding:0 28px"><div style="border-top:2px dashed ' + rule +
+    ';height:1px;line-height:1px;font-size:1px">&nbsp;</div></td></tr>';
+
+  const row = (label, value, isMono, isBig) =>
+    '<tr>' +
+    '<td style="padding:9px 0;font-family:' + sans + ';font-size:13px;color:' + muted +
+      ';white-space:nowrap;vertical-align:top">' + label + '</td>' +
+    '<td style="padding:9px 0;text-align:right;font-family:' + (isMono ? mono : sans) +
+      ';font-size:' + (isBig ? '19px' : '14px') + ';font-weight:' + (isBig ? '700' : '600') +
+      ';color:' + ink + '">' + value + '</td>' +
+    '</tr>';
+
+  const sectionTitle = t =>
+    '<tr><td style="padding:22px 28px 4px;font-family:' + sans + ';font-size:11px;font-weight:700;' +
+    'letter-spacing:.11em;text-transform:uppercase;color:' + muted + '">' + t + '</td></tr>';
+
+  const waDigits = String(d.supportPhone || '').replace(/[^0-9]/g, '').slice(-10);
+
+  return '' +
+'<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:' + pageBg + ';margin:0;padding:22px 12px">' +
+'<tr><td align="center">' +
+  '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:' + paper + ';border-radius:10px;overflow:hidden;border:1px solid ' + rule + '">' +
+
+    '<tr><td style="padding:26px 28px 20px;border-bottom:1px solid ' + rule + '">' +
+      '<span style="font-family:' + sans + ';font-size:17px;font-weight:700;color:' + ink + '">' + esc(d.brand) + '</span>' +
+    '</td></tr>' +
+
+    '<tr><td style="padding:28px 28px 0">' +
+      '<span style="display:inline-block;font-family:' + sans + ';font-size:11px;font-weight:700;letter-spacing:.11em;' +
+        'text-transform:uppercase;color:' + green + ';border:2px solid ' + green + ';border-radius:4px;padding:5px 11px">Payment received</span>' +
+      '<div style="font-family:' + sans + ';font-size:23px;font-weight:700;line-height:1.3;color:' + ink + ';margin:16px 0 8px">' +
+        'Shukriya, ' + esc(d.shopName) + ' &mdash; aapki shop ab active hai.</div>' +
+      '<div style="font-family:' + sans + ';font-size:14.5px;line-height:1.65;color:' + muted + '">' +
+        'Payment mil gaya hai. Neeche aapki shop aur payment ki poori detail hai &mdash; ise sambhaal ke rakhiye.</div>' +
+    '</td></tr>' +
+
+    sectionTitle('Shop details') +
+    '<tr><td style="padding:0 28px 6px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">' +
+      row('Shop ID', esc(d.shopId), true, true) +
+      row('Shop ka naam', esc(d.shopName), false, false) +
+      row('Register hui', esc(d.registeredAt), false, false) +
+    '</table></td></tr>' +
+
+    '<tr><td style="padding:12px 0"></td></tr>' + perf +
+
+    sectionTitle('Payment details') +
+    '<tr><td style="padding:0 28px 6px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">' +
+      row('Plan', esc(d.plan), false, false) +
+      row('Amount paid', '&#8377;' + esc(d.amount), true, true) +
+      row('Payment ID', esc(d.paymentId), true, false) +
+      row('Paid on', esc(d.paidAt), false, false) +
+      (d.validTill ? row('Valid till', esc(d.validTill), false, false) : '') +
+    '</table></td></tr>' +
+
+    '<tr><td style="padding:12px 0"></td></tr>' + perf +
+
+    sectionTitle('Ab kya karein') +
+    '<tr><td style="padding:2px 28px 0;font-family:' + sans + ';font-size:14.5px;line-height:1.75;color:' + ink + '">' +
+      '<div style="padding:4px 0"><b>1.</b> Dashboard me login kariye &mdash; Shop ID aur apna password se</div>' +
+      '<div style="padding:4px 0"><b>2.</b> Apna QR code download karke shop par lagaiye</div>' +
+      '<div style="padding:4px 0"><b>3.</b> Print Agent install kariye &mdash; uske baad print automatic nikalega</div>' +
+    '</td></tr>' +
+    (d.dashboardUrl
+      ? '<tr><td style="padding:20px 28px 4px">' +
+          '<a href="' + esc(d.dashboardUrl) + '" style="display:inline-block;background:' + ink + ';color:#ffffff;' +
+          'text-decoration:none;font-family:' + sans + ';font-size:15px;font-weight:600;padding:13px 26px;border-radius:6px">' +
+          'Dashboard kholiye &rarr;</a></td></tr>'
+      : '') +
+
+    '<tr><td style="padding:22px 0 0"></td></tr>' + perf +
+
+    sectionTitle('Madad chahiye') +
+    '<tr><td style="padding:2px 28px 0"><table role="presentation" cellpadding="0" cellspacing="0"><tr>' +
+      (waDigits.length === 10
+        ? '<td style="padding:6px 10px 6px 0"><a href="https://wa.me/91' + waDigits + '" ' +
+          'style="display:inline-block;border:1.5px solid ' + ink + ';border-radius:6px;padding:10px 18px;font-family:' + sans +
+          ';font-size:14px;font-weight:600;color:' + ink + ';text-decoration:none">WhatsApp ' + esc(d.supportPhone) + '</a></td>'
+        : '') +
+      (d.supportEmail
+        ? '<td style="padding:6px 0"><a href="mailto:' + esc(d.supportEmail) + '" ' +
+          'style="display:inline-block;border:1.5px solid ' + rule + ';border-radius:6px;padding:10px 18px;font-family:' + sans +
+          ';font-size:14px;font-weight:600;color:' + ink + ';text-decoration:none">' + esc(d.supportEmail) + '</a></td>'
+        : '') +
+    '</tr></table></td></tr>' +
+
+    '<tr><td style="padding:26px 28px 28px">' +
+      '<div style="border-top:1px solid ' + rule + ';padding-top:16px;font-family:' + sans +
+        ';font-size:12.5px;line-height:1.7;color:' + muted + '">' +
+        'Ye mail ' + esc(d.brand) + ' ki taraf se automatic bheja gaya hai.<br>' +
+        'Payment aapne nahi kiya? Turant upar wale number par batayiye.' +
+      '</div>' +
+    '</td></tr>' +
+
+  '</table>' +
+'</td></tr></table>';
+}
+
+// Plain-text version — purane mail apps aur inbox preview line ke liye
+function buildShopPaymentEmailText(d) {
+  return 'PAYMENT RECEIVED — ' + d.brand + '\n' +
+    '=================================\n\n' +
+    'Shukriya, ' + d.shopName + ' — aapki shop ab active hai.\n\n' +
+    'SHOP DETAILS\n' +
+    'Shop ID       : ' + d.shopId + '\n' +
+    'Shop ka naam  : ' + d.shopName + '\n' +
+    'Register hui  : ' + d.registeredAt + '\n\n' +
+    'PAYMENT DETAILS\n' +
+    'Plan          : ' + d.plan + '\n' +
+    'Amount paid   : Rs ' + d.amount + '\n' +
+    'Payment ID    : ' + d.paymentId + '\n' +
+    'Paid on       : ' + d.paidAt + '\n' +
+    (d.validTill ? 'Valid till    : ' + d.validTill + '\n' : '') + '\n' +
+    'AB KYA KAREIN\n' +
+    '1. Dashboard me login kariye — Shop ID aur apna password se\n' +
+    '2. Apna QR code download karke shop par lagaiye\n' +
+    '3. Print Agent install kariye — print automatic nikalega\n\n' +
+    (d.dashboardUrl ? 'Dashboard: ' + d.dashboardUrl + '\n\n' : '') +
+    'MADAD CHAHIYE\n' +
+    (d.supportPhone ? 'WhatsApp : ' + d.supportPhone + '\n' : '') +
+    (d.supportEmail ? 'Email    : ' + d.supportEmail + '\n' : '') + '\n' +
+    '-- ' + d.brand + '\n' +
+    'Payment aapne nahi kiya? Turant upar wale number par batayiye.';
+}
+
+// Saara data DB se uthata hai aur mail bhejta hai. Fail ho to bhi kabhi
+// throw nahi karta — activation is se kabhi nahi rukna chahiye.
+async function sendShopPaymentEmail(shopId) {
+  try {
+    const s = await pool.query(
+      `SELECT id,name,email,created_at,setup_amount,setup_payment_id,
+              plan_type,paid_until,whitelabel_id,demo
+       FROM shops WHERE id=$1`, [shopId]);
+    if (!s.rows.length) return;
+    const shop = s.rows[0];
+    if (shop.demo) return;                 // demo par mail nahi
+    if (!shop.email) {                     // purani shop — email hai hi nahi
+      console.log(`Shop mail skip ${shopId}: email set nahi hai`);
+      return;
+    }
+
+    let brand = 'QR Se Print', supportEmail = '', supportPhone = '', dashboardUrl = BASE_URL + '/admin';
+
+    if (shop.whitelabel_id) {
+      // ── WHITE LABEL ── partner ka brand aur partner ka support. Mera
+      // naam, number ya koi program is mail me kahin nahi jaana chahiye.
+      const w = await pool.query(
+        'SELECT brand_name, slug, support_email, support_phone, site_url FROM whitelabels WHERE id=$1',
+        [shop.whitelabel_id]);
+      if (!w.rows.length) return;
+      const wl = w.rows[0];
+      brand = wl.brand_name || 'Print Service';
+      supportEmail = wl.support_email || '';
+      supportPhone = wl.support_phone || '';
+      dashboardUrl = wl.site_url ? (String(wl.site_url).replace(/\/+$/, '') + '/admin')
+                                 : (BASE_URL + '/admin?wl=' + encodeURIComponent(wl.slug || ''));
+    } else {
+      const c = await pool.query("SELECT value FROM system_settings WHERE key='homepage_config'");
+      try {
+        const cfg = JSON.parse(c.rows[0]?.value || '{}');
+        supportEmail = cfg.supportEmail || '';
+        supportPhone = cfg.supportPhone || '';
+      } catch (e) { /* config toota ho to support ke bina hi mail jaayegi */ }
+    }
+
+    const isMonthly = (shop.plan_type || 'onetime') === 'monthly';
+    const data = {
+      brand,
+      shopId: shop.id,
+      shopName: shop.name || shop.id,
+      registeredAt: fmtIST(shop.created_at),
+      plan: isMonthly ? ('Monthly (Rs ' + (shop.setup_amount || 0) + '/mahina)') : 'One-time (Lifetime)',
+      amount: String(shop.setup_amount || 0),
+      paymentId: shop.setup_payment_id || '-',
+      paidAt: fmtIST(new Date()),
+      validTill: isMonthly && shop.paid_until ? fmtIST(shop.paid_until).split(',')[0] : '',
+      dashboardUrl, supportEmail, supportPhone
+    };
+
+    const r = await sendEmailAlert(
+      shop.email,
+      'Payment mil gaya — ' + data.shopName + ' active hai',
+      buildShopPaymentEmailText(data),
+      brand,
+      buildShopPaymentEmailHtml(data)
+    );
+    console.log(`Shop mail ${shopId} -> ${shop.email}: ${r.ok ? 'sent' : 'FAIL ' + r.why}`);
+  } catch (e) {
+    console.error('sendShopPaymentEmail error:', e.message);
   }
 }
 
@@ -2561,7 +2810,7 @@ app.post('/api/shop/register', async (req, res) => {
     const {
       name, address, phone, printer_model, price_bw, price_color, payment_mode, password,
       payment_gateway, razorpay_key_id, razorpay_key_secret,
-      phonepe_merchant_id, phonepe_salt_key, phonepe_salt_index, ref
+      cashfree_app_id, cashfree_secret_key, email, ref
     } = req.body;
 
     // Referral: ?ref=SHOP_XXX se aaya — sirf tab valid jab wo referrer
@@ -2575,6 +2824,11 @@ app.post('/api/shop/register', async (req, res) => {
     if (!name || !name.trim()) return res.status(400).json({ error: 'Shop ka naam zaroori hai' });
     if (!password || password.length < 4) return res.status(400).json({ error: 'Password kam se kam 4 character ka hona chahiye' });
 
+    // Email ab ZAROORI hai — payment confirmation isi par jaati hai
+    const finalEmail = String(email || '').trim().toLowerCase();
+    if (!finalEmail) return res.status(400).json({ error: 'Email zaroori hai — payment ki receipt isi par aayegi' });
+    if (!isValidEmail(finalEmail)) return res.status(400).json({ error: 'Email sahi nahi lag raha — dobara check karo' });
+
     const validPaymentModes = ['both', 'counter_only', 'online_only'];
     const finalPaymentMode = validPaymentModes.includes(payment_mode) ? payment_mode : 'both';
 
@@ -2583,10 +2837,10 @@ app.post('/api/shop/register', async (req, res) => {
     if (needsGateway) {
       if (payment_gateway === 'razorpay' && razorpay_key_id && razorpay_key_secret) {
         finalGateway = 'razorpay';
-      } else if (payment_gateway === 'phonepe' && phonepe_merchant_id && phonepe_salt_key) {
-        finalGateway = 'phonepe';
+      } else if (payment_gateway === 'cashfree' && cashfree_app_id && cashfree_secret_key) {
+        finalGateway = 'cashfree';
       } else {
-        return res.status(400).json({ error: 'Online payment ke liye Razorpay ya PhonePe ki details zaroori hain' });
+        return res.status(400).json({ error: 'Online payment ke liye Razorpay ya Cashfree ki details zaroori hain' });
       }
     }
 
@@ -2631,12 +2885,12 @@ app.post('/api/shop/register', async (req, res) => {
     // QR Code aur Print Agent sirf setup fee payment confirm hone ke baad milte hain.
     await pool.query(
       `INSERT INTO shops 
-        (id,name,address,phone,printer_model,price_bw,price_color,payment_mode,password_hash,
-         payment_gateway,razorpay_key_id,razorpay_key_secret,phonepe_merchant_id,phonepe_salt_key,phonepe_salt_index,
+        (id,name,address,phone,email,printer_model,price_bw,price_color,payment_mode,password_hash,
+         payment_gateway,razorpay_key_id,razorpay_key_secret,cashfree_app_id,cashfree_secret_key,
          setup_paid,setup_amount,plan_type,referred_by,onboarded_by,base_price_at_signup,sold_price,whitelabel_id)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,false,$16,$17,$18,$19,$20,$21,$22)`,
-      [shopId, name, address, phone, printer_model, price_bw||5, price_color||10, finalPaymentMode, passwordHash,
-       finalGateway, razorpay_key_id||'', razorpay_key_secret||'', phonepe_merchant_id||'', phonepe_salt_key||'', phonepe_salt_index||'1',
+      [shopId, name, address, phone, finalEmail, printer_model, price_bw||5, price_color||10, finalPaymentMode, passwordHash,
+       finalGateway, razorpay_key_id||'', razorpay_key_secret||'', cashfree_app_id||'', cashfree_secret_key||'',
        firstPayment, plan, referredBy, onboardedBy, basePrice, soldPrice, whitelabelId]
     );
 
@@ -2808,18 +3062,31 @@ async function extendShop(shopId, orderId, paymentId) {
 async function activateShop(shopId, paymentId) {
   const qrUrl = `${BASE_URL}/print/${shopId}`;
   const qrCode = await QRCode.toDataURL(qrUrl, { width: 300, margin: 2 });
-  await pool.query(
-    'UPDATE shops SET setup_paid=true, setup_payment_id=$1, qr_code=$2 WHERE id=$3',
+
+  // RACE-SAFE: webhook, verify aur reconcile — teeno ek saath aa sakte hain.
+  // `AND setup_paid=false` ki wajah se sirf PEHLA jeetega, baaki no-op.
+  // Isi se alert aur shop ko email DO BAAR kabhi nahi jaayenge.
+  const upd = await pool.query(
+    `UPDATE shops SET setup_paid=true, setup_payment_id=$1, qr_code=$2
+     WHERE id=$3 AND setup_paid=false RETURNING id`,
     [paymentId, qrCode, shopId]
   );
-  // Monthly plan: pehli payment = pehle 30 din
-  await pool.query(
-    "UPDATE shops SET paid_until = NOW() + INTERVAL '30 days' WHERE id=$1 AND plan_type='monthly'",
-    [shopId]);
-  console.log(`Setup fee paid: ${shopId} | Payment: ${paymentId}`);
+  const firstTime = upd.rows.length > 0;
 
-  // Naya paid shop — alert bhejo (fail ho to bhi activation nahi rukega)
-  alertNewShop(shopId, 'paid');
+  if (firstTime) {
+    // Monthly plan: pehli payment = pehle 30 din
+    await pool.query(
+      "UPDATE shops SET paid_until = NOW() + INTERVAL '30 days' WHERE id=$1 AND plan_type='monthly'",
+      [shopId]);
+    console.log(`Setup fee paid: ${shopId} | Payment: ${paymentId}`);
+
+    // Aapko alert (fail ho to bhi activation nahi rukega)
+    alertNewShop(shopId, 'paid');
+    // Shop owner ko payment confirmation email
+    sendShopPaymentEmail(shopId);
+  } else {
+    console.log(`Setup fee: ${shopId} pehle se paid hai — dobara alert/mail nahi bheja`);
+  }
 
   // ── AGENT COMMISSION ── kya ye shop kisi agent ne onboard ki thi?
   try {
@@ -3145,9 +3412,9 @@ app.get('/api/admin/profile', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
       `SELECT id,name,address,phone,demo,plan_type,paid_until,advanced_unlocked,advanced_active,shop_notice,shop_logo,price_4x6_4,price_4x6_6,price_4x6_10,price_resume_color,price_resume_bw,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
-              payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index,
+              email,payment_gateway,razorpay_key_id,cashfree_app_id,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
-              CASE WHEN phonepe_salt_key != '' THEN true ELSE false END as has_phonepe_salt
+              CASE WHEN cashfree_secret_key != '' THEN true ELSE false END as has_cashfree_secret
        FROM shops WHERE id=$1`, [req.shopId]
     );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
@@ -3162,10 +3429,19 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
     const unlockChk = await pool.query('SELECT advanced_unlocked FROM shops WHERE id=$1', [req.shopId]);
     const advUnlocked = unlockChk.rows.length && unlockChk.rows[0].advanced_unlocked;
     const {
-      name, address, phone, printer_model, printer_name_bw, printer_name_color, price_bw, price_color, payment_mode,
+      name, address, phone, email, printer_model, printer_name_bw, printer_name_color, price_bw, price_color, payment_mode,
       payment_gateway, razorpay_key_id, razorpay_key_secret,
-      phonepe_merchant_id, phonepe_salt_key, phonepe_salt_index
+      cashfree_app_id, cashfree_secret_key
     } = req.body;
+
+    // Email — purani shops (jinke paas email nahi tha) yahan se bhar sakti hain.
+    // undefined = field bheji hi nahi, to purana waise ka waisa rehta hai.
+    let finalEmail;
+    if (email !== undefined) {
+      const e = String(email || '').trim().toLowerCase();
+      if (e && !isValidEmail(e)) return res.status(400).json({ error: 'Sahi email daalo' });
+      finalEmail = e;
+    }
 
     const validPaymentModes = ['both', 'counter_only', 'online_only'];
     const finalPaymentMode = validPaymentModes.includes(payment_mode) ? payment_mode : 'both';
@@ -3174,20 +3450,20 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
 
     // __KEEP__ sentinel ka matlab hai "purana secret hi rakho, change nahi karna"
     let finalRzpSecret = razorpay_key_secret;
-    let finalPpSalt = phonepe_salt_key;
-    if (razorpay_key_secret === '__KEEP__' || phonepe_salt_key === '__KEEP__') {
-      const existing = await pool.query('SELECT razorpay_key_secret, phonepe_salt_key FROM shops WHERE id=$1', [req.shopId]);
+    let finalCfSecret = cashfree_secret_key;
+    if (razorpay_key_secret === '__KEEP__' || cashfree_secret_key === '__KEEP__') {
+      const existing = await pool.query('SELECT razorpay_key_secret, cashfree_secret_key FROM shops WHERE id=$1', [req.shopId]);
       if (existing.rows.length) {
         if (razorpay_key_secret === '__KEEP__') finalRzpSecret = existing.rows[0].razorpay_key_secret;
-        if (phonepe_salt_key === '__KEEP__') finalPpSalt = existing.rows[0].phonepe_salt_key;
+        if (cashfree_secret_key === '__KEEP__') finalCfSecret = existing.rows[0].cashfree_secret_key;
       }
     }
 
     if (needsGateway) {
       const validRazorpay = payment_gateway === 'razorpay' && razorpay_key_id && finalRzpSecret;
-      const validPhonepe = payment_gateway === 'phonepe' && phonepe_merchant_id && finalPpSalt;
-      if (!validRazorpay && !validPhonepe) {
-        return res.status(400).json({ error: 'Online payment ke liye Razorpay ya PhonePe ki details zaroori hain' });
+      const validCashfree = payment_gateway === 'cashfree' && cashfree_app_id && finalCfSecret;
+      if (!validRazorpay && !validCashfree) {
+        return res.status(400).json({ error: 'Online payment ke liye Razorpay ya Cashfree ki details zaroori hain' });
       }
     }
 
@@ -3205,19 +3481,20 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
         payment_gateway=$8,
         razorpay_key_id=$9,
         razorpay_key_secret=$10,
-        phonepe_merchant_id=$11,
-        phonepe_salt_key=$12,
-        phonepe_salt_index=$13,
+        cashfree_app_id=$11,
+        cashfree_secret_key=$12,
+        email=COALESCE($13,email),
         printer_name_bw=COALESCE($14,printer_name_bw),
         printer_name_color=COALESCE($15,printer_name_color)
       WHERE id=$16`,
       [name, address, phone, printer_model, price_bw, price_color, finalPaymentMode,
-       finalGateway, razorpay_key_id||'', finalRzpSecret||'', phonepe_merchant_id||'', finalPpSalt||'', phonepe_salt_index||'1',
+       finalGateway, razorpay_key_id||'', finalRzpSecret||'', cashfree_app_id||'', finalCfSecret||'',
+       finalEmail === undefined ? null : finalEmail,
        printer_name_bw, printer_name_color,
        req.shopId]
     );
 
-    const r = await pool.query('SELECT id,name,address,phone,printer_model,printer_name_bw,printer_name_color,price_bw,price_color,payment_mode,payment_gateway,razorpay_key_id,phonepe_merchant_id,phonepe_salt_index FROM shops WHERE id=$1', [req.shopId]);
+    const r = await pool.query('SELECT id,name,address,phone,email,printer_model,printer_name_bw,printer_name_color,price_bw,price_color,payment_mode,payment_gateway,razorpay_key_id,cashfree_app_id FROM shops WHERE id=$1', [req.shopId]);
     // Duplex mode alag se (validate karke)
     if (advUnlocked && typeof req.body.duplex_mode === 'string' && ['','auto','manual'].includes(req.body.duplex_mode)) {
       await pool.query('UPDATE shops SET duplex_mode=$1 WHERE id=$2', [req.body.duplex_mode, req.shopId]);
@@ -3470,7 +3747,60 @@ function parseSelectedPages(selectedPages, fallbackCount) {
   return Array.from({length: fallbackCount}, (_, i) => i + 1);
 }
 
-// ─── ONLINE PAYMENT: Har shop apni Razorpay/PhonePe keys use karta hai ───
+// ═══════════════════════════════════════════════════════════════════
+//  CASHFREE HELPERS
+// ═══════════════════════════════════════════════════════════════════
+
+// Sirf LIVE — sandbox nahi. Test karna ho to Cashfree dashboard ki
+// test keys nahi chalengi, live keys hi lagani hongi.
+const CASHFREE_HOST = 'api.cashfree.com';
+const CASHFREE_API_VERSION = '2025-01-01';
+
+// Kabhi throw nahi karta — hamesha object deta hai (sendViaBrevo jaisa hi pattern)
+function cashfreeRequest(method, path, appId, secretKey, body) {
+  return new Promise((resolve) => {
+    try {
+      const headers = {
+        'x-api-version': CASHFREE_API_VERSION,
+        'x-client-id': appId,
+        'x-client-secret': secretKey,
+        'accept': 'application/json'
+      };
+      if (body) {
+        headers['content-type'] = 'application/json';
+        headers['Content-Length'] = Buffer.byteLength(body);
+      }
+      const r = https.request({ hostname: CASHFREE_HOST, path, method, headers }, (resp) => {
+        let d = '';
+        resp.on('data', c => d += c);
+        resp.on('end', () => {
+          try { resolve(JSON.parse(d)); }
+          catch (e) { resolve({ message: 'Cashfree ka jawab samajh nahi aaya (HTTP ' + resp.statusCode + ')' }); }
+        });
+      });
+      r.on('error', e => resolve({ message: e.message }));
+      r.setTimeout(20000, () => { r.destroy(); resolve({ message: 'Cashfree timeout' }); });
+      if (body) r.write(body);
+      r.end();
+    } catch (e) { resolve({ message: e.message }); }
+  });
+}
+
+// Webhook signature: base64( HMAC-SHA256( secret, timestamp + rawBody ) )
+// RAW body chahiye — JSON.parse kiya hua object se signature KABHI match nahi karega.
+function verifyCashfreeWebhook(secretKey, timestamp, rawBody, signature) {
+  try {
+    if (!secretKey || !timestamp || !signature) return false;
+    const expected = crypto.createHmac('sha256', secretKey)
+      .update(String(timestamp) + String(rawBody)).digest('base64');
+    const a = Buffer.from(expected);
+    const b = Buffer.from(String(signature));
+    // timingSafeEqual barabar length maangta hai — warna throw kar deta hai
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+  } catch (e) { return false; }
+}
+
+// ─── ONLINE PAYMENT: Har shop apni Razorpay/Cashfree keys use karta hai ───
 // (Paisa seedha shop owner ke account mein jaata hai, system owner ke account mein nahi)
 
 app.post('/api/payment/online/create', async (req, res) => {
@@ -3480,7 +3810,7 @@ app.post('/api/payment/online/create', async (req, res) => {
     const jobCheck = await pool.query(
       `SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.price_4x6_4, s.price_4x6_6, s.price_4x6_10, s.price_resume_color, s.price_resume_bw, s.payment_mode, s.payment_gateway, s.paused, s.plan_type, s.paid_until,
               s.razorpay_key_id, s.razorpay_key_secret,
-              s.phonepe_merchant_id, s.phonepe_salt_key, s.phonepe_salt_index
+              s.cashfree_app_id, s.cashfree_secret_key
        FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1`, [jobId]
     );
     if (!jobCheck.rows.length) return res.status(404).json({ error:'Job not found' });
@@ -3586,65 +3916,59 @@ app.post('/api/payment/online/create', async (req, res) => {
       });
     }
 
-    if (job.payment_gateway === 'phonepe') {
-      if (!job.phonepe_merchant_id || !job.phonepe_salt_key) {
-        return res.status(400).json({ error: 'Shop ki PhonePe keys set nahi hain' });
+    if (job.payment_gateway === 'cashfree') {
+      if (!job.cashfree_app_id || !job.cashfree_secret_key) {
+        return res.status(400).json({ error: 'Shop ki Cashfree keys set nahi hain' });
       }
-      const amountInPaise = amount * 100;
-      const merchantTransactionId = 'MT' + uuidv4().substring(0,16).replace(/-/g,'').toUpperCase();
-      const saltIndex = job.phonepe_salt_index || '1';
 
-      const payload = {
-        merchantId: job.phonepe_merchant_id,
-        merchantTransactionId,
-        merchantUserId: 'CUST_' + jobId,
-        amount: amountInPaise,
-        redirectUrl: `${BASE_URL}/print-success?jobId=${jobId}&gateway=phonepe&txn=${merchantTransactionId}`,
-        redirectMode: 'REDIRECT',
-        callbackUrl: `${BASE_URL}/api/payment/phonepe/callback`,
-        paymentInstrument: { type: 'PAY_PAGE' }
-      };
+      // ⚠️ SABSE ZAROORI FARAK: Razorpay PAISE leta hai (₹10 = 1000),
+      // Cashfree RUPEES leta hai (₹10 = 10). Yahan *100 kabhi mat karna —
+      // warna customer se 100 guna paisa kat jaayega.
+      const cfOrderId = 'QSP_' + jobId;
+      // Cashfree ko customer_phone chahiye hi chahiye, par hum customer ka
+      // number lete hi nahi (QR scan karke seedha print — koi login nahi).
+      // Isliye placeholder. Payment par iska koi asar nahi padta.
+      const customerPhone = '9999999999';
 
-      const base64Payload = Buffer.from(JSON.stringify(payload)).toString('base64');
-      const checksum = crypto.createHash('sha256')
-        .update(base64Payload + '/pg/v1/pay' + job.phonepe_salt_key)
-        .digest('hex') + '###' + saltIndex;
-
-      const phonepeResponse = await new Promise((resolve, reject) => {
-        const postData = JSON.stringify({ request: base64Payload });
-        const options = {
-          hostname: 'api.phonepe.com',
-          path: '/apis/hermes/pg/v1/pay',
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-VERIFY': checksum,
-            'Content-Length': Buffer.byteLength(postData)
-          }
-        };
-        const r = https.request(options, (resp) => {
-          let data = '';
-          resp.on('data', chunk => data += chunk);
-          resp.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
-        });
-        r.on('error', reject);
-        r.write(postData);
-        r.end();
+      const cfBody = JSON.stringify({
+        order_id: cfOrderId,
+        order_amount: Number(amount),          // rupees, paise NAHI
+        order_currency: 'INR',
+        customer_details: {
+          customer_id: 'CUST_' + jobId,
+          customer_phone: customerPhone
+        },
+        order_meta: {
+          return_url: `${BASE_URL}/print-success?jobId=${jobId}&gateway=cashfree`,
+          notify_url: `${BASE_URL}/api/payment/cashfree/webhook`
+        },
+        order_note: 'Print job ' + jobId
       });
 
-      if (!phonepeResponse.success) {
-        return res.status(400).json({ error: 'PhonePe order failed', details: phonepeResponse });
+      const cfOrder = await cashfreeRequest('POST', '/pg/orders',
+        job.cashfree_app_id, job.cashfree_secret_key, cfBody);
+
+      if (!cfOrder || !cfOrder.payment_session_id) {
+        console.error('Cashfree order failed:', JSON.stringify(cfOrder).slice(0, 300));
+        return res.status(400).json({
+          error: 'Cashfree order nahi bana — shop ki keys check karo',
+          details: (cfOrder && cfOrder.message) || 'unknown'
+        });
       }
 
+      // cf_order_id nahi, HAMARA order_id save karte hain — webhook aur
+      // status dono isi se job dhoondhte hain
       await pool.query(
         'UPDATE print_jobs SET payment_id=$1, payment_method=$2 WHERE id=$3',
-        [merchantTransactionId, 'online', jobId]
+        [cfOrderId, 'online', jobId]
       );
 
       return res.json({
         success: true,
-        gateway: 'phonepe',
-        paymentUrl: phonepeResponse.data.instrumentResponse.redirectInfo.url,
+        gateway: 'cashfree',
+        paymentSessionId: cfOrder.payment_session_id,
+        orderId: cfOrderId,
+        amount,
         jobId
       });
     }
@@ -3689,76 +4013,91 @@ app.post('/api/payment/razorpay/verify', async (req, res) => {
   }
 });
 
-// PhonePe webhook callback — payment success hone par PhonePe yahan call karta hai
-app.post('/api/payment/phonepe/callback', express.json(), async (req, res) => {
+// Cashfree webhook — payment hone par Cashfree yahan call karta hai.
+// Signature RAW body par verify hoti hai (line 62 wala req.rawBody).
+app.post('/api/payment/cashfree/webhook', async (req, res) => {
   try {
-    const decoded = req.body.response
-      ? JSON.parse(Buffer.from(req.body.response, 'base64').toString())
-      : req.body;
+    const rawBody = req.rawBody ? req.rawBody.toString('utf8') : '';
+    if (!rawBody) return res.status(400).json({ error: 'empty body' });
 
-    if (decoded.code === 'PAYMENT_SUCCESS') {
-      const txnId = decoded.data.merchantTransactionId;
-      await pool.query(
-        'UPDATE print_jobs SET payment_status=$1, status=$2 WHERE payment_id=$3',
-        ['paid', 'queued', txnId]
-      );
-      console.log(`PhonePe payment success: ${txnId}`);
+    let payload = {};
+    try { payload = JSON.parse(rawBody); } catch (e) {
+      return res.status(400).json({ error: 'bad json' });
+    }
+
+    const orderId = (payload.data && payload.data.order && payload.data.order.order_id) || '';
+    if (!orderId) return res.json({ success: true });   // koi aur event — ignore
+
+    // Multi-tenant: har shop ki apni key hai. Isliye pehle order se shop
+    // dhoondho, tabhi uska secret milega jisse signature check hogi.
+    // Body sirf order_id nikalne ke liye padhi hai — VERIFY se pehle kuch
+    // bhi change nahi kiya jaata.
+    const jr = await pool.query(
+      `SELECT j.id AS job_id, j.payment_status, s.cashfree_secret_key
+       FROM print_jobs j JOIN shops s ON j.shop_id = s.id
+       WHERE j.payment_id = $1`, [orderId]);
+    if (!jr.rows.length) return res.json({ success: true });
+    const job = jr.rows[0];
+
+    const sigOk = verifyCashfreeWebhook(
+      job.cashfree_secret_key,
+      req.headers['x-webhook-timestamp'],
+      rawBody,
+      req.headers['x-webhook-signature']
+    );
+    if (!sigOk) {
+      console.warn('Cashfree webhook: signature match nahi hui |', orderId);
+      return res.status(401).json({ error: 'bad signature' });
+    }
+
+    const payStatus = (payload.data && payload.data.payment && payload.data.payment.payment_status) || '';
+    if (payStatus === 'SUCCESS') {
+      // payment_id ko chhedte nahi — wahi hamara stable lookup key hai
+      const upd = await pool.query(
+        `UPDATE print_jobs SET payment_status='paid', status='queued'
+         WHERE id=$1 AND payment_status <> 'paid' RETURNING id`, [job.job_id]);
+      if (upd.rows.length) console.log(`Cashfree payment success: ${orderId} | job ${job.job_id}`);
     }
     res.json({ success: true });
-  } catch(err) {
-    console.error('PhonePe callback error:', err.message);
+  } catch (err) {
+    console.error('Cashfree webhook error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// PhonePe redirect ke baad status check (frontend polling ke liye)
-app.get('/api/payment/phonepe/status/:jobId', async (req, res) => {
+// Cashfree se wapas aane ke baad status check (frontend polling ke liye).
+// Webhook late aaye ya na aaye, isse customer atakta nahi.
+app.get('/api/payment/cashfree/status/:jobId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT j.payment_id, j.payment_status, s.phonepe_merchant_id, s.phonepe_salt_key, s.phonepe_salt_index FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1',
+      `SELECT j.payment_id, j.payment_status, s.cashfree_app_id, s.cashfree_secret_key
+       FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1`,
       [req.params.jobId]
     );
     if (!r.rows.length) return res.status(404).json({ error: 'Job not found' });
     const job = r.rows[0];
 
-    // Agar already paid hai DB mein (webhook se aaya), seedha return karo
+    // Webhook pehle aa gaya to DB me already paid hai — seedha bata do
     if (job.payment_status === 'paid') {
-      return res.json({ success: true, status: 'PAYMENT_SUCCESS' });
+      return res.json({ success: true, status: 'PAID' });
+    }
+    if (!job.payment_id || !job.cashfree_app_id || !job.cashfree_secret_key) {
+      return res.json({ success: true, status: 'PENDING' });
     }
 
-    // Warna PhonePe se directly status check karo
-    const txnId = job.payment_id;
-    const saltIndex = job.phonepe_salt_index || '1';
-    const checksum = crypto.createHash('sha256')
-      .update(`/pg/v1/status/${job.phonepe_merchant_id}/${txnId}${job.phonepe_salt_key}`)
-      .digest('hex') + '###' + saltIndex;
+    const order = await cashfreeRequest('GET', '/pg/orders/' + encodeURIComponent(job.payment_id),
+      job.cashfree_app_id, job.cashfree_secret_key, null);
 
-    const statusResponse = await new Promise((resolve, reject) => {
-      const options = {
-        hostname: 'api.phonepe.com',
-        path: `/apis/hermes/pg/v1/status/${job.phonepe_merchant_id}/${txnId}`,
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-VERIFY': checksum,
-          'X-MERCHANT-ID': job.phonepe_merchant_id
-        }
-      };
-      const r2 = https.request(options, (resp) => {
-        let data = '';
-        resp.on('data', chunk => data += chunk);
-        resp.on('end', () => { try { resolve(JSON.parse(data)); } catch(e) { reject(e); } });
-      });
-      r2.on('error', reject);
-      r2.end();
-    });
-
-    if (statusResponse.code === 'PAYMENT_SUCCESS') {
-      await pool.query('UPDATE print_jobs SET payment_status=$1, status=$2 WHERE id=$3', ['paid', 'queued', req.params.jobId]);
+    const status = (order && order.order_status) || 'PENDING';
+    if (status === 'PAID') {
+      await pool.query(
+        `UPDATE print_jobs SET payment_status='paid', status='queued'
+         WHERE id=$1 AND payment_status <> 'paid'`, [req.params.jobId]);
+      console.log(`Cashfree status-check paid: ${job.payment_id}`);
     }
-
-    res.json({ success: true, status: statusResponse.code });
-  } catch(err) {
+    res.json({ success: true, status });
+  } catch (err) {
+    console.error('Cashfree status error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -4346,7 +4685,7 @@ app.get('/api/superadmin/shop/:shopId/printers', verifySuperAdmin, async (req, r
 // Printer selection + payment mode save.
 // SAKHT NIYAM: superadmin sirf 'counter_only' set kar sakta hai. Online/Both
 // shop owner ko khud apne login se karna hoga (kyunki usme uski apni
-// Razorpay/PhonePe keys chahiye hoti hain).
+// Razorpay/Cashfree keys chahiye hoti hain).
 app.put('/api/superadmin/shop/:shopId/printers', verifySuperAdmin, async (req, res) => {
   try {
     const shopId = req.params.shopId;
@@ -5015,6 +5354,6 @@ initDB().then(() => {
     console.log(`QR Se Print - Port ${PORT}`);
     console.log(`${BASE_URL}`);
     console.log(`Cloudinary: ${CLOUD_NAME}`);
-    console.log(`Payment: Per-shop gateway (Razorpay/PhonePe), Counter always available unless online_only`);
+    console.log(`Payment: Per-shop gateway (Razorpay/Cashfree), Counter always available unless online_only`);
   });
 });
