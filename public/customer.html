@@ -361,7 +361,7 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
         <button class="edit-btn" id="rotateBtn" onclick="toolToggleRotate()">🔄 Rotate</button>
         <button class="edit-btn" id="adjustBtn" onclick="toolToggleAdjust()">🎨 Brightness/Contrast</button>
         <button class="edit-btn" onclick="toolPerspectiveCrop()">📐 Perspective Crop</button>
-        <button class="edit-btn" id="borderBtn" onclick="toolToggleBorder()">⬛ Black Border</button>
+        <button class="edit-btn" id="borderBtn" onclick="toolToggleBorder()" style="display:none;">⬛ Photo Border</button>
       </div>
 
       <div id="borderPanel" class="adjust-panel hidden">
@@ -375,7 +375,7 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
           <span id="borderVal">4</span>
         </div>
         <p style="font-size:11px;color:var(--muted);margin:2px 4px 0;line-height:1.6;">
-          Sheet par jitni bhi copy hain, sab par border lagega — kaatne me aasani hoti hai
+          Sheet ki <b>har photo</b> ke chaaron taraf border lagega — kaatne me aasani hoti hai
         </p>
       </div>
 
@@ -870,7 +870,6 @@ function createItemFromCanvas(sourceCanvas, isSecondaryItem) {
     originalCanvas: sourceCanvas,
     sourceCanvas, workingCanvas: sourceCanvas,
     brightness: 0, contrast: 0, rotation: 0, cropPoints: null,
-    borderOn: false, borderWidth: 4,
     x: isSecondaryItem ? a4W * 0.3 : (a4W - w) / 2,
     y: isSecondaryItem ? a4H * 0.35 : (a4H - h) / 2,
     w, h,
@@ -1071,14 +1070,6 @@ function renderCanvasItems() {
     img.src = item.workingCanvas.toDataURL('image/jpeg', 0.92);
     div.appendChild(img);
 
-    // Border editor me bhi dikhe, taaki print se pehle pata chal jaye
-    if (item.borderOn) {
-      const bw = Math.max(1, Math.round((item.borderWidth || 4)));
-      const bd = document.createElement('div');
-      bd.style.cssText = 'position:absolute;inset:0;pointer-events:none;box-sizing:border-box;border:'
-        + bw + 'px solid #000;';
-      div.appendChild(bd);
-    }
 
     const resizeHandle = document.createElement('div');
     resizeHandle.className = 'resize-handle';
@@ -1225,7 +1216,63 @@ function askPhotoCount(file) {
   window.__photoFile = file;
 }
 
-async function buildPhotoSheet(count) {
+async function buildPhotoSheet(count, isRebuild) {
+  // Border badalne par dobara build hota hai — tab file dobara nahi
+  // maangni, purani photo hi use karni hai.
+  if (isRebuild && PHOTO_SHEET) {
+    try {
+      const { photo, pw, ph, dpi, mm } = PHOTO_SHEET;
+      const W = 4 * dpi, H = 6 * dpi;
+      const sheet = document.createElement('canvas');
+      sheet.width = W; sheet.height = H;
+      const ctx = sheet.getContext('2d');
+      ctx.imageSmoothingQuality = 'high';
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+      const gap = Math.round(4 * mm), top = Math.round(5 * mm);
+      const bOn = !!PHOTO_BORDER.on;
+      const bCol = bOn ? '#000' : '#d0d0d0';
+      const bW = bOn ? Math.max(2, Math.round(PHOTO_BORDER.width * (dpi / 96))) : 2;
+      const drawP = (x, y) => {
+        ctx.drawImage(photo, x, y, pw, ph);
+        ctx.strokeStyle = bCol; ctx.lineWidth = bW;
+        ctx.strokeRect(x + bW / 2, y + bW / 2, pw - bW, ph - bW);
+      };
+      const drawL = (x, y) => {
+        ctx.save();
+        ctx.translate(x + ph / 2, y + pw / 2);
+        ctx.rotate(Math.PI / 2);
+        ctx.drawImage(photo, -pw / 2, -ph / 2, pw, ph);
+        ctx.restore();
+        ctx.strokeStyle = bCol; ctx.lineWidth = bW;
+        ctx.strokeRect(x + bW / 2, y + bW / 2, ph - bW, pw - bW);
+      };
+      const pRow = (n, y) => {
+        const x0 = Math.round((W - (n * pw + (n - 1) * gap)) / 2);
+        for (let k = 0; k < n; k++) drawP(x0 + k * (pw + gap), y);
+      };
+      const lRow = (n, y) => {
+        const x0 = Math.round((W - (n * ph + (n - 1) * gap)) / 2);
+        for (let k = 0; k < n; k++) drawL(x0 + k * (ph + gap), y);
+      };
+      if (count === 4)      { pRow(2, top); pRow(2, top + ph + gap); }
+      else if (count === 6) { pRow(3, top); pRow(3, top + ph + gap); }
+      else {
+        pRow(3, top); pRow(3, top + ph + gap);
+        const yL = top + 2 * (ph + gap);
+        lRow(2, yL); lRow(2, yL + pw + gap);
+      }
+      pages.length = 0;
+      addPage([sheet]);
+      applyPaper();
+      activePageIdx = 0;
+      renderEditor();
+      return;
+    } catch (e) {
+      console.warn('Rebuild fail:', e.message);
+      return;
+    }
+  }
+
   document.getElementById('photoCountModal')?.remove();
   try {
     const img = await new Promise((res, rej) => {
@@ -1361,10 +1408,17 @@ function buildSheetFromPhoto(photo, count) {
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
     const gap = Math.round(4 * mm), top = Math.round(5 * mm);
 
+    // Har photo ke chaaron taraf border. Default halka grey (sirf kaatne
+    // ki line). Customer "Black Border" on kare to kaala aur mota ho jaata
+    // hai — border SHEET ke bahar nahi, HAR PHOTO ke around lagta hai.
+    const bOn = !!PHOTO_BORDER.on;
+    const bCol = bOn ? '#000' : '#d0d0d0';
+    const bW = bOn ? Math.max(2, Math.round(PHOTO_BORDER.width * (dpi / 96))) : 2;
+
     const drawP = (x, y) => {
       ctx.drawImage(photo, x, y, pw, ph);
-      ctx.strokeStyle = '#d0d0d0'; ctx.lineWidth = 2;
-      ctx.strokeRect(x + 1, y + 1, pw - 2, ph - 2);
+      ctx.strokeStyle = bCol; ctx.lineWidth = bW;
+      ctx.strokeRect(x + bW / 2, y + bW / 2, pw - bW, ph - bW);
     };
     const drawL = (x, y) => {
       ctx.save();
@@ -1372,8 +1426,8 @@ function buildSheetFromPhoto(photo, count) {
       ctx.rotate(Math.PI / 2);
       ctx.drawImage(photo, -pw / 2, -ph / 2, pw, ph);
       ctx.restore();
-      ctx.strokeStyle = '#d0d0d0'; ctx.lineWidth = 2;
-      ctx.strokeRect(x + 1, y + 1, ph - 2, pw - 2);
+      ctx.strokeStyle = bCol; ctx.lineWidth = bW;
+      ctx.strokeRect(x + bW / 2, y + bW / 2, ph - bW, pw - bW);
     };
     const pRow = (n, y) => {
       const x0 = Math.round((W - (n * pw + (n - 1) * gap)) / 2);
@@ -1407,6 +1461,12 @@ function buildSheetFromPhoto(photo, count) {
     state.colorMode = 'color';
     const selEl = document.getElementById('paperSizeSel');
     if (selEl) selEl.value = '4x6';
+
+    // Border badalne par sheet dobara banani padti hai, isliye photo aur
+    // count sambhal kar rakho
+    PHOTO_SHEET = { photo, count, pw, ph, dpi, mm };
+    const bb = document.getElementById('borderBtn');
+    if (bb) bb.style.display = '';       // ab border ka option kaam ka hai
 
     const isFirstUpload = !document.getElementById('secUpload').classList.contains('hidden');
     if (isFirstUpload) { hide('secUpload'); show('secEditor'); setStep(2); }
@@ -1621,46 +1681,58 @@ function toolAutoA4() {
 // ══════════════════════════════════════════════════
 // TOOL: Brightness / Contrast
 // ══════════════════════════════════════════════════
-// ═══ BLACK BORDER — har copy par kaatne ki line ═══
+// ═══ BLACK BORDER — sheet par HAR PHOTO ke chaaron taraf ═══
+// Border photo ke around lagta hai, page ke bahar nahi — taaki kaatne me
+// aasani ho aur har photo ka apna frame dikhe.
+let PHOTO_SHEET = null;                       // { photo, count, pw, ph, dpi, mm }
+let PHOTO_BORDER = { on: false, width: 4 };
+
 function toolToggleBorder() {
-  const item = getActiveItem();
-  if (!item) { toast('⚠️ Pehle koi document select karo'); return; }
+  if (!PHOTO_SHEET) {
+    toast('⚠️ Ye sirf 4×6 photo sheet ke liye hai');
+    return;
+  }
   const panel = document.getElementById('borderPanel');
   const btn = document.getElementById('borderBtn');
   ['adjustPanel', 'rotatePanel'].forEach(id => document.getElementById(id).classList.add('hidden'));
   ['adjustBtn', 'rotateBtn'].forEach(id => document.getElementById(id).classList.remove('active'));
   panel.classList.toggle('hidden');
   btn.classList.toggle('active', !panel.classList.contains('hidden'));
-  if (!panel.classList.contains('hidden')) syncBorderPanel(item);
+  if (!panel.classList.contains('hidden')) syncBorderPanel();
 }
 
-function syncBorderPanel(item) {
+function syncBorderPanel() {
   const t = document.getElementById('borderToggleBtn');
-  t.textContent = item.borderOn ? 'Chalu hai' : 'Band hai';
-  t.classList.toggle('active', !!item.borderOn);
-  t.style.background = item.borderOn ? '#111114' : '';
-  t.style.color = item.borderOn ? '#fff' : '';
-  document.getElementById('borderSlider').value = item.borderWidth || 4;
-  document.getElementById('borderVal').textContent = item.borderWidth || 4;
+  t.textContent = PHOTO_BORDER.on ? 'Chalu hai' : 'Band hai';
+  t.style.background = PHOTO_BORDER.on ? '#111114' : '';
+  t.style.color = PHOTO_BORDER.on ? '#fff' : '';
+  document.getElementById('borderSlider').value = PHOTO_BORDER.width;
+  document.getElementById('borderVal').textContent = PHOTO_BORDER.width;
 }
 
 function toggleBorderOn() {
-  const item = getActiveItem();
-  if (!item) return;
-  item.borderOn = !item.borderOn;
-  if (item.borderOn && !item.borderWidth) item.borderWidth = 4;
-  syncBorderPanel(item);
-  renderEditor();
+  PHOTO_BORDER.on = !PHOTO_BORDER.on;
+  syncBorderPanel();
+  rebuildPhotoSheet();
 }
 
 function onBorderSlider() {
-  const item = getActiveItem();
-  if (!item) return;
   const v = parseInt(document.getElementById('borderSlider').value, 10) || 4;
-  item.borderWidth = v;
+  PHOTO_BORDER.width = v;
   document.getElementById('borderVal').textContent = v;
-  if (!item.borderOn) { item.borderOn = true; syncBorderPanel(item); }
-  renderEditor();
+  if (!PHOTO_BORDER.on) { PHOTO_BORDER.on = true; syncBorderPanel(); }
+  rebuildPhotoSheet();
+}
+
+// Border badla to sheet dobara banao — photo waisi ki waisi rehti hai,
+// sirf uske chaaron taraf ki line badalti hai.
+function rebuildPhotoSheet() {
+  if (!PHOTO_SHEET) return;
+  try {
+    buildPhotoSheet(PHOTO_SHEET.count, true);
+  } catch (e) {
+    console.warn('Sheet dobara nahi ban paayi:', e.message);
+  }
 }
 
 function toolToggleAdjust() {
@@ -2211,16 +2283,6 @@ function renderMergedPageCanvas(page) {
     const dx = item.x * scaleX, dy = item.y * scaleY;
     const dw = item.w * scaleX, dh = item.h * scaleY;
     ctx.drawImage(item.workingCanvas, dx, dy, dw, dh);
-    // Black border — har copy ke chaaron taraf, kaatne ki line
-    if (item.borderOn) {
-      // Motai screen ke hisaab se nahi, asli print ke hisaab se
-      const lw = Math.max(1, Math.round((item.borderWidth || 4) * scaleX));
-      ctx.save();
-      ctx.strokeStyle = '#000';
-      ctx.lineWidth = lw;
-      ctx.strokeRect(dx + lw / 2, dy + lw / 2, dw - lw, dh - lw);
-      ctx.restore();
-    }
   });
   return out;
 }
@@ -2360,7 +2422,7 @@ function pdfUntouched() {
     if (!p.items || p.items.length !== 1) return false;                          // doosra document joda
     const it = p.items[0];
     return it.brightness === 0 && it.contrast === 0 && it.rotation === 0 &&
-           !it.cropPoints && !it.borderOn &&
+           !it.cropPoints &&
            near(it.x, it._ix) && near(it.y, it._iy) &&
            near(it.w, it._iw) && near(it.h, it._ih);
   });
@@ -2746,11 +2808,25 @@ async function sendFeedback(up) {
   document.getElementById('fbThanks').style.display='block';
 }
 
+// Print ready ki awaaz — dukaan me shor hota hai, isliye customer aur
+// dukaandar dono ko pata chal jaata hai ki print nikal raha hai.
+// Browser bina user-click ke sound nahi bajne deta; yahan customer ne
+// abhi payment/counter button dabaya hai, isliye allow ho jaata hai.
+function playPrintSound() {
+  try {
+    const a = new Audio('/print-ready.mp3');
+    a.volume = 1.0;
+    const p = a.play();
+    if (p && p.catch) p.catch(function(){ /* browser ne roka — koi baat nahi */ });
+  } catch (e) { /* sound na baje to bhi order to ho hi gaya */ }
+}
+
 function showSuccess(method, amount) {
   hide('secPayment');
   const successScreen = document.getElementById('secSuccess');
   successScreen.style.display = 'block';
   setStep(4);
+  playPrintSound();
 
   document.getElementById('orderId').textContent = 'ORDER #' + state.jobId;
   document.getElementById('finalAmount').textContent = '₹' + amount;
