@@ -1849,11 +1849,7 @@ async function loadPanel() {
       document.getElementById('agentBasePriceInput').value = feeData.agentBasePriceIsSet ? feeData.agentBasePrice : 0;
       document.getElementById('wlLicenseFeeInput').value = feeData.wlLicenseFee || 25000;
       document.getElementById('wlLicenseActualInput').value = feeData.wlLicenseActual || 0;
-    document.getElementById('wlLicenseActualInput').value = feeData.wlLicenseActual || 0;
       document.getElementById('wlBasePriceInput').value = feeData.wlBasePrice || 0;
-    document.getElementById('wlLicenseFeeInput').value = feeData.wlLicenseFee || 25000;
-    document.getElementById('wlLicenseActualInput').value = feeData.wlLicenseActual || 0;
-    document.getElementById('wlBasePriceInput').value = feeData.wlBasePrice || 0;
       updatePreview();
     }
 
@@ -2418,7 +2414,11 @@ async function deletePendingShop(shopId, name){
     });
     const data = await res.json();
     if(data.success){
-      loadPanel();  // stats + list dono refresh
+      loadPanel();  // stats + main list
+      // Demo tab ki apni list alag hai — wo bhi refresh karo, warna
+      // shop delete hone ke baad bhi card screen par bacha rehta hai
+      // aur lagta hai ki delete hua hi nahi.
+      try { if (typeof loadDemos === 'function') loadDemos(); } catch(e){}
     } else {
       alert('❌ ' + (data.error || 'Delete fail hua'));
     }
