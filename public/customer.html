@@ -246,6 +246,10 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
 .page-nav-btn{width:34px;height:34px;border-radius:50%;border:1.5px solid #e2ddd6;background:#fff;font-size:16px;cursor:pointer}
 .page-nav-btn:disabled{opacity:0.3}
 .page-info{font-size:12px;font-weight:700;color:#6b6870}
+@keyframes upShine{to{transform:translateX(100%)}}
+@keyframes upPop{0%{transform:scale(.8);opacity:0}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+.up-done{animation:upPop .35s cubic-bezier(.2,.8,.3,1.2) both}
+@media(prefers-reduced-motion:reduce){#upProgShine{animation:none}.up-done{animation:none}}
 </style>
 </head>
 <body>
@@ -426,6 +430,20 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
         <span class="page-info">Page <span id="curPgNum">1</span> / <span id="totalPgNum">1</span></span>
         <button class="page-nav-btn" id="nextPgBtn" onclick="changePreviewPage(1)">›</button>
       </div>
+    </div>
+
+    <!-- ═══ UPLOAD PROGRESS — preview ke theek neeche ═══ -->
+    <div id="upProgWrap" style="display:none;margin:14px 0 4px;">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+        <span id="upProgLabel" style="font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:var(--ink);">📤 File Upload Ho Rahi Hai…</span>
+        <span id="upProgPct" style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:17px;color:#ff4d1c;">0%</span>
+      </div>
+      <div style="height:10px;background:#ece7e0;border-radius:99px;overflow:hidden;">
+        <div id="upProgBar" style="height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#ff4d1c,#ff8a3c);transition:width .25s ease;position:relative;overflow:hidden;">
+          <span id="upProgShine" style="position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);transform:translateX(-100%);animation:upShine 1.1s linear infinite;"></span>
+        </div>
+      </div>
+      <div id="upProgHint" style="font-size:11.5px;color:var(--muted);margin-top:7px;">Ruko, band mat karo</div>
     </div>
 
     <div class="page-range-box" id="pageRangeBox" style="display:none;">
@@ -2483,6 +2501,80 @@ async function buildOutputFile() {
 // File ab SEEDHA Cloudinary jaati hai — server se hoke nahi.
 // Isse server ka bandwidth bachta hai aur upload tez bhi hota hai.
 // Direct upload kisi wajah se fail ho to purana tarika apne aap chal jata hai.
+// ═══ UPLOAD PROGRESS ═══
+function upProgShow(on) {
+  const w = document.getElementById('upProgWrap');
+  if (!w) return;
+  w.style.display = on ? 'block' : 'none';
+  if (on) {
+    upProgSet(0);
+    const l = document.getElementById('upProgLabel');
+    const h = document.getElementById('upProgHint');
+    const p = document.getElementById('upProgPct');
+    if (l) { l.textContent = '📤 File Upload Ho Rahi Hai…'; l.classList.remove('up-done'); }
+    if (h) h.textContent = 'Ruko, band mat karo';
+    if (p) p.style.color = '#ff4d1c';
+    const b = document.getElementById('upProgBar');
+    if (b) b.style.background = 'linear-gradient(90deg,#ff4d1c,#ff8a3c)';
+    const s = document.getElementById('upProgShine');
+    if (s) s.style.display = '';
+  }
+}
+function upProgSet(pct) {
+  pct = Math.max(0, Math.min(100, Math.round(pct)));
+  const b = document.getElementById('upProgBar');
+  const p = document.getElementById('upProgPct');
+  if (b) b.style.width = pct + '%';
+  if (p) p.textContent = pct + '%';
+}
+function upProgDone() {
+  upProgSet(100);
+  const l = document.getElementById('upProgLabel');
+  const h = document.getElementById('upProgHint');
+  const p = document.getElementById('upProgPct');
+  const b = document.getElementById('upProgBar');
+  const s = document.getElementById('upProgShine');
+  if (s) s.style.display = 'none';
+  if (b) b.style.background = 'linear-gradient(90deg,#00c853,#5eead4)';
+  if (p) p.style.color = '#00c853';
+  if (l) { l.textContent = '✅ File Upload Ho Gayi'; l.classList.add('up-done'); }
+  if (h) h.textContent = 'Ab aage badh sakte ho';
+  // Thodi der baad chhupa do — screen saaf rahe
+  setTimeout(function(){ upProgShow(false); }, 3500);
+}
+function upProgFail(msg) {
+  const l = document.getElementById('upProgLabel');
+  const h = document.getElementById('upProgHint');
+  const b = document.getElementById('upProgBar');
+  const s = document.getElementById('upProgShine');
+  if (s) s.style.display = 'none';
+  if (b) b.style.background = '#ff3b3b';
+  if (l) l.textContent = '❌ Upload Fail Hua';
+  if (h) h.textContent = msg || 'Dobara koshish karo';
+}
+
+// Cloudinary ko XHR se bhejte hain — fetch me upload ka progress
+// nahi milta, aur bina progress ke customer ko lagta hai ki app atak gayi.
+function xhrUpload(url, formData, onProgress) {
+  return new Promise(function (resolve, reject) {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
+    xhr.upload.onprogress = function (e) {
+      if (e.lengthComputable && onProgress) onProgress((e.loaded / e.total) * 100);
+    };
+    xhr.onload = function () {
+      let j = null;
+      try { j = JSON.parse(xhr.responseText); } catch (err) {}
+      if (xhr.status >= 200 && xhr.status < 300) resolve(j || {});
+      else reject(new Error((j && j.error && j.error.message) || ('Upload fail (' + xhr.status + ')')));
+    };
+    xhr.onerror = function () { reject(new Error('Network problem')); };
+    xhr.ontimeout = function () { reject(new Error('Bahut der lag gayi')); };
+    xhr.timeout = 180000;
+    xhr.send(formData);
+  });
+}
+
 async function uploadDirect(blob, fileName) {
   // 1) Server se signature lo (chhota request)
   const sr = await fetch('/api/upload/sign', {
@@ -2506,9 +2598,12 @@ async function uploadDirect(blob, fileName) {
   fd.append('public_id', sig.publicId);
   fd.append('signature', sig.signature);
 
-  const cr = await fetch(sig.uploadUrl, { method: 'POST', body: fd });
-  const cd = await cr.json();
-  if (!cr.ok || !cd.public_id) throw new Error(cd?.error?.message || 'Cloudinary upload fail');
+  // 92% tak file jaane ka progress; baaki 8% confirm ke liye rakha hai
+  const cd = await xhrUpload(sig.uploadUrl, fd, function (pct) {
+    upProgSet(pct * 0.92);
+  });
+  if (!cd || !cd.public_id) throw new Error('Cloudinary upload fail');
+  upProgSet(94);
 
   // 3) Server ko sirf details bhejo (file nahi)
   // Cloudinary raw upload par public_id me extension jud jaata hai
@@ -2529,6 +2624,7 @@ async function uploadDirect(blob, fileName) {
   });
   const data = await conf.json();
   if (!conf.ok || !data.success) throw new Error(data.error || 'Confirm fail');
+  upProgSet(100);
   return data;
 }
 
@@ -2543,25 +2639,35 @@ async function uploadViaServer(blob, fileName) {
   fd.append('orientation', state.orientation);
   fd.append('service', state.service || 'doc');
   fd.append('photoCount', state.photoCount || 0);
-  const res = await fetch('/api/upload', { method: 'POST', body: fd });
-  const data = await res.json();
+  const data = await xhrUpload('/api/upload', fd, function (pct) { upProgSet(pct * 0.95); });
   if (!data.success) throw new Error(data.error || 'Upload failed');
+  upProgSet(100);
   return data;
 }
 
 async function uploadAllPages() {
+  upProgShow(true);
   try {
+    // File banane me bhi waqt lagta hai (bade PDF me), isliye us hisse ka
+    // bhi thoda progress dikhao — warna bar 0% par atka lagta hai.
+    upProgSet(3);
     const { blob, fileName } = await buildOutputFile();
+    upProgSet(8);
+
     let data;
     try {
       data = await uploadDirect(blob, fileName);
     } catch (e) {
       console.warn('Direct upload fail, purane tarike se try kar rahe hain:', e.message);
+      const l = document.getElementById('upProgLabel');
+      if (l) l.textContent = '📤 Dusre raste se bhej rahe hain…';
       data = await uploadViaServer(blob, fileName);
     }
     state.jobId = data.jobId;
+    upProgDone();
     toast('✅ File ready!');
   } catch(e) {
+    upProgFail(e.message);
     toast('❌ Upload error: ' + e.message);
   }
 }
