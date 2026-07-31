@@ -1501,7 +1501,62 @@ html.legal-open,body.legal-open{overflow:hidden}
 }
 .lg-contact a:hover{transform:translateY(-2px)}
 .lg-foot{margin-top:26px;text-align:center;font-size:11.5px;color:#9aa0ab;line-height:1.9}
+
+/* ── About page ka neon rail ────────────────────────────────
+   Scroll ke saath ek neon line neeche tak "khinchti" hai.
+   Rang wahi hain jo poore site me hain (pink/orange/yellow/violet),
+   naya palette nahi. Sirf #aboutPage ke andar lagta hai, isliye
+   baaki legal pages par koi asar nahi.
+   Kaam kaise: path par stroke-dasharray=1 hai aur scroll progress
+   se stroke-dashoffset ghatate hain — line draw hoti dikhti hai. */
+#aboutPage .lg-wrap{position:relative}
+#aboutPage .rail-wrap{
+  position:absolute;top:0;left:-104px;width:60px;height:100%;
+  pointer-events:none;z-index:0;
+}
+#aboutPage .rail-svg{width:100%;height:100%;display:block;overflow:visible}
+#aboutPage .rail-track{
+  fill:none;stroke:#efe6d4;stroke-width:2;stroke-linecap:round;
+  vector-effect:non-scaling-stroke;
+}
+#aboutPage .rail-glow{
+  fill:none;stroke:url(#railGrad);stroke-width:9;stroke-linecap:round;
+  vector-effect:non-scaling-stroke;opacity:.32;filter:blur(7px);
+  stroke-dasharray:1;stroke-dashoffset:1;
+}
+#aboutPage .rail-core{
+  fill:none;stroke:url(#railGrad);stroke-width:2.6;stroke-linecap:round;
+  vector-effect:non-scaling-stroke;
+  stroke-dasharray:1;stroke-dashoffset:1;
+}
+#aboutPage .rail-head{
+  position:absolute;width:10px;height:10px;border-radius:50%;
+  background:#fff;transform:translate(-50%,-50%);
+  box-shadow:0 0 0 3px rgba(255,46,99,.5),
+             0 0 16px 4px rgba(255,107,53,.7),
+             0 0 32px 9px rgba(255,210,46,.4);
+  opacity:0;transition:opacity .35s var(--ease);z-index:2;
+}
+#aboutPage .lg-cover,#aboutPage .lg-lead,
+#aboutPage .lg-note,#aboutPage .lg-sec{position:relative;z-index:1}
+
+/* Chhoti screen par gutter hi nahi hota — line ko kinare par
+   patla karke laga dete hain, text ke upar nahi aata */
+@media (max-width:1080px){
+  #aboutPage .rail-wrap{left:-8px;width:26px;opacity:.6}
+  #aboutPage .rail-head{width:8px;height:8px}
+}
+@media (max-width:560px){
+  #aboutPage .rail-wrap{display:none}
+}
+/* Animation band ho to poori line dikha do, hilne-dulne ka kuch nahi */
+@media (prefers-reduced-motion:reduce){
+  #aboutPage .rail-glow,#aboutPage .rail-core{stroke-dashoffset:0}
+  #aboutPage .rail-head{display:none}
+}
+
 @media print{
+  #aboutPage .rail-wrap{display:none!important}
   .lg-top,.lg-contact a,.site-head,.nav-drop{display:none!important}
   .legal-page{position:static;opacity:1;visibility:visible;transform:none;overflow:visible}
   .lg-sec{break-inside:avoid;box-shadow:none;border-color:#ddd}
@@ -1583,6 +1638,7 @@ html.legal-open,body.legal-open{overflow:hidden}
       <a href="#pricingSection" class="nav-link" data-cfg="navPricing">Pricing</a>
       <a href="#faq" class="nav-link" data-cfg="navFaq">FAQ</a>
       <a href="#guide" class="nav-link nav-guide"><span class="gd-compass">🧭</span> <span data-cfg="navGuide">How to Setup</span></a>
+      <a href="#about" class="nav-link" data-cfg="navAbout">About</a>
       <a href="#disclaimer" class="nav-link" data-cfg="navDisclaimer">Disclaimer</a>
       <button type="button" class="nav-link nav-biz" onclick="openInq()" data-cfg="navBusiness">💼 Business Inquiry</button>
       <a href="/whitelabel" class="nav-link nav-wl"><span class="wl-tag">🏷️</span> <span data-cfg="navWl">White Label</span></a>
@@ -1598,6 +1654,7 @@ html.legal-open,body.legal-open{overflow:hidden}
     <a href="#pricingSection" class="nav-link" data-cfg="navPricingM">💰 Pricing</a>
     <a href="#faq" class="nav-link" data-cfg="navFaqM">❓ FAQ</a>
     <a href="#guide" class="nav-link nav-guide"><span class="gd-compass">🧭</span> <span data-cfg="navGuideM">How to Setup</span></a>
+    <a href="#about" class="nav-link" data-cfg="navAboutM">ℹ️ About</a>
     <a href="#disclaimer" class="nav-link" data-cfg="navDisclaimerM">📄 Disclaimer</a>
     <button type="button" class="nav-link nav-biz" onclick="openInq()" data-cfg="navBusinessM">💼 Business Inquiry</button>
     <a href="/whitelabel" class="nav-link nav-wl"><span class="wl-tag">🏷️</span> <span data-cfg="navWlM">White Label — Apne Brand Se Becho</span></a>
@@ -2310,6 +2367,109 @@ html.legal-open,body.legal-open{overflow:hidden}
       <a data-cfg="dc41" href="#refund" style="color:#6b7280;text-decoration:underline;">Refund Policy</a><br>
       © 2026 QR Se Print (qrseprint.in) · Cyber cafe aur print shop ke liye automatic print software · Made in Jharkhand, India
     </p>
+  </div>
+</div>
+
+<div class="legal-page" id="aboutPage" role="dialog" aria-modal="true" aria-labelledby="aboutPageT">
+  <div class="lg-top">
+    <div class="brand"><div data-cfg="ab01" class="brand-mark">🖨️</div> QR Se Print</div>
+    <a data-cfg="ab02" href="#" class="lg-back" onclick="closeLegal();return false;">← Back to Home</a>
+  </div>
+  <div class="lg-wrap">
+    <div class="rail-wrap" aria-hidden="true">
+      <svg class="rail-svg" viewBox="0 0 60 1200" preserveAspectRatio="none" focusable="false">
+        <defs>
+          <linearGradient id="railGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stop-color="#ff2e63"/>
+            <stop offset="34%"  stop-color="#ff6b35"/>
+            <stop offset="68%"  stop-color="#ffd22e"/>
+            <stop offset="100%" stop-color="#7c3aed"/>
+          </linearGradient>
+        </defs>
+        <path class="rail-track" d="M30 4C8 120 52 210 30 330C8 450 52 540 30 660C8 780 52 870 30 990C14 1080 40 1130 30 1196"/>
+        <path class="rail-glow"  pathLength="1" d="M30 4C8 120 52 210 30 330C8 450 52 540 30 660C8 780 52 870 30 990C14 1080 40 1130 30 1196"/>
+        <path class="rail-core"  pathLength="1" d="M30 4C8 120 52 210 30 330C8 450 52 540 30 660C8 780 52 870 30 990C14 1080 40 1130 30 1196"/>
+      </svg>
+      <span class="rail-head"></span>
+    </div>
+    <div class="lg-cover">
+      <span data-cfg="ab03" class="lg-eyebrow">✨ About</span>
+      <h1 data-cfg="ab04" class="lg-title" id="aboutPageT">About QR Se Print</h1>
+      <div data-cfg-html="ab05" class="lg-meta">
+        <span><b>Smart Printing. Made Simple.</b></span>
+        <span>Scan · Upload · Pay · Auto Print</span>
+      </div>
+    </div>
+
+    <div data-cfg-html="ab06" class="lg-lead"><strong>QR Se Print</strong> ek modern Smart Printing Platform hai jo Cyber Cafes, Print Shops, CSC Centers aur Digital Service Businesses ke liye specially design kiya gaya hai. Hamara mission simple hai — printing ko fast, automated aur hassle-free banana.</div>
+
+    <div data-cfg-html="ab07" class="lg-note"><b>Kaam kaise karta hai</b>Customer ko sirf QR scan karna hai, document upload karna hai, payment complete karni hai — aur print automatically start ho jata hai. Na pendrive ki zarurat, na WhatsApp par file bhejne ka jhanjhat, na manual file handling.</div>
+
+    <div class="lg-sec">
+      <h3 data-cfg="ab08" data-n="1">Hamara Mission</h3>
+      <p data-cfg="ab09">Hum believe karte hain ki technology ka asli purpose logon ka kaam easy banana hai. Isi soch ke saath QR Se Print develop kiya gaya hai, taaki har print shop bina expensive hardware ya complicated setup ke ek modern self-service printing experience de sake.</p>
+      <p data-cfg="ab10">Hamara goal sirf software dena nahi, balki har shop owner ko apna business aur professional, fast aur efficient banane me help karna hai.</p>
+    </div>
+
+    <div class="lg-sec">
+      <h3 data-cfg="ab11" data-n="2">QR Se Print kya offer karta hai</h3>
+      <ul>
+        <li data-cfg="ab12">QR based smart printing — Scan → Upload → Pay → Auto Print</li>
+        <li data-cfg="ab13">Har tarah ke printer ka support — WiFi printer ki zarurat nahi</li>
+        <li data-cfg="ab14">Aasan software installation</li>
+        <li data-cfg="ab15">Secure document processing</li>
+        <li data-cfg="ab16">Shop owner dashboard</li>
+        <li data-cfg="ab17">Black &amp; White aur Colour ke liye alag printer selection</li>
+        <li data-cfg="ab18">Order aur income management</li>
+        <li data-cfg="ab19">Fast performance</li>
+        <li data-cfg="ab20">Regular updates aur improvements</li>
+      </ul>
+    </div>
+
+    <div class="lg-sec">
+      <h3 data-cfg="ab21" data-n="3">Kis ke liye hai</h3>
+      <ul>
+        <li data-cfg="ab22">Cyber Cafes</li>
+        <li data-cfg="ab23">Print &amp; Xerox Shops</li>
+        <li data-cfg="ab24">CSC Centers</li>
+        <li data-cfg="ab25">Digital Service Centers</li>
+        <li data-cfg="ab26">Schools &amp; Colleges</li>
+        <li data-cfg="ab27">Coaching Institutes</li>
+        <li data-cfg="ab28">Libraries aur Offices</li>
+        <li data-cfg="ab29">Small &amp; Medium printing businesses</li>
+      </ul>
+    </div>
+
+    <div class="lg-sec">
+      <h3 data-cfg="ab30" data-n="4">Ye kahan se shuru hua</h3>
+      <p data-cfg="ab31">QR Se Print ki kahani kisi office ya startup se nahi, balki ek asli Cyber Cafe se shuru hui.</p>
+      <p data-cfg="ab32">Rupesh Kumar Mahato Jharkhand me apna Cyber Cafe chalate hain, jahan roz customers WhatsApp se documents bhejte the ya pendrive lekar aate the. File receive karna, download karna, payment lena aur manually print dena — ye poora process slow aur time-consuming tha. Peak hours me aur bhi mushkil ho jata tha.</p>
+      <p data-cfg="ab33">Isi problem ko solve karne ke liye unhone sabse pehle QR Se Print sirf apni hi shop ke liye banaya. Kai mahino tak daily use kiya, improve kiya, aur asli customer feedback ke basis par naye features add kiye.</p>
+      <p data-cfg="ab34">Jab system unki apni shop me achhe se chalne laga aur printing pehle se kaafi fast aur reliable ho gayi, tab laga ki ye doosre Cyber Cafes aur Print Shops ke bhi kaam aa sakta hai. Isi soch ke saath QR Se Print sabke liye launch kiya gaya.</p>
+      <p data-cfg="ab35">Isliye isme wahi features milte hain jo ek asli print shop ki roz ki zarurat dekh kar banaye gaye hain — sirf dikhane ke liye nahi.</p>
+    </div>
+
+    <div class="lg-sec">
+      <h3 data-cfg="ab36" data-n="5">Support seedha, bina kisi bicholiye ke</h3>
+      <p data-cfg="ab37">Setup ya software use karte waqt koi problem aaye to support kisi third-party team se nahi milta — seedha WhatsApp par personally diya jata hai, taaki har user bina confusion ke QR Se Print ka poora fayda le sake.</p>
+    </div>
+
+    <div class="lg-sec">
+      <h3 data-cfg="ab38" data-n="6">Hamara Vision</h3>
+      <p data-cfg="ab39">Hamara vision hai ki QR Se Print India ka sabse trusted Smart Printing Platform bane — jahan har print shop bina expensive infrastructure ke smart aur automated printing service de sake.</p>
+      <p data-cfg="ab40">Hum lagatar naye features, better security, faster performance aur reliable technology par kaam kar rahe hain, taaki har business confidently digital printing ka future apna sake.</p>
+    </div>
+
+    <div data-cfg-html="ab41" class="lg-note"><b>QR Se Print</b>Scan. Upload. Pay. Auto Print.<br>Making printing smarter, faster &amp; simpler.</div>
+
+    <div class="lg-sec" style="text-align:center;padding-top:8px;">
+      <p style="font-size:13px;color:#6b7280;">
+        <a data-cfg="ab42" href="#terms" style="color:#6b7280;text-decoration:underline;">Terms &amp; Conditions</a> ·
+        <a data-cfg="ab43" href="#privacy" style="color:#6b7280;text-decoration:underline;">Privacy Policy</a> ·
+        <a data-cfg="ab44" href="#refund" style="color:#6b7280;text-decoration:underline;">Refund Policy</a> ·
+        <a data-cfg="ab45" href="#disclaimer" style="color:#6b7280;text-decoration:underline;">Disclaimer</a>
+      </p>
+    </div>
   </div>
 </div>
 
@@ -3067,8 +3227,56 @@ function sendInq(via){
   }).catch(function(){});
 })();
 
+
+/* ── About page ka neon rail: scroll ke saath line draw hoti hai ──
+   .legal-page khud scroll container hai (position:fixed + overflow-y:auto),
+   isliye window par nahi, usi element par scroll sunte hain.
+   rAF se throttle kiya hai taaki scroll bhaari na lage. */
+(function(){
+  var page=document.getElementById('aboutPage');
+  if(!page) return;
+  var core=page.querySelector('.rail-core'),
+      glow=page.querySelector('.rail-glow'),
+      head=page.querySelector('.rail-head');
+  if(!core||!glow||!head) return;
+
+  var reduce=false;
+  try{ reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches; }catch(e){}
+  if(reduce){ core.style.strokeDashoffset='0'; glow.style.strokeDashoffset='0'; return; }
+
+  var len=0;
+  try{ len=core.getTotalLength(); }catch(e){}
+
+  var ticking=false;
+  function draw(){
+    ticking=false;
+    var max=page.scrollHeight-page.clientHeight;
+    var p=max>4?page.scrollTop/max:0;
+    if(p<0)p=0; if(p>1)p=1;
+    core.style.strokeDashoffset=String(1-p);
+    glow.style.strokeDashoffset=String(1-p);
+    if(len){
+      try{
+        var pt=core.getPointAtLength(p*len);
+        head.style.left=(pt.x/60*100)+'%';
+        head.style.top=(pt.y/1200*100)+'%';
+      }catch(e){}
+    }
+    head.style.opacity=(p>0.004&&p<0.996)?'1':'0';
+  }
+  function onScroll(){
+    if(ticking) return;
+    ticking=true;
+    (window.requestAnimationFrame||function(f){setTimeout(f,16);})(draw);
+  }
+  page.addEventListener('scroll',onScroll,{passive:true});
+  window.addEventListener('resize',onScroll);
+  window.addEventListener('hashchange',function(){ setTimeout(draw,60); });
+  setTimeout(draw,80);
+})();
+
 /* ── Legal pages (Disclaimer / Terms / Privacy / Refund) ── */
-var LEGAL_PAGES={disclaimer:'disclaimerPage',terms:'termsPage',privacy:'privacyPage',refund:'refundPage',guide:'setupGuidePage'};
+var LEGAL_PAGES={about:'aboutPage',disclaimer:'disclaimerPage',terms:'termsPage',privacy:'privacyPage',refund:'refundPage',guide:'setupGuidePage'};
 function openLegal(key){
   var id=LEGAL_PAGES[key];
   if(!id) return;
