@@ -29,6 +29,108 @@ const CLD_API_SECRET = process.env.CLOUDINARY_API_SECRET || '';
 // process ke chalte rehne tak valid — restart pe sab logged out ho jayenge).
 // Yeh hardcoded secret se kahin zyada safe hai.
 const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+
+// ═══════════════════════════════════════════════════════════════════
+//  SECURITY
+// ═══════════════════════════════════════════════════════════════════
+
+// ── PASSWORD ──
+// Pehle plain SHA-256 tha (bina salt). SHA-256 itna tez hai ki ek normal
+// GPU crore hash per second try karta hai — DB leak hone par 4-character
+// password minute bhar me khul jaata. Ab Node ka BUILT-IN scrypt use
+// karte hain: har password ka apna salt, aur jaan-bujh ke slow.
+// Koi naya npm package nahi chahiye (crypto Node me pehle se hai).
+const PASSWORD_MAX = 200;            // isse lamba password lena hi nahi
+const SCRYPT_PARAMS = { N: 16384, r: 8, p: 1 };   // ~16MB, ~100ms per hash
+
+function scryptDerive(password, salt) {
+  return new Promise((resolve, reject) => {
+    crypto.scrypt(String(password).slice(0, PASSWORD_MAX), salt, 32, SCRYPT_PARAMS,
+      (err, dk) => err ? reject(err) : resolve(dk));
+  });
+}
+
+// Format: scrypt$<salt-base64>$<hash-base64>  (~76 char, column 200 me fit)
+async function hashPassword(password) {
+  const salt = crypto.randomBytes(16);
+  const dk = await scryptDerive(password, salt);
+  return 'scrypt$' + salt.toString('base64') + '$' + dk.toString('base64');
+}
+
+// Length barabar na ho to timingSafeEqual throw karta hai — isliye wrapper
+function safeEq(a, b) {
+  const x = Buffer.from(String(a)), y = Buffer.from(String(b));
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+}
+
+// PURANE (sha256) aur NAYE (scrypt) dono hash chalte hain — isi wajah se
+// migration me kisi ka login nahi tootega.
+async function verifyPassword(password, stored) {
+  try {
+    if (!stored) return false;
+    const s = String(stored);
+    if (s.startsWith('scrypt$')) {
+      const parts = s.split('$');
+      if (parts.length !== 3) return false;
+      const dk = await scryptDerive(password, Buffer.from(parts[1], 'base64'));
+      return safeEq(dk.toString('base64'), parts[2]);
+    }
+    // Legacy: 64-char hex sha256
+    const legacy = crypto.createHash('sha256')
+      .update(String(password).slice(0, PASSWORD_MAX)).digest('hex');
+    return safeEq(legacy, s);
+  } catch (e) { return false; }
+}
+
+function isLegacyHash(stored) {
+  return !!stored && !String(stored).startsWith('scrypt$');
+}
+
+// Login sahi hua aur hash abhi purana hai — chupchaap scrypt me badal do.
+// User ko kuch pata nahi chalta; dheere-dheere sab migrate ho jaate hain.
+async function upgradeHashIfLegacy(table, idCol, idVal, storedHash, plainPassword) {
+  try {
+    if (!isLegacyHash(storedHash)) return;
+    const fresh = await hashPassword(plainPassword);
+    await pool.query(`UPDATE ${table} SET password_hash=$1 WHERE ${idCol}=$2`, [fresh, idVal]);
+    console.log(`Password hash upgraded to scrypt: ${table}/${idVal}`);
+  } catch (e) { console.error('hash upgrade fail:', e.message); }
+}
+
+// ── LOGIN RATE LIMIT ──
+// Bina iske koi bhi ek Shop ID par unlimited password try kar sakta hai.
+// In-memory hai (Render par ek hi instance chalta hai) — koi package nahi.
+const loginHits = new Map();
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX = 8;
+
+setInterval(() => {                    // purane entries hata do (memory leak na ho)
+  const now = Date.now();
+  for (const [k, v] of loginHits) if (now > v.resetAt) loginHits.delete(k);
+}, 5 * 60 * 1000).unref();
+
+function loginLimiter(req, res, next) {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+          || req.socket.remoteAddress || 'unknown';
+  const key = ip + '|' + String(req.body?.shopId || req.body?.slug || req.body?.username || '').toLowerCase();
+  const now = Date.now();
+  let e = loginHits.get(key);
+  if (!e || now > e.resetAt) { e = { count: 0, resetAt: now + LOGIN_WINDOW_MS }; loginHits.set(key, e); }
+  e.count++;
+  if (e.count > LOGIN_MAX) {
+    const mins = Math.ceil((e.resetAt - now) / 60000);
+    return res.status(429).json({ error: `Bahut zyada galat koshish. ${mins} minute baad try karo.` });
+  }
+  next();
+}
+
+// Login sahi ho gaya to counter reset — asli user ko dikkat na ho
+function clearLoginHits(req) {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+          || req.socket.remoteAddress || 'unknown';
+  loginHits.delete(ip + '|' + String(req.body?.shopId || req.body?.slug || req.body?.username || '').toLowerCase());
+}
+
 if (!process.env.JWT_SECRET) {
   console.warn('⚠️  JWT_SECRET environment variable set nahi hai! Random secret generate kiya gaya — Render restart hone par sab logged out ho jayenge. Render mein JWT_SECRET add karo.');
 }
@@ -59,8 +161,22 @@ const pool = new Pool({
 app.use(cors());
 // verify: raw body stash — Razorpay webhook ka signature RAW body par
 // HMAC hota hai, parsed JSON par nahi
-app.use(express.json({ limit: '50mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+// Security headers — helmet package ki zaroorat nahi, ye headers hi kaafi hain
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  if (req.headers['x-forwarded-proto'] === 'https')
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  next();
+});
+
+// JSON body 50mb -> 2mb. File upload MULTER se hota hai (uski apni 50mb limit
+// alag hai) — isliye upload par koi asar nahi. Pehle koi bhi 50mb ka JSON
+// baar-baar bhej ke Render ki 512MB RAM bhar sakta tha.
+app.use(express.json({ limit: '2mb', verify: (req, res, buf) => { req.rawBody = buf; } }));
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 // HTML pages HAMESHA fresh — bina iske phone Chrome purani HTML ghanton
 // tak cache se dikhata hai (har push ke baad "fix nahi hua" ka asli karan).
 // Sirf pages (extension-less routes + .html) — images/assets cache rehte hain.
@@ -566,6 +682,9 @@ async function initDB() {
         created_at TIMESTAMP DEFAULT NOW()
       );
       ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS wl VARCHAR(40) DEFAULT '';
+      -- 'ref' me agent ka referral code jaata hai. Visitor kahan se aaya
+      -- (google/facebook/instagram) uske liye alag column chahiye.
+      ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS referrer VARCHAR(160) DEFAULT '';
       CREATE INDEX IF NOT EXISTS idx_analytics_wl ON analytics_events(wl);
       CREATE INDEX IF NOT EXISTS idx_analytics_created ON analytics_events(created_at);
       CREATE INDEX IF NOT EXISTS idx_analytics_type ON analytics_events(event_type);
@@ -646,7 +765,7 @@ async function initDB() {
     const brokenDemos = await pool.query(
       "SELECT id, phone FROM shops WHERE demo=true AND password_hash LIKE '$2%'");
     for (const d of brokenDemos.rows) {
-      const h = crypto.createHash('sha256').update(d.phone || '').digest('hex');
+      const h = await hashPassword(d.phone || '');
       await pool.query('UPDATE shops SET password_hash=$1 WHERE id=$2', [h, d.id]);
       console.log('🔧 Demo login repaired:', d.id);
     }
@@ -1001,7 +1120,7 @@ app.post('/api/agent/onboard', verifyToken, async (req, res) => {
     if (password.length < 4) {
       password = Math.random().toString(36).slice(-4).toUpperCase() + Math.floor(1000 + Math.random()*9000);
     }
-    const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
+    const passwordHash = await hashPassword(password);
 
     await pool.query(
       `INSERT INTO shops (id,name,address,phone,printer_model,price_bw,price_color,payment_mode,
@@ -1135,7 +1254,7 @@ app.post('/api/superadmin/shop/:shopId/unlock-advanced', verifySuperAdmin, async
 app.post('/api/superadmin/shop/:shopId/reset-password', verifySuperAdmin, async (req, res) => {
   try {
     const temp = 'QSP' + crypto.randomBytes(3).toString('hex');
-    const h = crypto.createHash('sha256').update(temp).digest('hex');
+    const h = await hashPassword(temp);
     const r = await pool.query('UPDATE shops SET password_hash=$1 WHERE id=$2 RETURNING id', [h, req.params.shopId]);
     if (!r.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
     console.log(`Password reset by superadmin: ${req.params.shopId}`);
@@ -1372,7 +1491,7 @@ app.post('/api/demo/create', async (req, res) => {
       return res.status(429).json({ error: 'Aaj ke liye demo limit ho gayi — kal try karo ya abhi register karo' });
 
     const shopId = 'DEMO_' + crypto.randomBytes(4).toString('hex').toUpperCase();
-    const passwordHash = crypto.createHash('sha256').update(phone).digest('hex');
+    const passwordHash = await hashPassword(phone);
     await pool.query(
       `INSERT INTO shops (id, name, phone, price_bw, price_color, payment_mode, password_hash,
                           setup_paid, setup_amount, demo, demo_expires_at)
@@ -1622,7 +1741,23 @@ async function priceForRef(ref) {
 // ══════════════════════════════════════════════════════════════
 // ANALYTICS — homepage funnel tracking (first-party, no external service)
 // ══════════════════════════════════════════════════════════════
-const ANALYTICS_EVENTS = ['pageview', 'demo_click', 'register_click', 'inquiry_click', 'guide_click', 'agent_click'];
+const ANALYTICS_EVENTS = [
+  'pageview', 'demo_click', 'register_click', 'inquiry_click',
+  'guide_click', 'agent_click',
+  'pay_click',    // register form me "Pay & Activate" dabaya
+  'demo_login'    // demo shop ne dashboard me login kiya
+];
+
+// Referrer se pata karo visitor kahan se aaya. Sirf hostname rakhte hain —
+// poora URL nahi, taaki kisi ka private page path store na ho.
+function refHostname(raw) {
+  try {
+    const v = String(raw || '').trim();
+    if (!v) return '';
+    const u = new URL(v.includes('://') ? v : 'https://' + v);
+    return u.hostname.replace(/^www\./, '').slice(0, 160);
+  } catch (e) { return ''; }
+}
 
 // Public, halka beacon — koi auth nahi (anonymous pageview/click hi hai).
 // Kabhi bhi page ko block/error nahi karta, client se fire-and-forget.
@@ -1632,15 +1767,16 @@ app.post('/api/track', async (req, res) => {
     const eventType = String(b.event_type || '').slice(0, 40);
     if (!ANALYTICS_EVENTS.includes(eventType)) return res.status(400).json({ error: 'invalid event' });
     await pool.query(
-      `INSERT INTO analytics_events (event_type, path, ref, utm_source, visitor_id, wl)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
+      `INSERT INTO analytics_events (event_type, path, ref, utm_source, visitor_id, wl, referrer)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)`,
       [
         eventType,
         String(b.path || '').slice(0, 200),
         String(b.ref || '').slice(0, 100),
         String(b.utm_source || '').slice(0, 100),
         String(b.visitor_id || '').slice(0, 64),
-        cleanSlug(b.wl || '')
+        cleanSlug(b.wl || ''),
+        refHostname(b.referrer)
       ]
     );
     res.json({ success: true });
@@ -1678,7 +1814,76 @@ app.get('/api/superadmin/analytics', verifySuperAdmin, async (req, res) => {
        WHERE event_type='pageview' AND created_at > NOW() - ($1 || ' days')::interval
        GROUP BY source ORDER BY cnt DESC LIMIT 10`, [days]);
 
-    res.json({ daily: daily.rows, shopsDaily: shopsDaily.rows, totals: totals.rows, bySource: bySource.rows, days });
+    // Visitor kahan se aaya — utm_source ho to wahi, warna referrer ke
+    // hostname se pehchano. Ek hi visitor ko ek hi baar gino (DISTINCT).
+    const sourceSql = `
+      CASE
+        WHEN utm_source <> '' THEN LOWER(utm_source)
+        WHEN referrer ILIKE '%google.%'    THEN 'google'
+        WHEN referrer ILIKE '%bing.%' OR referrer ILIKE '%duckduckgo%'
+          OR referrer ILIKE '%yahoo.%'     THEN 'other-search'
+        WHEN referrer ILIKE '%facebook%' OR referrer ILIKE '%fb.%'
+          OR referrer ILIKE '%fb.watch%'   THEN 'facebook'
+        WHEN referrer ILIKE '%instagram%'  THEN 'instagram'
+        WHEN referrer ILIKE '%whatsapp%'   THEN 'whatsapp'
+        WHEN referrer ILIKE '%youtube%' OR referrer ILIKE '%youtu.be%' THEN 'youtube'
+        WHEN referrer ILIKE '%t.me%' OR referrer ILIKE '%telegram%'    THEN 'telegram'
+        WHEN referrer ILIKE '%linkedin%'   THEN 'linkedin'
+        WHEN referrer ILIKE '%twitter%' OR referrer ILIKE '%x.com%'    THEN 'twitter'
+        WHEN referrer = ''                 THEN 'direct'
+        ELSE 'other'
+      END`;
+
+    const sources = await pool.query(
+      `SELECT ${sourceSql} AS source,
+              COUNT(*)::int AS views,
+              COUNT(DISTINCT NULLIF(visitor_id,''))::int AS visitors
+       FROM analytics_events
+       WHERE event_type='pageview' AND created_at > NOW() - ($1 || ' days')::interval
+       GROUP BY 1 ORDER BY visitors DESC, views DESC`, [days]);
+
+    // Kaunsa source sabse zyada asli grahak laata hai — sirf traffic nahi,
+    // demo aur pay tak kaun pahunchta hai wo bhi.
+    const sourceQuality = await pool.query(
+      `SELECT ${sourceSql} AS source,
+              COUNT(DISTINCT NULLIF(visitor_id,'')) FILTER (WHERE event_type='pageview')::int   AS visitors,
+              COUNT(DISTINCT NULLIF(visitor_id,'')) FILTER (WHERE event_type='demo_click')::int AS demo_clicks,
+              COUNT(DISTINCT NULLIF(visitor_id,'')) FILTER (WHERE event_type='pay_click')::int  AS pay_clicks
+       FROM analytics_events
+       WHERE created_at > NOW() - ($1 || ' days')::interval
+       GROUP BY 1 ORDER BY visitors DESC`, [days]);
+
+    // Paise ka funnel — ye analytics_events se nahi, shops table ke asli data se
+    const payments = await pool.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE demo=false)::int                                  AS registered,
+         COUNT(*) FILTER (WHERE demo=false AND setup_paid=true)::int              AS paid,
+         COUNT(*) FILTER (WHERE demo=false AND setup_paid=false)::int             AS pending,
+         COALESCE(SUM(setup_amount) FILTER (WHERE demo=false AND setup_paid=true),0)::int AS revenue
+       FROM shops
+       WHERE created_at > NOW() - ($1 || ' days')::interval`, [days]);
+
+    // Shops ki abhi ki halat — ye poore time ka hai, sirf range ka nahi
+    const shopStats = await pool.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE demo=false AND setup_paid=true)::int   AS active,
+         COUNT(*) FILTER (WHERE demo=false AND setup_paid=false)::int  AS unpaid,
+         COUNT(*) FILTER (WHERE demo=true AND (demo_expires_at IS NULL OR demo_expires_at > NOW()))::int AS demo_live,
+         COUNT(*) FILTER (WHERE demo=true AND demo_expires_at IS NOT NULL AND demo_expires_at <= NOW())::int AS demo_expired,
+         COUNT(*)::int AS total
+       FROM shops`);
+
+    res.json({
+      daily: daily.rows,
+      shopsDaily: shopsDaily.rows,
+      totals: totals.rows,
+      bySource: bySource.rows,
+      sources: sources.rows,
+      sourceQuality: sourceQuality.rows,
+      payments: payments.rows[0] || {},
+      shopStats: shopStats.rows[0] || {},
+      days
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1769,7 +1974,7 @@ app.post('/api/whitelabel/register', async (req, res) => {
         powered_by, support_email, support_phone, license_fee, base_price, shop_price)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$12)`,
       [wlId, slug, brand, owner, phone, email,
-       crypto.createHash('sha256').update(tempPass).digest('hex'),
+       await hashPassword(tempPass),
        brand, email, phone, fee, base]);
 
     res.json({ success: true, wlId, slug, licenseFee: fee });
@@ -1827,7 +2032,7 @@ app.post('/api/whitelabel/license/verify', async (req, res) => {
     const password = Math.random().toString(36).slice(-4).toUpperCase() + Math.floor(1000 + Math.random() * 9000);
     await pool.query(
       `UPDATE whitelabels SET paid=true, paid_at=NOW(), password_hash=$2 WHERE id=$1`,
-      [wlId, crypto.createHash('sha256').update(password).digest('hex')]);
+      [wlId, await hashPassword(password)]);
 
     console.log(`White label activated: ${wlId} (${r.rows[0].slug})`);
     res.json({ success: true, wlId, slug: r.rows[0].slug, password,
@@ -1839,18 +2044,21 @@ app.post('/api/whitelabel/license/verify', async (req, res) => {
 });
 
 // Reseller login
-app.post('/api/whitelabel/login', async (req, res) => {
+app.post('/api/whitelabel/login', loginLimiter, async (req, res) => {
   try {
     const wlId = String(req.body.wlId || '').trim().toUpperCase();
     const password = String(req.body.password || '');
     const r = await pool.query('SELECT id, brand_name, paid, blocked, password_hash FROM whitelabels WHERE id=$1', [wlId]);
     if (!r.rows.length) return res.status(401).json({ error: 'ID ya password galat hai' });
     const wl = r.rows[0];
-    if (crypto.createHash('sha256').update(password).digest('hex') !== wl.password_hash) {
+    if (!(await verifyPassword(password, wl.password_hash))) {
       return res.status(401).json({ error: 'ID ya password galat hai' });
     }
     if (!wl.paid) return res.status(403).json({ error: 'License payment abhi complete nahi hua' });
     if (wl.blocked) return res.status(403).json({ error: 'Aapka account abhi paused hai. Admin se baat kariye.' });
+
+    clearLoginHits(req);
+    await upgradeHashIfLegacy('whitelabels', 'id', wl.id, wl.password_hash, password);
 
     const token = jwt.sign({ wlId: wl.id }, JWT_SECRET, { expiresIn: '24h' });
     res.json({ success: true, token, brandName: wl.brand_name });
@@ -2045,7 +2253,7 @@ app.put('/api/whitelabel/password', verifyWhitelabel, async (req, res) => {
 
     const r = await pool.query('SELECT password_hash FROM whitelabels WHERE id=$1', [req.wlId]);
     if (!r.rows.length) return res.status(404).json({ error: 'Account nahi mila' });
-    if (crypto.createHash('sha256').update(oldPass).digest('hex') !== r.rows[0].password_hash) {
+    if (!(await verifyPassword(oldPass, r.rows[0].password_hash))) {
       return res.status(401).json({ error: 'Purana password galat hai' });
     }
     await pool.query('UPDATE whitelabels SET password_hash=$2 WHERE id=$1',
@@ -2090,7 +2298,7 @@ app.post('/api/whitelabel/onboard', verifyWhitelabel, async (req, res) => {
       [shopId, name, address, phone, printerModel,
        Number.isInteger(priceBw) && priceBw > 0 ? priceBw : 5,
        Number.isInteger(priceColor) && priceColor > 0 ? priceColor : 10,
-       crypto.createHash('sha256').update(password).digest('hex'),
+       await hashPassword(password),
        sold, wlBase, req.wlId]);
 
     res.json({ success: true, shopId, password, amount: sold,
@@ -2108,7 +2316,7 @@ app.post('/api/whitelabel/shop/:shopId/reset-password', verifyWhitelabel, async 
     if (chk.err) return res.status(403).json({ error: chk.err });
     const temp = 'QSP' + crypto.randomBytes(3).toString('hex');
     await pool.query('UPDATE shops SET password_hash=$1 WHERE id=$2',
-      [crypto.createHash('sha256').update(temp).digest('hex'), req.params.shopId]);
+      [await hashPassword(temp), req.params.shopId]);
     console.log(`WL ${req.wlId} reset password for ${req.params.shopId}`);
     res.json({ success: true, tempPassword: temp });
   } catch(err) { res.status(500).json({ error: err.message }); }
@@ -2823,6 +3031,7 @@ app.post('/api/shop/register', async (req, res) => {
 
     if (!name || !name.trim()) return res.status(400).json({ error: 'Shop ka naam zaroori hai' });
     if (!password || password.length < 4) return res.status(400).json({ error: 'Password kam se kam 4 character ka hona chahiye' });
+    if (password.length > PASSWORD_MAX) return res.status(400).json({ error: 'Password bahut lamba hai' });
 
     // Email ab ZAROORI hai — payment confirmation isi par jaati hai
     const finalEmail = String(email || '').trim().toLowerCase();
@@ -2845,7 +3054,7 @@ app.post('/api/shop/register', async (req, res) => {
     }
 
     const shopId = 'SHOP_' + uuidv4().substring(0,8).toUpperCase();
-    const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
+    const passwordHash = await hashPassword(password);
     const currentSetupFee = await getSetupFeeAmount();
     // Plan: 'onetime' (default) ya 'monthly' (₹99/mahina — pehli payment se 30 din)
     const plan = req.body.plan === 'monthly' ? 'monthly' : 'onetime';
@@ -3277,7 +3486,7 @@ app.post('/api/admin/renew/verify', verifyToken, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/shop/login', async (req, res) => {
+app.post('/api/shop/login', loginLimiter, async (req, res) => {
   try {
     const { shopId, password } = req.body;
     if (!shopId || !password) return res.status(400).json({ error: 'Shop ID aur Password dono chahiye' });
@@ -3286,14 +3495,18 @@ app.post('/api/shop/login', async (req, res) => {
     if (!r.rows.length) return res.status(404).json({ error: 'Shop ID nahi mila' });
 
     const shop = r.rows[0];
-    const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
+
 
     if (!shop.password_hash) {
       return res.status(401).json({ error: 'Is shop ka password set nahi hai. Pehle Set Password karo.' });
     }
-    if (shop.password_hash !== passwordHash) {
+    if (!(await verifyPassword(password, shop.password_hash))) {
       return res.status(401).json({ error: 'Password galat hai' });
     }
+
+    clearLoginHits(req);
+    // Purana sha256 hash hai to abhi scrypt me badal do — user ko pata nahi chalega
+    await upgradeHashIfLegacy('shops', 'id', shop.id, shop.password_hash, password);
 
     const token = jwt.sign({ shopId: shop.id }, JWT_SECRET, { expiresIn: '24h' });
     delete shop.password_hash;
@@ -3328,7 +3541,7 @@ app.post('/api/shop/set-password', async (req, res) => {
     if (normPhone(phone) !== normPhone(r.rows[0].phone)) {
       return res.status(403).json({ error: 'Mobile number match nahi hua — wahi number daalo jo registration me diya tha' });
     }
-    const passwordHash = crypto.createHash('sha256').update(newPassword).digest('hex');
+    const passwordHash = await hashPassword(newPassword);
     await pool.query('UPDATE shops SET password_hash=$1 WHERE id=$2', [passwordHash, shopId.trim().toUpperCase()]);
     res.json({ success: true });
   } catch(err) { res.status(500).json({ error: err.message }); }
@@ -3531,12 +3744,12 @@ app.put('/api/admin/change-password', verifyToken, async (req, res) => {
     const r = await pool.query('SELECT password_hash FROM shops WHERE id=$1', [req.shopId]);
     if (!r.rows.length) return res.status(404).json({ error: 'Shop not found' });
 
-    const currentHash = crypto.createHash('sha256').update(currentPassword || '').digest('hex');
-    if (r.rows[0].password_hash !== currentHash) {
+
+    if (!(await verifyPassword(currentPassword || '', r.rows[0].password_hash))) {
       return res.status(401).json({ error: 'Current password galat hai' });
     }
 
-    const newHash = crypto.createHash('sha256').update(newPassword).digest('hex');
+    const newHash = await hashPassword(newPassword);
     await pool.query('UPDATE shops SET password_hash=$1 WHERE id=$2', [newHash, req.shopId]);
     res.json({ success: true });
   } catch(err) { res.status(500).json({ error: err.message }); }
@@ -4039,6 +4252,13 @@ app.post('/api/payment/cashfree/webhook', async (req, res) => {
     if (!jr.rows.length) return res.json({ success: true });
     const job = jr.rows[0];
 
+    // Replay guard: 5 minute se purana webhook nahi lenge
+    const wts = parseInt(req.headers['x-webhook-timestamp'], 10);
+    if (!wts || Math.abs(Date.now() / 1000 - wts) > 300) {
+      console.warn('Cashfree webhook: timestamp purana/galat |', orderId);
+      return res.status(401).json({ error: 'stale timestamp' });
+    }
+
     const sigOk = verifyCashfreeWebhook(
       job.cashfree_secret_key,
       req.headers['x-webhook-timestamp'],
@@ -4524,7 +4744,7 @@ function verifySuperAdmin(req, res, next) {
   }
 }
 
-app.post('/api/superadmin/login', async (req, res) => {
+app.post('/api/superadmin/login', loginLimiter, async (req, res) => {
   try {
     if (!SUPER_ADMIN_ID || !SUPER_ADMIN_PASSWORD) {
       return res.status(500).json({ error: 'Super Admin abhi configure nahi hua hai. Render environment variables check karo.' });
