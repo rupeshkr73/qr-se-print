@@ -1382,6 +1382,80 @@ html{scroll-behavior:smooth}
 /* Reviews ab ek saath sab nahi — carousel me. Pehle jitne review hote
    the sab neeche tak fail jaate the. Ab ek line me chalte hain, dono
    taraf arrow, aur phone par swipe se bhi. */
+/* Feature teaser — homepage halka rakhne ke liye. Poori list
+   ab alag Feature page me hai. */
+/* Contact page ke 3 card */
+/* Feature page ke andar homepage wale section — thoda spacing chahiye
+   kyunki ab ye page ke andar hain, homepage par nahi */
+.fp-block{margin:26px 0}
+.fp-block .sec-title{font-size:clamp(19px,4vw,26px);margin-bottom:6px}
+.fp-block .sec-sub{margin-bottom:16px}
+
+.ct-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin:18px 0 6px}
+.ct-card{
+  display:flex;flex-direction:column;gap:3px;text-decoration:none;color:inherit;
+  background:var(--card);border:1.5px solid var(--line);border-radius:16px;
+  padding:15px 16px;transition:all .25s var(--ease);box-shadow:var(--shadow-sm);
+}
+.ct-card:hover{transform:translateY(-3px);border-color:#ffd9a3;box-shadow:0 14px 30px rgba(255,107,53,.14)}
+.ct-ico{font-size:22px;line-height:1}
+.ct-card b{font-size:14px;margin-top:5px}
+.ct-val{font-size:13px;font-weight:700;color:#ff6b35;word-break:break-all}
+.ct-hint{font-size:11.5px;color:#9b9690;line-height:1.5}
+.ct-form{display:grid;gap:9px;max-width:520px}
+.ct-form input,.ct-form textarea{
+  width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:11px;
+  font-size:13.5px;font-family:inherit;background:var(--card);
+}
+.ct-form textarea{resize:vertical}
+.ct-btns{display:flex;gap:9px;flex-wrap:wrap;margin-top:3px}
+.ct-send{
+  border:1.8px solid #ffd9a3;background:var(--card);color:#ff6b35;
+  padding:10px 18px;border-radius:999px;font-size:13px;font-weight:800;
+  cursor:pointer;transition:all .25s var(--ease);font-family:inherit;
+}
+.ct-send:hover{background:#fff4e8;transform:translateY(-2px)}
+.ct-send.wa{background:#25d366;border-color:#25d366;color:#fff}
+.ct-send.wa:hover{filter:brightness(1.06)}
+
+/* Partner page ke 3 card */
+.pt-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin:18px 0 6px}
+.pt-card{
+  background:var(--card);border:1.5px solid var(--line);border-radius:18px;
+  padding:18px;display:flex;flex-direction:column;gap:7px;box-shadow:var(--shadow-sm);
+  transition:all .25s var(--ease);
+}
+.pt-card:hover{transform:translateY(-4px);box-shadow:0 18px 38px rgba(17,17,20,.1)}
+.pt-ico{font-size:26px;line-height:1}
+.pt-card b{font-size:15.5px;letter-spacing:-.2px}
+.pt-card p{font-size:13px;color:#4b5563;line-height:1.7;margin:0;flex:1}
+.pt-btn{
+  display:inline-block;text-align:center;text-decoration:none;margin-top:4px;
+  padding:10px 16px;border-radius:999px;font-size:12.5px;font-weight:800;
+  border:1.8px solid #ffd9a3;color:#ff6b35;transition:all .25s var(--ease);
+}
+.pt-btn:hover{background:#fff4e8}
+.pt-btn.dark{background:var(--ink);border-color:var(--ink);color:#fff}
+.pt-btn.dark:hover{filter:brightness(1.25)}
+.pt-btn.light{background:var(--tint);border-color:#f0e2ba;color:#6b5518}
+
+.feat-teaser{
+  background:var(--card);border:1.5px solid var(--line);border-radius:20px;
+  padding:20px 18px;text-align:center;box-shadow:var(--shadow-sm);
+}
+.ft-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:16px}
+.ft-chips span{
+  font-size:12.5px;font-weight:700;padding:7px 13px;border-radius:999px;
+  background:var(--tint);border:1.5px solid #f0e2ba;color:#6b5518;
+}
+.ft-more{
+  display:inline-block;font-size:13.5px;font-weight:800;color:#ff6b35;
+  text-decoration:none;padding:9px 18px;border-radius:999px;
+  border:1.8px solid #ffd9a3;transition:all .25s var(--ease);
+}
+.ft-more:hover{background:#fff4e8;transform:translateY(-2px)}
+@media (max-width:560px){ .ft-chips span{font-size:11.5px;padding:6px 11px} }
+
 .rv-carousel{display:flex;align-items:center;gap:10px}
 .rv-viewport{
   flex:1;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;
@@ -1779,15 +1853,14 @@ html.legal-open,body.legal-open{overflow:hidden}
       <div class="perf" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
     </div>
     <nav class="main-nav" aria-label="Main">
-      <a href="#features" class="nav-link" data-cfg="navFeatures">Features</a>
+      <a href="#top" class="nav-link" data-cfg="navHome">Home</a>
       <a href="#pricingSection" class="nav-link" data-cfg="navPricing">Pricing</a>
-      <a href="#faq" class="nav-link" data-cfg="navFaq">FAQ</a>
-      <a href="#guide" class="nav-link nav-guide"><span class="gd-compass">🧭</span> <span data-cfg="navGuide">How to Setup</span></a>
+      <a href="#guide" class="nav-link nav-guide"><span class="gd-compass"></span> <span data-cfg="navGuide">How to Setup</span></a>
+      <a href="#feature" class="nav-link" data-cfg="navFeatures">Feature</a>
       <a href="#about" class="nav-link" data-cfg="navAbout">About</a>
-      <a href="#disclaimer" class="nav-link" data-cfg="navDisclaimer">Disclaimer</a>
-      <button type="button" class="nav-link nav-biz" onclick="openInq()" data-cfg="navBusiness">💼 Business Inquiry</button>
-      <a href="/whitelabel" class="nav-link nav-wl"><span class="wl-tag">🏷️</span> <span data-cfg="navWl">White Label</span></a>
-      <a href="/agent" class="nav-link nav-agent"><span class="hs">🤝</span> <span data-cfg="navAgent">Agent</span></a>
+      <a href="#contact" class="nav-link" data-cfg="navContact">Contact Us</a>
+      <a href="#partner" class="nav-link nav-wl"><span class="wl-tag">🤝</span> <span data-cfg="navPartner">Partner Program</span></a>
+      <a href="#disclaimer" class="nav-link" data-cfg="navDisclaimer">Declaration</a>
     </nav>
     <div class="head-right">
       <a data-cfg-html="nav01" href="/admin" class="login-pill">🔑 <span data-cfg="navLogin">Shop Owner Login</span></a>
@@ -1795,21 +1868,21 @@ html.legal-open,body.legal-open{overflow:hidden}
     </div>
   </div>
   <div class="nav-drop" id="navDrop">
-    <a href="#features" class="nav-link" data-cfg="navFeaturesM">✨ Features</a>
+    <a href="#top" class="nav-link" data-cfg="navHomeM">🏠 Home</a>
     <a href="#pricingSection" class="nav-link" data-cfg="navPricingM">💰 Pricing</a>
-    <a href="#faq" class="nav-link" data-cfg="navFaqM">❓ FAQ</a>
-    <a href="#guide" class="nav-link nav-guide"><span class="gd-compass">🧭</span> <span data-cfg="navGuideM">How to Setup</span></a>
+    <a href="#guide" class="nav-link nav-guide"><span class="gd-compass"></span> <span data-cfg="navGuideM">How to Setup</span></a>
+    <a href="#feature" class="nav-link" data-cfg="navFeaturesM">🎁 Feature</a>
     <a href="#about" class="nav-link" data-cfg="navAboutM">ℹ️ About</a>
-    <a href="#disclaimer" class="nav-link" data-cfg="navDisclaimerM">📄 Disclaimer</a>
-    <button type="button" class="nav-link nav-biz" onclick="openInq()" data-cfg="navBusinessM">💼 Business Inquiry</button>
-    <a href="/whitelabel" class="nav-link nav-wl"><span class="wl-tag">🏷️</span> <span data-cfg="navWlM">White Label — Apne Brand Se Becho</span></a>
-    <a href="/agent" class="nav-link nav-agent"><span class="hs">🤝</span> <span data-cfg="navAgentM">Become an Agent</span></a>
+    <a href="#contact" class="nav-link" data-cfg="navContactM">💬 Contact Us</a>
+    <a href="#partner" class="nav-link nav-wl"><span class="wl-tag">🤝</span> <span data-cfg="navPartnerM">Partner Program</span></a>
+    <a href="#disclaimer" class="nav-link" data-cfg="navDisclaimerM">📄 Declaration</a>
   </div>
 </header>
 
 <main>
 
   <!-- ═══ HERO: desktop 2-column ═══ -->
+  <span id="top" aria-hidden="true"></span>
   <section class="hero">
     <div class="container hero-grid">
 
@@ -1935,131 +2008,39 @@ html.legal-open,body.legal-open{overflow:hidden}
   </section>
 
   <!-- ═══ PAIN ═══ -->
-  <section class="sec container">
-    <h2 class="sec-title reveal" data-cfg="painHeading">😤 Abhi Aapki Dukaan Me Kya Hota Hai?</h2>
-    <div data-cfg="painx01" class="sec-sub reveal">Har cyber cafe / print shop wale ka roz ka dard</div>
-    <div class="pain-grid stagger">
-      <div class="pain-card"><div class="pmini mini-wa" aria-hidden="true">
-          <div data-cfg-html="painx02" class="wa-ph">
-            <span class="wa-bub b1"><i></i><i></i><i></i></span>
-            <span class="wa-bub b2">📄</span>
-            <span class="wa-bub b3">📄</span>
-            <span class="wa-badge">3</span>
-          </div>
-        </div><b data-cfg="pain1Title">WhatsApp pe file mangna</b>
-        <p data-cfg-html="pain1Text">Apna personal number har customer ko dena padta hai. Chat me files kho jaati hain, "bhaiya wo wali file" dhundhte raho.</p></div>
-      <div class="pain-card"><div class="pmini mini-usb" aria-hidden="true">
-          <div class="usb"></div>
-          <span data-cfg="painx03" class="bug">🦠</span>
-          <span data-cfg="painx04" class="warn">⚠️</span>
-        </div><b data-cfg="pain2Title">Pendrive ka virus</b>
-        <p data-cfg-html="pain2Text">Customer ka pendrive lagao = virus ka khatra. PC slow, files corrupt, kabhi-kabhi poora system hi baith jata hai.</p></div>
-      <div class="pain-card"><div class="pmini mini-cash" aria-hidden="true">
-          <div class="ledger"><i></i><i></i><i></i></div>
-          <div data-cfg-html="painx05" class="cash-flip"><span class="cash-rs">₹</span><span class="cash-qm">?</span></div>
-        </div><b data-cfg="pain3Title">Hisaab ki tension</b>
-        <p data-cfg-html="pain3Text">Kaun paid kar gaya, kaun baaki hai — copy pe likho, bhool jao, jhagda karo. Mahine ke end me hisaab milta hi nahi.</p></div>
-      <div class="pain-card"><div class="pmini mini-q" aria-hidden="true">
-          <span data-cfg="painx06" class="q-clock">⏰</span>
-          <div class="q-people"><span class="q-man"></span><span class="q-man"></span><span class="q-man"></span><span class="q-man"></span></div>
-        </div><b data-cfg="pain4Title">Bheed me ek-ek ka wait</b>
-        <p data-cfg-html="pain4Text">Aap ek customer ka print nikal rahe ho, baaki 5 khade hain. File lo, kholo, print karo — poora din isi me jata hai.</p></div>
-    </div>
-  </section>
+
 
   <div class="perf-divider" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
 
   <!-- ═══ SOLUTION ═══ -->
-  <section class="sec container" style="margin-top:26px">
-    <h2 class="sec-title reveal" data-cfg="solutionHeading">✨ QR Se Print Lagane Ke Baad</h2>
-    <div data-cfg="solx01" class="sec-sub reveal">Aapka kaam: QR chipkao. Bas.</div>
-    <div class="solution-band reveal">
-      <div class="sol-cards stagger">
-        <div class="sol-card">
-          <div class="smini mini-stick" aria-hidden="true">
-            <div class="stick-wall">
-              <div class="stick-qr"><svg><use href="#qrGlyph"/></svg></div>
-              <span data-cfg="solx02" class="stick-spark">✨</span>
-            </div>
-          </div>
-          <b data-cfg="solx03">1️⃣</b><span data-cfg-html="sol1">Shop me QR<br>chipkao</span>
-        </div>
-        <div class="sol-card">
-          <div class="smini mini-scanflow" aria-hidden="true">
-            <div data-cfg-html="solx04" class="sflow-ph">
-              <span class="sf s1"><svg><use href="#qrGlyph"/></svg></span>
-              <span class="sf s2">📤</span>
-              <span class="sf s3">💳</span>
-              <span class="sf-dots"><i></i><i></i><i></i></span>
-            </div>
-          </div>
-          <b data-cfg="solx05">2️⃣</b><span data-cfg-html="sol2">Customer scan,<br>upload, pay</span>
-        </div>
-        <div class="sol-card">
-          <div class="smini mini-print" aria-hidden="true">
-            <div class="mp">
-              <div class="mp-body"><div class="mp-slot"></div></div>
-              <div class="mp-mask"><div class="mp-sheet"><i></i><i></i><i></i></div></div>
-              <div class="mp-tray"></div>
-            </div>
-          </div>
-          <b data-cfg="solx06">3️⃣</b><span data-cfg-html="sol3">Print KHUD<br>nikal jata hai</span>
-        </div>
-      </div>
-      <p data-cfg="solNote">Aap counter pe baithe raho — file lena, kholna, print dabana — kuch nahi. Payment ka record khud banta hai.</p>
-    </div>
-  </section>
+
 
   <!-- ═══ BENEFITS ═══ -->
+  <!-- ── FEATURES (teaser) ── -->
   <section class="sec container" id="features">
     <h2 class="sec-title reveal" data-cfg="benefitsHeading">🎁 Sirf Print Nahi — Poori Dukaan Ka System</h2>
     <div data-cfg="benx01" class="sec-sub reveal">Jo-jo milta hai, sab ek jagah</div>
-    <div class="ben-grid stagger">
-      <div class="ben-card"><div data-cfg="benx02" class="bi">📄</div><b data-cfg="ben1Title">Multi-file Print</b><p data-cfg-html="ben1Text">Customer ek saath 5-10 files bheje (PDF + photo mix) — ek payment, sahi order me print.</p></div>
-      <div class="ben-card"><div data-cfg="benx03" class="bi">✂️</div><b data-cfg="ben2Title">Phone Se Hi Editing</b><p data-cfg-html="ben2Text">Customer khud crop, rotate, brightness theek karta hai — aapse "thoda seedha kar do" nahi bolega.</p></div>
-      <div class="ben-card"><div data-cfg="benx04" class="bi">📷</div><b data-cfg="ben3Title">4×6 Passport Photos</b><p data-cfg-html="ben3Text">Photo bhejo, 4 ya 6 ki sheet khud ban ke photo printer se nikle — cutting lines ke saath.</p></div>
-      <div class="ben-card"><div data-cfg="benx05" class="bi">📝</div><b data-cfg="ben4Title">Resume Maker</b><p data-cfg-html="ben4Text">Customer QR se 6 designs me resume banaye aur print kare — aapki extra kamai, zero mehnat.</p></div>
-      <div class="ben-card"><div data-cfg="benx06" class="bi">📐</div><b data-cfg="ben5Title">A3 / A2 / A1 + Duplex</b><p data-cfg-html="ben5Text">Bade naksha-banner prints aur dono-side printing — har size ka apna printer, apna rate.</p></div>
-      <div class="ben-card"><div data-cfg="benx07" class="bi">💳</div><b data-cfg="ben6Title">Paisa Seedha Aapke Account</b><p data-cfg-html="ben6Text">Online payment (Razorpay/Cashfree) SEEDHA aapko. Hum beech me nahi — <b>0% commission, unlimited prints.</b></p></div>
-      <div class="ben-card"><div data-cfg="benx08" class="bi">🔒</div><b data-cfg="ben7Title">Customer Ka Bharosa</b><p data-cfg-html="ben7Text">File print ke 90 minute baad KHUD delete. Na aapke paas rahegi, na kisi aur ke — privacy pakki.</p></div>
-      <div class="ben-card"><div data-cfg="benx09" class="bi">📶</div><b data-cfg="ben8Title">Net Jaye To Bhi Safe</b><p data-cfg-html="ben8Text">Internet band? Jobs queue me. Wapas aate hi sab print. Auto-update bhi khud hota hai.</p></div>
+    <div class="feat-teaser reveal">
+      <div class="ft-chips">
+        <span data-cfg="ftc1">📄 Multi-file Print</span>
+        <span data-cfg="ftc2">✂️ Phone Se Editing</span>
+        <span data-cfg="ftc3">📷 Passport Photos</span>
+        <span data-cfg="ftc4">📝 Resume Maker</span>
+        <span data-cfg="ftc5">📐 A3 / A2 / A1 + Duplex</span>
+        <span data-cfg="ftc6">💳 Paisa Seedha Aapke Account</span>
+        <span data-cfg="ftc7">🔒 Auto File Delete</span>
+        <span data-cfg="ftc8">📶 Net Jaye To Bhi Safe</span>
+      </div>
+      <a href="#feature" class="ft-more" data-cfg="ftMore">Saare features detail me dekho →</a>
     </div>
   </section>
+
 
   <!-- ═══ COMPARISON ═══ -->
-  <section class="sec container">
-    <h2 class="sec-title reveal" data-cfg="compareHeading" style="margin-bottom:24px">⚖️ Pehle vs Ab</h2>
-    <div class="table-scroll reveal">
-      <table class="cmp-table">
-        <tr><th></th><th data-cfg="cmp01">📱 WhatsApp Tareeka</th><th data-cfg="cmp02">⚡ QR Se Print</th></tr>
-        <tr><td data-cfg-html="cmp03"><b>File lena</b></td><td data-cfg="cmp04" class="bad">Apna number do, chat dhundo</td><td data-cfg="cmp05" class="good">QR scan — number private</td></tr>
-        <tr><td data-cfg-html="cmp06"><b>Payment</b></td><td data-cfg="cmp07" class="bad">Yaad rakho kaun baaki hai</td><td data-cfg="cmp08" class="good">Record khud banta hai</td></tr>
-        <tr><td data-cfg-html="cmp09"><b>Aapka time</b></td><td data-cfg="cmp10" class="bad">Har print me haath lagao</td><td data-cfg="cmp11" class="good">Print khud nikalta hai</td></tr>
-        <tr><td data-cfg-html="cmp12"><b>Virus risk</b></td><td data-cfg="cmp13" class="bad">Pendrive = khatra</td><td data-cfg="cmp14" class="good">Zero — sab phone se</td></tr>
-        <tr><td data-cfg-html="cmp15"><b>Photo/Resume</b></td><td data-cfg="cmp16" class="bad">Alag software, alag jhanjhat</td><td data-cfg="cmp17" class="good">Sab isi me built-in</td></tr>
-        <tr><td data-cfg-html="cmp18"><b>Commission</b></td><td data-cfg="cmp19" class="bad">—</td><td data-cfg="cmp20" class="good">0% — paisa poora aapka</td></tr>
-      </table>
-    </div>
-  </section>
+
 
   <!-- ═══ ROI + FOUNDER ═══ -->
-  <section class="sec container">
-    <div class="duo-grid">
-      <div class="roi-card reveal">
-        <h3 data-cfg="roi01">🧮 Hisaab Lagao — Kitne Din Me Wasool?</h3>
-        <div data-cfg-html="roi02" class="roi-line"><span>Din ke sirf 15 print (kam se kam)</span><span>15 × ₹5 = ₹75/din</span></div>
-        <div data-cfg-html="roi03" class="roi-line"><span>Mahine ki print kamai</span><span>~₹2,250</span></div>
-        <div data-cfg-html="roi04" class="roi-line"><span>Software ka kharcha (One-Time)</span><span>₹999 — EK baar</span></div>
-        <div data-cfg-html="roi05" class="roi-line"><span>Wasool</span><span>2 hafte se pehle ✅</span></div>
-        <p data-cfg="roi06" style="font-size:11px;opacity:.7;margin:10px 0 0;">* Misaal ke taur par — aapke rates aur prints aapki dukaan par depend karte hain. Upar se time ki bachat aur photo/resume ki extra kamai alag.</p>
-      </div>
-      <div class="founder-card reveal">
-        <div data-cfg="roi07" style="font-weight:800;font-size:15px;font-family:'Plus Jakarta Sans',sans-serif;">🙋 Banane Wala Bhi Aap Jaisa Hi Hai</div>
-        <p data-cfg-html="roi08">Main <b>Rupesh Kumar Mahato</b> — Jharkhand me apna cyber cafe chalata hoon. Ye software maine pehle <b>apni dukaan ke liye</b> banaya tha, kyunki WhatsApp-pendrive wala jhanjhat mujhse bhi nahi jhela ja raha tha.<br><br>
-        Jab meri dukaan pe chal gaya, tab doosre shop walon ke liye khola. Isliye isme wahi cheezein hain jo <b>asli dukaan me kaam aati hain</b> — aur koi dikkat aaye to WhatsApp pe main khud jawab deta hoon.</p>
-      </div>
-    </div>
-  </section>
+
 
   <!-- ═══ PRICING PLANS ═══ -->
   <section class="sec container plans-wrap" id="pricingSection">
@@ -2134,39 +2115,7 @@ html.legal-open,body.legal-open{overflow:hidden}
   </div>
 
   <!-- ═══ FAQ (SEO content — real search queries) ═══ -->
-  <section class="sec container faq-sec" id="faq">
-    <h2 class="sec-title reveal" data-cfg="faqHeading" style="margin-bottom:22px">❓ Aksar Puchhe Jaane Wale Sawal</h2>
-    <div id="faqList" class="stagger">
-      <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
-        <summary style="font-weight:800;font-size:14px;cursor:pointer;">QR Se Print kya hai?</summary>
-        <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">QR Se Print cyber cafe aur print shop ke liye ek automatic print software hai. Aap apni shop ka QR code lagate ho — customer apne phone se scan karke file upload karta hai, payment karta hai, aur print aapke printer se automatic nikal jata hai. Na WhatsApp pe file mangni padti hai, na pendrive, na email.</p>
-      </details>
-      <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
-        <summary style="font-weight:800;font-size:14px;cursor:pointer;">Customer file kaise bhejta hai?</summary>
-        <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">Shop par laga QR code scan karo → file select karo (PDF, photo — ek saath kai files) → edit karo (crop, rotate, brightness) → payment karo (online ya counter cash) → print automatic nikal jata hai. Poora kaam customer ke phone se, 1 minute me.</p>
-      </details>
-      <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
-        <summary style="font-weight:800;font-size:14px;cursor:pointer;">WhatsApp pe file lene se ye better kyun hai?</summary>
-        <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">WhatsApp me aapka personal number public ho jata hai, chat me files kho jaati hain, aur hisaab manually rakhna padta hai. QR Se Print me: number private rehta hai, har print ka payment record automatic banta hai, aur customer ki file print ke 90 minute baad khud delete ho jaati hai — privacy bhi, hisaab bhi.</p>
-      </details>
-      <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
-        <summary style="font-weight:800;font-size:14px;cursor:pointer;">Kaunse printer ke saath chalta hai?</summary>
-        <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">Har Windows printer ke saath — HP, Canon, Epson, Brother, sab. B&amp;W aur Color ke liye alag printer set kar sakte ho. Advance me 4×6 photo printer, A3 bada printer aur duplex (dono side) printing bhi support hai.</p>
-      </details>
-      <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
-        <summary style="font-weight:800;font-size:14px;cursor:pointer;">Payment kaise milta hai? Koi commission?</summary>
-        <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">Do tarike: counter par cash, ya online payment (Razorpay/Cashfree) jo seedha AAPKE account me jata hai. Hum beech me nahi aate — <b>koi commission nahi, unlimited prints</b>.</p>
-      </details>
-      <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
-        <summary style="font-weight:800;font-size:14px;cursor:pointer;">Kitna kharcha aata hai?</summary>
-        <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">Free demo se shuru karo (bina paisa diye try karo). Phir ₹399/month ka monthly plan ya ₹999 one-time lifetime plan — ek baar do, hamesha chalao. Koi hidden charge nahi, koi per-print commission nahi.</p>
-      </details>
-      <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
-        <summary style="font-weight:800;font-size:14px;cursor:pointer;">Internet chala jaye to print ka kya hoga?</summary>
-        <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">Customer ke jobs queue me safe rehte hain. Internet wapas aate hi software khud jobs utha ke print nikal deta hai — kuch khota nahi.</p>
-      </details>
-    </div>
-  </section>
+
 
 </main>
 
@@ -2519,6 +2468,40 @@ html.legal-open,body.legal-open{overflow:hidden}
       <a data-cfg="dc41" href="#refund" style="color:#6b7280;text-decoration:underline;">Refund Policy</a><br>
       © 2026 QR Se Print (qrseprint.in) · Cyber cafe aur print shop ke liye automatic print software · Made in Jharkhand, India
     </p>
+    <div class="lg-sec">
+      <h3 id="faq" data-cfg="faqHeading" data-n="?">❓ Aksar Pooche Jaane Wale Sawaal</h3>
+    <div id="faqList" class="stagger">
+      <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
+        <summary style="font-weight:800;font-size:14px;cursor:pointer;">QR Se Print kya hai?</summary>
+        <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">QR Se Print cyber cafe aur print shop ke liye ek automatic print software hai. Aap apni shop ka QR code lagate ho — customer apne phone se scan karke file upload karta hai, payment karta hai, aur print aapke printer se automatic nikal jata hai. Na WhatsApp pe file mangni padti hai, na pendrive, na email.</p>
+      </details>
+      <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
+        <summary style="font-weight:800;font-size:14px;cursor:pointer;">Customer file kaise bhejta hai?</summary>
+        <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">Shop par laga QR code scan karo → file select karo (PDF, photo — ek saath kai files) → edit karo (crop, rotate, brightness) → payment karo (online ya counter cash) → print automatic nikal jata hai. Poora kaam customer ke phone se, 1 minute me.</p>
+      </details>
+      <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
+        <summary style="font-weight:800;font-size:14px;cursor:pointer;">WhatsApp pe file lene se ye better kyun hai?</summary>
+        <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">WhatsApp me aapka personal number public ho jata hai, chat me files kho jaati hain, aur hisaab manually rakhna padta hai. QR Se Print me: number private rehta hai, har print ka payment record automatic banta hai, aur customer ki file print ke 90 minute baad khud delete ho jaati hai — privacy bhi, hisaab bhi.</p>
+      </details>
+      <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
+        <summary style="font-weight:800;font-size:14px;cursor:pointer;">Kaunse printer ke saath chalta hai?</summary>
+        <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">Har Windows printer ke saath — HP, Canon, Epson, Brother, sab. B&amp;W aur Color ke liye alag printer set kar sakte ho. Advance me 4×6 photo printer, A3 bada printer aur duplex (dono side) printing bhi support hai.</p>
+      </details>
+      <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
+        <summary style="font-weight:800;font-size:14px;cursor:pointer;">Payment kaise milta hai? Koi commission?</summary>
+        <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">Do tarike: counter par cash, ya online payment (Razorpay/Cashfree) jo seedha AAPKE account me jata hai. Hum beech me nahi aate — <b>koi commission nahi, unlimited prints</b>.</p>
+      </details>
+      <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
+        <summary style="font-weight:800;font-size:14px;cursor:pointer;">Kitna kharcha aata hai?</summary>
+        <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">Free demo se shuru karo (bina paisa diye try karo). Phir ₹399/month ka monthly plan ya ₹999 one-time lifetime plan — ek baar do, hamesha chalao. Koi hidden charge nahi, koi per-print commission nahi.</p>
+      </details>
+      <details style="background:#fff;border:1.5px solid #e5e0d8;border-radius:14px;padding:14px 16px;">
+        <summary style="font-weight:800;font-size:14px;cursor:pointer;">Internet chala jaye to print ka kya hoga?</summary>
+        <p style="font-size:13px;color:#4b4852;line-height:1.8;margin:10px 0 0;">Customer ke jobs queue me safe rehte hain. Internet wapas aate hi software khud jobs utha ke print nikal deta hai — kuch khota nahi.</p>
+      </details>
+    </div>
+    </div>
+
   </div>
 </div>
 
@@ -2677,6 +2660,238 @@ html.legal-open,body.legal-open{overflow:hidden}
         <a data-cfg="ab44" href="#refund" style="color:#6b7280;text-decoration:underline;">Refund Policy</a> ·
         <a data-cfg="ab45" href="#disclaimer" style="color:#6b7280;text-decoration:underline;">Disclaimer</a>
       </p>
+    </div>
+  </div>
+</div>
+
+<div class="legal-page" id="featurePage" role="dialog" aria-modal="true" aria-labelledby="featurePageT">
+  <div class="lg-top">
+    <div class="brand"><div class="brand-mark">🖨️</div> QR Se Print</div>
+    <a href="#" class="lg-back" onclick="closeLegal();return false;">← Back to Home</a>
+  </div>
+  <div class="lg-wrap">
+    <div class="lg-cover">
+      <span data-cfg="fp01" class="lg-eyebrow">🎁 Features</span>
+      <h1 data-cfg="fp02" class="lg-title" id="featurePageT">Poori Dukaan Ka System</h1>
+      <div data-cfg-html="fp03" class="lg-meta">
+        <span>Sab kuch ek jagah</span><span>Koi extra software nahi</span>
+      </div>
+    </div>
+        <div class="fp-block">
+    <h2 class="sec-title reveal" data-cfg="painHeading">😤 Abhi Aapki Dukaan Me Kya Hota Hai?</h2>
+    <div data-cfg="painx01" class="sec-sub reveal">Har cyber cafe / print shop wale ka roz ka dard</div>
+    <div class="pain-grid stagger">
+      <div class="pain-card"><div class="pmini mini-wa" aria-hidden="true">
+          <div data-cfg-html="painx02" class="wa-ph">
+            <span class="wa-bub b1"><i></i><i></i><i></i></span>
+            <span class="wa-bub b2">📄</span>
+            <span class="wa-bub b3">📄</span>
+            <span class="wa-badge">3</span>
+          </div>
+        </div><b data-cfg="pain1Title">WhatsApp pe file mangna</b>
+        <p data-cfg-html="pain1Text">Apna personal number har customer ko dena padta hai. Chat me files kho jaati hain, "bhaiya wo wali file" dhundhte raho.</p></div>
+      <div class="pain-card"><div class="pmini mini-usb" aria-hidden="true">
+          <div class="usb"></div>
+          <span data-cfg="painx03" class="bug">🦠</span>
+          <span data-cfg="painx04" class="warn">⚠️</span>
+        </div><b data-cfg="pain2Title">Pendrive ka virus</b>
+        <p data-cfg-html="pain2Text">Customer ka pendrive lagao = virus ka khatra. PC slow, files corrupt, kabhi-kabhi poora system hi baith jata hai.</p></div>
+      <div class="pain-card"><div class="pmini mini-cash" aria-hidden="true">
+          <div class="ledger"><i></i><i></i><i></i></div>
+          <div data-cfg-html="painx05" class="cash-flip"><span class="cash-rs">₹</span><span class="cash-qm">?</span></div>
+        </div><b data-cfg="pain3Title">Hisaab ki tension</b>
+        <p data-cfg-html="pain3Text">Kaun paid kar gaya, kaun baaki hai — copy pe likho, bhool jao, jhagda karo. Mahine ke end me hisaab milta hi nahi.</p></div>
+      <div class="pain-card"><div class="pmini mini-q" aria-hidden="true">
+          <span data-cfg="painx06" class="q-clock">⏰</span>
+          <div class="q-people"><span class="q-man"></span><span class="q-man"></span><span class="q-man"></span><span class="q-man"></span></div>
+        </div><b data-cfg="pain4Title">Bheed me ek-ek ka wait</b>
+        <p data-cfg-html="pain4Text">Aap ek customer ka print nikal rahe ho, baaki 5 khade hain. File lo, kholo, print karo — poora din isi me jata hai.</p></div>
+    </div>
+    </div>
+
+    <div class="fp-block">
+    <h2 class="sec-title reveal" data-cfg="solutionHeading">✨ QR Se Print Lagane Ke Baad</h2>
+    <div data-cfg="solx01" class="sec-sub reveal">Aapka kaam: QR chipkao. Bas.</div>
+    <div class="solution-band reveal">
+      <div class="sol-cards stagger">
+        <div class="sol-card">
+          <div class="smini mini-stick" aria-hidden="true">
+            <div class="stick-wall">
+              <div class="stick-qr"><svg><use href="#qrGlyph"/></svg></div>
+              <span data-cfg="solx02" class="stick-spark">✨</span>
+            </div>
+          </div>
+          <b data-cfg="solx03">1️⃣</b><span data-cfg-html="sol1">Shop me QR<br>chipkao</span>
+        </div>
+        <div class="sol-card">
+          <div class="smini mini-scanflow" aria-hidden="true">
+            <div data-cfg-html="solx04" class="sflow-ph">
+              <span class="sf s1"><svg><use href="#qrGlyph"/></svg></span>
+              <span class="sf s2">📤</span>
+              <span class="sf s3">💳</span>
+              <span class="sf-dots"><i></i><i></i><i></i></span>
+            </div>
+          </div>
+          <b data-cfg="solx05">2️⃣</b><span data-cfg-html="sol2">Customer scan,<br>upload, pay</span>
+        </div>
+        <div class="sol-card">
+          <div class="smini mini-print" aria-hidden="true">
+            <div class="mp">
+              <div class="mp-body"><div class="mp-slot"></div></div>
+              <div class="mp-mask"><div class="mp-sheet"><i></i><i></i><i></i></div></div>
+              <div class="mp-tray"></div>
+            </div>
+          </div>
+          <b data-cfg="solx06">3️⃣</b><span data-cfg-html="sol3">Print KHUD<br>nikal jata hai</span>
+        </div>
+      </div>
+      <p data-cfg="solNote">Aap counter pe baithe raho — file lena, kholna, print dabana — kuch nahi. Payment ka record khud banta hai.</p>
+    </div>
+    </div>
+
+    <h2 class="sec-title reveal" data-cfg="benefitsHeading">🎁 Sirf Print Nahi — Poori Dukaan Ka System</h2>
+    <div data-cfg="benx01" class="sec-sub reveal">Jo-jo milta hai, sab ek jagah</div>
+    <div class="ben-grid stagger">
+      <div class="ben-card"><div data-cfg="benx02" class="bi">📄</div><b data-cfg="ben1Title">Multi-file Print</b><p data-cfg-html="ben1Text">Customer ek saath 5-10 files bheje (PDF + photo mix) — ek payment, sahi order me print.</p></div>
+      <div class="ben-card"><div data-cfg="benx03" class="bi">✂️</div><b data-cfg="ben2Title">Phone Se Hi Editing</b><p data-cfg-html="ben2Text">Customer khud crop, rotate, brightness theek karta hai — aapse "thoda seedha kar do" nahi bolega.</p></div>
+      <div class="ben-card"><div data-cfg="benx04" class="bi">📷</div><b data-cfg="ben3Title">4×6 Passport Photos</b><p data-cfg-html="ben3Text">Photo bhejo, 4 ya 6 ki sheet khud ban ke photo printer se nikle — cutting lines ke saath.</p></div>
+      <div class="ben-card"><div data-cfg="benx05" class="bi">📝</div><b data-cfg="ben4Title">Resume Maker</b><p data-cfg-html="ben4Text">Customer QR se 6 designs me resume banaye aur print kare — aapki extra kamai, zero mehnat.</p></div>
+      <div class="ben-card"><div data-cfg="benx06" class="bi">📐</div><b data-cfg="ben5Title">A3 / A2 / A1 + Duplex</b><p data-cfg-html="ben5Text">Bade naksha-banner prints aur dono-side printing — har size ka apna printer, apna rate.</p></div>
+      <div class="ben-card"><div data-cfg="benx07" class="bi">💳</div><b data-cfg="ben6Title">Paisa Seedha Aapke Account</b><p data-cfg-html="ben6Text">Online payment (Razorpay/Cashfree) SEEDHA aapko. Hum beech me nahi — <b>0% commission, unlimited prints.</b></p></div>
+      <div class="ben-card"><div data-cfg="benx08" class="bi">🔒</div><b data-cfg="ben7Title">Customer Ka Bharosa</b><p data-cfg-html="ben7Text">File print ke 90 minute baad KHUD delete. Na aapke paas rahegi, na kisi aur ke — privacy pakki.</p></div>
+      <div class="ben-card"><div data-cfg="benx09" class="bi">📶</div><b data-cfg="ben8Title">Net Jaye To Bhi Safe</b><p data-cfg-html="ben8Text">Internet band? Jobs queue me. Wapas aate hi sab print. Auto-update bhi khud hota hai.</p></div>
+    </div>
+    <div class="fp-block">
+    <h2 class="sec-title reveal" data-cfg="compareHeading" style="margin-bottom:24px">⚖️ Pehle vs Ab</h2>
+    <div class="table-scroll reveal">
+      <table class="cmp-table">
+        <tr><th></th><th data-cfg="cmp01">📱 WhatsApp Tareeka</th><th data-cfg="cmp02">⚡ QR Se Print</th></tr>
+        <tr><td data-cfg-html="cmp03"><b>File lena</b></td><td data-cfg="cmp04" class="bad">Apna number do, chat dhundo</td><td data-cfg="cmp05" class="good">QR scan — number private</td></tr>
+        <tr><td data-cfg-html="cmp06"><b>Payment</b></td><td data-cfg="cmp07" class="bad">Yaad rakho kaun baaki hai</td><td data-cfg="cmp08" class="good">Record khud banta hai</td></tr>
+        <tr><td data-cfg-html="cmp09"><b>Aapka time</b></td><td data-cfg="cmp10" class="bad">Har print me haath lagao</td><td data-cfg="cmp11" class="good">Print khud nikalta hai</td></tr>
+        <tr><td data-cfg-html="cmp12"><b>Virus risk</b></td><td data-cfg="cmp13" class="bad">Pendrive = khatra</td><td data-cfg="cmp14" class="good">Zero — sab phone se</td></tr>
+        <tr><td data-cfg-html="cmp15"><b>Photo/Resume</b></td><td data-cfg="cmp16" class="bad">Alag software, alag jhanjhat</td><td data-cfg="cmp17" class="good">Sab isi me built-in</td></tr>
+        <tr><td data-cfg-html="cmp18"><b>Commission</b></td><td data-cfg="cmp19" class="bad">—</td><td data-cfg="cmp20" class="good">0% — paisa poora aapka</td></tr>
+      </table>
+    </div>
+    </div>
+
+    <div class="fp-block">
+    <div class="duo-grid">
+      <div class="roi-card reveal">
+        <h3 data-cfg="roi01">🧮 Hisaab Lagao — Kitne Din Me Wasool?</h3>
+        <div data-cfg-html="roi02" class="roi-line"><span>Din ke sirf 15 print (kam se kam)</span><span>15 × ₹5 = ₹75/din</span></div>
+        <div data-cfg-html="roi03" class="roi-line"><span>Mahine ki print kamai</span><span>~₹2,250</span></div>
+        <div data-cfg-html="roi04" class="roi-line"><span>Software ka kharcha (One-Time)</span><span>₹999 — EK baar</span></div>
+        <div data-cfg-html="roi05" class="roi-line"><span>Wasool</span><span>2 hafte se pehle ✅</span></div>
+        <p data-cfg="roi06" style="font-size:11px;opacity:.7;margin:10px 0 0;">* Misaal ke taur par — aapke rates aur prints aapki dukaan par depend karte hain. Upar se time ki bachat aur photo/resume ki extra kamai alag.</p>
+      </div>
+      <div class="founder-card reveal">
+        <div data-cfg="roi07" style="font-weight:800;font-size:15px;font-family:'Plus Jakarta Sans',sans-serif;">🙋 Banane Wala Bhi Aap Jaisa Hi Hai</div>
+        <p data-cfg-html="roi08">Main <b>Rupesh Kumar Mahato</b> — Jharkhand me apna cyber cafe chalata hoon. Ye software maine pehle <b>apni dukaan ke liye</b> banaya tha, kyunki WhatsApp-pendrive wala jhanjhat mujhse bhi nahi jhela ja raha tha.<br><br>
+        Jab meri dukaan pe chal gaya, tab doosre shop walon ke liye khola. Isliye isme wahi cheezein hain jo <b>asli dukaan me kaam aati hain</b> — aur koi dikkat aaye to WhatsApp pe main khud jawab deta hoon.</p>
+      </div>
+    </div>
+    </div>
+
+    <div data-cfg-html="fp04" class="lg-note"><b>Sab kuch ek hi software me</b>Na alag photo tool, na alag resume software, na alag hisaab ki copy. Ek QR — aur dukaan ka poora kaam.</div>
+
+    <div class="lg-sec" style="text-align:center;padding-top:8px;">
+      <a href="#pricingSection" class="ft-more" onclick="closeLegal()" data-cfg="fp05">Pricing dekho →</a>
+    </div>
+  </div>
+</div>
+
+<div class="legal-page" id="contactPage" role="dialog" aria-modal="true" aria-labelledby="contactPageT">
+  <div class="lg-top">
+    <div class="brand"><div class="brand-mark">🖨️</div> QR Se Print</div>
+    <a href="#" class="lg-back" onclick="closeLegal();return false;">← Back to Home</a>
+  </div>
+  <div class="lg-wrap">
+    <div class="lg-cover">
+      <span data-cfg="cp01" class="lg-eyebrow">💬 Contact</span>
+      <h1 data-cfg="cp02" class="lg-title" id="contactPageT">Baat Karo</h1>
+      <div data-cfg-html="cp03" class="lg-meta">
+        <span>Support seedha, bina bicholiye</span>
+      </div>
+    </div>
+
+    <div data-cfg-html="cp04" class="lg-lead">Setup me dikkat ho, ya kuch samajh na aaye — seedha message karo. Koi third-party support team nahi hai, jawab khud milta hai.</div>
+
+    <div class="ct-cards">
+      <a id="ctWa" href="#" target="_blank" rel="noopener" class="ct-card">
+        <span class="ct-ico">💚</span>
+        <b data-cfg="cp05">WhatsApp</b>
+        <span class="ct-val" id="ctWaTxt">—</span>
+        <span class="ct-hint" data-cfg="cp06">Sabse jaldi jawab yahin milta hai</span>
+      </a>
+      <a id="ctMail" href="#" class="ct-card">
+        <span class="ct-ico">✉️</span>
+        <b data-cfg="cp07">Email</b>
+        <span class="ct-val" id="ctMailTxt">—</span>
+        <span class="ct-hint" data-cfg="cp08">Detail wali baat ke liye</span>
+      </a>
+      <a id="ctTel" href="#" class="ct-card">
+        <span class="ct-ico">📞</span>
+        <b data-cfg="cp09">Phone</b>
+        <span class="ct-val" id="ctTelTxt">—</span>
+        <span class="ct-hint" data-cfg="cp10">Kaam ke ghanto me</span>
+      </a>
+    </div>
+
+    <div class="lg-sec">
+      <h3 data-cfg="cp11" data-n="✉">Ya yahin se message bhej do</h3>
+      <div class="ct-form">
+        <input id="ctName" placeholder="Aapka naam" maxlength="80">
+        <input id="ctPhone" placeholder="10 digit mobile number" maxlength="10" inputmode="numeric">
+        <input id="ctEmail" placeholder="Email (optional)" maxlength="120">
+        <textarea id="ctMsg" rows="4" placeholder="Kya jaanna chahte ho?" maxlength="1000"></textarea>
+        <div class="dm-err" id="ctErr"></div>
+        <div class="iq-ok" id="ctOk"></div>
+        <div class="ct-btns">
+          <button type="button" class="ct-send wa" onclick="sendContact('wa')" data-cfg="cp12">WhatsApp se bhejo</button>
+          <button type="button" class="ct-send" onclick="sendContact('mail')" data-cfg="cp13">Email se bhejo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="legal-page" id="partnerPage" role="dialog" aria-modal="true" aria-labelledby="partnerPageT">
+  <div class="lg-top">
+    <div class="brand"><div class="brand-mark">🖨️</div> QR Se Print</div>
+    <a href="#" class="lg-back" onclick="closeLegal();return false;">← Back to Home</a>
+  </div>
+  <div class="lg-wrap">
+    <div class="lg-cover">
+      <span data-cfg="pp01" class="lg-eyebrow">🤝 Partner Program</span>
+      <h1 data-cfg="pp02" class="lg-title" id="partnerPageT">Saath Milkar Kamao</h1>
+      <div data-cfg-html="pp03" class="lg-meta">
+        <span>Teen tarike — apni suvidha ka chuno</span>
+      </div>
+    </div>
+
+    <div data-cfg-html="pp04" class="lg-lead">QR Se Print se judne ke teen raaste hain. Kisi me apna brand chalao, kisi me shop jodo, ya sirf baat karke shuru karo.</div>
+
+    <div class="pt-cards">
+      <div class="pt-card">
+        <span class="pt-ico">🏷️</span>
+        <b data-cfg="pp05">White Label</b>
+        <p data-cfg="pp06">Apne brand ke naam se poora software becho. Apna logo, apna domain, apna Razorpay — setup fee seedha aapke account me. Hum beech me nahi aate.</p>
+        <a href="/whitelabel" class="pt-btn dark" data-cfg="pp07">White Label dekho →</a>
+      </div>
+      <div class="pt-card">
+        <span class="pt-ico">🤝</span>
+        <b data-cfg="pp08">Agent Program</b>
+        <p data-cfg="pp09">Shops jodo aur har shop par commission kamao. Apna referral code, apna dashboard, kamai ka poora hisaab. Koi investment nahi.</p>
+        <a href="/agent" class="pt-btn" data-cfg="pp10">Agent Program dekho →</a>
+      </div>
+      <div class="pt-card">
+        <span class="pt-ico">💼</span>
+        <b data-cfg="pp11">Business Inquiry</b>
+        <p data-cfg="pp12">Bulk deal, custom requirement, ya kuch aur soch rahe ho? Seedha baat karo — form bharo, message WhatsApp ya email par pahunch jayega.</p>
+        <a href="#contact" class="pt-btn light" data-cfg="pp13">Baat karo →</a>
+      </div>
     </div>
   </div>
 </div>
@@ -3419,6 +3634,56 @@ function sendInq(via){
 
 /* Review carousel — native scroll + scroll-snap par bana hai, koi library
    nahi. Isliye arrow, phone ki swipe aur keyboard teeno apne aap chalte hain. */
+/* ── Contact page ka form ────────────────────────────────────
+   Business Inquiry modal wahi ka wahi rehta hai. Ye alag form hai
+   jo Contact page par khulta hai — apne alag field ids ke saath,
+   taaki dono ek doosre se na takraayein. */
+function sendContact(via){
+  var g=function(id){ var el=document.getElementById(id); return el?el.value.trim():''; };
+  var name=g('ctName'), ph=g('ctPhone'), em=g('ctEmail'), msg=g('ctMsg');
+  var err=document.getElementById('ctErr'), ok=document.getElementById('ctOk');
+  var fail=function(t){ if(err){err.textContent=t;err.style.display='block';} if(ok) ok.style.display='none'; };
+
+  if(!name) return fail('Apna naam likho');
+  if(!/^\d{10}$/.test(ph)) return fail('Sahi 10 digit mobile number daalo');
+  if(em && !/^\S+@\S+\.\S+$/.test(em)) return fail('Email sahi nahi lag raha — ya khaali chhod do');
+  if(msg.length<5) return fail('Message thoda detail me likho');
+  if(err) err.style.display='none';
+
+  var body='QR Se Print — Contact\n\nNaam: '+name+'\nMobile: '+ph+(em?('\nEmail: '+em):'')+'\n\nMessage:\n'+msg;
+  if(via==='wa'){
+    var fp=document.getElementById('ftPhone');
+    var num=((fp&&fp.getAttribute('href'))||'').replace(/\D/g,'');
+    if(num.length===10) num='91'+num;
+    if(num){
+      window.open('https://wa.me/'+num+'?text='+encodeURIComponent(body),'_blank','noopener');
+      if(ok){ ok.textContent='WhatsApp khul gaya — bas Send daba do ✅'; ok.style.display='block'; }
+    }else{ fail('WhatsApp number set nahi hai — email se bhej do'); }
+  }else{
+    var fe=document.getElementById('ftEmail');
+    var mail=(((fe&&fe.getAttribute('href'))||'').replace(/^mailto:/i,'').split('?')[0]);
+    if(!mail) return fail('Email set nahi hai — WhatsApp se bhej do');
+    window.location.href='mailto:'+mail+'?subject='+encodeURIComponent('QR Se Print — Contact')+'&body='+encodeURIComponent(body);
+    if(ok){ ok.textContent='Email app khul gaya — Send daba do ✅'; ok.style.display='block'; }
+  }
+}
+
+/* Contact page khulte hi footer se asli number/email utha lo —
+   ek hi jagah (superadmin config) se sab jagah update hota hai. */
+function syncContactPage(){
+  var fp=document.getElementById('ftPhone'), fe=document.getElementById('ftEmail');
+  var mail=(((fe&&fe.getAttribute('href'))||'').replace(/^mailto:/i,'').split('?')[0])||'';
+  var num=((fp&&fp.getAttribute('href'))||'').replace(/\D/g,'');
+  var set=function(id,txt){ var e=document.getElementById(id); if(e) e.textContent=txt||'—'; };
+  var href=function(id,h){ var e=document.getElementById(id); if(e&&h) e.setAttribute('href',h); };
+  if(num){
+    var wa=num.length===10?('91'+num):num;
+    href('ctWa','https://wa.me/'+wa); set('ctWaTxt','+'+wa.replace(/^91/,'91 '));
+    href('ctTel','tel:+'+wa);          set('ctTelTxt','+'+wa.replace(/^91/,'91 '));
+  }
+  if(mail){ href('ctMail','mailto:'+mail); set('ctMailTxt',mail); }
+}
+
 function initReviewCarousel(count){
   var vp=document.getElementById('rvViewport'),
       prev=document.getElementById('rvPrev'),
@@ -3542,6 +3807,9 @@ function initReviewCarousel(count){
   page.addEventListener('scroll',onScroll,{passive:true});
   window.addEventListener('resize',onScroll);
   window.addEventListener('hashchange',function(){ setTimeout(draw,60); });
+  window.addEventListener('hashchange',function(){
+    if(location.hash==='#contact' && typeof syncContactPage==='function') setTimeout(syncContactPage,80);
+  });
   setTimeout(draw,80);
 })();
 
@@ -3694,7 +3962,14 @@ function initReviewCarousel(count){
 })();
 
 /* ── Legal pages (Disclaimer / Terms / Privacy / Refund) ── */
-var LEGAL_PAGES={about:'aboutPage',disclaimer:'disclaimerPage',terms:'termsPage',privacy:'privacyPage',refund:'refundPage',guide:'setupGuidePage'};
+var LEGAL_PAGES={
+  about:'aboutPage', feature:'featurePage', contact:'contactPage', partner:'partnerPage',
+  disclaimer:'disclaimerPage', terms:'termsPage', privacy:'privacyPage',
+  refund:'refundPage', guide:'setupGuidePage',
+  // Purane link (Google results, WhatsApp par share kiye hue) na tootein.
+  // FAQ ab Declaration page ke andar hai, features apne page par.
+  faq:'disclaimerPage', declaration:'disclaimerPage', features:'featurePage'
+};
 function openLegal(key){
   var id=LEGAL_PAGES[key];
   if(!id) return;
