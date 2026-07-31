@@ -128,6 +128,141 @@ select{padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-fami
 /* Nav item par rukh-rukh ke golden glow — login karte hi nazar jaye */
 /* Partner tab ko halki si chamak — nazar padni chahiye, par
    chubhni nahi. Agent tab par jo pehle se hai, wahi tareeka. */
+
+
+/* ── White Label section (Partner Program tab) ──────────────
+   Design public /whitelabel page jaisa hi rakha hai taaki jo
+   banda yahan se wahan jaye use kuch naya na lage. */
+.wl-hero{
+  position:relative;overflow:hidden;border-radius:22px;padding:30px 20px 26px;
+  background:linear-gradient(155deg,#1a1520 0%,#2b1f35 45%,#3d1f38 100%);
+  color:#fff;margin-bottom:16px;box-shadow:0 22px 48px rgba(17,17,20,.3);
+}
+.wl-hero-glow{
+  position:absolute;top:-45%;left:50%;width:80%;height:190%;transform:translateX(-50%);
+  background:radial-gradient(circle,rgba(255,210,46,.14),transparent 65%);
+  animation:wlGlow 7s ease-in-out infinite;pointer-events:none;
+}
+@keyframes wlGlow{0%,100%{transform:translateX(-50%) translateY(0)}50%{transform:translateX(-50%) translateY(18px)}}
+.wl-badge{
+  display:inline-block;border:1.5px solid rgba(255,210,46,.5);border-radius:999px;
+  padding:6px 16px;font-size:10.5px;font-weight:800;letter-spacing:1px;
+  color:#ffd22e;margin-bottom:16px;
+}
+.wl-h1{font-size:26px;font-weight:800;line-height:1.28;margin:0 0 20px;color:#fff;border:none;padding:0}
+.wl-h1 span{color:#ffd22e}
+.wl-price{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap}
+.wl-cut{font-size:21px;font-weight:700;opacity:.4;text-decoration:line-through}
+.wl-price-box{
+  background:#ffd22e;color:#111114;border-radius:16px;padding:14px 26px;
+  box-shadow:0 12px 30px rgba(255,210,46,.3);
+}
+.wl-amt{font-size:33px;font-weight:800;line-height:1;letter-spacing:-1px}
+.wl-sub{font-size:11.5px;font-weight:700;margin-top:5px;opacity:.75}
+.wl-off{
+  display:inline-block;background:#22c55e;color:#fff;border-radius:999px;
+  padding:5px 15px;font-size:11.5px;font-weight:800;margin:13px 0 16px;
+}
+.wl-lead{font-size:12.5px;line-height:1.8;opacity:.85;margin:0 auto 18px;max-width:440px}
+.wl-timer{
+  display:inline-flex;gap:6px;align-items:center;background:rgba(255,255,255,.14);
+  border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:7px 16px;
+  font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;
+}
+.wl-list{display:grid;gap:2px}
+.wl-item{display:flex;gap:13px;align-items:flex-start;padding:11px 0;border-top:1px solid #f0ece6}
+.wl-item:first-child{border-top:none}
+.wl-item>span{
+  flex:0 0 36px;width:36px;height:36px;border-radius:11px;background:#fff9ec;
+  border:1.5px solid #f0e2ba;display:grid;place-items:center;font-size:17px;
+}
+.wl-item b{display:block;font-size:13.5px;margin-bottom:3px}
+.wl-item p{font-size:12.5px;color:#4b5563;line-height:1.65;margin:0}
+.wl-steps{display:grid;gap:2px}
+.wl-step{display:flex;gap:13px;align-items:flex-start;padding:11px 0;border-top:1px solid #f0ece6}
+.wl-step:first-child{border-top:none}
+.wl-step>i{
+  flex:0 0 28px;width:28px;height:28px;border-radius:50%;background:#ffd22e;color:#111114;
+  display:grid;place-items:center;font-size:12.5px;font-weight:800;font-style:normal;margin-top:1px;
+}
+.wl-step b{display:block;font-size:13.5px;margin-bottom:3px}
+.wl-step p{font-size:12.5px;color:#4b5563;line-height:1.65;margin:0}
+.wl-money-card{background:#fffdf6!important;border-color:#f0e2ba!important}
+.wl-money-row{
+  display:flex;justify-content:space-between;gap:12px;padding:9px 0;
+  border-bottom:1px dashed #e8dcc0;font-size:12.5px;flex-wrap:wrap;
+}
+.wl-money-row:last-child{border-bottom:none}
+.wl-money-row b{font-weight:800;text-align:right}
+.wl-money-row b.g{color:#166534}
+.wl-money-note{font-size:11.5px;color:#8a6d1f;line-height:1.7;margin:12px 0 0}
+.wl-cta{
+  display:inline-block;text-decoration:none;background:linear-gradient(135deg,#ff2e63,#ff6b35);
+  color:#fff;border-radius:999px;padding:15px 30px;font-size:14.5px;font-weight:800;
+  box-shadow:0 14px 32px rgba(255,46,99,.3);transition:transform .22s ease,box-shadow .22s ease;
+}
+.wl-cta:hover{transform:translateY(-3px);box-shadow:0 18px 40px rgba(255,46,99,.38)}
+@media (max-width:430px){
+  .wl-h1{font-size:22px}
+  .wl-amt{font-size:28px}
+  .wl-hero{padding:24px 15px 22px}
+}
+@media (prefers-reduced-motion:reduce){ .wl-hero-glow{animation:none} }
+
+/* ── Agent lock card (demo ke liye) ─────────────────────────
+   Premium feel — dark card, halka glow, aur ₹200 ka hisaab
+   saamne. Sirf "locked" bolna kaafi nahi, ye dikhana zaroori
+   hai ki unlock karne par milta kya hai. */
+.ag-lock{
+  position:relative;overflow:hidden;border-radius:20px;padding:26px 22px;
+  background:linear-gradient(150deg,#16161a 0%,#22202b 55%,#2d1f3d 100%);
+  color:#fff;margin-bottom:14px;
+  box-shadow:0 20px 44px rgba(17,17,20,.28);
+}
+.ag-lock-glow{
+  position:absolute;top:-55%;right:-18%;width:70%;height:190%;
+  background:radial-gradient(circle,rgba(255,210,46,.16),transparent 68%);
+  animation:agGlow 6s ease-in-out infinite;pointer-events:none;
+}
+@keyframes agGlow{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(16px) scale(1.08)}}
+.ag-lock-badge{
+  display:inline-block;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.18);
+  border-radius:999px;padding:4px 12px;font-size:10.5px;font-weight:800;
+  letter-spacing:.5px;text-transform:uppercase;margin-bottom:12px;
+}
+.ag-lock-title{font-size:17px;font-weight:800;line-height:1.4;margin:0 0 18px;color:#fff}
+.ag-earn{
+  display:flex;align-items:baseline;gap:10px;padding-bottom:16px;margin-bottom:16px;
+  border-bottom:1px solid rgba(255,255,255,.12);
+}
+.ag-earn-num{font-size:40px;font-weight:800;line-height:1;color:#ffd22e;letter-spacing:-1px}
+.ag-earn-lbl{font-size:12.5px;font-weight:600;opacity:.75}
+.ag-math{margin-bottom:16px}
+.ag-math-row{
+  display:flex;justify-content:space-between;padding:6px 0;
+  font-size:12.5px;opacity:.72;
+}
+.ag-math-row b{font-weight:800}
+.ag-math-row.hi{opacity:1;color:#ffd22e;font-weight:700}
+.ag-lock-note{font-size:12.5px;line-height:1.75;opacity:.8;margin:0 0 18px}
+.ag-lock-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ag-lock-btn{
+  display:flex;flex-direction:column;gap:3px;align-items:center;
+  background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.2);
+  color:#fff;border-radius:13px;padding:12px 10px;cursor:pointer;
+  font-family:inherit;transition:transform .2s ease,background .2s ease;
+}
+.ag-lock-btn:hover{transform:translateY(-2px);background:rgba(255,255,255,.16)}
+.ag-lock-btn span{font-size:11.5px;font-weight:700;opacity:.8}
+.ag-lock-btn b{font-size:17px;font-weight:800}
+.ag-lock-btn.gold{background:#ffd22e;border-color:#ffd22e;color:#111114}
+.ag-lock-btn.gold:hover{background:#ffdb52}
+@media (max-width:430px){
+  .ag-lock-btns{grid-template-columns:1fr}
+  .ag-earn-num{font-size:34px}
+}
+@media (prefers-reduced-motion:reduce){ .ag-lock-glow{animation:none} }
+
 .nav-it[data-nav="partner"]{position:relative;overflow:visible}
 .nav-it[data-nav="partner"]::before{
   content:"";position:absolute;inset:-1px;border-radius:inherit;
@@ -622,25 +757,41 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 
       <!-- JOIN (agent nahi ho) -->
       <div id="agDemoGate" style="display:none;">
-        <div style="background:linear-gradient(135deg,#111114,#2b2620);color:#fff;border-radius:16px;padding:20px;margin-bottom:14px;">
-          <div style="font-size:15px;font-weight:800;margin-bottom:6px;">🔒 To use this feature you must be a paid shop owner</div>
-          <p style="font-size:12.5px;line-height:1.7;opacity:.85;margin:0 0 14px;">
-            Agent Program se aap doosri shops jodkar har shop par commission kama sakte ho —
-            apna referral code, apna dashboard, apni price. Ye demo account me nahi chalta.
-            Koi bhi plan lo, turant chalu ho jayega.
-          </p>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
-            <button onclick="goUpgrade('monthly')" style="background:#fff;color:#111114;border:none;border-radius:11px;padding:11px;font-size:12.5px;font-weight:800;cursor:pointer;">
-              Monthly Plan<br><span style="font-size:15px;">₹<span id="agduMonthly">—</span></span>
-            </button>
-            <button onclick="goUpgrade('onetime')" style="background:#ffd22e;color:#111114;border:none;border-radius:11px;padding:11px;font-size:12.5px;font-weight:800;cursor:pointer;">
-              Lifetime Plan<br><span style="font-size:15px;">₹<span id="agduOnetime">—</span></span>
-            </button>
+        <div class="ag-lock">
+          <div class="ag-lock-glow"></div>
+          <div style="position:relative;z-index:1;">
+            <div class="ag-lock-badge">🔒 Locked</div>
+            <h3 class="ag-lock-title">To use this feature you must be<br>a paid shop owner</h3>
+
+            <div class="ag-earn">
+              <div class="ag-earn-num">₹200</div>
+              <div class="ag-earn-lbl">har shop par commission</div>
+            </div>
+
+            <div class="ag-math">
+              <div class="ag-math-row"><span>5 shop jode</span><b>₹1,000</b></div>
+              <div class="ag-math-row"><span>10 shop jode</span><b>₹2,000</b></div>
+              <div class="ag-math-row hi"><span>25 shop jode</span><b>₹5,000</b></div>
+            </div>
+
+            <p class="ag-lock-note">
+              Apna referral code, apna dashboard, apni price — sab milta hai.
+              Koi investment nahi, sirf shops jodne hain. Agent banne ke liye
+              pehle apna plan lena zaroori hai.
+            </p>
+
+            <div class="ag-lock-btns">
+              <button onclick="goUpgrade('monthly')" class="ag-lock-btn">
+                <span>Monthly Plan</span><b>₹<span id="agduMonthly">—</span></b>
+              </button>
+              <button onclick="goUpgrade('onetime')" class="ag-lock-btn gold">
+                <span>Lifetime Plan</span><b>₹<span id="agduOnetime">—</span></b>
+              </button>
+            </div>
           </div>
         </div>
-        <p style="font-size:12px;color:#9b9690;line-height:1.7;">
-          Neeche jo bhi dikh raha hai wo asli Agent dashboard hai — plan lene ke baad
-          bilkul aisa hi milega.
+        <p style="font-size:12px;color:#9b9690;line-height:1.7;text-align:center;margin-bottom:18px;">
+          Neeche jo dikh raha hai wo asli Agent dashboard hai — plan lene ke baad bilkul aisa hi milega.
         </p>
       </div>
 
@@ -1157,55 +1308,77 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     </div>
     </div><!-- /support -->
     <div data-sect="partner">
-    <div class="card">
-      <div class="pp-hero">
-        <div style="position:relative;z-index:1;">
-          <div style="font-size:11px;font-weight:800;letter-spacing:.6px;opacity:.8;text-transform:uppercase;margin-bottom:6px;">White Label Program</div>
-          <h2 style="font-size:21px;font-weight:800;margin:0 0 8px;color:#fff;border:none;padding:0;">Apne Naam Se Software Becho</h2>
-          <p style="font-size:13px;line-height:1.75;opacity:.9;margin:0 0 14px;max-width:520px;">
-            Apna brand, apna logo, apna domain. Customer ko QR Se Print ka naam kahin nahi dikhega —
-            sab kuch aapke naam se. Setup fee bhi seedha aapke account me aati hai.
-          </p>
-          <div class="pp-timer">⏳ <span id="ppTimer">—</span></div>
+
+    <div class="wl-hero">
+      <div class="wl-hero-glow"></div>
+      <div style="position:relative;z-index:1;text-align:center;">
+        <div class="wl-badge">🏷️ WHITE LABEL PARTNER</div>
+        <h2 class="wl-h1">Apne <span>brand</span> se becho,<br>poora paisa aapka</h2>
+
+        <div class="wl-price">
+          <span class="wl-cut">₹<span id="wlCut">9,999</span></span>
+          <div class="wl-price-box">
+            <div class="wl-amt">₹<span id="wlPrice">4,999</span></div>
+            <div class="wl-sub">ek baar · lifetime license</div>
+          </div>
         </div>
-      </div>
+        <div class="wl-off" id="wlOff">50% OFF</div>
 
-      <div class="pp-grid">
-        <div class="pp-card"><b>🏷️ Poora aapka brand</b><p>Apna naam, logo aur domain. Shop owner ko aapki company dikhti hai — hum kahin nahi.</p></div>
-        <div class="pp-card"><b>💰 Paisa seedha aapko</b><p>Apna Razorpay ya Cashfree lagao. Shops se aane wali setup fee bina kisi cut ke aapke account me.</p></div>
-        <div class="pp-card"><b>🎛️ Apna admin panel</b><p>Apne saare shops ek jagah — add karo, price set karo, activate karo. Sab apne control me.</p></div>
-        <div class="pp-card"><b>🔧 Update humari zimmedari</b><p>Software, print agent aur naye features hum banate rahenge. Aap sirf bechne par dhyan do.</p></div>
-      </div>
-
-      <div id="ppBox" style="background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:14px;padding:16px;">
-        <div style="font-size:13.5px;font-weight:800;color:#5b21b6;margin-bottom:6px;">Shuru kaise karein</div>
-        <p style="font-size:12.5px;color:#4b5563;line-height:1.75;margin:0 0 13px;">
-          White Label ke liye pehle ek baar baat hoti hai — aapka brand, kitne shops ka plan hai,
-          aur pricing kya rakhni hai. Uske baad setup aur registration ho jaata hai.
+        <p class="wl-lead">
+          Apna brand naam, apna logo, apna price aur <b>apna Razorpay</b>.
+          Aapki shops ka registration fee seedha <b>aapke account</b> me aata hai —
+          humare paas ek rupaya bhi nahi.
         </p>
-        <div style="display:flex;gap:9px;flex-wrap:wrap;">
-          <a id="ppWa" href="#" target="_blank" rel="noopener"
-             style="background:#25d366;color:#fff;text-decoration:none;border-radius:10px;padding:10px 18px;font-size:12.5px;font-weight:800;">
-            WhatsApp par baat karo
-          </a>
-          <a href="/whitelabel" target="_blank" rel="noopener"
-             style="background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px;padding:10px 18px;font-size:12.5px;font-weight:800;">
-            Poori detail aur pricing dekho
-          </a>
-        </div>
-      </div>
 
-      <div id="ppDemoNote" style="display:none;margin-top:13px;background:#fff9ec;border:1.5px solid #f0e2ba;border-radius:12px;padding:13px 15px;">
-        <div style="font-size:12.5px;font-weight:800;color:#8a6d1f;margin-bottom:4px;">🔒 Demo account me registration nahi hota</div>
-        <p style="font-size:12px;color:#4b5563;line-height:1.7;margin:0 0 11px;">
-          White Label lene ke liye pehle koi bhi plan lena hoga. Detail ab bhi dekh sakte ho.
-        </p>
-        <div style="display:flex;gap:9px;flex-wrap:wrap;">
-          <button onclick="goUpgrade('monthly')" style="background:#111114;color:#fff;border:none;border-radius:9px;padding:9px 15px;font-size:12px;font-weight:800;cursor:pointer;">Monthly ₹<span id="ppMonthly">—</span></button>
-          <button onclick="goUpgrade('onetime')" style="background:#ffd22e;color:#111114;border:none;border-radius:9px;padding:9px 15px;font-size:12px;font-weight:800;cursor:pointer;">Lifetime ₹<span id="ppOnetime">—</span></button>
-        </div>
+        <div class="wl-timer">⏳ <span id="ppTimer">—</span></div>
       </div>
     </div>
+
+    <div class="card">
+      <h2>Kya-kya milta hai</h2>
+      <div class="wl-list">
+        <div class="wl-item"><span>🏷️</span><div><b>Apna Brand</b><p>Shop owner ko har jagah aapka naam aur logo dikhega — "Powered by" bhi aapka.</p></div></div>
+        <div class="wl-item"><span>💳</span><div><b>Apna Razorpay</b><p>Shops ka poora registration fee seedha aapke bank me. Koi commission nahi.</p></div></div>
+        <div class="wl-item"><span>🏷️</span><div><b>Apna Price</b><p>Base price se upar jo chahe rakho — poora margin aapka.</p></div></div>
+        <div class="wl-item"><span>📊</span><div><b>Apna Dashboard</b><p>Kitni shops, kitne demo, kitne pending — sab ek jagah.</p></div></div>
+        <div class="wl-item"><span>📢</span><div><b>Apna Broadcast</b><p>Sirf aapki shops ko message bhejo, unke dashboard me dikhega.</p></div></div>
+        <div class="wl-item"><span>🔗</span><div><b>Apna Link</b><p>Apna share link milega — usse jo bhi register kare, wo aapki shop.</p></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Kaise kaam karta hai</h2>
+      <div class="wl-steps">
+        <div class="wl-step"><i>1</i><div><b>License lo</b><p>Ek baar ka payment — uske turant baad Partner ID aur password mil jata hai.</p></div></div>
+        <div class="wl-step"><i>2</i><div><b>Apna Razorpay lagao</b><p>Panel me apni Razorpay key daalo — shops ka poora paisa seedha aapke bank me aayega.</p></div></div>
+        <div class="wl-step"><i>3</i><div><b>Brand set karo</b><p>Apna naam, logo, "Powered by", support email aur WhatsApp — sab aapka.</p></div></div>
+        <div class="wl-step"><i>4</i><div><b>Apna price rakho</b><p>Base price se upar jo chahe — poora extra aapka margin.</p></div></div>
+        <div class="wl-step"><i>5</i><div><b>Link share karo</b><p>Aapke link se jo bhi register kare, wo aapki shop. Panel me sab dikhta rahega.</p></div></div>
+      </div>
+    </div>
+
+    <div class="card wl-money-card">
+      <h2>💰 Paisa kaise chalta hai</h2>
+      <div class="wl-money">
+        <div class="wl-money-row"><span>Aapka license fee</span><b>ek baar → humare paas</b></div>
+        <div class="wl-money-row"><span>Shops ka registration fee</span><b class="g">100% → aapke paas</b></div>
+        <div class="wl-money-row"><span>Shop ke customer ka print payment</span><b>→ shop ke apne account me</b></div>
+      </div>
+      <p class="wl-money-note">
+        Matlab license lene ke baad har shop ka poora paisa aapka — hum usme se ek rupaya nahi lete.
+      </p>
+    </div>
+
+    <div style="text-align:center;padding:6px 0 22px;">
+      <a href="/whitelabel" target="_blank" rel="noopener" class="wl-cta">🏷️ Partner Banein — Register Karein ›</a>
+      <p style="font-size:11.5px;color:#9b9690;margin:11px 0 0;">
+        2 minute ka form · payment ke turant baad ID aur password mil jayega
+      </p>
+      <p style="font-size:11.5px;color:#9b9690;margin:7px 0 0;">
+        Sawaal hai? <a id="ppWa" href="#" target="_blank" rel="noopener" style="color:#ff2e63;font-weight:700;">WhatsApp par baat karo</a>
+      </p>
+    </div>
+
     </div><!-- /partner -->
 
 
@@ -2061,7 +2234,10 @@ async function loadAgent() {
     // Agent tab sirf tab dikhe jab agent ho, ya ban sakta ho
     // Demo ko bhi tab dikhta hai — poora program dikhna chahiye, tabhi
     // banda samjhega ki plan lene par kya milega. Rok sirf action par hai.
-    const _isDemo = !!(window.currentShop && currentShop.demo);
+    // currentShop 'let' se declare hai — window par nahi hota.
+    // Pehle window.currentShop likha tha, isliye demo kabhi detect
+    // hi nahi hua aur tab dikhta hi nahi tha.
+    const _isDemo = !!(currentShop && currentShop.demo) || !!d.demo;
     if (nav) nav.style.display = (d.is_agent || d.eligible || _isDemo) ? 'flex' : 'none';
     if (banner) {
       banner.style.display = d.is_agent ? 'block' : 'none';
@@ -2313,8 +2489,8 @@ function initDemoUpgrade(shop) {
   _demoTimer = setInterval(renderDemoCountdown, 30000);
   fetch('/api/setup-fee/current').then(r => r.json()).then(d => {
     const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
-    if (d.monthlyFee) { setTxt('duMonthly', d.monthlyFee); setTxt('agduMonthly', d.monthlyFee); setTxt('ppMonthly', d.monthlyFee); }
-    if (d.offerPrice !== undefined) { setTxt('duOnetime', d.offerPrice); setTxt('agduOnetime', d.offerPrice); setTxt('ppOnetime', d.offerPrice); }
+    if (d.monthlyFee) { setTxt('duMonthly', d.monthlyFee); setTxt('agduMonthly', d.monthlyFee); }
+    if (d.offerPrice !== undefined) { setTxt('duOnetime', d.offerPrice); setTxt('agduOnetime', d.offerPrice); }
     const cut = document.getElementById('duCut');
     if (cut && d.actualPrice && Number(d.actualPrice) > Number(d.offerPrice)) cut.textContent = '₹' + d.actualPrice;
   }).catch(() => {});
@@ -2373,12 +2549,9 @@ function initPartnerTab(shop) {
   }
   if (nav) nav.style.display = 'flex';
 
-  // Demo ko sab dikhta hai, par registration ke liye plan chahiye
-  const isDemo = !!(shop && shop.demo);
-  const note = document.getElementById('ppDemoNote');
-  if (note) note.style.display = isDemo ? 'block' : 'none';
-  const box = document.getElementById('ppBox');
-  if (box) box.style.opacity = isDemo ? '.55' : '1';
+  // White Label sab shop owners ke liye khula hai — demo bhi register
+  // kar sakta hai. Isliye yahan koi demo-gate nahi. (Agent alag hai,
+  // wahan paid hona zaroori hai.)
 
   // WhatsApp link — number ek hi jagah se aata hai
   const wa = document.getElementById('ppWa');
@@ -2387,6 +2560,26 @@ function initPartnerTab(shop) {
     const msg = `Namaste, main QR Se Print ka shop owner hoon${shop && shop.id ? ' (' + shop.id + ')' : ''}. White Label program ke baare me jaanna hai.`;
     wa.href = num ? `https://wa.me/${num}?text=${encodeURIComponent(msg)}` : '#';
   }
+
+  // Price ek hi jagah se — /whitelabel page aur ye tab dono
+  // wahi number dikhayein, warna banda confuse hota hai
+  // Wahi endpoint jo public /whitelabel page use karta hai — dono
+  // jagah ek hi price dikhe, warna banda confuse ho jaata hai
+  fetch('/api/whitelabel/license-fee').then(r => r.json()).then(d => {
+    const fee = Number(d.licenseFee) || 0;
+    const actual = Number(d.licenseActual) || 0;
+    const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v.toLocaleString('en-IN'); };
+    if (fee) set('wlPrice', fee);
+    const cut = document.getElementById('wlCut'), off = document.getElementById('wlOff');
+    if (actual > fee && fee > 0) {
+      set('wlCut', actual);
+      if (off) off.textContent = Math.round(((actual - fee) / actual) * 100) + '% OFF';
+    } else {
+      // Kata hua price tabhi dikhao jab wo sach me zyada ho
+      if (cut && cut.parentElement) cut.parentElement.style.display = 'none';
+      if (off) off.style.display = 'none';
+    }
+  }).catch(() => {});
 
   renderPpTimer();
   if (_ppTimer) clearInterval(_ppTimer);
