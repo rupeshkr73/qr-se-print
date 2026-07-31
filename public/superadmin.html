@@ -196,6 +196,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <div class="side-brand"><span class="bm">🖨️</span> QR Se Print</div>
     <div class="side-role">Role<b>Super Admin</b></div>
     <button class="nav-it active" data-nav="overview" onclick="navTo('overview',this)"><span class="ico">📊</span> Overview</button>
+    <button class="nav-it" data-nav="kaam" onclick="navTo('kaam',this)"><span class="ico">🎯</span> Aaj Ka Kaam</button>
     <button class="nav-it" data-nav="shops"       onclick="navTo('shops',this)"><span class="ico">🏪</span> Shops</button>
     <button class="nav-it" data-nav="shops-lifetime" onclick="navShops('lifetime',this)"><span class="ico">💎</span> Lifetime Shops</button>
     <button class="nav-it" data-nav="shops-monthly"  onclick="navShops('monthly',this)"><span class="ico">📅</span> Monthly Shops</button>
@@ -474,6 +475,25 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 
     <div data-sect="overview" class="show">
 
+    <div class="stats">
+      <div class="stat"><div class="stat-lbl">Total Shops</div><div class="stat-val" id="totalShops">0</div></div>
+      <div class="stat"><div class="stat-lbl">Active Shops</div><div class="stat-val green" id="activeShops">0</div></div>
+      <div class="stat"><div class="stat-lbl">Demo Shops</div><div class="stat-val blue" id="demoShops">0</div></div>
+      <div class="stat"><div class="stat-lbl">Pending Payment</div><div class="stat-val orange" id="pendingShops">0</div></div>
+      <div class="stat"><div class="stat-lbl">Demo Expired</div><div class="stat-val" id="demoExpired" style="color:#9b9690;">0</div></div>
+      <div class="stat"><div class="stat-lbl">Monthly Shops</div><div class="stat-val" id="monthlyShops" style="color:#7c3aed;">0</div></div>
+    </div>
+
+      <p style="font-size:11.5px;color:#9b9690;margin:14px 2px 0;line-height:1.6;">
+        Paisa aur traffic ka poora hisaab <b>Analytics</b> me hai. Roz ka kaam
+        <b>Aaj Ka Kaam</b> me. Yahan sirf shops ki ginti.
+      </p>
+
+    </div><!-- /overview -->
+
+    <div data-sect="kaam">
+
+
     <!-- ACTION CENTER — sabse upar, kyunki roz yahi dekhna hai -->
     <div class="card" style="margin-bottom:20px;">
       <h2><span>🎯 Aaj Kya Dekhna Hai</span>
@@ -509,14 +529,8 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       <div id="cldFiles" style="margin-top:10px;"></div>
     </div>
 
-    <div class="stats">
-      <div class="stat"><div class="stat-lbl">Total Shops</div><div class="stat-val" id="totalShops">0</div></div>
-      <div class="stat"><div class="stat-lbl">Active Shops</div><div class="stat-val green" id="activeShops">0</div></div>
-      <div class="stat"><div class="stat-lbl">Pending Payment</div><div class="stat-val orange" id="pendingShops">0</div></div>
-      <div class="stat"><div class="stat-lbl">Setup Fee Total</div><div class="stat-val blue" id="setupRevenue">₹0</div></div>
-    </div>
 
-    </div><!-- /overview -->
+        </div><!-- /kaam -->
 
     <div data-sect="demos">
 
@@ -2196,14 +2210,13 @@ async function loadPanel() {
     document.getElementById('panel').classList.remove('hidden');
     document.getElementById('logoutBtn').classList.remove('hidden');
 
-    document.getElementById('totalShops').textContent = overview.total_shops;
-    document.getElementById('activeShops').textContent = overview.active_shops;
-    document.getElementById('pendingShops').textContent = overview.pending_shops;
-    document.getElementById('setupRevenue').textContent = '₹' + overview.total_setup_revenue;
-    if (overview.paid_shops != null) {
-      const el = document.getElementById('setupRevenue');
-      el.insertAdjacentHTML('afterend', `<div style="font-size:11px;color:#6b6870;font-weight:600;margin-top:2px">${overview.paid_shops} shops ne paid kiya</div>`);
-    }
+    const setStat = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = (v ?? 0); };
+    setStat('totalShops',   overview.total_shops);
+    setStat('activeShops',  overview.active_shops);
+    setStat('demoShops',    overview.demo_shops);
+    setStat('pendingShops', overview.pending_shops);
+    setStat('demoExpired',  overview.demo_expired);
+    setStat('monthlyShops', overview.monthly_shops);
 
     if (feeRes.ok) {
       const feeData = await feeRes.json();
@@ -2794,7 +2807,7 @@ async function deletePendingShop(shopId, name){
 
 
 // ===== SIDEBAR NAV =====
-const PAGE_TITLES = {overview:'Overview', shops:'Shops', demos:'Demo Accounts', agents:'Agents', withdrawals:'Withdrawals', agent:'Agent Software', pricing:'Setup Fee', analytics:'Analytics', whitelabel:'White Label', reviews:'Reviews', langs:'Languages', notify:'Email Alerts'};
+const PAGE_TITLES = {kaam:'Aaj Ka Kaam', overview:'Overview', shops:'Shops', demos:'Demo Accounts', agents:'Agents', withdrawals:'Withdrawals', agent:'Agent Software', pricing:'Setup Fee', analytics:'Analytics', whitelabel:'White Label', reviews:'Reviews', langs:'Languages', notify:'Email Alerts'};
 function navTo(sect, btn){
   document.querySelectorAll('[data-sect]').forEach(el=>el.classList.toggle('show', el.getAttribute('data-sect')===sect));
   document.querySelectorAll('.nav-it[data-nav]').forEach(n=>n.classList.toggle('active', n.getAttribute('data-nav')===sect));
