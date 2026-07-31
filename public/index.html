@@ -3265,6 +3265,17 @@ function sendInq(via){
   }();
   var qp=function(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } };
   var REF=qp('ref'), UTM=qp('utm_source');
+  // Visitor kahan se aaya — Google, Facebook, Instagram ya seedha.
+  // Sirf hostname bhejte hain, poora URL nahi (privacy).
+  var REFERRER=(function(){
+    try{
+      if(!document.referrer) return '';
+      var h=new URL(document.referrer).hostname;
+      // Apni hi site se aaya (page se page) to wo source nahi hai
+      if(h===location.hostname) return '';
+      return h;
+    }catch(e){ return ''; }
+  })();
   // White-label partner ka slug — ?wl= se ya subdomain se
   var WL=qp('wl');
   if(!WL){
@@ -3274,7 +3285,7 @@ function sendInq(via){
 
   var track=function(eventType){
     try{
-      var body=JSON.stringify({event_type:eventType, path:location.pathname, ref:REF, utm_source:UTM, visitor_id:visitorId, wl:WL});
+      var body=JSON.stringify({event_type:eventType, path:location.pathname, ref:REF, utm_source:UTM, referrer:REFERRER, visitor_id:visitorId, wl:WL});
       if(navigator.sendBeacon){
         navigator.sendBeacon('/api/track', new Blob([body],{type:'application/json'}));
       } else {
