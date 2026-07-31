@@ -1543,11 +1543,16 @@ html.legal-open,body.legal-open{overflow:hidden}
 /* Chhoti screen par gutter hi nahi hota — line ko kinare par
    patla karke laga dete hain, text ke upar nahi aata */
 @media (max-width:1080px){
-  #aboutPage .rail-wrap{left:-8px;width:26px;opacity:.6}
+  #aboutPage .rail-wrap{left:-10px;width:26px}
   #aboutPage .rail-head{width:8px;height:8px}
 }
+/* Phone par bhi dikhni chahiye. Bilkul kinare par le jaate hain aur
+   patli kar dete hain, taaki text ke upar kabhi na aaye. */
 @media (max-width:560px){
-  #aboutPage .rail-wrap{display:none}
+  #aboutPage .rail-wrap{left:-14px;width:18px;opacity:.85}
+  #aboutPage .rail-core{stroke-width:2}
+  #aboutPage .rail-glow{stroke-width:6;filter:blur(5px)}
+  #aboutPage .rail-head{width:7px;height:7px;box-shadow:0 0 0 2px rgba(255,46,99,.5),0 0 12px 3px rgba(255,107,53,.7)}
 }
 /* Animation band ho to poori line dikha do, hilne-dulne ka kuch nahi */
 @media (prefers-reduced-motion:reduce){
@@ -1555,8 +1560,121 @@ html.legal-open,body.legal-open{overflow:hidden}
   #aboutPage .rail-head{display:none}
 }
 
+/* ── Origin story: timeline with icons ─────────────────────
+   Ye page ka sabse pehla section hai, isliye ismein thoda dum
+   dena banta hai. Baaki sections jaan-bujh ke shaant rakhe hain. */
+#aboutPage .origin-lead{font-size:16.5px;font-weight:650;color:var(--ink)}
+#aboutPage .origin-line{
+  list-style:none;margin:20px 0 4px;padding:0;position:relative;
+}
+#aboutPage .origin-line::before{
+  content:"";position:absolute;left:21px;top:12px;bottom:12px;width:2px;
+  background:linear-gradient(180deg,#ff2e63,#ff6b35,#ffd22e,#7c3aed);
+  opacity:.28;border-radius:2px;
+}
+#aboutPage .origin-step{
+  position:relative;display:flex;gap:14px;align-items:flex-start;
+  padding:0 0 18px 0;
+  opacity:0;transform:translateY(16px);
+  transition:opacity .55s var(--ease),transform .55s var(--ease);
+}
+#aboutPage .origin-step.in{opacity:1;transform:none}
+#aboutPage .origin-step:last-child{padding-bottom:0}
+#aboutPage .os-ico{
+  flex:0 0 44px;width:44px;height:44px;border-radius:14px;
+  display:grid;place-items:center;font-size:21px;line-height:1;
+  background:var(--card);border:1.5px solid var(--line);
+  box-shadow:var(--shadow-sm);position:relative;z-index:1;
+  transition:transform .5s var(--ease),box-shadow .5s var(--ease),border-color .5s var(--ease);
+}
+#aboutPage .origin-step.in .os-ico{
+  transform:scale(1.06);border-color:#ffd9a3;
+  box-shadow:0 6px 18px rgba(255,107,53,.22);
+}
+#aboutPage .os-body b{
+  display:block;font-size:14.5px;font-weight:800;color:var(--ink);
+  margin:11px 0 4px;letter-spacing:-.1px;
+}
+#aboutPage .os-body p{margin:0;font-size:14px;line-height:1.75;color:#4b5563}
+#aboutPage .origin-foot{
+  margin-top:16px;padding:13px 15px;border-radius:14px;
+  background:var(--tint);border:1.5px solid #f0e2ba;
+  font-size:14px;line-height:1.7;color:#5a4a1f;
+}
+@media (max-width:560px){
+  #aboutPage .os-ico{flex-basis:38px;width:38px;height:38px;font-size:18px;border-radius:12px}
+  #aboutPage .origin-line::before{left:18px}
+}
+@media (prefers-reduced-motion:reduce){
+  #aboutPage .origin-step{opacity:1;transform:none;transition:none}
+  #aboutPage .origin-step.in .os-ico{transform:none}
+}
+
+/* ── Rope: kheencho aur page neeche jaaye ──────────────────
+   Ye page ka signature element hai. Pointer Events use kiye hain
+   isliye mouse aur touch dono par ek hi code chalta hai.
+   Sirf grip par pointer-events hai — baaki jagah text normal
+   select/tap hota rahega. */
+#aboutPage .rope{
+  position:fixed;top:64px;right:14px;width:64px;height:270px;
+  z-index:4;pointer-events:none;
+  opacity:0;transition:opacity .5s var(--ease) .25s;
+}
+#aboutPage.open .rope{opacity:1}
+#aboutPage .rope-svg{
+  position:absolute;inset:0;width:100%;height:100%;overflow:visible;
+}
+#aboutPage .rope-line{
+  fill:none;stroke:#c9a227;stroke-width:3.5;stroke-linecap:round;
+  vector-effect:non-scaling-stroke;
+  stroke-dasharray:7 5;
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.18));
+}
+#aboutPage .rope-grip{
+  position:absolute;left:50%;top:150px;
+  transform:translate(-50%,-50%);
+  width:52px;height:60px;padding:0;border:0;background:none;
+  cursor:grab;pointer-events:auto;touch-action:none;
+  transition:filter .25s var(--ease);
+  filter:drop-shadow(0 6px 14px rgba(17,17,20,.18));
+}
+#aboutPage .rope-grip:active{cursor:grabbing}
+#aboutPage .rope-grip.pulling{filter:drop-shadow(0 10px 20px rgba(255,107,53,.4))}
+#aboutPage .rope-grip svg{width:100%;height:100%;display:block}
+#aboutPage .rg-paper{fill:#fffdf8;stroke:var(--ink);stroke-width:2.4}
+#aboutPage .rg-fold{fill:#ffe9a8;stroke:var(--ink);stroke-width:2.4;stroke-linejoin:round}
+#aboutPage .rg-eye{fill:var(--ink)}
+#aboutPage .rg-smile{fill:none;stroke:var(--ink);stroke-width:2.4;stroke-linecap:round}
+#aboutPage .rg-arm{fill:none;stroke:var(--ink);stroke-width:2.4;stroke-linecap:round}
+#aboutPage .rope-grip.pulling .rg-smile{d:path("M16.5 37 Q22 31 27.5 37")}
+#aboutPage .rope-hint{
+  position:absolute;left:50%;top:196px;transform:translateX(-50%);
+  white-space:nowrap;font-size:10.5px;font-weight:800;
+  letter-spacing:.4px;text-transform:uppercase;color:#8a6d1f;
+  background:var(--tint);border:1.5px solid #f0e2ba;
+  padding:4px 9px;border-radius:999px;
+  animation:ropeNudge 2.4s var(--ease) infinite;
+  transition:opacity .4s var(--ease),transform .4s var(--ease);
+}
+#aboutPage .rope-hint.gone{opacity:0;transform:translateX(-50%) translateY(6px)}
+@keyframes ropeNudge{
+  0%,72%,100%{transform:translateX(-50%) translateY(0)}
+  80%{transform:translateX(-50%) translateY(5px)}
+  88%{transform:translateX(-50%) translateY(1px)}
+}
+@media (max-width:560px){
+  #aboutPage .rope{top:58px;right:6px;width:50px;height:230px}
+  #aboutPage .rope-grip{width:44px;height:50px}
+  #aboutPage .rope-hint{font-size:9.5px;padding:3px 7px}
+}
+@media (prefers-reduced-motion:reduce){
+  #aboutPage .rope-hint{animation:none}
+}
+
 @media print{
+  #aboutPage .rope{display:none!important}
   #aboutPage .rail-wrap{display:none!important}
+  #aboutPage .origin-step{opacity:1!important;transform:none!important}
   .lg-top,.lg-contact a,.site-head,.nav-drop{display:none!important}
   .legal-page{position:static;opacity:1;visibility:visible;transform:none;overflow:visible}
   .lg-sec{break-inside:avoid;box-shadow:none;border-color:#ddd}
@@ -2375,6 +2493,25 @@ html.legal-open,body.legal-open{overflow:hidden}
     <div class="brand"><div data-cfg="ab01" class="brand-mark">🖨️</div> QR Se Print</div>
     <a data-cfg="ab02" href="#" class="lg-back" onclick="closeLegal();return false;">← Back to Home</a>
   </div>
+  <div class="rope" id="aboutRope">
+    <svg class="rope-svg" viewBox="0 0 64 400" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path class="rope-line" d="M32 0 L32 150"/>
+    </svg>
+    <button type="button" class="rope-grip" id="ropeGrip"
+            aria-label="Rope kheench kar page neeche karo">
+      <svg viewBox="0 0 44 52" aria-hidden="true" focusable="false">
+        <rect class="rg-paper" x="6" y="10" width="32" height="38" rx="7"/>
+        <path class="rg-fold" d="M30 10 L38 18 L30 18 Z"/>
+        <circle class="rg-eye" cx="17" cy="27" r="2.6"/>
+        <circle class="rg-eye" cx="27" cy="27" r="2.6"/>
+        <path class="rg-smile" d="M16.5 34.5 Q22 39 27.5 34.5"/>
+        <path class="rg-arm" d="M12 18 Q7 12 10 6"/>
+        <path class="rg-arm" d="M32 18 Q37 12 34 6"/>
+      </svg>
+    </button>
+    <span class="rope-hint" id="ropeHint" data-cfg="ab53">mujhe niche khicho</span>
+  </div>
+
   <div class="lg-wrap">
     <div class="rail-wrap" aria-hidden="true">
       <svg class="rail-svg" viewBox="0 0 60 1200" preserveAspectRatio="none" focusable="false">
@@ -2405,14 +2542,59 @@ html.legal-open,body.legal-open{overflow:hidden}
 
     <div data-cfg-html="ab07" class="lg-note"><b>Kaam kaise karta hai</b>Customer ko sirf QR scan karna hai, document upload karna hai, payment complete karni hai — aur print automatically start ho jata hai. Na pendrive ki zarurat, na WhatsApp par file bhejne ka jhanjhat, na manual file handling.</div>
 
+    <div class="lg-sec origin">
+      <h3 data-cfg="ab30" data-n="1">Ye kahan se shuru hua</h3>
+      <p data-cfg="ab31" class="origin-lead">QR Se Print ki kahani kisi office ya startup se nahi, balki ek asli Cyber Cafe se shuru hui.</p>
+
+      <ol class="origin-line">
+        <li class="origin-step">
+          <span class="os-ico" aria-hidden="true">🏪</span>
+          <div class="os-body">
+            <b data-cfg="ab46">Ek chhoti dukaan, Jharkhand me</b>
+            <p data-cfg="ab32">Rupesh Kumar Mahato apna Cyber Cafe chalate hain. Roz customers WhatsApp se file bhejte, ya pendrive lekar aate.</p>
+          </div>
+        </li>
+        <li class="origin-step">
+          <span class="os-ico" aria-hidden="true">😮‍💨</span>
+          <div class="os-body">
+            <b data-cfg="ab47">Roz ka wahi jhanjhat</b>
+            <p data-cfg="ab48">File receive karo, download karo, payment lo, phir manually print do. Peak hours me line lag jaati thi.</p>
+          </div>
+        </li>
+        <li class="origin-step">
+          <span class="os-ico" aria-hidden="true">🔧</span>
+          <div class="os-body">
+            <b data-cfg="ab49">Pehle sirf apni shop ke liye</b>
+            <p data-cfg="ab33">Isi problem ko theek karne ke liye QR Se Print banaya — bechne ke liye nahi, apna kaam aasan karne ke liye.</p>
+          </div>
+        </li>
+        <li class="origin-step">
+          <span class="os-ico" aria-hidden="true">🔁</span>
+          <div class="os-body">
+            <b data-cfg="ab50">Mahino asli customers ke saath</b>
+            <p data-cfg="ab34">Daily use kiya, improve kiya, aur asli feedback ke basis par features add kiye. Jo kaam nahi aaya, hata diya.</p>
+          </div>
+        </li>
+        <li class="origin-step">
+          <span class="os-ico" aria-hidden="true">🚀</span>
+          <div class="os-body">
+            <b data-cfg="ab51">Phir sabke liye</b>
+            <p data-cfg="ab35">Jab apni shop me system bharose ka ho gaya, tab laga ki ye doosre Cyber Cafes aur Print Shops ke bhi kaam aayega.</p>
+          </div>
+        </li>
+      </ol>
+
+      <p data-cfg="ab52" class="origin-foot">Isliye isme wahi features milte hain jo ek asli print shop ki roz ki zarurat dekh kar bane hain — sirf dikhane ke liye nahi.</p>
+    </div>
+
     <div class="lg-sec">
-      <h3 data-cfg="ab08" data-n="1">Hamara Mission</h3>
+      <h3 data-cfg="ab08" data-n="2">Hamara Mission</h3>
       <p data-cfg="ab09">Hum believe karte hain ki technology ka asli purpose logon ka kaam easy banana hai. Isi soch ke saath QR Se Print develop kiya gaya hai, taaki har print shop bina expensive hardware ya complicated setup ke ek modern self-service printing experience de sake.</p>
       <p data-cfg="ab10">Hamara goal sirf software dena nahi, balki har shop owner ko apna business aur professional, fast aur efficient banane me help karna hai.</p>
     </div>
 
     <div class="lg-sec">
-      <h3 data-cfg="ab11" data-n="2">QR Se Print kya offer karta hai</h3>
+      <h3 data-cfg="ab11" data-n="3">QR Se Print kya offer karta hai</h3>
       <ul>
         <li data-cfg="ab12">QR based smart printing — Scan → Upload → Pay → Auto Print</li>
         <li data-cfg="ab13">Har tarah ke printer ka support — WiFi printer ki zarurat nahi</li>
@@ -2427,7 +2609,7 @@ html.legal-open,body.legal-open{overflow:hidden}
     </div>
 
     <div class="lg-sec">
-      <h3 data-cfg="ab21" data-n="3">Kis ke liye hai</h3>
+      <h3 data-cfg="ab21" data-n="4">Kis ke liye hai</h3>
       <ul>
         <li data-cfg="ab22">Cyber Cafes</li>
         <li data-cfg="ab23">Print &amp; Xerox Shops</li>
@@ -2440,14 +2622,6 @@ html.legal-open,body.legal-open{overflow:hidden}
       </ul>
     </div>
 
-    <div class="lg-sec">
-      <h3 data-cfg="ab30" data-n="4">Ye kahan se shuru hua</h3>
-      <p data-cfg="ab31">QR Se Print ki kahani kisi office ya startup se nahi, balki ek asli Cyber Cafe se shuru hui.</p>
-      <p data-cfg="ab32">Rupesh Kumar Mahato Jharkhand me apna Cyber Cafe chalate hain, jahan roz customers WhatsApp se documents bhejte the ya pendrive lekar aate the. File receive karna, download karna, payment lena aur manually print dena — ye poora process slow aur time-consuming tha. Peak hours me aur bhi mushkil ho jata tha.</p>
-      <p data-cfg="ab33">Isi problem ko solve karne ke liye unhone sabse pehle QR Se Print sirf apni hi shop ke liye banaya. Kai mahino tak daily use kiya, improve kiya, aur asli customer feedback ke basis par naye features add kiye.</p>
-      <p data-cfg="ab34">Jab system unki apni shop me achhe se chalne laga aur printing pehle se kaafi fast aur reliable ho gayi, tab laga ki ye doosre Cyber Cafes aur Print Shops ke bhi kaam aa sakta hai. Isi soch ke saath QR Se Print sabke liye launch kiya gaya.</p>
-      <p data-cfg="ab35">Isliye isme wahi features milte hain jo ek asli print shop ki roz ki zarurat dekh kar banaye gaye hain — sirf dikhane ke liye nahi.</p>
-    </div>
 
     <div class="lg-sec">
       <h3 data-cfg="ab36" data-n="5">Support seedha, bina kisi bicholiye ke</h3>
@@ -3273,6 +3447,154 @@ function sendInq(via){
   window.addEventListener('resize',onScroll);
   window.addEventListener('hashchange',function(){ setTimeout(draw,60); });
   setTimeout(draw,80);
+})();
+
+/* ── Origin timeline: scroll par ek-ek karke aate hain ──
+   IntersectionObserver ka root #aboutPage hai kyunki wahi scroll
+   container hai — window nahi. Purane browser me observer na ho to
+   sab seedha dikha dete hain, kuch chhupa nahi rehta. */
+(function(){
+  var page=document.getElementById('aboutPage');
+  if(!page) return;
+  var steps=page.querySelectorAll('.origin-step');
+  if(!steps.length) return;
+
+  var reduce=false;
+  try{ reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches; }catch(e){}
+  var showAll=function(){ for(var i=0;i<steps.length;i++) steps[i].classList.add('in'); };
+
+  if(reduce||!('IntersectionObserver' in window)){ showAll(); return; }
+
+  var io=new IntersectionObserver(function(entries){
+    entries.forEach(function(en){
+      if(!en.isIntersecting) return;
+      var el=en.target;
+      var idx=Array.prototype.indexOf.call(steps,el);
+      setTimeout(function(){ el.classList.add('in'); }, idx*90);
+      io.unobserve(el);
+    });
+  },{root:page,threshold:.25,rootMargin:'0px 0px -8% 0px'});
+
+  for(var i=0;i<steps.length;i++) io.observe(steps[i]);
+  // Page band ho to observer trigger nahi hota; khulne par dobara check
+  window.addEventListener('hashchange',function(){
+    setTimeout(function(){
+      if(page.classList.contains('open')&&page.scrollTop<10){
+        for(var i=0;i<steps.length;i++){
+          var r=steps[i].getBoundingClientRect();
+          if(r.top<window.innerHeight*0.92) steps[i].classList.add('in');
+        }
+      }
+    },120);
+  });
+})();
+
+/* ── Rope: kheencho, page neeche jaaye ─────────────────────
+   Pointer Events se mouse aur touch dono ek hi code se chalte hain.
+   Kheenchne par rope lamba hota hai aur thoda jhukta hai, chhodne par
+   spring ki tarah wapas aata hai — isliye haath me "rassi" jaisa lagta hai.
+   touch-action:none CSS me isliye diya hai taaki drag ke waqt phone
+   apna page scroll na kar de. */
+(function(){
+  var page=document.getElementById('aboutPage'),
+      rope=document.getElementById('aboutRope'),
+      grip=document.getElementById('ropeGrip'),
+      hint=document.getElementById('ropeHint');
+  if(!page||!rope||!grip) return;
+  var line=rope.querySelector('.rope-line');
+  if(!line) return;
+
+  var REST=150,          // rope ki normal lambai (viewBox units)
+      MAX_PULL=110,      // isse zyada nahi khinchega
+      SPEED=3.4;         // 1px kheencho -> itna scroll
+
+  var dragging=false, startY=0, startScroll=0, pull=0, raf=0;
+
+  function paint(){
+    raf=0;
+    var end=REST+pull;
+    // beech me halka jhukav — rassi tani hui lagti hai
+    var bow=pull*0.16;
+    line.setAttribute('d','M32 0 Q'+(32+bow)+' '+(end*0.55)+' 32 '+end);
+    grip.style.top=end+'px';
+    if(hint) hint.style.top=(end+46)+'px';
+  }
+  function schedule(){
+    if(raf) return;
+    raf=(window.requestAnimationFrame||function(f){return setTimeout(f,16);})(paint);
+  }
+
+  function onDown(e){
+    dragging=true; pull=0;
+    startY=e.clientY;
+    startScroll=page.scrollTop;
+    grip.classList.add('pulling');
+    if(hint) hint.classList.add('gone');
+    try{ grip.setPointerCapture(e.pointerId); }catch(err){}
+    e.preventDefault();
+  }
+  function onMove(e){
+    if(!dragging) return;
+    var dy=e.clientY-startY;
+    if(dy<-MAX_PULL) dy=-MAX_PULL;
+    if(dy>MAX_PULL)  dy=MAX_PULL;
+    pull=dy;
+    page.scrollTop=startScroll+dy*SPEED;
+    schedule();
+    e.preventDefault();
+  }
+  function release(e){
+    if(!dragging) return;
+    dragging=false;
+    grip.classList.remove('pulling');
+    try{ grip.releasePointerCapture(e.pointerId); }catch(err){}
+    // spring back
+    var from=pull, t0=0;
+    function spring(ts){
+      if(!t0) t0=ts;
+      var k=(ts-t0)/380;
+      if(k>=1){ pull=0; paint(); return; }
+      // halka overshoot taaki jhatka asli lage
+      pull=from*Math.cos(k*7)*Math.exp(-k*4.2);
+      paint();
+      (window.requestAnimationFrame||function(f){setTimeout(f,16);})(spring);
+    }
+    (window.requestAnimationFrame||function(f){setTimeout(f,16);})(spring);
+  }
+
+  if(window.PointerEvent){
+    grip.addEventListener('pointerdown',onDown);
+    grip.addEventListener('pointermove',onMove);
+    grip.addEventListener('pointerup',release);
+    grip.addEventListener('pointercancel',release);
+  }else{
+    // Bahut purane browser ke liye
+    grip.addEventListener('mousedown',function(e){ onDown(e); });
+    window.addEventListener('mousemove',function(e){ onMove(e); });
+    window.addEventListener('mouseup',function(e){ release(e); });
+    grip.addEventListener('touchstart',function(e){ onDown(e.touches[0]); },{passive:false});
+    grip.addEventListener('touchmove',function(e){ onMove(e.touches[0]); e.preventDefault(); },{passive:false});
+    grip.addEventListener('touchend',function(){ release({}); });
+  }
+
+  // Keyboard se bhi chale — sirf mouse par nirbhar nahi
+  grip.addEventListener('keydown',function(e){
+    if(e.key==='ArrowDown'||e.key===' '||e.key==='Enter'){
+      page.scrollTop+=page.clientHeight*0.8;
+      if(hint) hint.classList.add('gone');
+      e.preventDefault();
+    }else if(e.key==='ArrowUp'){
+      page.scrollTop-=page.clientHeight*0.8;
+      e.preventDefault();
+    }
+  });
+
+  // Khud scroll kar liya to hint hata do
+  page.addEventListener('scroll',function(){
+    if(hint&&page.scrollTop>140) hint.classList.add('gone');
+  },{passive:true});
+
+  paint();
 })();
 
 /* ── Legal pages (Disclaimer / Terms / Privacy / Refund) ── */
