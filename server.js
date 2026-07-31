@@ -682,6 +682,14 @@ async function initDB() {
         created_at TIMESTAMP DEFAULT NOW()
       );
       ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS wl VARCHAR(40) DEFAULT '';
+      -- Shop khud review bhej sake, par homepage par tabhi dikhe jab
+      -- superadmin approve kare. Purane reviews (jo superadmin ne khud
+      -- daale the) DEFAULT 'approved' se apne aap live rehte hain.
+      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS status VARCHAR(12) DEFAULT 'approved';
+      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS shop_id VARCHAR(50) DEFAULT '';
+      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS state VARCHAR(80) DEFAULT '';
+      ALTER TABLE reviews ADD COLUMN IF NOT EXISTS edited BOOLEAN DEFAULT false;
+      CREATE INDEX IF NOT EXISTS idx_reviews_status ON reviews(status);
       -- 'ref' me agent ka referral code jaata hai. Visitor kahan se aaya
       -- (google/facebook/instagram) uske liye alag column chahiye.
       ALTER TABLE analytics_events ADD COLUMN IF NOT EXISTS referrer VARCHAR(160) DEFAULT '';
@@ -2419,11 +2427,61 @@ app.get('/api/whitelabel/analytics', verifyWhitelabel, async (req, res) => {
 app.get('/api/reviews', async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT id, name, stars, text, city FROM reviews
-       WHERE active=true ORDER BY sort_order ASC, created_at DESC LIMIT 50`);
+      `SELECT id, name, stars, text,
+              COALESCE(NULLIF(state,''), city) AS city
+       FROM reviews
+       WHERE active=true AND status='approved'
+       ORDER BY sort_order ASC, created_at DESC LIMIT 50`);
     const avg = await pool.query(
-      'SELECT COALESCE(AVG(stars),0)::numeric(3,1) AS avg, COUNT(*)::int AS total FROM reviews WHERE active=true');
+      "SELECT COALESCE(AVG(stars),0)::numeric(3,1) AS avg, COUNT(*)::int AS total FROM reviews WHERE active=true AND status='approved'");
     res.json({ reviews: r.rows, average: parseFloat(avg.rows[0].avg) || 0, total: avg.rows[0].total });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Shop apna review bhejta hai — seedha live nahi hota, pehle superadmin
+// approve karega. Ek shop ka ek hi review: dobara bhejne par purana update
+// ho jaata hai aur wapas pending me chala jaata hai.
+app.post('/api/shop/review', verifyToken, async (req, res) => {
+  try {
+    const name  = String(req.body.name  || '').trim().slice(0, 120);
+    const state = String(req.body.state || '').trim().slice(0, 80);
+    const text  = String(req.body.text  || '').trim().slice(0, 1200);
+    let stars   = parseInt(req.body.stars, 10);
+    if (!Number.isFinite(stars) || stars < 1 || stars > 5) stars = 5;
+
+    if (!name)  return res.status(400).json({ error: 'Naam daalo' });
+    if (!state) return res.status(400).json({ error: 'State daalo' });
+    if (text.length < 10) return res.status(400).json({ error: 'Review kam se kam 10 character ka likho' });
+
+    const existing = await pool.query('SELECT id FROM reviews WHERE shop_id=$1', [req.shopId]);
+
+    let r;
+    if (existing.rows.length) {
+      r = await pool.query(
+        `UPDATE reviews SET name=$1, state=$2, text=$3, stars=$4,
+                status='pending', edited=false, created_at=NOW()
+         WHERE shop_id=$5 RETURNING id, status`,
+        [name, state, text, stars, req.shopId]);
+    } else {
+      r = await pool.query(
+        `INSERT INTO reviews (name, stars, text, state, shop_id, status, active, sort_order)
+         VALUES ($1,$2,$3,$4,$5,'pending',true,
+                 COALESCE((SELECT MAX(sort_order)+1 FROM reviews),0))
+         RETURNING id, status`,
+        [name, stars, text, state, req.shopId]);
+    }
+    res.json({ success: true, review: r.rows[0],
+               message: 'Review bhej diya. Approve hone par homepage par dikhega.' });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Shop apna bheja hua review aur uski halat dekh sake
+app.get('/api/shop/review', verifyToken, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT id, name, state, stars, text, status, edited, created_at
+       FROM reviews WHERE shop_id=$1`, [req.shopId]);
+    res.json({ review: r.rows[0] || null });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -2474,6 +2532,53 @@ app.put('/api/superadmin/reviews/:id', verifySuperAdmin, async (req, res) => {
        stars,
        typeof b.active === 'boolean' ? b.active : null,
        Number.isInteger(parseInt(b.sort_order,10)) ? parseInt(b.sort_order,10) : null]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Review nahi mila' });
+    res.json({ success: true, review: r.rows[0] });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Approve — bina badle, ya edit ke saath. Jo fields bheje jaate hain
+// sirf wahi badalte hain, baaki waise ke waise rehte hain.
+app.post('/api/superadmin/reviews/:id/approve', verifySuperAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Galat id' });
+
+    const cur = await pool.query('SELECT * FROM reviews WHERE id=$1', [id]);
+    if (!cur.rows.length) return res.status(404).json({ error: 'Review nahi mila' });
+    const c = cur.rows[0];
+
+    const has = k => Object.prototype.hasOwnProperty.call(req.body, k);
+    const name  = has('name')  ? String(req.body.name  || '').trim().slice(0,120) : c.name;
+    const state = has('state') ? String(req.body.state || '').trim().slice(0,80)  : c.state;
+    const text  = has('text')  ? String(req.body.text  || '').trim().slice(0,1200): c.text;
+    let stars = c.stars;
+    if (has('stars')) {
+      const v = parseInt(req.body.stars, 10);
+      if (Number.isFinite(v) && v >= 1 && v <= 5) stars = v;
+    }
+    if (!name) return res.status(400).json({ error: 'Naam khaali nahi ho sakta' });
+    if (!text) return res.status(400).json({ error: 'Review khaali nahi ho sakta' });
+
+    const changed = (name !== c.name) || (state !== (c.state||'')) ||
+                    (text !== c.text) || (stars !== c.stars);
+
+    const r = await pool.query(
+      `UPDATE reviews SET name=$1, state=$2, text=$3, stars=$4,
+              status='approved', active=true, edited=$5
+       WHERE id=$6 RETURNING *`,
+      [name, state, text, stars, changed || c.edited, id]);
+    res.json({ success: true, review: r.rows[0] });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Wapas pending me bhejo (galti se approve ho gaya to)
+app.post('/api/superadmin/reviews/:id/unapprove', verifySuperAdmin, async (req, res) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Galat id' });
+    const r = await pool.query(
+      "UPDATE reviews SET status='pending' WHERE id=$1 RETURNING *", [id]);
     if (!r.rows.length) return res.status(404).json({ error: 'Review nahi mila' });
     res.json({ success: true, review: r.rows[0] });
   } catch(err) { res.status(500).json({ error: err.message }); }
