@@ -568,6 +568,10 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_resume_bw INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS shop_notice VARCHAR(200) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS advanced_active BOOLEAN DEFAULT true;
+      -- Purane demo accounts ko bhi advanced features de do. Sirf demo par —
+      -- paid shops ka paywall bilkul waise ka waisa rehta hai.
+      UPDATE shops SET advanced_unlocked = true
+       WHERE demo = true AND advanced_unlocked = false;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS shop_logo VARCHAR(400) DEFAULT '';
       -- ── PhonePe hataya gaya ── jo shops PhonePe par thi unka online payment
       -- ab kaam nahi karega, isliye unhe counter-cash par daal rahe hain.
@@ -1501,9 +1505,13 @@ app.post('/api/demo/create', async (req, res) => {
     const shopId = 'DEMO_' + crypto.randomBytes(4).toString('hex').toUpperCase();
     const passwordHash = await hashPassword(phone);
     await pool.query(
+      // advanced_unlocked=true — demo me saare advanced features khule
+      // rehte hain. Demo ka matlab hi hai ki banda poora software dekh
+      // sake; aadha dikha kar paise maangna ulta pad jaata hai.
+      // Paid shops par ye paywall waise ka waisa hai.
       `INSERT INTO shops (id, name, phone, price_bw, price_color, payment_mode, password_hash,
-                          setup_paid, setup_amount, demo, demo_expires_at)
-       VALUES ($1,$2,$3,5,10,'counter_only',$4,true,0,true,NOW() + ($5 || ' minutes')::INTERVAL)`,
+                          setup_paid, setup_amount, demo, demo_expires_at, advanced_unlocked)
+       VALUES ($1,$2,$3,5,10,'counter_only',$4,true,0,true,NOW() + ($5 || ' minutes')::INTERVAL,true)`,
       [shopId, name + ' (Demo)', phone, passwordHash, String(cfg.minutes)]);
     // Unique index (uniq_demo_reg_phone) DB pe race ko bhi rok deta hai —
     // agar do request ek saath aaye to doosri yahan safely fail hogi.
@@ -5747,6 +5755,7 @@ app.get('/api/public-stats', async (req, res) => {
     res.json(_statsCache.data);
   } catch(e) { res.json({ shops: 0, prints: 0 }); }
 });
+
 
 app.get('/robots.txt', (req, res) => {
   res.type('text/plain').send(`User-agent: *
