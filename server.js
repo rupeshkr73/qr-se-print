@@ -1792,6 +1792,94 @@ app.post('/api/track', async (req, res) => {
 });
 
 // Superadmin: aggregated funnel data — daily breakdown + totals + source split
+
+// ═══════════════════════════════════════════════════════════════════
+//  ACTION CENTER — "Aaj kya dekhna hai"
+//  19 tab me ghoomne ke bajaye ek jagah: kya atka hai, kya chhoot raha
+//  hai, kis shop ko aaj message karna hai. Sab kuch pehle se maujood
+//  data se banta hai — koi naya tracking nahi.
+// ═══════════════════════════════════════════════════════════════════
+app.get('/api/superadmin/action-center', verifySuperAdmin, async (req, res) => {
+  try {
+    const LIMIT = 25;
+
+    // 1. Register hua par paisa nahi diya — seedha khoya hua paisa.
+    //    45 din se purane chhod dete hain, wo dead lead hain.
+    const unpaid = await pool.query(`
+      SELECT id, name, phone, email, created_at,
+             EXTRACT(DAY FROM NOW() - created_at)::int AS days_ago
+      FROM shops
+      WHERE demo = false AND setup_paid = false
+        AND created_at > NOW() - INTERVAL '45 days'
+      ORDER BY created_at DESC LIMIT ${LIMIT}`);
+
+    // 2. Demo khatam hone wale — abhi baat karoge to paid ban sakte hain
+    const demoExpiring = await pool.query(`
+      SELECT id, name, phone, email, demo_expires_at,
+             GREATEST(0, CEIL(EXTRACT(EPOCH FROM (demo_expires_at - NOW()))/86400))::int AS days_left
+      FROM shops
+      WHERE demo = true AND demo_expires_at IS NOT NULL
+        AND demo_expires_at > NOW() AND demo_expires_at < NOW() + INTERVAL '3 days'
+      ORDER BY demo_expires_at ASC LIMIT ${LIMIT}`);
+
+    // 3. Print agent offline — pehle chal raha tha, ab 24 ghante se nahi.
+    //    Jinhone kabhi install hi nahi kiya wo yahan nahi aate, wo alag
+    //    problem hai (onboarding), yahan sirf toota hua setup dikhta hai.
+    const agentOffline = await pool.query(`
+      SELECT id, name, phone, agent_last_seen, agent_version,
+             FLOOR(EXTRACT(EPOCH FROM (NOW() - agent_last_seen))/3600)::int AS hours_ago
+      FROM shops
+      WHERE demo = false AND setup_paid = true AND paused = false
+        AND agent_last_seen IS NOT NULL
+        AND agent_last_seen < NOW() - INTERVAL '24 hours'
+      ORDER BY agent_last_seen ASC LIMIT ${LIMIT}`);
+
+    // 4. Chup shops — 7 din se ek bhi print nahi. Ye chhodne wali hain.
+    //    Nayi shops (7 din se kam purani) ko chhod dete hain, unka
+    //    abhi setup hi chal raha hota hai.
+    const silent = await pool.query(`
+      SELECT s.id, s.name, s.phone, s.created_at,
+             MAX(p.created_at) AS last_print,
+             CASE WHEN MAX(p.created_at) IS NULL THEN NULL
+                  ELSE EXTRACT(DAY FROM NOW() - MAX(p.created_at))::int END AS days_silent
+      FROM shops s
+      LEFT JOIN print_jobs p ON p.shop_id = s.id
+      WHERE s.demo = false AND s.setup_paid = true AND s.paused = false
+        AND s.created_at < NOW() - INTERVAL '7 days'
+      GROUP BY s.id, s.name, s.phone, s.created_at
+      HAVING MAX(p.created_at) IS NULL OR MAX(p.created_at) < NOW() - INTERVAL '7 days'
+      ORDER BY MAX(p.created_at) ASC NULLS FIRST LIMIT ${LIMIT}`);
+
+    // 5. Renewal — 5 din me khatam, ya khatam ho chuka.
+    //    Bina reminder ke ye chupchaap chhoot jaate hain.
+    const renewals = await pool.query(`
+      SELECT id, name, phone, email, paid_until, plan_type,
+             CEIL(EXTRACT(EPOCH FROM (paid_until - NOW()))/86400)::int AS days_left
+      FROM shops
+      WHERE demo = false AND paid_until IS NOT NULL
+        AND paid_until < NOW() + INTERVAL '5 days'
+        AND paid_until > NOW() - INTERVAL '30 days'
+      ORDER BY paid_until ASC LIMIT ${LIMIT}`);
+
+    // 6. Chhote counters — inke liye poori list ki zaroorat nahi
+    const wd = await pool.query(
+      `SELECT COUNT(*)::int AS cnt, COALESCE(SUM(amount),0)::int AS amount
+       FROM withdrawals WHERE status='pending'`);
+    const rv = await pool.query(
+      "SELECT COUNT(*)::int AS cnt FROM reviews WHERE status='pending'");
+
+    res.json({
+      unpaid: unpaid.rows,
+      demoExpiring: demoExpiring.rows,
+      agentOffline: agentOffline.rows,
+      silent: silent.rows,
+      renewals: renewals.rows,
+      withdrawals: wd.rows[0] || { cnt: 0, amount: 0 },
+      reviewsPending: (rv.rows[0] || {}).cnt || 0
+    });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/superadmin/analytics', verifySuperAdmin, async (req, res) => {
   try {
     const days = Math.min(90, Math.max(1, parseInt(req.query.days, 10) || 30));
