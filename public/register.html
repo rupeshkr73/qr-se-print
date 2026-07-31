@@ -252,6 +252,40 @@ function selPlan(p) {
   try { selPlan(selectedPlan); } catch(e) {}
 })();
 
+
+/* ── Funnel tracking (halka, first-party) ───────────────────
+   visitor_id wahi 'qrsp_vid' hai jo homepage use karta hai — isi se
+   pata chalta hai ki Google/Facebook se aaya banda yahan tak pahuncha.
+   Fire-and-forget hai: kabhi page ko rokta ya error nahi dikhata. */
+function qspTrack(eventType){
+  try{
+    var vid='';
+    try{
+      vid=localStorage.getItem('qrsp_vid')||'';
+      if(!vid){ vid='v_'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);
+                localStorage.setItem('qrsp_vid',vid); }
+    }catch(e){}
+    var qp=function(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } };
+    var refr='';
+    try{
+      if(document.referrer){
+        var h=new URL(document.referrer).hostname;
+        if(h!==location.hostname) refr=h;
+      }
+    }catch(e){}
+    var body=JSON.stringify({
+      event_type:eventType, path:location.pathname,
+      ref:qp('ref'), utm_source:qp('utm_source'),
+      referrer:refr, visitor_id:vid, wl:qp('wl')
+    });
+    if(navigator.sendBeacon){
+      navigator.sendBeacon('/api/track', new Blob([body],{type:'application/json'}));
+    }else{
+      fetch('/api/track',{method:'POST',headers:{'Content-Type':'application/json'},body:body,keepalive:true});
+    }
+  }catch(e){}
+}
+
 async function doRegister(){
   const btn = document.getElementById('regBtn');
   const err = document.getElementById('errBox');
@@ -274,6 +308,9 @@ async function doRegister(){
     payment_mode: paymode, password: document.getElementById('f_pass').value,
     ref: new URLSearchParams(location.search).get('ref') || ''
   };
+
+  // Saari validation nikal gayi — ab asli payment intent hai
+  qspTrack('pay_click');
 
   btn.disabled = true;
   btn.textContent = '⏳ Register ho raha hai...';
