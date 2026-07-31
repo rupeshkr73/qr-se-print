@@ -126,6 +126,38 @@ select{padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-fami
   92%,100%{left:130%}
 }
 /* Nav item par rukh-rukh ke golden glow — login karte hi nazar jaye */
+/* Partner tab ko halki si chamak — nazar padni chahiye, par
+   chubhni nahi. Agent tab par jo pehle se hai, wahi tareeka. */
+.nav-it[data-nav="partner"]{position:relative;overflow:visible}
+.nav-it[data-nav="partner"]::before{
+  content:"";position:absolute;inset:-1px;border-radius:inherit;
+  background:linear-gradient(120deg,transparent 30%,rgba(124,58,237,.22),transparent 70%);
+  background-size:220% 100%;animation:ppShine 3.4s ease-in-out infinite;pointer-events:none;
+}
+@keyframes ppShine{0%,60%{background-position:180% 0}100%{background-position:-40% 0}}
+.pp-hero{
+  background:linear-gradient(135deg,#7c3aed,#4c1d95);color:#fff;
+  border-radius:18px;padding:22px;margin-bottom:16px;position:relative;overflow:hidden;
+}
+.pp-hero::after{
+  content:"";position:absolute;top:-40%;right:-10%;width:60%;height:180%;
+  background:radial-gradient(circle,rgba(255,255,255,.16),transparent 70%);
+  animation:ppFloat 7s ease-in-out infinite;
+}
+@keyframes ppFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(14px)}}
+.pp-timer{
+  display:inline-flex;gap:6px;align-items:center;background:rgba(255,255,255,.16);
+  border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:800;
+  font-variant-numeric:tabular-nums;
+}
+.pp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:16px}
+.pp-card{background:#fff;border:1.5px solid #e2ddd6;border-radius:14px;padding:15px;transition:transform .25s ease,box-shadow .25s ease}
+.pp-card:hover{transform:translateY(-3px);box-shadow:0 14px 28px rgba(124,58,237,.14)}
+.pp-card b{display:block;font-size:13.5px;margin-bottom:5px}
+.pp-card p{font-size:12.5px;color:#4b5563;line-height:1.7;margin:0}
+@media (prefers-reduced-motion:reduce){
+  .nav-it[data-nav="partner"]::before,.pp-hero::after{animation:none}
+}
 .nav-it[data-nav="agent"]{position:relative;overflow:visible}
 .nav-it[data-nav="agent"]::before{
   content:'';position:absolute;inset:-2px;border-radius:inherit;
@@ -308,6 +340,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <button class="nav-it" data-nav="settings" onclick="navTo('settings',this)"><span class="ico">⚙️</span> Settings</button>
     <button class="nav-it" data-nav="advance" onclick="navTo('advance',this)"><span class="ico">⚡</span> Advance Feature</button>
     <button class="nav-it" data-nav="payment" onclick="navTo('payment',this)"><span class="ico">💳</span> Payment Setup</button>
+    <button class="nav-it" data-nav="partner" id="navPartner" onclick="navTo('partner',this)"><span class="ico">🤝</span> Partner Program</button>
     <button class="nav-it" data-nav="review" onclick="navTo('review',this)"><span class="ico">⭐</span> Review Dijiye</button>
     <button class="nav-it" data-nav="support" id="navSupport" onclick="navTo('support',this)"><span class="ico">💬</span> Support</button>
     <div class="side-foot"><select data-i18n-select aria-label="Language" style="width:100%;margin-bottom:8px;padding:9px 11px;border-radius:11px;border:1.5px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;"></select>
@@ -588,6 +621,29 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <div data-sect="agent">
 
       <!-- JOIN (agent nahi ho) -->
+      <div id="agDemoGate" style="display:none;">
+        <div style="background:linear-gradient(135deg,#111114,#2b2620);color:#fff;border-radius:16px;padding:20px;margin-bottom:14px;">
+          <div style="font-size:15px;font-weight:800;margin-bottom:6px;">🔒 To use this feature you must be a paid shop owner</div>
+          <p style="font-size:12.5px;line-height:1.7;opacity:.85;margin:0 0 14px;">
+            Agent Program se aap doosri shops jodkar har shop par commission kama sakte ho —
+            apna referral code, apna dashboard, apni price. Ye demo account me nahi chalta.
+            Koi bhi plan lo, turant chalu ho jayega.
+          </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <button onclick="goUpgrade('monthly')" style="background:#fff;color:#111114;border:none;border-radius:11px;padding:11px;font-size:12.5px;font-weight:800;cursor:pointer;">
+              Monthly Plan<br><span style="font-size:15px;">₹<span id="agduMonthly">—</span></span>
+            </button>
+            <button onclick="goUpgrade('onetime')" style="background:#ffd22e;color:#111114;border:none;border-radius:11px;padding:11px;font-size:12.5px;font-weight:800;cursor:pointer;">
+              Lifetime Plan<br><span style="font-size:15px;">₹<span id="agduOnetime">—</span></span>
+            </button>
+          </div>
+        </div>
+        <p style="font-size:12px;color:#9b9690;line-height:1.7;">
+          Neeche jo bhi dikh raha hai wo asli Agent dashboard hai — plan lene ke baad
+          bilkul aisa hi milega.
+        </p>
+      </div>
+
       <div id="agJoin" class="card" style="display:none;text-align:center;">
         <div style="font-size:38px;">💼</div>
         <h2 style="font-family:'Syne',sans-serif;font-size:20px;margin:8px 0 8px;">Agent bano — har shop par ₹200</h2>
@@ -1100,6 +1156,58 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       </div>
     </div>
     </div><!-- /support -->
+    <div data-sect="partner">
+    <div class="card">
+      <div class="pp-hero">
+        <div style="position:relative;z-index:1;">
+          <div style="font-size:11px;font-weight:800;letter-spacing:.6px;opacity:.8;text-transform:uppercase;margin-bottom:6px;">White Label Program</div>
+          <h2 style="font-size:21px;font-weight:800;margin:0 0 8px;color:#fff;border:none;padding:0;">Apne Naam Se Software Becho</h2>
+          <p style="font-size:13px;line-height:1.75;opacity:.9;margin:0 0 14px;max-width:520px;">
+            Apna brand, apna logo, apna domain. Customer ko QR Se Print ka naam kahin nahi dikhega —
+            sab kuch aapke naam se. Setup fee bhi seedha aapke account me aati hai.
+          </p>
+          <div class="pp-timer">⏳ <span id="ppTimer">—</span></div>
+        </div>
+      </div>
+
+      <div class="pp-grid">
+        <div class="pp-card"><b>🏷️ Poora aapka brand</b><p>Apna naam, logo aur domain. Shop owner ko aapki company dikhti hai — hum kahin nahi.</p></div>
+        <div class="pp-card"><b>💰 Paisa seedha aapko</b><p>Apna Razorpay ya Cashfree lagao. Shops se aane wali setup fee bina kisi cut ke aapke account me.</p></div>
+        <div class="pp-card"><b>🎛️ Apna admin panel</b><p>Apne saare shops ek jagah — add karo, price set karo, activate karo. Sab apne control me.</p></div>
+        <div class="pp-card"><b>🔧 Update humari zimmedari</b><p>Software, print agent aur naye features hum banate rahenge. Aap sirf bechne par dhyan do.</p></div>
+      </div>
+
+      <div id="ppBox" style="background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:14px;padding:16px;">
+        <div style="font-size:13.5px;font-weight:800;color:#5b21b6;margin-bottom:6px;">Shuru kaise karein</div>
+        <p style="font-size:12.5px;color:#4b5563;line-height:1.75;margin:0 0 13px;">
+          White Label ke liye pehle ek baar baat hoti hai — aapka brand, kitne shops ka plan hai,
+          aur pricing kya rakhni hai. Uske baad setup aur registration ho jaata hai.
+        </p>
+        <div style="display:flex;gap:9px;flex-wrap:wrap;">
+          <a id="ppWa" href="#" target="_blank" rel="noopener"
+             style="background:#25d366;color:#fff;text-decoration:none;border-radius:10px;padding:10px 18px;font-size:12.5px;font-weight:800;">
+            WhatsApp par baat karo
+          </a>
+          <a href="/whitelabel" target="_blank" rel="noopener"
+             style="background:#7c3aed;color:#fff;text-decoration:none;border-radius:10px;padding:10px 18px;font-size:12.5px;font-weight:800;">
+            Poori detail aur pricing dekho
+          </a>
+        </div>
+      </div>
+
+      <div id="ppDemoNote" style="display:none;margin-top:13px;background:#fff9ec;border:1.5px solid #f0e2ba;border-radius:12px;padding:13px 15px;">
+        <div style="font-size:12.5px;font-weight:800;color:#8a6d1f;margin-bottom:4px;">🔒 Demo account me registration nahi hota</div>
+        <p style="font-size:12px;color:#4b5563;line-height:1.7;margin:0 0 11px;">
+          White Label lene ke liye pehle koi bhi plan lena hoga. Detail ab bhi dekh sakte ho.
+        </p>
+        <div style="display:flex;gap:9px;flex-wrap:wrap;">
+          <button onclick="goUpgrade('monthly')" style="background:#111114;color:#fff;border:none;border-radius:9px;padding:9px 15px;font-size:12px;font-weight:800;cursor:pointer;">Monthly ₹<span id="ppMonthly">—</span></button>
+          <button onclick="goUpgrade('onetime')" style="background:#ffd22e;color:#111114;border:none;border-radius:9px;padding:9px 15px;font-size:12px;font-weight:800;cursor:pointer;">Lifetime ₹<span id="ppOnetime">—</span></button>
+        </div>
+      </div>
+    </div>
+    </div><!-- /partner -->
+
 
     <div data-sect="review">
     <div class="card">
@@ -1265,7 +1373,7 @@ async function loadBreakdown(){
 }
 
 // ===== SIDEBAR NAV =====
-const PAGE_TITLES={review:'Review Dijiye', overview:'Overview',refer:'Refer & Earn',qr:'QR & Downloads',orders:'Orders',settings:'Settings',agent:'Agent Dashboard'};
+const PAGE_TITLES={partner:'Partner Program', review:'Review Dijiye', overview:'Overview',refer:'Refer & Earn',qr:'QR & Downloads',orders:'Orders',settings:'Settings',agent:'Agent Dashboard'};
 /* ── Review Dijiye ─────────────────────────────────────────
    Shop apna review bhejta hai. Seedha live nahi hota — pehle
    superadmin approve karta hai. Ek shop ka ek hi review rehta hai:
@@ -1951,16 +2059,23 @@ async function loadAgent() {
     const nav = document.getElementById('navAgent');
     const banner = document.getElementById('agentBanner');
     // Agent tab sirf tab dikhe jab agent ho, ya ban sakta ho
-    if (nav) nav.style.display = (d.is_agent || d.eligible) ? 'flex' : 'none';
+    // Demo ko bhi tab dikhta hai — poora program dikhna chahiye, tabhi
+    // banda samjhega ki plan lene par kya milega. Rok sirf action par hai.
+    const _isDemo = !!(window.currentShop && currentShop.demo);
+    if (nav) nav.style.display = (d.is_agent || d.eligible || _isDemo) ? 'flex' : 'none';
     if (banner) {
       banner.style.display = d.is_agent ? 'block' : 'none';
       const c = document.getElementById('agentBannerCode');
       if (c) c.textContent = (d.agent_code || '') + (d.blocked ? ' · PAUSED' : '');
     }
 
-    document.getElementById('agJoin').style.display    = d.is_agent ? 'none' : 'block';
+    // Demo ke liye alag card — join form nahi, plan lene ka rasta
+    const _gate = document.getElementById('agDemoGate');
+    if (_gate) _gate.style.display = _isDemo ? 'block' : 'none';
+    document.getElementById('agJoin').style.display    = (d.is_agent || _isDemo) ? 'none' : 'block';
     document.getElementById('agMain').style.display    = d.is_agent ? 'block' : 'none';
     document.getElementById('agBlocked').style.display = (d.is_agent && d.blocked) ? 'block' : 'none';
+    if (_isDemo) return;
     if (!d.is_agent) {
       if (!d.eligible) _agShow('agJoinErr', 'Agent banne ke liye pehle apna plan lena zaroori hai. Demo account agent nahi ban sakta.');
       return;
@@ -2197,8 +2312,9 @@ function initDemoUpgrade(shop) {
   renderDemoCountdown();
   _demoTimer = setInterval(renderDemoCountdown, 30000);
   fetch('/api/setup-fee/current').then(r => r.json()).then(d => {
-    if (d.monthlyFee) document.getElementById('duMonthly').textContent = d.monthlyFee;
-    if (d.offerPrice !== undefined) document.getElementById('duOnetime').textContent = d.offerPrice;
+    const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    if (d.monthlyFee) { setTxt('duMonthly', d.monthlyFee); setTxt('agduMonthly', d.monthlyFee); setTxt('ppMonthly', d.monthlyFee); }
+    if (d.offerPrice !== undefined) { setTxt('duOnetime', d.offerPrice); setTxt('agduOnetime', d.offerPrice); setTxt('ppOnetime', d.offerPrice); }
     const cut = document.getElementById('duCut');
     if (cut && d.actualPrice && Number(d.actualPrice) > Number(d.offerPrice)) cut.textContent = '₹' + d.actualPrice;
   }).catch(() => {});
@@ -2212,6 +2328,71 @@ function renderDemoCountdown() {
   const h = Math.floor(left / 3600000), m = Math.floor((left % 3600000) / 60000);
   el.textContent = h > 0 ? `Khatam hone me ${h} ghante ${m} min` : `Khatam hone me ${m} minute`;
 }
+/* ── Partner Program (White Label) ─────────────────────────
+   Har hafte ek naya window. Timer ek fixed din se 7-7 din ke
+   block ginta hai, isliye har shop owner ko wahi countdown
+   dikhta hai — banda-banda alag nahi.
+
+   Wording jaan-bujh ke "is hafte ka offer" rakhi hai, "aakhri
+   mauka" nahi — kyunki offer sach me har hafte wapas aata hai.
+   Jhooti jaldbaazi dikhane se bharosa jaata hai. */
+const PP_CYCLE = 7 * 24 * 60 * 60 * 1000;
+const PP_EPOCH = Date.UTC(2026, 0, 5);      // ek Monday, 00:00 UTC
+let _ppTimer = null;
+
+function ppDeadline() {
+  const now = Date.now();
+  const cycles = Math.ceil((now - PP_EPOCH) / PP_CYCLE);
+  return PP_EPOCH + cycles * PP_CYCLE;
+}
+
+function renderPpTimer() {
+  const el = document.getElementById('ppTimer');
+  if (!el) return;
+  let left = ppDeadline() - Date.now();
+  if (left < 0) left = 0;
+  const d = Math.floor(left / 86400000);
+  const h = Math.floor((left % 86400000) / 3600000);
+  const m = Math.floor((left % 3600000) / 60000);
+  const sec = Math.floor((left % 60000) / 1000);
+  el.textContent = d > 0
+    ? `Is hafte ka offer — ${d} din ${h} ghante baaki`
+    : `Is hafte ka offer — ${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')} baaki`;
+}
+
+function initPartnerTab(shop) {
+  const nav = document.getElementById('navPartner');
+
+  // White-label shop ko ye tab BILKUL nahi dikhna chahiye —
+  // ye hamara program hai, partner ka nahi.
+  if (shop && shop.powered_by) {
+    if (nav) nav.style.display = 'none';
+    const sect = document.querySelector('[data-sect="partner"]');
+    if (sect) sect.style.display = 'none';
+    return;
+  }
+  if (nav) nav.style.display = 'flex';
+
+  // Demo ko sab dikhta hai, par registration ke liye plan chahiye
+  const isDemo = !!(shop && shop.demo);
+  const note = document.getElementById('ppDemoNote');
+  if (note) note.style.display = isDemo ? 'block' : 'none';
+  const box = document.getElementById('ppBox');
+  if (box) box.style.opacity = isDemo ? '.55' : '1';
+
+  // WhatsApp link — number ek hi jagah se aata hai
+  const wa = document.getElementById('ppWa');
+  if (wa) {
+    const num = String(SUPPORT_WA || '').replace(/\D/g, '');
+    const msg = `Namaste, main QR Se Print ka shop owner hoon${shop && shop.id ? ' (' + shop.id + ')' : ''}. White Label program ke baare me jaanna hai.`;
+    wa.href = num ? `https://wa.me/${num}?text=${encodeURIComponent(msg)}` : '#';
+  }
+
+  renderPpTimer();
+  if (_ppTimer) clearInterval(_ppTimer);
+  _ppTimer = setInterval(renderPpTimer, 1000);
+}
+
 function goUpgrade(plan) {
   const url = '/register?plan=' + (plan === 'monthly' ? 'monthly' : 'onetime') + '&from=demo';
   const w = window.open(url, '_blank');
@@ -2233,6 +2414,7 @@ function initSupport(shop) {
   const idField = document.getElementById('supShopId');
   if (idField && shop) idField.value = shop.id;
 
+  initPartnerTab(shop);
   applyWhitelabelBranding(shop);
 }
 
@@ -2270,7 +2452,9 @@ function applyWhitelabelBranding(shop) {
 
   // 4) HAMARE programs partner ki shop me nahi dikhne chahiye —
   //    Refer & Earn aur Agent dono humare hain, partner ke nahi.
-  ['refer', 'agent'].forEach(k => {
+  // 'partner' bhi — White Label khud hamara program hai, partner ki
+  // shop me uska zikr tak nahi hona chahiye.
+  ['refer', 'agent', 'partner'].forEach(k => {
     document.querySelectorAll(`.nav-it[data-nav="${k}"]`).forEach(n => { n.style.display = 'none'; });
     document.querySelectorAll(`[data-sect="${k}"]`).forEach(s => { s.style.display = 'none'; });
   });
