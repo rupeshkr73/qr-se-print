@@ -474,6 +474,18 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 
     <div data-sect="overview" class="show">
 
+    <!-- ACTION CENTER — sabse upar, kyunki roz yahi dekhna hai -->
+    <div class="card" style="margin-bottom:20px;">
+      <h2><span>🎯 Aaj Kya Dekhna Hai</span>
+        <button onclick="loadActionCenter()" style="background:#f3f4f6;color:#4b5563;border:none;border-radius:8px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;">↻ Refresh</button>
+      </h2>
+      <p style="font-size:11.5px;color:#9b9690;margin:-6px 0 14px;">
+        Jo atka hai, jo chhoot raha hai, aur aaj kis shop ko message karna hai — sab ek jagah.
+      </p>
+      <div id="actionCenter">Loading…</div>
+    </div>
+
+
     <!-- DATABASE: BACKUP + MIGRATION -->
     <div class="card" style="margin-bottom:20px;border:1.5px solid #fca5a5 !important;background:#fffbfb !important;">
       <h2><span>🗄️ Database — Backup & Migration</span></h2>
@@ -1231,6 +1243,115 @@ function rvShow(msg, ok) {
   if (msg) setTimeout(() => { e.style.display = 'none'; }, 4000);
 }
 const rvStarStr = n => '★'.repeat(Math.max(0, Math.min(5, n || 0))) + '☆'.repeat(5 - Math.max(0, Math.min(5, n || 0)));
+
+/* ── Action Center ──────────────────────────────────────────
+   Roz ka kaam ek jagah. Har line par seedha WhatsApp button hai
+   taaki dekhne se karne tak ek hi click lage. */
+async function loadActionCenter() {
+  const box = document.getElementById('actionCenter');
+  if (!box) return;
+  box.innerHTML = 'Loading…';
+  try {
+    const r = await fetch('/api/superadmin/action-center', { headers: { 'Authorization': 'Bearer ' + authToken } });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || 'fail');
+
+    const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const nf  = n => (n||0).toLocaleString('en-IN');
+
+    /* WhatsApp — 10 digit ho to 91 laga do */
+    const wa = (phone, msg) => {
+      let num = String(phone||'').replace(/\D/g,'');
+      if (!num) return '';
+      if (num.length === 10) num = '91' + num;
+      return `<a href="https://wa.me/${num}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener"
+        style="background:#25d366;color:#fff;text-decoration:none;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:800;white-space:nowrap;">WhatsApp</a>`;
+    };
+
+    const row = (left, right, action) => `
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;
+                  padding:8px 0;border-top:1px solid #f0ece6;flex-wrap:wrap;">
+        <div style="min-width:0;flex:1;">
+          <div style="font-size:13px;font-weight:700;">${left}</div>
+          <div style="font-size:11px;color:#9b9690;margin-top:1px;">${right}</div>
+        </div>
+        ${action || ''}
+      </div>`;
+
+    /* Ek block — khaali ho to poora chhupa dete hain, warna list lambi lagti hai */
+    const block = (icon, title, tone, items, render, empty) => {
+      const C = { red:['#fef2f2','#fecaca','#b91c1c'], yellow:['#fff9ec','#f0e2ba','#8a6d1f'],
+                  green:['#f0fdf4','#bbf7d0','#166534'], grey:['#fafaf9','#e2ddd6','#57534e'] }[tone];
+      if (!items.length) {
+        return `<div style="background:#fafaf9;border:1.5px solid #e2ddd6;border-radius:13px;padding:11px 14px;margin-bottom:10px;">
+          <div style="font-size:12.5px;font-weight:700;color:#9b9690;">${icon} ${title} — <span style="color:#166534;">${empty}</span></div></div>`;
+      }
+      return `<div style="background:${C[0]};border:1.5px solid ${C[1]};border-radius:13px;padding:12px 14px;margin-bottom:10px;">
+        <div style="font-size:13px;font-weight:800;color:${C[2]};margin-bottom:2px;">
+          ${icon} ${title} <span style="font-family:'Syne',sans-serif;font-size:16px;">(${items.length})</span>
+        </div>
+        ${items.map(render).join('')}
+      </div>`;
+    };
+
+    let html = '';
+
+    /* 1. Paisa nahi diya */
+    html += block('🔴', 'Register hue par paisa nahi diya', 'red', d.unpaid || [],
+      v => row(esc(v.name || v.id), `${esc(v.id)} · ${v.days_ago} din pehle`,
+        wa(v.phone, `Namaste ${v.name||''}, QR Se Print par aapka registration ho gaya hai. Setup fee pending hai — activate karne me koi dikkat aa rahi hai kya?`)),
+      'ek bhi nahi ✅');
+
+    /* 2. Renewal */
+    html += block('💰', 'Renewal — khatam ho raha ya ho chuka', 'red', d.renewals || [],
+      v => row(esc(v.name || v.id),
+        v.days_left < 0 ? `${esc(v.id)} · <b style="color:#b91c1c;">${Math.abs(v.days_left)} din pehle EXPIRE</b>`
+                        : `${esc(v.id)} · ${v.days_left} din baaki`,
+        wa(v.phone, `Namaste ${v.name||''}, QR Se Print ka plan ${v.days_left<0?'khatam ho gaya hai':'khatam hone wala hai'}. Renew kar dein?`)),
+      'sab safe ✅');
+
+    /* 3. Demo khatam */
+    html += block('🟡', 'Demo khatam hone wale', 'yellow', d.demoExpiring || [],
+      v => row(esc(v.name || v.id), `${esc(v.id)} · ${v.days_left} din baaki`,
+        wa(v.phone, `Namaste ${v.name||''}, aapka QR Se Print demo khatam hone wala hai. Kaisa laga? Full version chalu kar dein?`)),
+      'koi nahi ✅');
+
+    /* 4. Agent offline */
+    html += block('📵', 'Print agent offline (24 ghante se zyada)', 'yellow', d.agentOffline || [],
+      v => row(esc(v.name || v.id),
+        `${esc(v.id)} · ${v.hours_ago >= 48 ? Math.floor(v.hours_ago/24)+' din' : v.hours_ago+' ghante'} se offline${v.agent_version ? ' · v'+v.agent_version : ''}`,
+        wa(v.phone, `Namaste ${v.name||''}, aapka QR Se Print agent offline dikh raha hai. PC band hai ya koi dikkat aa rahi hai?`)),
+      'sab online ✅');
+
+    /* 5. Chup shops */
+    html += block('😴', 'Chup shops — 7 din se koi print nahi', 'yellow', d.silent || [],
+      v => row(esc(v.name || v.id),
+        `${esc(v.id)} · ${v.days_silent === null ? '<b>kabhi print nahi kiya</b>' : v.days_silent + ' din se print nahi'}`,
+        wa(v.phone, `Namaste ${v.name||''}, kaafi din se QR Se Print par koi order nahi dikha. Sab theek hai? Koi help chahiye to bataiye.`)),
+      'sab chal rahi hain ✅');
+
+    /* 6. Chhote kaam */
+    const W = d.withdrawals || {}, rvp = d.reviewsPending || 0;
+    const small = [];
+    if (W.cnt) small.push(`<a href="#" onclick="navTo('withdrawals',document.querySelector('[data-nav=withdrawals]'));return false;" style="color:#b91c1c;font-weight:800;text-decoration:none;">💸 ${W.cnt} withdrawal pending — ₹${nf(W.amount)}</a>`);
+    if (rvp) small.push(`<a href="#" onclick="navTo('reviews',document.querySelector('[data-nav=reviews]'));return false;" style="color:#8a6d1f;font-weight:800;text-decoration:none;">⭐ ${rvp} review approval baaki</a>`);
+    if (small.length) {
+      html += `<div style="background:#fff9ec;border:1.5px solid #f0e2ba;border-radius:13px;padding:12px 14px;
+                 display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;">${small.join('')}</div>`;
+    }
+
+    const total = (d.unpaid||[]).length + (d.renewals||[]).length + (d.demoExpiring||[]).length +
+                  (d.agentOffline||[]).length + (d.silent||[]).length + (W.cnt||0) + rvp;
+    if (total === 0) {
+      html = `<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:13px;padding:20px;text-align:center;">
+        <div style="font-size:30px;">✅</div>
+        <div style="font-size:14px;font-weight:800;color:#166534;margin-top:6px;">Sab clear hai</div>
+        <div style="font-size:12px;color:#4b5563;margin-top:3px;">Aaj koi cheez atki hui nahi hai.</div></div>`;
+    }
+    box.innerHTML = html;
+
+  } catch(e) { box.innerHTML = `<span style="color:#c22;">⚠ ${e.message}</span>`; }
+}
 
 async function loadReviews() {
   const box = document.getElementById('rvList');
@@ -2045,6 +2166,7 @@ async function loadPanel() {
   loadAgents();
   loadAnalytics();
   loadWhitelabels();
+  loadActionCenter();
   loadReviews();
   loadNotify();
   loadTranslations();
