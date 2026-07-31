@@ -5040,7 +5040,19 @@ app.post('/api/agent/notification-ack/:shopId', async (req, res) => {
 
 app.get('/api/superadmin/overview', verifySuperAdmin, async (req, res) => {
   try {
-    const shopCount = await pool.query('SELECT COUNT(*) as total, COUNT(CASE WHEN setup_paid THEN 1 END) as active FROM shops');
+    // Overview ab sirf shop ki ginti dikhata hai — paisa Analytics me hai,
+    // do jagah same number rakhne se confusion hota hai.
+    const shopCount = await pool.query(`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE demo = false AND setup_paid = true)::int  AS active,
+        COUNT(*) FILTER (WHERE demo = false AND setup_paid = false)::int AS pending,
+        COUNT(*) FILTER (WHERE demo = true
+              AND (demo_expires_at IS NULL OR demo_expires_at > NOW()))::int AS demo_live,
+        COUNT(*) FILTER (WHERE demo = true
+              AND demo_expires_at IS NOT NULL AND demo_expires_at <= NOW())::int AS demo_expired,
+        COUNT(*) FILTER (WHERE demo = false AND plan_type = 'monthly')::int AS monthly
+      FROM shops`);
     const earnings = await pool.query(`
       SELECT 
         COALESCE(SUM(setup_amount) FILTER (WHERE setup_paid), 0) as total_setup_revenue,
@@ -5050,9 +5062,12 @@ app.get('/api/superadmin/overview', verifySuperAdmin, async (req, res) => {
     const printEarnings = await pool.query(`SELECT COALESCE(SUM(amount),0) as total FROM print_jobs WHERE payment_status='paid'`);
 
     res.json({
-      total_shops: parseInt(shopCount.rows[0].total),
-      active_shops: parseInt(shopCount.rows[0].active),
-      pending_shops: parseInt(shopCount.rows[0].total) - parseInt(shopCount.rows[0].active),
+      total_shops:   shopCount.rows[0].total,
+      active_shops:  shopCount.rows[0].active,
+      pending_shops: shopCount.rows[0].pending,
+      demo_shops:    shopCount.rows[0].demo_live,
+      demo_expired:  shopCount.rows[0].demo_expired,
+      monthly_shops: shopCount.rows[0].monthly,
       total_setup_revenue: parseInt(earnings.rows[0].total_setup_revenue),
       total_print_volume: parseInt(printEarnings.rows[0].total)
     });
