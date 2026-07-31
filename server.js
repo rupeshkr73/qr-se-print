@@ -1103,7 +1103,16 @@ app.get('/api/agent/commissions', verifyToken, async (req, res) => {
 app.post('/api/agent/onboard', verifyToken, async (req, res) => {
   try {
     const me = await pool.query(
-      'SELECT is_agent, agent_blocked, agent_price FROM shops WHERE id=$1', [req.shopId]);
+      'SELECT is_agent, agent_blocked, agent_price, demo FROM shops WHERE id=$1', [req.shopId]);
+    // Demo account sab kuch DEKH sakta hai, par shop onboard nahi kar sakta.
+    // Frontend par bhi gate hai — ye doosri layer hai taaki koi seedha
+    // API call karke bhi na nikal jaye.
+    if (me.rows.length && me.rows[0].demo) {
+      return res.status(403).json({
+        error: 'To use this feature you must be a paid shop owner',
+        needPlan: true
+      });
+    }
     if (!me.rows.length || !me.rows[0].is_agent) return res.status(403).json({ error: 'Aap agent nahi ho' });
     if (me.rows[0].agent_blocked) return res.status(403).json({ error: 'Aapka agent account abhi paused hai' });
 
