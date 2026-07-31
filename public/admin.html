@@ -308,6 +308,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <button class="nav-it" data-nav="settings" onclick="navTo('settings',this)"><span class="ico">⚙️</span> Settings</button>
     <button class="nav-it" data-nav="advance" onclick="navTo('advance',this)"><span class="ico">⚡</span> Advance Feature</button>
     <button class="nav-it" data-nav="payment" onclick="navTo('payment',this)"><span class="ico">💳</span> Payment Setup</button>
+    <button class="nav-it" data-nav="review" onclick="navTo('review',this)"><span class="ico">⭐</span> Review Dijiye</button>
     <button class="nav-it" data-nav="support" id="navSupport" onclick="navTo('support',this)"><span class="ico">💬</span> Support</button>
     <div class="side-foot"><select data-i18n-select aria-label="Language" style="width:100%;margin-bottom:8px;padding:9px 11px;border-radius:11px;border:1.5px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;"></select>
     <button class="side-lg" onclick="logout()"><span>🚪</span> Logout</button></div>
@@ -1100,6 +1101,46 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     </div>
     </div><!-- /support -->
 
+    <div data-sect="review">
+    <div class="card">
+      <h2>⭐ Review Dijiye</h2>
+      <p style="font-size:12.5px;color:#6b7280;margin:-4px 0 16px;line-height:1.65;">
+        Aapka review QR Se Print ke homepage par dikhega. Bhejne ke baad ek baar
+        check hota hai, phir live ho jaata hai. Kabhi bhi badal sakte ho.
+      </p>
+
+      <div id="rvStatusBox" style="display:none;margin-bottom:16px;"></div>
+
+      <div style="display:grid;gap:12px;max-width:560px;">
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px;">Aapka Naam</label>
+          <input id="rvName" type="text" maxlength="120" placeholder="Jaise: Rakesh Kumar"
+                 style="width:100%;padding:10px 12px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:13.5px;">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px;">State</label>
+          <input id="rvState" type="text" maxlength="80" placeholder="Jaise: Jharkhand"
+                 style="width:100%;padding:10px 12px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:13.5px;">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px;">Kitne Star?</label>
+          <div id="rvStarPick" style="display:flex;gap:6px;font-size:30px;line-height:1;cursor:pointer;user-select:none;"></div>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;font-weight:700;margin-bottom:5px;">Aapka Review</label>
+          <textarea id="rvText" maxlength="1200" rows="5"
+                    placeholder="QR Se Print use karke kaisa laga? Kya sabse achha laga?"
+                    style="width:100%;padding:10px 12px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:13.5px;font-family:inherit;resize:vertical;"></textarea>
+          <div style="font-size:11px;color:#9b9690;margin-top:4px;">
+            <span id="rvCharCount">0</span>/1200 &middot; kam se kam 10 character
+          </div>
+        </div>
+        <div id="rvErr" style="display:none;background:#fef2f2;border:1.5px solid #fecaca;color:#b91c1c;padding:9px 12px;border-radius:10px;font-size:12.5px;"></div>
+        <button class="btn" id="rvSubmitBtn" onclick="submitReview()" style="justify-self:start;">Review Bhejo</button>
+      </div>
+    </div>
+    </div><!-- /review -->
+
     <div data-sect="orders">
     <div class="card">
       <h2>📋 Recent Print Jobs</h2>
@@ -1224,12 +1265,120 @@ async function loadBreakdown(){
 }
 
 // ===== SIDEBAR NAV =====
-const PAGE_TITLES={overview:'Overview',refer:'Refer & Earn',qr:'QR & Downloads',orders:'Orders',settings:'Settings',agent:'Agent Dashboard'};
+const PAGE_TITLES={review:'Review Dijiye', overview:'Overview',refer:'Refer & Earn',qr:'QR & Downloads',orders:'Orders',settings:'Settings',agent:'Agent Dashboard'};
+/* ── Review Dijiye ─────────────────────────────────────────
+   Shop apna review bhejta hai. Seedha live nahi hota — pehle
+   superadmin approve karta hai. Ek shop ka ek hi review rehta hai:
+   dobara bhejne par purana update hota hai aur wapas check me chala
+   jaata hai (isliye "badal sakte ho" likha hai). */
+let rvStars = 5;
+
+function paintStarPicker(){
+  const box = document.getElementById('rvStarPick');
+  if(!box) return;
+  let h = '';
+  for(let i=1;i<=5;i++){
+    h += `<span data-s="${i}" role="button" tabindex="0" aria-label="${i} star"
+           style="color:${i<=rvStars?'#ffb703':'#ddd6ca'};transition:transform .15s ease;">★</span>`;
+  }
+  box.innerHTML = h;
+  box.querySelectorAll('span').forEach(el=>{
+    const set = ()=>{ rvStars = parseInt(el.dataset.s,10); paintStarPicker(); };
+    el.addEventListener('click', set);
+    el.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ set(); e.preventDefault(); } });
+    el.addEventListener('mouseenter', ()=>{ el.style.transform='scale(1.18)'; });
+    el.addEventListener('mouseleave', ()=>{ el.style.transform='none'; });
+  });
+}
+
+function showRvErr(msg){
+  const e = document.getElementById('rvErr');
+  if(!e) return;
+  e.textContent = msg; e.style.display = 'block';
+}
+
+async function loadMyReview(){
+  paintStarPicker();
+  const cc = document.getElementById('rvText');
+  if(cc && !cc._bound){
+    cc._bound = true;
+    cc.addEventListener('input', ()=>{
+      const c = document.getElementById('rvCharCount');
+      if(c) c.textContent = cc.value.length;
+    });
+  }
+  try{
+    const r = await fetch('/api/shop/review', { headers:{ 'Authorization':'Bearer '+authToken } });
+    const d = await r.json();
+    const box = document.getElementById('rvStatusBox');
+    if(!d.review){ if(box) box.style.display='none'; return; }
+
+    document.getElementById('rvName').value  = d.review.name || '';
+    document.getElementById('rvState').value = d.review.state || '';
+    document.getElementById('rvText').value  = d.review.text || '';
+    const c = document.getElementById('rvCharCount');
+    if(c) c.textContent = (d.review.text||'').length;
+    rvStars = d.review.stars || 5;
+    paintStarPicker();
+
+    if(box){
+      const approved = d.review.status === 'approved';
+      box.style.display = 'block';
+      box.innerHTML = approved
+        ? `<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534;padding:11px 13px;border-radius:11px;font-size:12.5px;">
+             <b>✅ Aapka review homepage par live hai.</b>
+             ${d.review.edited ? '<br><span style="color:#4b5563;">Thoda edit karke lagaya gaya hai.</span>' : ''}
+             <br><span style="color:#4b5563;">Badal ke dobara bhejoge to phir se check hoga.</span>
+           </div>`
+        : `<div style="background:#fff9ec;border:1.5px solid #f0e2ba;color:#8a6d1f;padding:11px 13px;border-radius:11px;font-size:12.5px;">
+             <b>⏳ Review check ho raha hai.</b>
+             <br><span style="color:#4b5563;">Approve hote hi homepage par dikhne lagega.</span>
+           </div>`;
+    }
+    const btn = document.getElementById('rvSubmitBtn');
+    if(btn) btn.textContent = 'Review Update Karo';
+  }catch(e){}
+}
+
+async function submitReview(){
+  const err = document.getElementById('rvErr');
+  if(err) err.style.display='none';
+  const name  = (document.getElementById('rvName').value||'').trim();
+  const state = (document.getElementById('rvState').value||'').trim();
+  const text  = (document.getElementById('rvText').value||'').trim();
+
+  if(!name)  return showRvErr('Apna naam daalo');
+  if(!state) return showRvErr('State daalo');
+  if(text.length < 10) return showRvErr('Review kam se kam 10 character ka likho');
+
+  const btn = document.getElementById('rvSubmitBtn');
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Bhej rahe hain...';
+  try{
+    const r = await fetch('/api/shop/review', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+authToken },
+      body: JSON.stringify({ name, state, text, stars: rvStars })
+    });
+    const d = await r.json();
+    if(!r.ok || d.error){ showRvErr(d.error || 'Nahi bhej paaye, dobara try karo'); return; }
+    await loadMyReview();
+    alert('Review bhej diya. Approve hone par homepage par dikhega.');
+  }catch(e){
+    showRvErr('Network problem. Dobara try karo.');
+  }finally{
+    btn.disabled = false;
+    btn.textContent = old;
+  }
+}
+
 function navTo(sect,btn){
   document.querySelectorAll('[data-sect]').forEach(el=>el.classList.toggle('show',el.getAttribute('data-sect')===sect));
   document.querySelectorAll('.nav-it[data-nav]').forEach(n=>n.classList.toggle('active',n.getAttribute('data-nav')===sect));
   document.getElementById('pageTitle').textContent=PAGE_TITLES[sect]||'';
   closeSide(); window.scrollTo(0,0);
+  // Review tab khulte hi apna bheja hua review aur uski halat le aao
+  if(sect==='review' && typeof loadMyReview==='function') loadMyReview();
 }
 function openSide(){document.getElementById('sideNav').classList.add('open');document.getElementById('sideOverlay').classList.add('show')}
 function closeSide(){document.getElementById('sideNav').classList.remove('open');document.getElementById('sideOverlay').classList.remove('show')}

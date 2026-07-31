@@ -1379,7 +1379,34 @@ html{scroll-behavior:smooth}
   font-size:13px;font-weight:700;color:#8a6d1f;
 }
 .rv-avg b{font-family:'Plus Jakarta Sans',sans-serif;font-size:19px;color:var(--ink);line-height:1}
-.rv-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+/* Reviews ab ek saath sab nahi — carousel me. Pehle jitne review hote
+   the sab neeche tak fail jaate the. Ab ek line me chalte hain, dono
+   taraf arrow, aur phone par swipe se bhi. */
+.rv-carousel{display:flex;align-items:center;gap:10px}
+.rv-viewport{
+  flex:1;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;
+  scroll-behavior:smooth;-webkit-overflow-scrolling:touch;
+  scrollbar-width:none;padding:4px 2px 8px;
+}
+.rv-viewport::-webkit-scrollbar{display:none}
+.rv-grid{display:flex;gap:14px;align-items:stretch}
+.rv-grid>.rv-card{flex:0 0 clamp(240px,84vw,320px);scroll-snap-align:center}
+.rv-nav{
+  flex:0 0 40px;width:40px;height:40px;border-radius:50%;
+  border:1.5px solid var(--line);background:var(--card);color:var(--ink);
+  font-size:24px;line-height:1;cursor:pointer;display:grid;place-items:center;
+  box-shadow:var(--shadow-sm);transition:all .25s var(--ease);padding:0 0 3px;
+}
+.rv-nav:hover{transform:scale(1.08);border-color:#ffd9a3;box-shadow:0 6px 18px rgba(255,107,53,.2)}
+.rv-nav:disabled{opacity:.3;cursor:default;transform:none;box-shadow:var(--shadow-sm)}
+.rv-dots{display:flex;justify-content:center;gap:6px;margin-top:12px}
+.rv-dots i{width:7px;height:7px;border-radius:50%;background:#ddd6ca;transition:all .3s var(--ease);cursor:pointer}
+.rv-dots i.on{width:20px;border-radius:99px;background:#ff6b35}
+@media (max-width:560px){
+  .rv-nav{flex-basis:34px;width:34px;height:34px;font-size:20px}
+  .rv-carousel{gap:6px}
+}
+@media (prefers-reduced-motion:reduce){ .rv-viewport{scroll-behavior:auto} }
 .rv-card{
   position:relative;background:var(--card);border:1.5px solid var(--line);border-radius:18px;
   padding:20px 18px;box-shadow:var(--shadow-md);
@@ -1897,7 +1924,14 @@ html.legal-open,body.legal-open{overflow:hidden}
       <h2 class="sec-title" data-cfg="rvTitle">⭐ Shop Owners Kya Kehte Hain</h2>
       <div class="rv-avg"><b id="rvAvg">0</b><span id="rvStars">★★★★★</span><span id="rvCount">(0 reviews)</span></div>
     </div>
-    <div class="rv-grid stagger" id="rvGrid"></div>
+    <div class="rv-carousel">
+      <button type="button" class="rv-nav rv-prev" id="rvPrev" aria-label="Pichhla review">&lsaquo;</button>
+      <div class="rv-viewport" id="rvViewport">
+        <div class="rv-grid" id="rvGrid"></div>
+      </div>
+      <button type="button" class="rv-nav rv-next" id="rvNext" aria-label="Agla review">&rsaquo;</button>
+    </div>
+    <div class="rv-dots" id="rvDots" aria-hidden="true"></div>
   </section>
 
   <!-- ═══ PAIN ═══ -->
@@ -3382,6 +3416,56 @@ function sendInq(via){
 
 /* ── Reviews — superadmin se aate hain. Ek bhi na ho to poora
    section chhupa rehta hai (khaali box bhadda lagta hai). ── */
+
+/* Review carousel — native scroll + scroll-snap par bana hai, koi library
+   nahi. Isliye arrow, phone ki swipe aur keyboard teeno apne aap chalte hain. */
+function initReviewCarousel(count){
+  var vp=document.getElementById('rvViewport'),
+      prev=document.getElementById('rvPrev'),
+      next=document.getElementById('rvNext'),
+      dots=document.getElementById('rvDots');
+  if(!vp||!prev||!next) return;
+
+  function step(){
+    var card=vp.querySelector('.rv-card');
+    return card ? card.getBoundingClientRect().width+14 : vp.clientWidth*0.8;
+  }
+  function sync(){
+    var x=vp.scrollLeft, max=vp.scrollWidth-vp.clientWidth;
+    prev.disabled = x<=2;
+    next.disabled = x>=max-2;
+    if(dots && dots.children.length){
+      var idx=Math.round(x/step()), k=dots.children;
+      for(var i=0;i<k.length;i++) k[i].className=(i===idx?'on':'');
+    }
+  }
+  prev.addEventListener('click',function(){ vp.scrollLeft-=step(); });
+  next.addEventListener('click',function(){ vp.scrollLeft+=step(); });
+  vp.addEventListener('scroll',function(){
+    if(vp._t) return;
+    vp._t=setTimeout(function(){ vp._t=null; sync(); },60);
+  },{passive:true});
+  window.addEventListener('resize',sync);
+
+  vp.setAttribute('tabindex','0');
+  vp.addEventListener('keydown',function(e){
+    if(e.key==='ArrowLeft'){ vp.scrollLeft-=step(); e.preventDefault(); }
+    if(e.key==='ArrowRight'){ vp.scrollLeft+=step(); e.preventDefault(); }
+  });
+
+  if(dots){
+    if(count>1 && count<=8){
+      var h=''; for(var i=0;i<count;i++) h+='<i></i>';
+      dots.innerHTML=h;
+      for(var j=0;j<dots.children.length;j++){
+        (function(k){ dots.children[k].addEventListener('click',function(){ vp.scrollLeft=k*step(); }); })(j);
+      }
+    }else{ dots.style.display='none'; }
+  }
+  if(count<=1){ prev.style.display='none'; next.style.display='none'; }
+  sync();
+}
+
 (function(){
   var esc=function(s){ return String(s==null?'':s)
     .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
@@ -3409,6 +3493,7 @@ function sendInq(via){
     document.getElementById('reviewsSec').classList.add('on');
     // Naye card scroll-reveal me shaamil karo
     document.querySelectorAll('#rvGrid .reveal').forEach(function(el){ el.classList.add('in'); });
+    initReviewCarousel(d.reviews.length);
   }).catch(function(){});
 })();
 

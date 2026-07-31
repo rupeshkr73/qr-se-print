@@ -1241,27 +1241,144 @@ async function loadReviews() {
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'fail');
     const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
     if (!d.reviews || !d.reviews.length) {
       box.innerHTML = '<p style="color:#9b9690;">Abhi koi review nahi. Upar se add karo.</p>';
       return;
     }
-    box.innerHTML = d.reviews.map(v => `
-      <div style="border:1.5px solid ${v.active ? '#e2ddd6' : '#fecaca'};border-radius:13px;padding:13px 15px;margin-bottom:10px;background:${v.active ? '#fff' : '#fef8f8'};">
+
+    /* Pending sabse upar — wahi kaam ki cheez hai. Baaki neeche. */
+    const all = d.reviews.slice();
+    const pending = all.filter(v => v.status === 'pending');
+    const rest    = all.filter(v => v.status !== 'pending');
+
+    const card = v => {
+      const isPending = v.status === 'pending';
+      const live = !isPending && v.active;
+      const loc = v.state || v.city || '';
+      const badge = isPending
+        ? '<span style="flex:none;font-size:10px;font-weight:800;border-radius:999px;padding:3px 9px;background:#fff9ec;color:#8a6d1f;border:1.5px solid #f0e2ba;">⏳ APPROVAL BAAKI</span>'
+        : (live
+          ? '<span style="flex:none;font-size:10px;font-weight:800;border-radius:999px;padding:3px 9px;background:#f0fdf4;color:#166534;">✅ LIVE</span>'
+          : '<span style="flex:none;font-size:10px;font-weight:800;border-radius:999px;padding:3px 9px;background:#f3f4f6;color:#6b7280;">CHHUPA HUA</span>');
+
+      return `
+      <div style="border:1.5px solid ${isPending ? '#f0e2ba' : (live ? '#e2ddd6' : '#fecaca')};
+                  background:${isPending ? '#fffdf6' : '#fff'};
+                  border-radius:13px;padding:13px 15px;margin-bottom:10px;">
         <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;flex-wrap:wrap;">
           <div style="min-width:0;">
             <b style="font-size:14px;">${esc(v.name)}</b>
             <span style="color:#ffb703;letter-spacing:1px;margin-left:7px;">${rvStarStr(v.stars)}</span>
-            ${v.city ? `<div style="font-size:11.5px;color:#9b9690;margin-top:2px;">${esc(v.city)}</div>` : ''}
+            <div style="font-size:11.5px;color:#9b9690;margin-top:2px;">
+              ${loc ? esc(loc) : '<i>location nahi</i>'}
+              ${v.shop_id ? ' · <b>' + esc(v.shop_id) + '</b> ne bheja' : ' · superadmin ne daala'}
+              ${v.edited ? ' · <span style="color:#8a6d1f;">edit kiya hua</span>' : ''}
+            </div>
           </div>
-          <span style="flex:none;font-size:10px;font-weight:800;border-radius:999px;padding:3px 9px;background:${v.active ? '#dcfce7' : '#fee2e2'};color:${v.active ? '#166534' : '#991b1b'};">${v.active ? 'LIVE' : 'HIDDEN'}</span>
+          ${badge}
         </div>
-        <p style="font-size:13px;color:#4a4f58;line-height:1.65;margin-top:8px;">${esc(v.text)}</p>
-        <div style="display:flex;gap:7px;margin-top:11px;flex-wrap:wrap;">
-          <button onclick="toggleReview(${v.id},${v.active ? 'false' : 'true'})" style="background:${v.active ? '#fef3c7' : '#dcfce7'};color:${v.active ? '#92400e' : '#166534'};border:none;border-radius:9px;padding:8px 12px;font-size:11.5px;font-weight:700;cursor:pointer;">${v.active ? '🙈 Hide karo' : '👁️ Live karo'}</button>
-          <button onclick="delReview(${v.id})" style="background:#fee2e2;color:#dc2626;border:none;border-radius:9px;padding:8px 12px;font-size:11.5px;font-weight:700;cursor:pointer;">🗑️ Delete</button>
+
+        <div id="rvView${v.id}">
+          <p style="font-size:13px;color:#4a4f58;line-height:1.65;margin-top:8px;">${esc(v.text)}</p>
+          <div style="display:flex;gap:7px;margin-top:11px;flex-wrap:wrap;">
+            ${isPending
+              ? `<button onclick="approveReview(${v.id})" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:6px 13px;font-size:11.5px;font-weight:700;cursor:pointer;">✅ Approve</button>
+                 <button onclick="editReview(${v.id})" style="background:#fff9ec;color:#8a6d1f;border:1.5px solid #f0e2ba;border-radius:8px;padding:6px 13px;font-size:11.5px;font-weight:700;cursor:pointer;">✏️ Edit &amp; Approve</button>`
+              : `<button onclick="editReview(${v.id})" style="background:#f3f4f6;color:#4b5563;border:none;border-radius:8px;padding:6px 13px;font-size:11.5px;font-weight:700;cursor:pointer;">✏️ Edit</button>
+                 <button onclick="toggleReview(${v.id},${v.active ? 'false' : 'true'})" style="background:${v.active ? '#f3f4f6' : '#dcfce7'};color:${v.active ? '#6b7280' : '#166534'};border:none;border-radius:8px;padding:6px 13px;font-size:11.5px;font-weight:700;cursor:pointer;">${v.active ? 'Chhupao' : 'Dikhao'}</button>
+                 <button onclick="unapproveReview(${v.id})" style="background:#fff9ec;color:#8a6d1f;border:1.5px solid #f0e2ba;border-radius:8px;padding:6px 13px;font-size:11.5px;font-weight:700;cursor:pointer;">↩ Wapas pending</button>`}
+            <button onclick="delReview(${v.id})" style="background:#fee2e2;color:#dc2626;border:none;border-radius:8px;padding:6px 13px;font-size:11.5px;font-weight:700;cursor:pointer;">🗑 Delete</button>
+          </div>
         </div>
-      </div>`).join('');
-  } catch(e) { box.innerHTML = `<span style="color:#c22;">❌ ${e.message}</span>`; }
+
+        <div id="rvEdit${v.id}" style="display:none;margin-top:10px;">
+          <div style="display:grid;gap:8px;">
+            <input id="rvEName${v.id}" value="${esc(v.name)}" placeholder="Naam"
+                   style="padding:8px 11px;border:1.5px solid #e2ddd6;border-radius:9px;font-size:13px;">
+            <input id="rvELoc${v.id}" value="${esc(loc)}" placeholder="State"
+                   style="padding:8px 11px;border:1.5px solid #e2ddd6;border-radius:9px;font-size:13px;">
+            <select id="rvEStars${v.id}" style="padding:8px 11px;border:1.5px solid #e2ddd6;border-radius:9px;font-size:13px;">
+              ${[5,4,3,2,1].map(x => `<option value="${x}"${x === v.stars ? ' selected' : ''}>${rvStarStr(x)} (${x})</option>`).join('')}
+            </select>
+            <textarea id="rvEText${v.id}" rows="4"
+                      style="padding:8px 11px;border:1.5px solid #e2ddd6;border-radius:9px;font-size:13px;font-family:inherit;resize:vertical;">${esc(v.text)}</textarea>
+            <div style="display:flex;gap:7px;flex-wrap:wrap;">
+              <button onclick="saveReviewEdit(${v.id})" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 14px;font-size:11.5px;font-weight:700;cursor:pointer;">
+                ${isPending ? '✅ Save &amp; Approve' : '💾 Save'}
+              </button>
+              <button onclick="cancelReviewEdit(${v.id})" style="background:#f3f4f6;color:#6b7280;border:none;border-radius:8px;padding:7px 14px;font-size:11.5px;font-weight:700;cursor:pointer;">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+    };
+
+    let html = '';
+    if (pending.length) {
+      html += `<div style="background:#fff9ec;border:1.5px solid #f0e2ba;border-radius:11px;padding:9px 13px;margin-bottom:12px;font-size:12.5px;font-weight:700;color:#8a6d1f;">
+                 ⏳ ${pending.length} review approval ka intezaar kar rahe hain
+               </div>`;
+      html += pending.map(card).join('');
+      if (rest.length) html += `<div style="height:1.5px;background:#eee9e2;margin:16px 0 12px;"></div>`;
+    }
+    html += rest.map(card).join('');
+    box.innerHTML = html;
+
+  } catch(e) { box.innerHTML = `<span style="color:#c22;">⚠ ${e.message}</span>`; }
+}
+
+/* Approve — bina kuch badle */
+async function approveReview(id) {
+  try {
+    const r = await fetch('/api/superadmin/reviews/' + id + '/approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+      body: '{}'
+    });
+    const d = await r.json();
+    if (!r.ok || d.error) throw new Error(d.error || 'fail');
+    loadReviews();
+  } catch(e) { alert('Approve nahi hua: ' + e.message); }
+}
+
+async function unapproveReview(id) {
+  if (!confirm('Ye review homepage se hata kar wapas pending me daal du?')) return;
+  try {
+    const r = await fetch('/api/superadmin/reviews/' + id + '/unapprove', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    const d = await r.json();
+    if (!r.ok || d.error) throw new Error(d.error || 'fail');
+    loadReviews();
+  } catch(e) { alert('Nahi hua: ' + e.message); }
+}
+
+function editReview(id) {
+  const v = document.getElementById('rvView' + id), e = document.getElementById('rvEdit' + id);
+  if (v && e) { v.style.display = 'none'; e.style.display = 'block'; }
+}
+function cancelReviewEdit(id) {
+  const v = document.getElementById('rvView' + id), e = document.getElementById('rvEdit' + id);
+  if (v && e) { v.style.display = 'block'; e.style.display = 'none'; }
+}
+
+/* Edit karke approve — dono kaam ek hi endpoint se */
+async function saveReviewEdit(id) {
+  const g = pre => (document.getElementById(pre + id) || {}).value || '';
+  const name = g('rvEName').trim(), state = g('rvELoc').trim(), text = g('rvEText').trim();
+  if (!name) return alert('Naam khaali nahi ho sakta');
+  if (!text) return alert('Review khaali nahi ho sakta');
+  try {
+    const r = await fetch('/api/superadmin/reviews/' + id + '/approve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+      body: JSON.stringify({ name, state, text, stars: parseInt(g('rvEStars'), 10) })
+    });
+    const d = await r.json();
+    if (!r.ok || d.error) throw new Error(d.error || 'fail');
+    loadReviews();
+  } catch(e) { alert('Save nahi hua: ' + e.message); }
 }
 
 async function addReview() {
