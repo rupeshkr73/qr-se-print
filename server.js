@@ -3854,8 +3854,14 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
     const {
       name, address, phone, email, printer_model, printer_name_bw, printer_name_color, price_bw, price_color, payment_mode,
       payment_gateway, razorpay_key_id, razorpay_key_secret,
-      cashfree_app_id, cashfree_secret_key
+      cashfree_app_id: cashfreeAppIdRaw, cashfree_secret_key: cashfreeSecretRaw
     } = req.body;
+    // Copy-paste (especially mobile) aksar leading/trailing space ya newline
+    // chhod deta hai — Cashfree auth silently fail ho jaata hai bina kisi
+    // wajah ke. Isliye yahin trim kar dete hain (__KEEP__ sentinel ko chhod ke).
+    const cashfree_app_id = typeof cashfreeAppIdRaw === 'string' ? cashfreeAppIdRaw.trim() : cashfreeAppIdRaw;
+    const cashfree_secret_key = (typeof cashfreeSecretRaw === 'string' && cashfreeSecretRaw !== '__KEEP__')
+      ? cashfreeSecretRaw.trim() : cashfreeSecretRaw;
 
     // Email — purani shops (jinke paas email nahi tha) yahan se bhar sakti hain.
     // undefined = field bheji hi nahi, to purana waise ka waisa rehta hai.
@@ -4185,8 +4191,8 @@ function cashfreeRequest(method, path, appId, secretKey, body) {
     try {
       const headers = {
         'x-api-version': CASHFREE_API_VERSION,
-        'x-client-id': appId,
-        'x-client-secret': secretKey,
+        'x-client-id': String(appId || '').trim(),
+        'x-client-secret': String(secretKey || '').trim(),
         'accept': 'application/json'
       };
       if (body) {
