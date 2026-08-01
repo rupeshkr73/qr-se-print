@@ -9,7 +9,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-<script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;-webkit-tap-highlight-color:transparent}
@@ -535,6 +534,14 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
     <div class="amount-box">
       <span id="amountLabel">Amount</span>
       <strong id="finalAmount">₹5</strong>
+    </div>
+
+    <!-- Resume yahin bana tha, customer ke paas copy nahi hoti — isliye
+         payment ke baad download ka option dete hain -->
+    <div id="dlBox" style="display:none;margin:16px 0;padding:16px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:14px;text-align:center;">
+      <div style="font-size:13.5px;font-weight:800;color:#166534;margin-bottom:4px;">📄 Apna Resume Save Kar Lo</div>
+      <div style="font-size:11.5px;color:#3f7a52;margin-bottom:12px;">Aage kabhi kaam aayega — abhi download kar lo</div>
+      <button onclick="downloadMyPdf()" style="width:100%;background:#166534;color:#fff;border:none;border-radius:12px;padding:14px;font-family:'Syne',sans-serif;font-weight:800;font-size:15px;cursor:pointer;">⬇️ PDF Download Karo</button>
     </div>
     <div id="fbBox" style="text-align:center;margin:16px 0;padding:14px;background:#f7f7f9;border-radius:14px;">
       <div style="font-size:13px;font-weight:700;margin-bottom:10px;">Print kaisa laga?</div>
@@ -2486,17 +2493,29 @@ async function buildOutputFile() {
     return doc.output('blob');
   };
 
-  // Safety net: file bahut badi ho to quality thoda ghata kar chhoti karo.
-  // Bina iske bade documents upload par reject ho jaate the aur customer
-  // ko sirf "file upload karo" dikhta tha — wajah kabhi pata hi nahi chalti.
+  // PASSPORT PHOTO ko sabse achhi quality chahiye — chehre ki detail
+  // compress hote hi kharab dikhti hai. Photo sheet waise bhi chhoti hoti
+  // hai (1-2 MB), isliye size ki fikr nahi.
+  // Document me 0.85 theek hai — text saaf rehta hai aur file chhoti.
+  const isPhotoJob = (state.service === 'photo4x6');
+  const baseQ = isPhotoJob ? 0.96 : 0.85;
+
+  let blob = makePdf(baseQ);
+
+  // Safety net: file bahut badi ho to quality ghata kar chhoti karo.
+  // Photo par ye chalta hi nahi (wo kabhi itni badi hoti hi nahi), aur
+  // agar kabhi laga bhi to 0.85 se neeche nahi jaayega — warna passport
+  // photo dhundhli ho jaayegi.
   const LIMIT = 9 * 1024 * 1024;         // Cloudinary free ka raw limit 10 MB
-  let blob = makePdf(0.85);
-  for (const q of [0.7, 0.55, 0.42]) {
+  const steps = isPhotoJob ? [0.90, 0.85] : [0.7, 0.55, 0.42];
+  for (const q of steps) {
     if (blob.size <= LIMIT) break;
     console.warn('File badi hai (' + Math.round(blob.size/1048576) + ' MB) — quality ' + q + ' par dobara bana rahe hain');
     blob = makePdf(q);
   }
-  return { blob, fileName: 'document.pdf' };
+  console.log('Final file: ' + Math.round(blob.size/1024) + ' KB'
+    + (isPhotoJob ? ' (photo — high quality)' : ''));
+  return { blob, fileName: isPhotoJob ? 'photo.pdf' : 'document.pdf' };
 }
 
 // File ab SEEDHA Cloudinary jaati hai — server se hoke nahi.
@@ -2646,6 +2665,11 @@ async function uploadViaServer(blob, fileName) {
   return data;
 }
 
+// Jo file upload hui wahi customer ko download ke liye bhi chahiye
+// (khaas kar resume — wo yahin bana tha, uske paas copy nahi hoti).
+let LAST_PDF_BLOB = null;
+let LAST_PDF_NAME = 'document.pdf';
+
 async function uploadAllPages() {
   upProgShow(true);
   try {
@@ -2653,6 +2677,8 @@ async function uploadAllPages() {
     // bhi thoda progress dikhao — warna bar 0% par atka lagta hai.
     upProgSet(3);
     const { blob, fileName } = await buildOutputFile();
+    LAST_PDF_BLOB = blob;
+    LAST_PDF_NAME = (state.service === 'resume') ? 'Resume.pdf' : (fileName || 'document.pdf');
     upProgSet(8);
 
     let data;
@@ -2869,20 +2895,8 @@ async function payOnline() {
       const rzp = new Razorpay(options);
       rzp.on('payment.failed', () => toast('❌ Payment failed! Try again.'));
       rzp.open();
-    } else if (data.gateway === 'cashfree') {
-      // Cashfree Razorpay se alag hai: yahan popup nahi, payment_session_id
-      // se checkout khulta hai aur customer return_url par wapas aata hai.
-      if (typeof Cashfree !== 'function') {
-        toast('❌ Payment page load nahi hua — internet check karke dobara try karo');
-        return;
-      }
-      const cf = Cashfree({ mode: 'production' });   // sirf LIVE
-      cf.checkout({
-        paymentSessionId: data.paymentSessionId,
-        redirectTarget: '_self'
-      });
-      // Yahan se page chala jaata hai. Wapas aane par /print-success
-      // khulta hai jo status endpoint se confirm karta hai.
+    } else if (data.gateway === 'phonepe') {
+      window.location.href = data.paymentUrl;
     }
   } catch(e) {
     toast('❌ Network error: ' + e.message);
@@ -2940,12 +2954,35 @@ function playPrintSound() {
   } catch (e) { /* sound na baje to bhi order to ho hi gaya */ }
 }
 
+function downloadMyPdf() {
+  if (!LAST_PDF_BLOB) { toast('❌ File ab available nahi hai'); return; }
+  try {
+    const url = URL.createObjectURL(LAST_PDF_BLOB);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = LAST_PDF_NAME;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    // Turant revoke mat karo — kuch browser me download shuru hone se
+    // pehle hi link mar jata hai
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+    toast('✅ Download shuru');
+  } catch (e) {
+    toast('❌ Download nahi hua: ' + e.message);
+  }
+}
+
 function showSuccess(method, amount) {
   hide('secPayment');
   const successScreen = document.getElementById('secSuccess');
   successScreen.style.display = 'block';
   setStep(4);
   playPrintSound();
+
+  // Resume ka download — customer ke paas iski koi copy nahi hoti
+  const dl = document.getElementById('dlBox');
+  if (dl) dl.style.display = (state.service === 'resume' && LAST_PDF_BLOB) ? 'block' : 'none';
 
   document.getElementById('orderId').textContent = 'ORDER #' + state.jobId;
   document.getElementById('finalAmount').textContent = '₹' + amount;
