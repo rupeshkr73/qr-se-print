@@ -9,6 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script src="https://sdk.cashfree.com/js/v3/cashfree.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;-webkit-tap-highlight-color:transparent}
@@ -2861,7 +2862,19 @@ async function payOnline() {
       , duplex: state.duplex })
     });
     const data = await res.json();
-    if (!data.success) { toast('❌ ' + (data.error || 'Payment create failed')); return; }
+    if (!data.success) {
+      toast('❌ ' + (data.error || 'Payment create failed') + (data.details ? ' (' + data.details + ')' : ''));
+      return;
+    }
+
+    if (data.gateway === 'cashfree') {
+      const cashfree = Cashfree({ mode: 'production' });
+      cashfree.checkout({
+        paymentSessionId: data.paymentSessionId,
+        redirectTarget: '_self'
+      });
+      return;
+    }
 
     if (data.gateway === 'razorpay') {
       const options = {
