@@ -48,7 +48,7 @@ IDLE_INTERVAL_2    = 25         # 10 minute khaali gaye to itna
 # Isliye khaali waqt me dheere check karo — par job aate hi turant 5s par
 # wapas aa jao, taaki print me deri na ho.
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 21           # Integer version number — server ke agent_version se compare hota hai
+VERSION            = 23           # Integer version number — server ke agent_version se compare hota hai
 SUPPORT_WA         = "918404832414"  # Admin WhatsApp (shop-login Support jaisa) — Contact Admin isi par khulega
 
 # Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
@@ -624,13 +624,34 @@ def extract_selected_pages(pdf_path, selected_pages_str, total_pages=None):
 
 def get_bundled_resource_path(filename):
     """
-    PyInstaller --add-binary se bundle kiye gaye files (jaise SumatraPDF.exe)
-    runtime par ek temporary extraction folder mein hote hain — uska path
-    sys._MEIPASS mein milta hai (sirf .exe mode mein available hota hai).
-    .py script mode mein yeh attribute exist hi nahi karta.
+    Bundle kiye gaye file (jaise SumatraPDF.exe) ka path dhoondho.
+    Teen tarah ke build support karta hai:
+      1. PyInstaller --onefile : temp extraction folder -> sys._MEIPASS
+      2. Nuitka --standalone / PyInstaller --onedir : exe ke saath wale folder me
+      3. Normal .py script : script ke folder me
+    Pehle sirf (1) tha, isliye Nuitka ka build SumatraPDF dhoondh hi nahi paata tha.
     """
-    if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, filename)
+    candidates = []
+
+    # 1. PyInstaller onefile
+    meipass = getattr(sys, '_MEIPASS', None)
+    if meipass:
+        candidates.append(os.path.join(meipass, filename))
+
+    # 2. Compiled exe ke saath wala folder (Nuitka standalone / PyInstaller onedir)
+    #    Nuitka __compiled__ set karta hai, PyInstaller sys.frozen
+    if globals().get('__compiled__') is not None or getattr(sys, 'frozen', False):
+        candidates.append(os.path.join(os.path.dirname(sys.executable), filename))
+
+    # 3. Script mode
+    try:
+        candidates.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), filename))
+    except NameError:
+        pass
+
+    for p in candidates:
+        if p and os.path.exists(p):
+            return p
     return None
 
 # ─── Problem 5: B&W / Color Print + Fit-to-A4 ────────────────────────
@@ -668,16 +689,30 @@ def print_pdf_sumatra(filepath, copies=1, color_mode="bw", printer_name=None, ex
 
     # "fit" — page ko printer paper size ke hisaab se scale karta hai
     # (chhota document A4 paper mein bada hoke print hoga, corner mein nahi rahega)
+    # ⚠️ COPIES KA SAHI SYNTAX ⚠️
+    # SumatraPDF me copies "Nx" se aate hain (jaise "3x" = 3 copies).
+    # "copies=3" naam ka koi option Sumatra me HAI HI NAHI — wo use unknown
+    # token samajh ke CHUPCHAP ignore kar deta tha. Isi wajah se customer
+    # 2-3 copies chunta tha, paisa bhi 2-3 copy ka katta tha, par print
+    # sirf 1 hi nikalta tha.
+    # Docs: sumatrapdfreader.org/docs/Command-line-arguments -> -print-settings "3x"
+    try:
+        _n_copies = int(copies)
+    except (TypeError, ValueError):
+        _n_copies = 1
+    _n_copies = max(1, min(50, _n_copies))     # server par bhi 50 ka cap hai
+    copies_token = f"{_n_copies}x"
+
     if color_mode == "bw":
-        print_settings = f"copies={copies},monochrome,{scale_mode}"
-        log(f"🖨️  B&W (Monochrome) + {scale_mode} print karenge")
+        print_settings = f"{copies_token},monochrome,{scale_mode}"
+        log(f"🖨️  B&W (Monochrome) + {scale_mode} print karenge | {_n_copies} copy")
     else:
         # EXPLICIT 'color' flag — pehle kuch nahi bhejte the, to printer
         # driver ka DEFAULT chalta tha. Driver default Grayscale ho (Canon/HP
         # par common) to color job bhi B&W nikalta tha. Ab job ke hisaab se
         # force hota hai, driver default jo bhi ho.
-        print_settings = f"copies={copies},color,{scale_mode}"
-        log(f"🖨️  Color (explicit) + {scale_mode} print karenge")
+        print_settings = f"{copies_token},color,{scale_mode}"
+        log(f"🖨️  Color (explicit) + {scale_mode} print karenge | {_n_copies} copy")
     if extra:
         print_settings += f",{extra}"
         log(f"🖨️  Extra print settings: {extra}")
