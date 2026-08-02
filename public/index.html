@@ -274,6 +274,22 @@ a{color:inherit}
 .gv-sound-btn:active{transform:translateY(0) scale(.96)}
 .gv-caption{text-align:center;font-size:12.5px;color:var(--muted);margin-top:14px}
 
+/* ── Compact variant: same video, chhoti jagah (demo modal, success card) ── */
+.gv-mini-label{text-align:center;font-size:11.5px;font-weight:700;color:var(--muted);margin:16px 0 8px}
+.gv-mini-frame{
+  margin:0 auto;max-width:340px;border-radius:18px;padding:6px;
+  background:linear-gradient(120deg,var(--violet),var(--pink) 55%,var(--orange));
+  box-shadow:0 14px 34px rgba(255,46,99,.22);
+}
+.gv-mini-inner{position:relative;width:100%;padding-top:56.25%;border-radius:13px;overflow:hidden;background:#0c0c10}
+.gv-mini-inner iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+.gv-mini-sound{
+  position:absolute;right:8px;bottom:8px;z-index:5;
+  background:rgba(17,17,20,.72);color:#fff;border:1.5px solid rgba(255,255,255,.3);
+  border-radius:16px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;
+}
+.gv-mini-sound:active{transform:scale(.96)}
+
 /* ══════════════════════════════════════════════════════════════
    HERO VISUAL — Signature: Phone Scan → Files Fly → Printer Se
    Xerox-style scan beam + paper nikalta hua (pure CSS/SVG)
@@ -3324,7 +3340,12 @@ async function createDemo(){
       '1️⃣ <a href="/admin" target="_blank" style="color:#7c3aed;font-weight:700;">Shop Login</a> karke Print Agent (.exe) download karo<br>' +
       '2️⃣ PC par install karke yehi Shop ID daalo<br>' +
       '3️⃣ Apne phone se QR scan karke test print bhejo!<br>' +
-      '<span style="font-size:11px;color:#666;">⏰ 2 ghante baad demo expire — pasand aaye to register karna</span>';
+      '<span style="font-size:11px;color:#666;">⏰ 2 ghante baad demo expire — pasand aaye to register karna</span>' +
+      '<div class="gv-mini-label">🎬 Setup Kaise Karein — Dekh Lo</div>' +
+      '<div class="gv-mini-frame"><div class="gv-mini-inner">' +
+        '<iframe id="gvMiniFrameDemo" src="https://www.youtube-nocookie.com/embed/qOPE-90Um8g?autoplay=1&mute=1&loop=1&playlist=qOPE-90Um8g&controls=1&rel=0&modestbranding=1&playsinline=1" title="How to Setup" allow="accelerate=1;autoplay;encrypted-media;picture-in-picture" allowfullscreen loading="lazy"></iframe>' +
+        '<button type="button" class="gv-mini-sound" onclick="document.getElementById(\'gvMiniFrameDemo\').src=\'https://www.youtube-nocookie.com/embed/qOPE-90Um8g?autoplay=1&mute=0&loop=1&playlist=qOPE-90Um8g&controls=1&rel=0&modestbranding=1&playsinline=1\';this.style.display=\'none\';">🔊 Sound On</button>' +
+      '</div></div>';
     res.style.display = 'block';
   }catch(e){
     err.textContent = '❌ ' + e.message;

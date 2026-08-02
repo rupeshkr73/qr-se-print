@@ -156,6 +156,21 @@ nav{
 .steps-mini h4{font-size:13px;font-weight:800;color:#8a6d1f;margin-bottom:8px}
 .steps-mini p{font-size:12.5px;color:#6b5a2f;line-height:1.85}
 .tiny{font-size:11.5px;color:var(--muted);margin-bottom:14px;text-align:center;line-height:1.6}
+/* ── Setup video: same "How to Setup" video jo homepage par hai ── */
+.gv-mini-label{text-align:center;font-size:11.5px;font-weight:700;color:var(--muted);margin:4px 0 8px}
+.gv-mini-frame{
+  margin:0 auto 18px;max-width:340px;border-radius:18px;padding:6px;
+  background:linear-gradient(120deg,#7c3aed,var(--pink) 55%,var(--orange));
+  box-shadow:0 14px 34px rgba(255,46,99,.22);
+}
+.gv-mini-inner{position:relative;width:100%;padding-top:56.25%;border-radius:13px;overflow:hidden;background:#0c0c10}
+.gv-mini-inner iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
+.gv-mini-sound{
+  position:absolute;right:8px;bottom:8px;z-index:5;
+  background:rgba(17,17,20,.72);color:#fff;border:1.5px solid rgba(255,255,255,.3);
+  border-radius:16px;padding:5px 11px;font-size:11px;font-weight:700;cursor:pointer;
+}
+.gv-mini-sound:active{transform:scale(.96)}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -201,6 +216,12 @@ nav{
       <h4>✅ Aapka Shop ID</h4>
       <div class="shop-id-val" id="shopIdDisplay">---</div>
     </div>
+
+    <div class="gv-mini-label">🎬 Setup Kaise Karein — Dekh Lo</div>
+    <div class="gv-mini-frame"><div class="gv-mini-inner">
+      <iframe id="gvMiniFramePaid" src="https://www.youtube-nocookie.com/embed/qOPE-90Um8g?autoplay=1&mute=1&loop=1&playlist=qOPE-90Um8g&controls=1&rel=0&modestbranding=1&playsinline=1" title="How to Setup" allow="accelerate=1;autoplay;encrypted-media;picture-in-picture" allowfullscreen loading="lazy"></iframe>
+      <button type="button" class="gv-mini-sound" onclick="document.getElementById('gvMiniFramePaid').src='https://www.youtube-nocookie.com/embed/qOPE-90Um8g?autoplay=1&mute=0&loop=1&playlist=qOPE-90Um8g&controls=1&rel=0&modestbranding=1&playsinline=1';this.style.display='none';">🔊 Sound On</button>
+    </div></div>
 
     <img id="qrImg" src="">
     <br>
