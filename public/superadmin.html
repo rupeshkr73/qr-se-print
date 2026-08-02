@@ -160,6 +160,98 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
   .app-content{padding:18px 16px 50px}
 }
 </style>
+
+<style id="qsp-sa-analytics">
+/* ═══════════════════════════════════════════════════════════════
+   ANALYTICS — premium dashboard redesign. Ek chhota token system
+   (ink/muted/line + 6 accent colors) jo KPI cards, donuts, funnel
+   aur table sabme consistently reuse hota hai — yehi cheez isko
+   "ek studio se aaya" jaisa cohesive feel deti hai.
+   ═══════════════════════════════════════════════════════════════ */
+.an-wrap{--sa-ink:#14121f;--sa-muted:#8b8794;--sa-line:#ececf1;--sa-soft:#fbfbfc;
+  --sa-pink:#ff2e63;--sa-purple:#7c3aed;--sa-amber:#f59e0b;--sa-emerald:#0f9d70;--sa-blue:#2563eb;--sa-teal:#0f766e;}
+.an-wrap *{box-sizing:border-box}
+
+.an-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:2px}
+.an-eyebrow{font-size:10px;font-weight:800;letter-spacing:1.3px;text-transform:uppercase;color:var(--sa-pink);
+  display:flex;align-items:center;gap:6px;margin-bottom:5px}
+.an-eyebrow::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--sa-emerald);
+  box-shadow:0 0 0 3px rgba(15,157,112,.18)}
+.an-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:19px;color:var(--sa-ink);letter-spacing:-.4px}
+.an-desc{font-size:12px;color:var(--sa-muted);margin:10px 0 18px;line-height:1.65;max-width:640px}
+
+.an-seg{display:inline-flex;background:var(--sa-soft);border:1.5px solid var(--sa-line);border-radius:12px;padding:3px;gap:2px}
+.an-seg button{border:none;background:transparent;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;
+  color:var(--sa-muted);padding:7px 13px;border-radius:9px;cursor:pointer;transition:.15s}
+.an-seg button.active{background:var(--sa-ink);color:#fff;box-shadow:0 3px 10px rgba(20,18,31,.25)}
+.an-seg button:not(.active):hover{color:var(--sa-ink)}
+
+.an-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:12px;margin-bottom:16px}
+.an-kpi{background:#fff;border:1.5px solid var(--sa-line);border-radius:16px;padding:15px 16px;
+  transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.an-kpi:hover{transform:translateY(-2px);box-shadow:0 10px 26px rgba(20,18,31,.08);border-color:#e2dff0}
+.an-kpi-ico{width:32px;height:32px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:15px;margin-bottom:12px}
+.an-kpi-val{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:23px;color:var(--sa-ink);
+  line-height:1;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.an-kpi-lbl{font-size:11.5px;font-weight:700;color:var(--sa-ink);margin-top:7px}
+.an-kpi-sub{font-size:10.5px;color:var(--sa-muted);margin-top:3px}
+
+.an-card{background:#fff;border:1.5px solid var(--sa-line);border-radius:16px;padding:16px 16px 14px;margin-top:14px}
+.an-card-title{font-size:12.5px;font-weight:800;color:var(--sa-ink)}
+.an-card-sub{font-size:10.5px;color:var(--sa-muted);margin:4px 0 12px}
+.an-grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-top:14px}
+.an-grid-2 .an-card{margin-top:0}
+
+.an-legend{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.an-legend span{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:700;color:var(--sa-muted);
+  background:var(--sa-soft);border:1px solid var(--sa-line);border-radius:20px;padding:4px 10px 4px 8px}
+.an-legend i{width:8px;height:8px;border-radius:2.5px;display:inline-block}
+
+.an-dl{flex:1 1 140px;min-width:140px;display:flex;flex-direction:column;gap:1px}
+.an-dl-row{display:grid;grid-template-columns:9px 1fr auto 34px;align-items:center;gap:9px;
+  font-size:11.5px;padding:6px;border-radius:8px;transition:.12s}
+.an-dl-row:hover{background:var(--sa-soft)}
+.an-dl-row i{width:9px;height:9px;border-radius:3px}
+.an-dl-row b{font-weight:800;font-variant-numeric:tabular-nums}
+.an-dl-row .pc{color:var(--sa-muted);text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+
+.an-funnel-step{position:relative;padding-left:24px;padding-bottom:16px}
+.an-funnel-step:last-child{padding-bottom:0}
+.an-funnel-step::before{content:'';position:absolute;left:4.5px;top:3px;bottom:-2px;width:1.5px;background:var(--sa-line)}
+.an-funnel-step:last-child::before{display:none}
+.an-funnel-dot{position:absolute;left:0;top:3px;width:10px;height:10px;border-radius:50%;border:2px solid #fff;
+  box-shadow:0 0 0 1.5px var(--sa-line)}
+.an-funnel-row{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;font-weight:700;margin-bottom:5px}
+.an-funnel-bar{height:9px;background:var(--sa-soft);border-radius:999px;overflow:hidden}
+.an-funnel-bar i{display:block;height:100%;border-radius:999px;transition:width .6s ease}
+.an-rev-chip{margin-top:12px;padding:11px 13px;background:linear-gradient(120deg,#f0fdf4,#ecfdf5);
+  border:1.5px solid #bbf7d0;border-radius:12px;font-size:12px;color:#166534;display:flex;align-items:center;gap:8px}
+
+.an-table-wrap{overflow-x:auto}
+.an-table{width:100%;border-collapse:collapse;font-size:12px;min-width:460px}
+.an-table thead th{text-align:left;font-size:10px;font-weight:800;color:var(--sa-muted);text-transform:uppercase;
+  letter-spacing:.5px;padding:0 10px 9px;border-bottom:1.5px solid var(--sa-line)}
+.an-table thead th.r{text-align:right}
+.an-table tbody td{padding:9px 10px;border-bottom:1px solid #f4f2f7;vertical-align:middle}
+.an-table tbody td.r{text-align:right;font-variant-numeric:tabular-nums}
+.an-table tbody tr:hover{background:var(--sa-soft)}
+.an-table tbody tr:last-child td{border-bottom:none}
+.an-src-dot{display:inline-block;width:8px;height:8px;border-radius:2.5px;margin-right:7px}
+.an-mini-bar{display:inline-block;width:40px;height:5px;border-radius:3px;background:var(--sa-line);
+  overflow:hidden;vertical-align:middle;margin-right:7px;position:relative;top:-1px}
+.an-mini-bar i{display:block;height:100%;border-radius:3px}
+
+.an-list-row{display:flex;justify-content:space-between;align-items:center;padding:8px 2px;
+  border-bottom:1px solid #f4f2f7;font-size:12.5px}
+.an-list-row:last-child{border-bottom:none}
+.an-list-row span:first-child{color:#57534e;font-weight:600}
+.an-list-row b{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;color:var(--sa-ink);font-variant-numeric:tabular-nums}
+.an-list-row small{color:var(--sa-muted);font-weight:600;margin-left:5px}
+.an-empty{font-size:12px;color:var(--sa-muted);padding:10px 2px;line-height:1.6}
+
+@media(max-width:640px){.an-kpis{grid-template-columns:repeat(2,1fr)}}
+</style>
 </head>
 <body>
 
@@ -584,64 +676,67 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     </div>
 
     <div data-sect="analytics">
-      <div class="card">
-        <h2><span>📊 Traffic &amp; Funnel</span>
-          <select id="anRange" onchange="loadAnalytics()" style="border:1.5px solid #e2ddd6;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;background:#fff;">
-            <option value="7">7 din</option>
-            <option value="14">14 din</option>
-            <option value="30" selected>30 din</option>
-            <option value="90">90 din</option>
-          </select>
-        </h2>
-        <p style="font-size:11.5px;color:#9b9690;margin:-6px 0 16px;">
-          Sab kuch apne server par track hota hai — koi Google Analytics ya Meta pixel nahi.
-          Demo, payment aur shop ke number asli database se aate hain.
-        </p>
+      <div class="card an-wrap">
+        <div class="an-head">
+          <div>
+            <div class="an-eyebrow">Live · Server-side tracking</div>
+            <div class="an-title">📊 Traffic &amp; Funnel</div>
+          </div>
+          <div class="an-seg" id="anRangeSeg">
+            <button type="button" data-days="7" onclick="setAnRange(7,this)">7D</button>
+            <button type="button" data-days="14" onclick="setAnRange(14,this)">14D</button>
+            <button type="button" data-days="30" class="active" onclick="setAnRange(30,this)">30D</button>
+            <button type="button" data-days="90" onclick="setAnRange(90,this)">90D</button>
+          </div>
+        </div>
+        <div class="an-desc">Sab kuch apne server par track hota hai — koi Google Analytics ya Meta pixel nahi. Demo, payment aur shop ke number asli database se aate hain.</div>
 
-        <div id="anSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px;"></div>
+        <div id="anSummary" class="an-kpis"></div>
 
-        <div style="background:#fafaf9;border:1.5px solid #e2ddd6;border-radius:14px;padding:14px 10px 6px;margin-bottom:16px;">
-          <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;padding:0 8px;font-size:11px;font-weight:700;color:#6b6560;flex-wrap:wrap;">
-            <span><i style="display:inline-block;width:9px;height:9px;background:#ffd22e;border-radius:2px;margin-right:4px;"></i>Pageviews</span>
-            <span><i style="display:inline-block;width:9px;height:9px;background:#0f766e;border-radius:2px;margin-right:4px;"></i>Demo bane</span>
-            <span><i style="display:inline-block;width:9px;height:9px;background:#ff2e63;border-radius:2px;margin-right:4px;"></i>Paid bane</span>
+        <div class="an-card" style="margin-top:0">
+          <div class="an-card-title">Daily Traffic &amp; Signups</div>
+          <div class="an-card-sub">Pageviews, demo signups aur paid signups — alag-alag scale par</div>
+          <div class="an-legend">
+            <span><i style="background:#ffd22e"></i>Pageviews</span>
+            <span><i style="background:#0f766e"></i>Demo bane</span>
+            <span><i style="background:#ff2e63"></i>Paid bane</span>
           </div>
           <div id="anChart" style="width:100%;overflow-x:auto;">Loading…</div>
         </div>
 
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:16px;">
-          <div style="background:#fafaf9;border:1.5px solid #e2ddd6;border-radius:14px;padding:14px;">
-            <div style="font-size:12px;font-weight:800;margin-bottom:4px;">🌐 Traffic kahan se aaya</div>
-            <div style="font-size:10.5px;color:#9b9690;margin-bottom:10px;">Unique visitors ke hisaab se</div>
+        <div class="an-grid-2">
+          <div class="an-card">
+            <div class="an-card-title">🌐 Traffic kahan se aaya</div>
+            <div class="an-card-sub">Unique visitors ke hisaab se</div>
             <div id="anSrcDonut" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">Loading…</div>
           </div>
-          <div style="background:#fafaf9;border:1.5px solid #e2ddd6;border-radius:14px;padding:14px;">
-            <div style="font-size:12px;font-weight:800;margin-bottom:4px;">🏪 Shops ki halat</div>
-            <div style="font-size:10.5px;color:#9b9690;margin-bottom:10px;">Abhi ka poora data (range se alag)</div>
+          <div class="an-card">
+            <div class="an-card-title">🏪 Shops ki halat</div>
+            <div class="an-card-sub">Abhi ka poora data (range se alag)</div>
             <div id="anShopDonut" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;">Loading…</div>
           </div>
         </div>
 
-        <div style="background:#fafaf9;border:1.5px solid #e2ddd6;border-radius:14px;padding:14px;margin-bottom:16px;">
-          <div style="font-size:12px;font-weight:800;margin-bottom:4px;">💳 Payment funnel</div>
-          <div style="font-size:10.5px;color:#9b9690;margin-bottom:12px;">Chune hue din me registration se payment tak</div>
+        <div class="an-card">
+          <div class="an-card-title">💳 Payment funnel</div>
+          <div class="an-card-sub">Chune hue din me registration se payment tak</div>
           <div id="anPayFunnel">Loading…</div>
         </div>
 
-        <div style="background:#fafaf9;border:1.5px solid #e2ddd6;border-radius:14px;padding:14px;margin-bottom:16px;">
-          <div style="font-size:12px;font-weight:800;margin-bottom:4px;">🎯 Kaunsa source asli grahak laata hai</div>
-          <div style="font-size:10.5px;color:#9b9690;margin-bottom:12px;">Sirf traffic nahi — demo aur payment tak kaun pahunchta hai</div>
-          <div id="anQuality" style="overflow-x:auto;">Loading…</div>
+        <div class="an-card">
+          <div class="an-card-title">🎯 Kaunsa source asli grahak laata hai</div>
+          <div class="an-card-sub">Sirf traffic nahi — demo aur payment tak kaun pahunchta hai</div>
+          <div id="anQuality" class="an-table-wrap">Loading…</div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-          <div>
-            <div style="font-size:12px;font-weight:800;margin-bottom:8px;">🔗 Campaign / utm_source</div>
-            <div id="anSource" style="font-size:12.5px;color:#9b9690;">Loading…</div>
+        <div class="an-grid-2">
+          <div class="an-card">
+            <div class="an-card-title" style="margin-bottom:8px">🔗 Campaign / utm_source</div>
+            <div id="anSource" class="an-empty">Loading…</div>
           </div>
-          <div>
-            <div style="font-size:12px;font-weight:800;margin-bottom:8px;">👆 Click breakdown</div>
-            <div id="anClicks" style="font-size:12.5px;color:#9b9690;">Loading…</div>
+          <div class="an-card">
+            <div class="an-card-title" style="margin-bottom:8px">👆 Click breakdown</div>
+            <div id="anClicks" class="an-empty">Loading…</div>
           </div>
         </div>
       </div>
@@ -1684,10 +1779,17 @@ async function toggleWlBlock(id, blocked) {
 }
 
 // ═══ ANALYTICS ═══
+let anDays = 30;
+function setAnRange(days, btn) {
+  anDays = days;
+  document.querySelectorAll('#anRangeSeg button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadAnalytics();
+}
 async function loadAnalytics() {
   const box = document.getElementById('anChart');
   if (!box) return;
-  const days = parseInt(document.getElementById('anRange').value, 10) || 30;
+  const days = anDays || 30;
   box.innerHTML = 'Loading…';
   document.getElementById('anSummary').innerHTML = '';
   document.getElementById('anSource').innerHTML = 'Loading…';
@@ -1718,69 +1820,76 @@ function renderAnalytics(d, days) {
   };
   const srcMeta = k => SRC[k] || ['#9ca3af', k];
 
-  /* ── Donut: har hisse ko stroke-dasharray se kaata hai ── */
+  /* ── Donut: ring track ke upar stroke-dasharray se segments kaate hain ── */
   function donut(items, centerTop, centerSub) {
     const total = items.reduce((n,i)=>n+i.value,0);
-    const R = 52, C = 2*Math.PI*R, W = 140;
+    const R = 54, C = 2*Math.PI*R, W = 148;
     if (!total) {
       return `<div style="width:${W}px;height:${W}px;display:grid;place-items:center;
-        border-radius:50%;border:14px solid #eee9e2;color:#b9b3ab;font-size:11px;">Data nahi</div>`;
+        border-radius:50%;border:14px solid #f4f2f7;color:#b9b3ab;font-size:11px;">Data nahi</div>`;
     }
     let off = 0, segs = '';
     items.forEach(it => {
       if (it.value <= 0) return;
       const len = (it.value/total)*C;
-      segs += `<circle cx="70" cy="70" r="${R}" fill="none" stroke="${it.color}" stroke-width="21"
+      segs += `<circle cx="74" cy="74" r="${R}" fill="none" stroke="${it.color}" stroke-width="18"
         stroke-dasharray="${len.toFixed(2)} ${(C-len).toFixed(2)}"
-        stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 70 70)"
+        stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 74 74)"
         style="transition:stroke-dasharray .5s ease;">
         <title>${esc(it.label)}: ${nf(it.value)} (${pct(it.value,total)}%)</title></circle>`;
       off += len;
     });
     return `<svg viewBox="0 0 ${W} ${W}" width="${W}" height="${W}" style="flex:0 0 ${W}px;">
+      <circle cx="74" cy="74" r="${R}" fill="none" stroke="#f4f2f7" stroke-width="18"></circle>
       ${segs}
-      <text x="70" y="66" text-anchor="middle" font-family="Syne,sans-serif" font-weight="800"
-            font-size="21" fill="#2b2620">${esc(centerTop)}</text>
-      <text x="70" y="82" text-anchor="middle" font-size="9.5" fill="#9b9690">${esc(centerSub)}</text>
+      <text x="74" y="70" text-anchor="middle" font-family="'Plus Jakarta Sans',sans-serif" font-weight="800"
+            font-size="22" fill="#14121f">${esc(centerTop)}</text>
+      <text x="74" y="87" text-anchor="middle" font-size="9.5" fill="#8b8794" font-weight="600">${esc(centerSub)}</text>
     </svg>`;
   }
 
   function legend(items) {
     const total = items.reduce((n,i)=>n+i.value,0) || 1;
-    return `<div style="flex:1 1 130px;min-width:130px;display:flex;flex-direction:column;gap:6px;">` +
+    return `<div class="an-dl">` +
       items.filter(i=>i.value>0).map(i =>
-        `<div style="display:flex;align-items:center;gap:7px;font-size:11.5px;">
-          <i style="width:10px;height:10px;border-radius:3px;background:${i.color};flex:0 0 10px;"></i>
-          <span style="flex:1;color:#4b4640;">${esc(i.label)}</span>
-          <b style="font-weight:800;">${nf(i.value)}</b>
-          <span style="color:#9b9690;width:32px;text-align:right;">${pct(i.value,total)}%</span>
+        `<div class="an-dl-row">
+          <i style="background:${i.color}"></i>
+          <span style="color:#4b4640;font-weight:600;">${esc(i.label)}</span>
+          <b>${nf(i.value)}</b>
+          <span class="pc">${pct(i.value,total)}%</span>
         </div>`).join('') + `</div>`;
   }
 
-  /* ─────────── 1. Upar ke stat cards ─────────── */
+  /* ─────────── 1. Upar ke KPI cards ─────────── */
   const tot = k => (d.totals||[]).find(t=>t.event_type===k) || {cnt:0,uniq:0};
   const pv = tot('pageview'), demoClk = tot('demo_click'),
         regClk = tot('register_click'), payClk = tot('pay_click');
   const P = d.payments || {}, S = d.shopStats || {};
 
-  const card = (v,l,sub,c) => `<div style="background:${c[0]};border:1.5px solid ${c[1]};border-radius:13px;padding:12px 13px;">
-    <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:21px;color:${c[2]};line-height:1.15;">${v}</div>
-    <div style="font-size:10.5px;font-weight:700;color:${c[2]};margin-top:3px;line-height:1.4;">${l}</div>
-    ${sub ? `<div style="font-size:10px;color:#9b9690;margin-top:3px;">${sub}</div>` : ''}</div>`;
+  const kpi = (icon,accent,tint,v,l,sub) => `<div class="an-kpi">
+    <div class="an-kpi-ico" style="background:${tint};color:${accent}">${icon}</div>
+    <div class="an-kpi-val">${v}</div>
+    <div class="an-kpi-lbl">${l}</div>
+    ${sub ? `<div class="an-kpi-sub">${sub}</div>` : ''}</div>`;
 
-  const YEL=['#fff9ec','#f0e2ba','#8a6d1f'], TEAL=['#f0fdfa','#99f6e4','#0f766e'],
-        RED=['#fef2f2','#fecaca','#b91c1c'], GRN=['#f0fdf4','#bbf7d0','#166534'],
-        BLU=['#eff6ff','#bfdbfe','#1d4ed8'], GRY=['#fafaf9','#e2ddd6','#57534e'];
+  const ACC = {
+    amber:  ['#b45309','rgba(245,158,11,.16)'],
+    teal:   ['#0f766e','rgba(15,118,110,.14)'],
+    blue:   ['#2563eb','rgba(37,99,235,.14)'],
+    emerald:['#0f9d70','rgba(15,157,112,.14)'],
+    rose:   ['#e11d48','rgba(225,29,72,.13)'],
+    purple: ['#7c3aed','rgba(124,58,237,.14)']
+  };
 
   document.getElementById('anSummary').innerHTML =
-    card(nf(pv.uniq), 'Total Visitors', nf(pv.cnt)+' pageviews', YEL) +
-    card(nf(demoClk.uniq), 'Demo pe click', nf(demoClk.cnt)+' baar', TEAL) +
-    card(nf(payClk.uniq), 'Pay pe click', payClk.cnt ? nf(payClk.cnt)+' baar' : 'abhi track shuru hua', BLU) +
-    card(nf(P.paid), 'Payment successful', '₹'+nf(P.revenue)+' kamai', GRN) +
-    card(nf(P.pending), 'Payment pending', 'register hua, paisa nahi', RED) +
-    card(nf(S.active), 'Active shops', nf(S.total)+' total banaye', GRY);
+    kpi('👁️', ...ACC.amber,   nf(pv.uniq), 'Total Visitors', nf(pv.cnt)+' pageviews') +
+    kpi('🎯', ...ACC.teal,    nf(demoClk.uniq), 'Demo pe click', nf(demoClk.cnt)+' baar') +
+    kpi('💳', ...ACC.blue,    nf(payClk.uniq), 'Pay pe click', payClk.cnt ? nf(payClk.cnt)+' baar' : 'abhi track shuru hua') +
+    kpi('✅', ...ACC.emerald, nf(P.paid), 'Payment successful', '₹'+nf(P.revenue)+' kamai') +
+    kpi('⏳', ...ACC.rose,    nf(P.pending), 'Payment pending', 'register hua, paisa nahi') +
+    kpi('🏪', ...ACC.purple,  nf(S.active), 'Active shops', nf(S.total)+' total banaye');
 
-  /* ─────────── 2. Daily bar chart ─────────── */
+  /* ─────────── 2. Daily chart (3 lanes — alag scale, isliye alag) ─────────── */
   const dates = [];
   const today = new Date();
   for (let i = days-1; i >= 0; i--) { const dt = new Date(today); dt.setDate(dt.getDate()-i); dates.push(dt.toISOString().slice(0,10)); }
@@ -1792,7 +1901,7 @@ function renderAnalytics(d, days) {
   const vpv = dates.map(x=>pvByDay[x]||0), vdc = dates.map(x=>demoByDay[x]||0), vpc = dates.map(x=>paidByDay[x]||0);
   const maxPv = Math.max(1,...vpv), maxDc = Math.max(1,...vdc), maxPc = Math.max(1,...vpc);
   const colW = days>45?14:days>20?22:34, W = dates.length*colW+20;
-  const laneH=78, gap=8, dH=16, pH=16, H = laneH+gap+dH+gap+pH+20;
+  const laneH=78, gap=8, dH=16, pH=16, H = laneH+gap+dH+gap+pH+22;
   const every = days>45?7:days>20?3:1;
 
   let bars = '';
@@ -1802,15 +1911,18 @@ function renderAnalytics(d, days) {
           b = Math.round((vdc[i]/maxDc)*(dH-2)),
           c = Math.round((vpc[i]/maxPc)*(pH-2));
     bars += `<g><title>${esc(day)}: ${vpv[i]} views, ${vdc[i]} demo, ${vpc[i]} paid</title>
-      <rect x="${x}" y="${laneH-a}" width="${bw}" height="${Math.max(1,a)}" rx="2" fill="#ffd22e"></rect>
-      <rect x="${x}" y="${laneH+gap+dH-b}" width="${bw}" height="${Math.max(1,b)}" rx="2" fill="#0f766e"></rect>
-      <rect x="${x}" y="${laneH+gap+dH+gap+pH-c}" width="${bw}" height="${Math.max(1,c)}" rx="2" fill="#ff2e63"></rect>
+      <rect x="${x}" y="${laneH-a}" width="${bw}" height="${Math.max(1,a)}" rx="3" fill="#ffd22e"></rect>
+      <rect x="${x}" y="${laneH+gap+dH-b}" width="${bw}" height="${Math.max(1,b)}" rx="3" fill="#0f766e"></rect>
+      <rect x="${x}" y="${laneH+gap+dH+gap+pH-c}" width="${bw}" height="${Math.max(1,c)}" rx="3" fill="#ff2e63"></rect>
     </g>`;
     if (i%every===0 || i===dates.length-1)
-      bars += `<text x="${x+bw/2}" y="${H-4}" font-size="8.5" fill="#9b9690" text-anchor="middle">${day.slice(5).replace('-','/')}</text>`;
+      bars += `<text x="${x+bw/2}" y="${H-6}" font-size="8.5" fill="#8b8794" font-weight="600" text-anchor="middle">${day.slice(5).replace('-','/')}</text>`;
   });
   document.getElementById('anChart').innerHTML =
-    `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block;min-width:${W}px;">${bars}</svg>`;
+    `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block;min-width:${W}px;">
+      <line x1="8" y1="${laneH+.5}" x2="${W-8}" y2="${laneH+.5}" stroke="#f0eef4" stroke-width="1"></line>
+      ${bars}
+    </svg>`;
 
   /* ─────────── 3. Traffic source donut ─────────── */
   const srcItems = (d.sources||[]).map(r => {
@@ -1820,78 +1932,72 @@ function renderAnalytics(d, days) {
   const srcTotal = srcItems.reduce((n,i)=>n+i.value,0);
   document.getElementById('anSrcDonut').innerHTML = srcItems.length
     ? donut(srcItems, nf(srcTotal), 'visitors') + legend(srcItems)
-    : `<div style="font-size:12px;color:#9b9690;padding:8px 2px;">
-         Abhi source data nahi hai. Naya tracking deploy hone ke baad
+    : `<div class="an-empty">Abhi source data nahi hai. Naya tracking deploy hone ke baad
          Google / Facebook / Instagram alag-alag dikhne lagenge.</div>`;
 
   /* ─────────── 4. Shop status donut ─────────── */
   const shopItems = [
-    { label:'Active (paid)',  color:'#166534', value:S.active||0 },
+    { label:'Active (paid)',  color:'#0f9d70', value:S.active||0 },
     { label:'Demo chal rahe', color:'#0f766e', value:S.demo_live||0 },
     { label:'Demo expire',    color:'#c0b9b0', value:S.demo_expired||0 },
-    { label:'Paisa pending',  color:'#ff2e63', value:S.unpaid||0 }
+    { label:'Paisa pending',  color:'#e11d48', value:S.unpaid||0 }
   ];
   document.getElementById('anShopDonut').innerHTML =
     donut(shopItems, nf(S.total||0), 'total shops') + legend(shopItems);
 
-  /* ─────────── 5. Payment funnel ─────────── */
+  /* ─────────── 5. Payment funnel (timeline style) ─────────── */
   const steps = [
-    { label:'Register hua',       value:P.registered||0, color:'#8a6d1f', bg:'#fff9ec' },
-    { label:'Payment successful', value:P.paid||0,       color:'#166534', bg:'#f0fdf4' },
-    { label:'Abhi pending',       value:P.pending||0,    color:'#b91c1c', bg:'#fef2f2' }
+    { label:'Register hua',       value:P.registered||0, color:'#b45309' },
+    { label:'Payment successful', value:P.paid||0,       color:'#0f9d70' },
+    { label:'Abhi pending',       value:P.pending||0,    color:'#e11d48' }
   ];
   const base = Math.max(1, P.registered||0);
   document.getElementById('anPayFunnel').innerHTML =
-    steps.map(st => `<div style="margin-bottom:10px;">
-      <div style="display:flex;justify-content:space-between;font-size:11.5px;font-weight:700;margin-bottom:4px;">
+    steps.map(st => `<div class="an-funnel-step">
+      <span class="an-funnel-dot" style="background:${st.color}"></span>
+      <div class="an-funnel-row">
         <span style="color:${st.color};">${esc(st.label)}</span>
-        <span><b style="font-family:'Syne',sans-serif;font-size:14px;color:${st.color};">${nf(st.value)}</b>
-        <span style="color:#9b9690;font-weight:600;">&nbsp;${pct(st.value,base)}%</span></span>
+        <span><b style="font-family:'Plus Jakarta Sans',sans-serif;font-size:14px;color:${st.color};font-variant-numeric:tabular-nums;">${nf(st.value)}</b>
+        <span style="color:#8b8794;font-weight:600;">&nbsp;${pct(st.value,base)}%</span></span>
       </div>
-      <div style="height:11px;background:#eee9e2;border-radius:999px;overflow:hidden;">
-        <div style="height:100%;width:${pct(st.value,base)}%;background:${st.color};border-radius:999px;transition:width .6s ease;"></div>
-      </div></div>`).join('') +
-    `<div style="margin-top:12px;padding:10px 12px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:11px;font-size:12px;">
-      <b style="color:#166534;">₹${nf(P.revenue)}</b>
-      <span style="color:#4b5563;">setup fee se kamai — pichhle ${days} din me</span></div>`;
+      <div class="an-funnel-bar"><i style="width:${pct(st.value,base)}%;background:${st.color}"></i></div>
+    </div>`).join('') +
+    `<div class="an-rev-chip">💰&nbsp;<b>₹${nf(P.revenue)}</b>
+      <span style="color:#4b5563;font-weight:500;">setup fee se kamai — pichhle ${days} din me</span></div>`;
 
   /* ─────────── 6. Source quality table ─────────── */
   const q = (d.sourceQuality||[]).filter(r=>r.visitors>0)
               .sort((a,b)=>b.visitors-a.visitors).slice(0,10);
   document.getElementById('anQuality').innerHTML = q.length
-    ? `<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:420px;">
-        <thead><tr style="text-align:left;color:#9b9690;font-size:10.5px;text-transform:uppercase;letter-spacing:.4px;">
-          <th style="padding:6px 8px;">Source</th>
-          <th style="padding:6px 8px;text-align:right;">Visitors</th>
-          <th style="padding:6px 8px;text-align:right;">Demo click</th>
-          <th style="padding:6px 8px;text-align:right;">Pay click</th>
-          <th style="padding:6px 8px;text-align:right;">Demo %</th>
+    ? `<table class="an-table">
+        <thead><tr>
+          <th>Source</th><th class="r">Visitors</th><th class="r">Demo click</th><th class="r">Pay click</th><th class="r">Demo %</th>
         </tr></thead><tbody>` +
-      q.map(r => { const m = srcMeta(r.source); return `<tr style="border-top:1.5px solid #eee9e2;">
-          <td style="padding:7px 8px;"><i style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${m[0]};margin-right:6px;"></i>${esc(m[1])}</td>
-          <td style="padding:7px 8px;text-align:right;font-weight:700;">${nf(r.visitors)}</td>
-          <td style="padding:7px 8px;text-align:right;">${nf(r.demo_clicks)}</td>
-          <td style="padding:7px 8px;text-align:right;">${nf(r.pay_clicks)}</td>
-          <td style="padding:7px 8px;text-align:right;font-weight:700;color:${r.demo_clicks?'#0f766e':'#c0b9b0'};">${pct(r.demo_clicks,r.visitors)}%</td>
+      q.map(r => { const m = srcMeta(r.source); const dp = pct(r.demo_clicks,r.visitors);
+        return `<tr>
+          <td><span class="an-src-dot" style="background:${m[0]}"></span>${esc(m[1])}</td>
+          <td class="r" style="font-weight:700;">${nf(r.visitors)}</td>
+          <td class="r">${nf(r.demo_clicks)}</td>
+          <td class="r">${nf(r.pay_clicks)}</td>
+          <td class="r"><span class="an-mini-bar"><i style="width:${dp}%;background:${dp?'#0f9d70':'#e2ddd6'}"></i></span><b style="color:${r.demo_clicks?'#0f9d70':'#b9b3ab'};font-weight:800;">${dp}%</b></td>
         </tr>`; }).join('') + `</tbody></table>`
-    : `<div style="font-size:12px;color:#9b9690;">Abhi data nahi. Naya tracking deploy hone ke baad bharna shuru hoga.</div>`;
+    : `<div class="an-empty">Abhi data nahi. Naya tracking deploy hone ke baad bharna shuru hoga.</div>`;
 
   /* ─────────── 7. Campaign + click breakdown ─────────── */
   const srcEl = document.getElementById('anSource');
   const camp = (d.bySource||[]).filter(x=>x.source!=='direct');
   srcEl.innerHTML = camp.length
-    ? camp.map(x => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0ece6;">
-        <span>${esc(x.source)}</span><b>${nf(x.cnt)}</b></div>`).join('')
-    : 'Koi utm_source wala link abhi track nahi hua.';
+    ? camp.map(x => `<div class="an-list-row"><span>${esc(x.source)}</span><b>${nf(x.cnt)}</b></div>`).join('')
+    : '<div class="an-empty" style="padding:0">Koi utm_source wala link abhi track nahi hua.</div>';
 
   const CLICKS = [['demo_click','Demo'],['register_click','Register'],['pay_click','Pay'],
                   ['inquiry_click','Business Inquiry'],['guide_click','Setup Guide'],['agent_click','Agent']];
   document.getElementById('anClicks').innerHTML = CLICKS.map(([k,l]) => {
     const t = tot(k);
-    return `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f0ece6;">
-      <span>${esc(l)}</span><b>${nf(t.cnt)}</b> <span style="color:#9b9690;">(${nf(t.uniq)} unique)</span></div>`;
+    return `<div class="an-list-row"><span>${esc(l)}</span><b>${nf(t.cnt)}<small>(${nf(t.uniq)} unique)</small></b></div>`;
   }).join('');
 }
+
 
 async function loadAgents() {
   const box = document.getElementById('agentsList');
