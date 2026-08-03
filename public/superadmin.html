@@ -1902,7 +1902,7 @@ function renderAnalytics(d) {
   const tot = k => (d.totals||[]).find(t=>t.event_type===k) || {cnt:0,uniq:0};
   const pv = tot('pageview'), demoClk = tot('demo_click'),
         regClk = tot('register_click'), payClk = tot('pay_click');
-  const P = d.payments || {}, S = d.shopStats || {};
+  const P = d.payments || {}, S = d.shopStats || {}, R = d.revenueAllTime || {};
 
   const kpi = (icon,accent,tint,v,l,sub) => `<div class="an-kpi">
     <div class="an-kpi-ico" style="background:${tint};color:${accent}">${icon}</div>
@@ -1916,16 +1916,19 @@ function renderAnalytics(d) {
     blue:   ['#2563eb','rgba(37,99,235,.14)'],
     emerald:['#0f9d70','rgba(15,157,112,.14)'],
     rose:   ['#e11d48','rgba(225,29,72,.13)'],
-    purple: ['#7c3aed','rgba(124,58,237,.14)']
+    purple: ['#7c3aed','rgba(124,58,237,.14)'],
+    forest: ['#166534','rgba(22,101,52,.14)']
   };
 
   document.getElementById('anSummary').innerHTML =
     kpi('👁️', ...ACC.amber,   nf(pv.uniq), 'Total Visitors', nf(pv.cnt)+' pageviews') +
     kpi('🎯', ...ACC.teal,    nf(demoClk.uniq), 'Demo pe click', nf(demoClk.cnt)+' baar') +
     kpi('💳', ...ACC.blue,    nf(payClk.uniq), 'Pay pe click', payClk.cnt ? nf(payClk.cnt)+' baar' : 'abhi track shuru hua') +
-    kpi('✅', ...ACC.emerald, nf(P.paid), 'Payment successful', '₹'+nf(P.revenue)+' kamai') +
+    kpi('✅', ...ACC.emerald, nf(P.paid), 'Payment successful', '₹'+nf(P.revenue)+' kamai (is range me)') +
     kpi('⏳', ...ACC.rose,    nf(P.pending), 'Payment pending', 'register hua, paisa nahi') +
-    kpi('🏪', ...ACC.purple,  nf(S.active), 'Active shops', nf(S.total)+' total banaye');
+    kpi('🏪', ...ACC.purple,  nf(S.active), 'Active shops', nf(S.total)+' total banaye') +
+    kpi('💰', ...ACC.forest,  '₹'+nf(R.total), 'Total Overall Income', 'Sabhi time ka — monthly renewal shamil nahi');
+
 
   /* ─────────── 2. Chart (hourly ya daily bucket) + exact-number table ─────────── */
   const bucketKeys = [], bucketLabels = [];
