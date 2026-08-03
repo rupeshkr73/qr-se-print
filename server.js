@@ -181,7 +181,7 @@ app.use((req, res, next) => {
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: https://res.cloudinary.com https://*.razorpay.com https://*.cashfree.com",
     "connect-src 'self'",
-    "frame-src https://checkout.razorpay.com https://api.razorpay.com https://sdk.cashfree.com https://payments.cashfree.com",
+    "frame-src https://checkout.razorpay.com https://api.razorpay.com https://sdk.cashfree.com https://payments.cashfree.com https://www.youtube-nocookie.com",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self' https://checkout.razorpay.com",
