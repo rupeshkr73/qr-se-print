@@ -159,6 +159,7 @@ const pool = new Pool({
 });
 
 app.use(cors());
+app.disable('x-powered-by'); // Express ka "X-Powered-By: Express" header hata do — tech-stack fingerprint kam
 // verify: raw body stash — Razorpay webhook ka signature RAW body par
 // HMAC hota hai, parsed JSON par nahi
 // Security headers — helmet package ki zaroorat nahi, ye headers hi kaafi hain
@@ -167,8 +168,27 @@ app.use((req, res, next) => {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
+  // CSP — site abhi inline <script>/onclick/style bahut use karta hai (poori
+  // codebase isi pattern par bani hai), isliye 'unsafe-inline' rakhna padega
+  // varna sab tootega. Fir bhi ye asli faayda deta hai: koi attacker agar
+  // kabhi HTML me <script src="..."> ya <iframe> ghusa de, to sirf yahi
+  // listed domains se load hoga — baaki sab (jaise evil.com) block ho jayega.
+  res.setHeader('Content-Security-Policy', [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://cdnjs.cloudflare.com https://sdk.cashfree.com",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com data:",
+    "img-src 'self' data: https://res.cloudinary.com https://*.razorpay.com https://*.cashfree.com",
+    "connect-src 'self'",
+    "frame-src https://checkout.razorpay.com https://api.razorpay.com https://sdk.cashfree.com https://payments.cashfree.com",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self' https://checkout.razorpay.com",
+    "frame-ancestors 'self'"
+  ].join('; '));
   if (req.headers['x-forwarded-proto'] === 'https')
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
   next();
 });
 
@@ -5844,15 +5864,17 @@ app.get('/robots.txt', (req, res) => {
 Allow: /$
 Allow: /register
 Allow: /agent
-Disallow: /admin
-Disallow: /superadmin
-Disallow: /dashboard
-Disallow: /success
-Disallow: /setup-payment
-Disallow: /print/
 Disallow: /api/
 
 Sitemap: https://qrseprint.in/sitemap.xml
+`);
+});
+
+app.get('/.well-known/security.txt', (req, res) => {
+  res.type('text/plain').send(`Contact: mailto:qrseprint@gmail.com
+Expires: 2027-08-04T00:00:00.000Z
+Preferred-Languages: hi, en
+Canonical: https://qrseprint.in/.well-known/security.txt
 `);
 });
 
