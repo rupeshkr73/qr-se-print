@@ -5318,7 +5318,7 @@ app.put('/api/superadmin/homepage-config', verifySuperAdmin, async (req, res) =>
       const t = {};
       let n = 0;
       for (const k of Object.keys(b.texts)) {
-        if (n >= 200) break;
+        if (n >= 550) break;
         if (!/^[A-Za-z0-9_]{1,40}$/.test(k)) continue;
         const v = b.texts[k];
         if (typeof v !== 'string') continue;
