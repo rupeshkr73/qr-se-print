@@ -180,7 +180,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 .an-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:19px;color:var(--sa-ink);letter-spacing:-.4px}
 .an-desc{font-size:12px;color:var(--sa-muted);margin:10px 0 18px;line-height:1.65;max-width:640px}
 
-.an-seg{display:inline-flex;background:var(--sa-soft);border:1.5px solid var(--sa-line);border-radius:12px;padding:3px;gap:2px}
+.an-seg{display:inline-flex;flex-wrap:wrap;background:var(--sa-soft);border:1.5px solid var(--sa-line);border-radius:12px;padding:3px;gap:2px}
 .an-seg button{border:none;background:transparent;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;
   color:var(--sa-muted);padding:7px 13px;border-radius:9px;cursor:pointer;transition:.15s}
 .an-seg button.active{background:var(--sa-ink);color:#fff;box-shadow:0 3px 10px rgba(20,18,31,.25)}
@@ -249,6 +249,29 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 .an-list-row b{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;color:var(--sa-ink);font-variant-numeric:tabular-nums}
 .an-list-row small{color:var(--sa-muted);font-weight:600;margin-left:5px}
 .an-empty{font-size:12px;color:var(--sa-muted);padding:10px 2px;line-height:1.6}
+
+/* exact-numbers table under the daily chart */
+.an-datatable-wrap{overflow-x:auto;margin-top:10px;border-top:1px solid var(--sa-line);padding-top:10px}
+.an-datatable{width:100%;border-collapse:collapse;font-size:11.5px;min-width:420px}
+.an-datatable th{text-align:right;font-size:9.5px;font-weight:800;color:var(--sa-muted);text-transform:uppercase;
+  letter-spacing:.4px;padding:0 8px 7px}
+.an-datatable th:first-child,.an-datatable td:first-child{text-align:left}
+.an-datatable td{text-align:right;padding:6px 8px;border-top:1px solid #f4f2f7;font-variant-numeric:tabular-nums;font-weight:600;color:var(--sa-ink)}
+.an-datatable tr:hover td{background:var(--sa-soft)}
+
+/* day / night visit split */
+.an-dn{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
+.an-dn-tile{flex:1 1 130px;border-radius:14px;padding:14px 15px;border:1.5px solid var(--sa-line)}
+.an-dn-tile.day{background:linear-gradient(160deg,#fffbeb,#fff)}
+.an-dn-tile.night{background:linear-gradient(160deg,#f2f0fb,#fff)}
+.an-dn-ico{font-size:18px;margin-bottom:6px}
+.an-dn-val{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:21px;color:var(--sa-ink);
+  font-variant-numeric:tabular-nums;line-height:1}
+.an-dn-lbl{font-size:11px;font-weight:700;color:var(--sa-muted);margin-top:5px}
+.an-dn-bar{height:10px;border-radius:999px;overflow:hidden;background:var(--sa-line);display:flex;margin-top:12px;flex:1 1 100%}
+.an-dn-bar i{display:block;height:100%}
+.an-dn-bar i.day{background:#f59e0b}
+.an-dn-bar i.night{background:#4c1d95}
 
 @media(max-width:640px){.an-kpis{grid-template-columns:repeat(2,1fr)}}
 </style>
@@ -683,10 +706,13 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
             <div class="an-title">📊 Traffic &amp; Funnel</div>
           </div>
           <div class="an-seg" id="anRangeSeg">
-            <button type="button" data-days="7" onclick="setAnRange(7,this)">7D</button>
-            <button type="button" data-days="14" onclick="setAnRange(14,this)">14D</button>
-            <button type="button" data-days="30" class="active" onclick="setAnRange(30,this)">30D</button>
-            <button type="button" data-days="90" onclick="setAnRange(90,this)">90D</button>
+            <button type="button" data-range="1h" onclick="setAnRange('1h',this)">1H</button>
+            <button type="button" data-range="12h" onclick="setAnRange('12h',this)">12H</button>
+            <button type="button" data-range="1d" onclick="setAnRange('1d',this)">1D</button>
+            <button type="button" data-range="7d" onclick="setAnRange('7d',this)">7D</button>
+            <button type="button" data-range="14d" onclick="setAnRange('14d',this)">14D</button>
+            <button type="button" data-range="30d" class="active" onclick="setAnRange('30d',this)">30D</button>
+            <button type="button" data-range="90d" onclick="setAnRange('90d',this)">90D</button>
           </div>
         </div>
         <div class="an-desc">Sab kuch apne server par track hota hai — koi Google Analytics ya Meta pixel nahi. Demo, payment aur shop ke number asli database se aate hain.</div>
@@ -702,6 +728,13 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
             <span><i style="background:#ff2e63"></i>Paid bane</span>
           </div>
           <div id="anChart" style="width:100%;overflow-x:auto;">Loading…</div>
+          <div id="anChartTable" class="an-datatable-wrap">Loading…</div>
+        </div>
+
+        <div class="an-card">
+          <div class="an-card-title">🌗 Din me kitna traffic, raat me kitna</div>
+          <div class="an-card-sub">IST ke hisaab se — 6 baje subah se 6 baje shaam (☀️ Din), baaki (🌙 Raat)</div>
+          <div id="anDayNight">Loading…</div>
         </div>
 
         <div class="an-grid-2">
@@ -1779,9 +1812,9 @@ async function toggleWlBlock(id, blocked) {
 }
 
 // ═══ ANALYTICS ═══
-let anDays = 30;
-function setAnRange(days, btn) {
-  anDays = days;
+let anRange = '30d';
+function setAnRange(range, btn) {
+  anRange = range;
   document.querySelectorAll('#anRangeSeg button').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   loadAnalytics();
@@ -1789,25 +1822,30 @@ function setAnRange(days, btn) {
 async function loadAnalytics() {
   const box = document.getElementById('anChart');
   if (!box) return;
-  const days = anDays || 30;
   box.innerHTML = 'Loading…';
   document.getElementById('anSummary').innerHTML = '';
   document.getElementById('anSource').innerHTML = 'Loading…';
   document.getElementById('anClicks').innerHTML = 'Loading…';
+  document.getElementById('anDayNight').innerHTML = 'Loading…';
   try {
-    const r = await fetch('/api/superadmin/analytics?days=' + days, { headers: { 'Authorization': 'Bearer ' + authToken } });
+    const r = await fetch('/api/superadmin/analytics?range=' + anRange, { headers: { 'Authorization': 'Bearer ' + authToken } });
     const d = await r.json();
     if (!r.ok) throw new Error(d.error || 'Load fail');
-    renderAnalytics(d, days);
+    renderAnalytics(d);
   } catch (e) {
     box.innerHTML = `<span style="color:#c22;font-size:12px;">❌ ${e.message}</span>`;
   }
 }
 
-function renderAnalytics(d, days) {
+function renderAnalytics(d) {
   const esc = s => String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
   const nf  = n => (n||0).toLocaleString('en-IN');
   const pct = (a,b) => b > 0 ? Math.round((a/b)*100) : 0;
+  const days = d.days || 0;
+  const isHourly = !!d.hourly;
+  const rangeLabel = isHourly
+    ? (d.rangeAmount === 1 ? 'pichhle 1 ghante me' : `pichhle ${d.rangeAmount} ghanto me`)
+    : `pichhle ${d.rangeAmount || days} din me`;
 
   /* ── har source ka apna rang, taaki pehchanne me aasani ho ── */
   const SRC = {
@@ -1889,40 +1927,91 @@ function renderAnalytics(d, days) {
     kpi('⏳', ...ACC.rose,    nf(P.pending), 'Payment pending', 'register hua, paisa nahi') +
     kpi('🏪', ...ACC.purple,  nf(S.active), 'Active shops', nf(S.total)+' total banaye');
 
-  /* ─────────── 2. Daily chart (3 lanes — alag scale, isliye alag) ─────────── */
-  const dates = [];
-  const today = new Date();
-  for (let i = days-1; i >= 0; i--) { const dt = new Date(today); dt.setDate(dt.getDate()-i); dates.push(dt.toISOString().slice(0,10)); }
-  const pvByDay = {};
-  (d.daily||[]).forEach(r => { if (r.event_type==='pageview') pvByDay[r.day]=r.cnt; });
-  const demoByDay = {}, paidByDay = {};
-  (d.shopsDaily||[]).forEach(r => { demoByDay[r.day]=r.demo_created; paidByDay[r.day]=r.paid_created; });
+  /* ─────────── 2. Chart (hourly ya daily bucket) + exact-number table ─────────── */
+  const bucketKeys = [], bucketLabels = [];
+  if (isHourly) {
+    const n = d.rangeAmount || 24;
+    const now = new Date();
+    for (let i = n-1; i >= 0; i--) {
+      const t = new Date(now.getTime() - i*3600*1000);
+      const ist = new Date(t.getTime() + 5.5*3600*1000); // IST shift, phir UTC-getters se read karo
+      const y = ist.getUTCFullYear(), mo = String(ist.getUTCMonth()+1).padStart(2,'0'),
+            da = String(ist.getUTCDate()).padStart(2,'0'), hh = String(ist.getUTCHours()).padStart(2,'0');
+      bucketKeys.push(`${y}-${mo}-${da}T${hh}:00`);
+      bucketLabels.push(hh + ':00');
+    }
+  } else {
+    const today = new Date();
+    for (let i = days-1; i >= 0; i--) {
+      const dt = new Date(today); dt.setDate(dt.getDate()-i);
+      const key = dt.toISOString().slice(0,10);
+      bucketKeys.push(key);
+      bucketLabels.push(key.slice(5).replace('-','/'));
+    }
+  }
 
-  const vpv = dates.map(x=>pvByDay[x]||0), vdc = dates.map(x=>demoByDay[x]||0), vpc = dates.map(x=>paidByDay[x]||0);
+  const pvByBucket = {};
+  (d.daily||[]).forEach(r => { if (r.event_type==='pageview') pvByBucket[r.day]=r.cnt; });
+  const demoByBucket = {}, paidByBucket = {};
+  (d.shopsDaily||[]).forEach(r => { demoByBucket[r.day]=r.demo_created; paidByBucket[r.day]=r.paid_created; });
+
+  const vpv = bucketKeys.map(x=>pvByBucket[x]||0), vdc = bucketKeys.map(x=>demoByBucket[x]||0), vpc = bucketKeys.map(x=>paidByBucket[x]||0);
   const maxPv = Math.max(1,...vpv), maxDc = Math.max(1,...vdc), maxPc = Math.max(1,...vpc);
-  const colW = days>45?14:days>20?22:34, W = dates.length*colW+20;
+  const nBuckets = bucketKeys.length;
+  const colW = nBuckets>60?10:nBuckets>30?14:nBuckets>14?22:34, W = nBuckets*colW+20;
   const laneH=78, gap=8, dH=16, pH=16, H = laneH+gap+dH+gap+pH+22;
-  const every = days>45?7:days>20?3:1;
+  const every = nBuckets>60?12:nBuckets>30?6:nBuckets>14?3:1;
 
   let bars = '';
-  dates.forEach((day,i) => {
+  bucketKeys.forEach((key,i) => {
     const x = 10+i*colW, bw = Math.max(4,colW-6);
     const a = Math.round((vpv[i]/maxPv)*(laneH-4)),
           b = Math.round((vdc[i]/maxDc)*(dH-2)),
           c = Math.round((vpc[i]/maxPc)*(pH-2));
-    bars += `<g><title>${esc(day)}: ${vpv[i]} views, ${vdc[i]} demo, ${vpc[i]} paid</title>
+    bars += `<g><title>${esc(bucketLabels[i])}: ${vpv[i]} views, ${vdc[i]} demo, ${vpc[i]} paid</title>
       <rect x="${x}" y="${laneH-a}" width="${bw}" height="${Math.max(1,a)}" rx="3" fill="#ffd22e"></rect>
       <rect x="${x}" y="${laneH+gap+dH-b}" width="${bw}" height="${Math.max(1,b)}" rx="3" fill="#0f766e"></rect>
       <rect x="${x}" y="${laneH+gap+dH+gap+pH-c}" width="${bw}" height="${Math.max(1,c)}" rx="3" fill="#ff2e63"></rect>
     </g>`;
-    if (i%every===0 || i===dates.length-1)
-      bars += `<text x="${x+bw/2}" y="${H-6}" font-size="8.5" fill="#8b8794" font-weight="600" text-anchor="middle">${day.slice(5).replace('-','/')}</text>`;
+    if (i%every===0 || i===nBuckets-1)
+      bars += `<text x="${x+bw/2}" y="${H-6}" font-size="8.5" fill="#8b8794" font-weight="600" text-anchor="middle">${esc(bucketLabels[i])}</text>`;
   });
   document.getElementById('anChart').innerHTML =
     `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block;min-width:${W}px;">
       <line x1="8" y1="${laneH+.5}" x2="${W-8}" y2="${laneH+.5}" stroke="#f0eef4" stroke-width="1"></line>
       ${bars}
     </svg>`;
+
+  /* Exact-number table — chart trend ke liye hai, ye table exact ginti ke liye (naya-pehle) */
+  document.getElementById('anChartTable').innerHTML =
+    `<table class="an-datatable"><thead><tr>
+      <th>${isHourly ? 'Time (IST)' : 'Date'}</th><th>Pageviews</th><th>Demo</th><th>Paid</th>
+    </tr></thead><tbody>` +
+    bucketKeys.map((key,i) => `<tr><td>${esc(bucketLabels[i])}</td><td>${nf(vpv[i])}</td><td>${nf(vdc[i])}</td><td>${nf(vpc[i])}</td></tr>`)
+      .slice().reverse().join('') +
+    `</tbody></table>`;
+
+  /* ─────────── 2.5 Din vs Raat visits (IST 6AM–6PM = din) ─────────── */
+  const dn = d.dayNight || [];
+  const dnDay = dn.find(r=>r.period==='day') || {cnt:0,uniq:0};
+  const dnNight = dn.find(r=>r.period==='night') || {cnt:0,uniq:0};
+  const dnTotal = Math.max(1, (dnDay.uniq||0) + (dnNight.uniq||0));
+  const dnDayPct = pct(dnDay.uniq, dnTotal), dnNightPct = pct(dnNight.uniq, dnTotal);
+  document.getElementById('anDayNight').innerHTML = (dnDay.cnt || dnNight.cnt)
+    ? `<div class="an-dn">
+        <div class="an-dn-tile day">
+          <div class="an-dn-ico">☀️</div>
+          <div class="an-dn-val">${nf(dnDay.uniq)}</div>
+          <div class="an-dn-lbl">Din visitors — ${nf(dnDay.cnt)} pageviews (${dnDayPct}%)</div>
+        </div>
+        <div class="an-dn-tile night">
+          <div class="an-dn-ico">🌙</div>
+          <div class="an-dn-val">${nf(dnNight.uniq)}</div>
+          <div class="an-dn-lbl">Raat visitors — ${nf(dnNight.cnt)} pageviews (${dnNightPct}%)</div>
+        </div>
+        <div class="an-dn-bar"><i class="day" style="width:${dnDayPct}%"></i><i class="night" style="width:${dnNightPct}%"></i></div>
+      </div>`
+    : `<div class="an-empty">Abhi is range me koi visit nahi hai.</div>`;
 
   /* ─────────── 3. Traffic source donut ─────────── */
   const srcItems = (d.sources||[]).map(r => {
@@ -1963,7 +2052,7 @@ function renderAnalytics(d, days) {
       <div class="an-funnel-bar"><i style="width:${pct(st.value,base)}%;background:${st.color}"></i></div>
     </div>`).join('') +
     `<div class="an-rev-chip">💰&nbsp;<b>₹${nf(P.revenue)}</b>
-      <span style="color:#4b5563;font-weight:500;">setup fee se kamai — pichhle ${days} din me</span></div>`;
+      <span style="color:#4b5563;font-weight:500;">setup fee se kamai — ${rangeLabel}</span></div>`;
 
   /* ─────────── 6. Source quality table ─────────── */
   const q = (d.sourceQuality||[]).filter(r=>r.visitors>0)
@@ -1997,6 +2086,7 @@ function renderAnalytics(d, days) {
     return `<div class="an-list-row"><span>${esc(l)}</span><b>${nf(t.cnt)}<small>(${nf(t.uniq)} unique)</small></b></div>`;
   }).join('');
 }
+
 
 
 async function loadAgents() {
