@@ -1899,39 +1899,74 @@ app.get('/api/superadmin/action-center', verifySuperAdmin, async (req, res) => {
 
 app.get('/api/superadmin/analytics', verifySuperAdmin, async (req, res) => {
   try {
-    const days = Math.min(90, Math.max(1, parseInt(req.query.days, 10) || 30));
+    // ── Range: chhote ranges (1h/12h/1d) ghante-war bucket karte hain,
+    // baaki (7d/14d/30d/90d) din-war — jaisa pehle se tha.
+    const RANGE_MAP = {
+      '1h':  { amount: 1,  unit: 'hours', bucket: 'hour' },
+      '12h': { amount: 12, unit: 'hours', bucket: 'hour' },
+      '1d':  { amount: 24, unit: 'hours', bucket: 'hour' },
+      '7d':  { amount: 7,  unit: 'days',  bucket: 'day'  },
+      '14d': { amount: 14, unit: 'days',  bucket: 'day'  },
+      '30d': { amount: 30, unit: 'days',  bucket: 'day'  },
+      '90d': { amount: 90, unit: 'days',  bucket: 'day'  }
+    };
+    let rangeKey = String(req.query.range || '');
+    if (!RANGE_MAP[rangeKey]) {
+      // Purana ?days= param bhi chalta rahe (backward compatible)
+      const legacyDays = Math.min(90, Math.max(1, parseInt(req.query.days, 10) || 30));
+      rangeKey = [7,14,30,90].includes(legacyDays) ? legacyDays + 'd' : '30d';
+    }
+    const cfg = RANGE_MAP[rangeKey];
+    const intervalStr = `${cfg.amount} ${cfg.unit}`;
+    const isHourly = cfg.bucket === 'hour';
+    const days = cfg.unit === 'days' ? cfg.amount : 0; // legacy field, frontend ke liye
+
+    // Ghante-war bucket IST me dikhate hain (readable), din-war bucket
+    // waisa hi rehta hai jaisa pehle tha (behaviour change nahi karna).
+    const bucketExpr = isHourly
+      ? `TO_CHAR(created_at + INTERVAL '5 hours 30 minutes', 'YYYY-MM-DD"T"HH24:00')`
+      : `TO_CHAR(created_at, 'YYYY-MM-DD')`;
 
     const daily = await pool.query(
-      `SELECT event_type, TO_CHAR(created_at, 'YYYY-MM-DD') AS day,
+      `SELECT event_type, ${bucketExpr} AS day,
               COUNT(*)::int AS cnt, COUNT(DISTINCT NULLIF(visitor_id,''))::int AS uniq
        FROM analytics_events
-       WHERE created_at > NOW() - ($1 || ' days')::interval
-       GROUP BY event_type, day ORDER BY day ASC`, [days]);
+       WHERE created_at > NOW() - $1::interval
+       GROUP BY event_type, day ORDER BY day ASC`, [intervalStr]);
 
     const shopsDaily = await pool.query(
-      `SELECT TO_CHAR(created_at, 'YYYY-MM-DD') AS day,
+      `SELECT ${bucketExpr} AS day,
               COUNT(*) FILTER (WHERE demo=true)::int AS demo_created,
               COUNT(*) FILTER (WHERE demo=false AND setup_paid=true)::int AS paid_created
        FROM shops
-       WHERE created_at > NOW() - ($1 || ' days')::interval
-       GROUP BY day ORDER BY day ASC`, [days]);
+       WHERE created_at > NOW() - $1::interval
+       GROUP BY day ORDER BY day ASC`, [intervalStr]);
 
     const totals = await pool.query(
       `SELECT event_type, COUNT(*)::int AS cnt, COUNT(DISTINCT NULLIF(visitor_id,''))::int AS uniq
-       FROM analytics_events WHERE created_at > NOW() - ($1 || ' days')::interval
-       GROUP BY event_type`, [days]);
+       FROM analytics_events WHERE created_at > NOW() - $1::interval
+       GROUP BY event_type`, [intervalStr]);
 
     const bySource = await pool.query(
       `SELECT COALESCE(NULLIF(utm_source,''),'direct') AS source, COUNT(*)::int AS cnt
        FROM analytics_events
-       WHERE event_type='pageview' AND created_at > NOW() - ($1 || ' days')::interval
-       GROUP BY source ORDER BY cnt DESC LIMIT 10`, [days]);
+       WHERE event_type='pageview' AND created_at > NOW() - $1::interval
+       GROUP BY source ORDER BY cnt DESC LIMIT 10`, [intervalStr]);
 
-    // Visitor kahan se aaya — utm_source ho to wahi, warna referrer ke
+    // Visitor kahan se aaya — utm_source ho to wahi (chhote alias jaise
+    // 'ig'/'fb' ko poore naam me normalize karte hain), warna referrer ke
     // hostname se pehchano. Ek hi visitor ko ek hi baar gino (DISTINCT).
     const sourceSql = `
       CASE
-        WHEN utm_source <> '' THEN LOWER(utm_source)
+        WHEN LOWER(utm_source) IN ('ig','insta')      THEN 'instagram'
+        WHEN LOWER(utm_source) IN ('fb','fbook')       THEN 'facebook'
+        WHEN LOWER(utm_source) IN ('wa','whats')       THEN 'whatsapp'
+        WHEN LOWER(utm_source) IN ('yt')                THEN 'youtube'
+        WHEN LOWER(utm_source) IN ('tg')                THEN 'telegram'
+        WHEN LOWER(utm_source) IN ('li')                THEN 'linkedin'
+        WHEN LOWER(utm_source) IN ('tw','x')            THEN 'twitter'
+        WHEN LOWER(utm_source) IN ('gg','g')            THEN 'google'
+        WHEN utm_source <> ''                           THEN LOWER(utm_source)
         WHEN referrer ILIKE '%google.%'    THEN 'google'
         WHEN referrer ILIKE '%bing.%' OR referrer ILIKE '%duckduckgo%'
           OR referrer ILIKE '%yahoo.%'     THEN 'other-search'
@@ -1952,8 +1987,8 @@ app.get('/api/superadmin/analytics', verifySuperAdmin, async (req, res) => {
               COUNT(*)::int AS views,
               COUNT(DISTINCT NULLIF(visitor_id,''))::int AS visitors
        FROM analytics_events
-       WHERE event_type='pageview' AND created_at > NOW() - ($1 || ' days')::interval
-       GROUP BY 1 ORDER BY visitors DESC, views DESC`, [days]);
+       WHERE event_type='pageview' AND created_at > NOW() - $1::interval
+       GROUP BY 1 ORDER BY visitors DESC, views DESC`, [intervalStr]);
 
     // Kaunsa source sabse zyada asli grahak laata hai — sirf traffic nahi,
     // demo aur pay tak kaun pahunchta hai wo bhi.
@@ -1963,8 +1998,21 @@ app.get('/api/superadmin/analytics', verifySuperAdmin, async (req, res) => {
               COUNT(DISTINCT NULLIF(visitor_id,'')) FILTER (WHERE event_type='demo_click')::int AS demo_clicks,
               COUNT(DISTINCT NULLIF(visitor_id,'')) FILTER (WHERE event_type='pay_click')::int  AS pay_clicks
        FROM analytics_events
-       WHERE created_at > NOW() - ($1 || ' days')::interval
-       GROUP BY 1 ORDER BY visitors DESC`, [days]);
+       WHERE created_at > NOW() - $1::interval
+       GROUP BY 1 ORDER BY visitors DESC`, [intervalStr]);
+
+    // Din me kitna traffic, raat me kitna — IST 6AM-6PM ko "din" maante
+    // hain. created_at UTC me store hota hai isliye +5:30 shift karke
+    // IST ghanta nikalte hain.
+    const dayNight = await pool.query(
+      `SELECT
+         CASE WHEN EXTRACT(HOUR FROM (created_at + INTERVAL '5 hours 30 minutes')) BETWEEN 6 AND 17
+              THEN 'day' ELSE 'night' END AS period,
+         COUNT(*)::int AS cnt,
+         COUNT(DISTINCT NULLIF(visitor_id,''))::int AS uniq
+       FROM analytics_events
+       WHERE event_type='pageview' AND created_at > NOW() - $1::interval
+       GROUP BY period`, [intervalStr]);
 
     // Paise ka funnel — ye analytics_events se nahi, shops table ke asli data se
     const payments = await pool.query(
@@ -1974,7 +2022,7 @@ app.get('/api/superadmin/analytics', verifySuperAdmin, async (req, res) => {
          COUNT(*) FILTER (WHERE demo=false AND setup_paid=false)::int             AS pending,
          COALESCE(SUM(setup_amount) FILTER (WHERE demo=false AND setup_paid=true),0)::int AS revenue
        FROM shops
-       WHERE created_at > NOW() - ($1 || ' days')::interval`, [days]);
+       WHERE created_at > NOW() - $1::interval`, [intervalStr]);
 
     // Shops ki abhi ki halat — ye poore time ka hai, sirf range ka nahi
     const shopStats = await pool.query(
@@ -1993,9 +2041,14 @@ app.get('/api/superadmin/analytics', verifySuperAdmin, async (req, res) => {
       bySource: bySource.rows,
       sources: sources.rows,
       sourceQuality: sourceQuality.rows,
+      dayNight: dayNight.rows,
       payments: payments.rows[0] || {},
       shopStats: shopStats.rows[0] || {},
-      days
+      days,
+      range: rangeKey,
+      hourly: isHourly,
+      rangeAmount: cfg.amount,
+      rangeUnit: cfg.unit
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
