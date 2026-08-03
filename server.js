@@ -2034,6 +2034,19 @@ app.get('/api/superadmin/analytics', verifySuperAdmin, async (req, res) => {
          COUNT(*)::int AS total
        FROM shops`);
 
+    // Total overall income — "Active shops" jaisa hi POORE TIME ka hai,
+    // range filter se independent. NOTE: is table me har shop ki sirf
+    // PEHLI payment record hoti hai (setup_amount). Monthly plan ke
+    // baad ke renewals abhi alag se log nahi hote, isliye monthly
+    // shops ke liye ye unka poora lifetime revenue nahi — sirf
+    // onboarding revenue hai. Onetime shops ke liye ye hi final hai.
+    const revenueAllTime = await pool.query(
+      `SELECT
+         COALESCE(SUM(setup_amount) FILTER (WHERE demo=false AND setup_paid=true),0)::int AS total,
+         COALESCE(SUM(setup_amount) FILTER (WHERE demo=false AND setup_paid=true AND plan_type='onetime'),0)::int AS onetime_total,
+         COALESCE(SUM(setup_amount) FILTER (WHERE demo=false AND setup_paid=true AND plan_type='monthly'),0)::int AS monthly_first_total
+       FROM shops`);
+
     res.json({
       daily: daily.rows,
       shopsDaily: shopsDaily.rows,
@@ -2044,6 +2057,7 @@ app.get('/api/superadmin/analytics', verifySuperAdmin, async (req, res) => {
       dayNight: dayNight.rows,
       payments: payments.rows[0] || {},
       shopStats: shopStats.rows[0] || {},
+      revenueAllTime: revenueAllTime.rows[0] || {},
       days,
       range: rangeKey,
       hourly: isHourly,
