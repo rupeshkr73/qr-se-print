@@ -1215,13 +1215,142 @@ function startPhotoFlow() {
     inp = document.createElement('input');
     inp.type = 'file'; inp.accept = 'image/*'; inp.id = 'photoFlowInput';
     inp.style.display = 'none';
-    inp.onchange = () => { if (inp.files[0]) askPhotoCount(inp.files[0]); inp.value=''; };
+    inp.onchange = async () => {
+      const f = inp.files && inp.files[0];
+      if (!f) return;
+      // input.value ko yahan clear NAHI karte — pehle bytes memory me aane do.
+      // Android par clear karte hi content:// wala file handle mar jaata tha
+      // aur baad me (count choose karne ke baad) blob URL khaali nikalta tha.
+      toast('⏳ Photo padh rahe hain...');
+      try {
+        const img = await loadPhotoFile(f);
+        askPhotoCount(img);
+      } catch(e) {
+        console.error('[4x6] photo load fail:', e);
+        toast('❌ ' + e.message);
+      } finally {
+        try { inp.value = ''; } catch(e) {}
+      }
+    };
     document.body.appendChild(inp);
   }
   inp.click();
 }
 
-function askPhotoCount(file) {
+// ═══ PHOTO FILE LOADER (4×6 flow) ═══
+// "Photo load nahi hui" ki teen asli wajah thi, teeno yahan handle hain:
+//  1. HEIC/HEIF photo — Samsung/iPhone ka "High efficiency" mode. Chrome
+//     Android isko decode hi nahi karta. Ab साफ message milta hai.
+//  2. Google Photos / Drive se chuni file — bytes phone par hote hi nahi,
+//     File ka size 0 aata hai.
+//  3. Bahut badi photo (50MP+) — sasta phone decode par gir jaata tha.
+// Bytes select karte hi utaar lete hain, phir 3 alag decode raste try
+// karte hain, aur aakhir me photo ko normalize (resize + EXIF bake) karte
+// hain taki aage crop/sheet me kabhi terhi ya khaali na aaye.
+const PHOTO_MAX_SIDE = 3000;
+
+function __sniffImageType(buf) {
+  const b = new Uint8Array(buf.slice(0, 16));
+  const hex = (i, n) => Array.from(b.slice(i, i + n)).map(v => v.toString(16).padStart(2, '0')).join('');
+  const str = (i, n) => String.fromCharCode.apply(null, Array.from(b.slice(i, i + n)));
+  if (hex(0, 3) === 'ffd8ff')     return 'image/jpeg';
+  if (hex(0, 4) === '89504e47')   return 'image/png';
+  if (str(0, 3) === 'GIF')        return 'image/gif';
+  if (str(0, 4) === 'RIFF' && str(8, 4) === 'WEBP') return 'image/webp';
+  if (str(4, 4) === 'ftyp') {
+    const brand = str(8, 4).toLowerCase();
+    if (/^(heic|heix|hevc|hevx|mif1|msf1)/.test(brand)) return 'image/heic';
+    if (/^(avif|avis)/.test(brand))                    return 'image/avif';
+  }
+  if (str(0, 4) === '<svg' || str(0, 5) === '<?xml')   return 'image/svg+xml';
+  return '';
+}
+
+function __imgFromSrc(src, revoke) {
+  return new Promise((res, rej) => {
+    const i = new Image();
+    const done = () => { if (revoke) { try { URL.revokeObjectURL(src); } catch(e) {} } };
+    i.onload  = () => { done(); res(i); };
+    i.onerror = () => { done(); rej(new Error('decode-fail')); };
+    i.src = src;
+  });
+}
+
+function __blobToDataURL(blob) {
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload  = () => res(fr.result);
+    fr.onerror = () => rej(new Error('read-fail'));
+    fr.readAsDataURL(blob);
+  });
+}
+
+// Bitmap/Image ko ek saaf <img> me badalta hai: bada ho to resize, EXIF
+// rotation bake, transparent PNG ke peeche safed background.
+async function __normalizePhoto(srcImg, w, h) {
+  let tw = w, th = h;
+  const big = Math.max(w, h);
+  if (big > PHOTO_MAX_SIDE) {
+    const k = PHOTO_MAX_SIDE / big;
+    tw = Math.max(1, Math.round(w * k));
+    th = Math.max(1, Math.round(h * k));
+  }
+  const c = document.createElement('canvas');
+  c.width = tw; c.height = th;
+  const cx = c.getContext('2d');
+  cx.imageSmoothingQuality = 'high';
+  cx.fillStyle = '#fff'; cx.fillRect(0, 0, tw, th);
+  cx.drawImage(srcImg, 0, 0, tw, th);
+  if (srcImg.close) { try { srcImg.close(); } catch(e) {} }
+  return await __imgFromSrc(c.toDataURL('image/jpeg', 0.92), false);
+}
+
+async function loadPhotoFile(file) {
+  if (!file)      throw new Error('Koi photo select nahi hui — dobara try karo');
+  if (!file.size) throw new Error('Photo khaali mili. Google Photos/Drive ki jagah phone ki Gallery se choose karo.');
+
+  let buf;
+  try { buf = await file.arrayBuffer(); }
+  catch(e) { throw new Error('Photo padhi nahi ja saki. Gallery se dobara select karo.'); }
+  if (!buf || !buf.byteLength) throw new Error('Photo khaali mili. Gallery se dobara select karo.');
+
+  const kind = __sniffImageType(buf) || file.type || '';
+  console.log('[4x6] file:', file.name, '| type:', file.type, '| size:', file.size, '| sniff:', kind);
+
+  // HEIC ko yahin reject nahi karte — iPhone/Safari ise decode kar leta hai.
+  // Pehle poori koshish, fail hone par hi HEIC-wala saaf message dete hain.
+  const isHeic = kind === 'image/heic' || (!kind && /\.(heic|heif|hif)$/i.test(file.name || ''));
+
+  const blob = new Blob([buf], { type: kind || 'image/jpeg' });
+
+  // Raasta 1 — createImageBitmap (sabse reliable, EXIF bhi khud handle karta hai)
+  if (typeof createImageBitmap === 'function') {
+    const opts = [{ imageOrientation: 'from-image' }, null];
+    for (let oi = 0; oi < opts.length; oi++) {
+      try {
+        const bmp = opts[oi] ? await createImageBitmap(blob, opts[oi]) : await createImageBitmap(blob);
+        if (bmp && bmp.width) return await __normalizePhoto(bmp, bmp.width, bmp.height);
+      } catch(e) { /* agla raasta */ }
+    }
+  }
+  // Raasta 2 — <img> + blob URL
+  try {
+    const im = await __imgFromSrc(URL.createObjectURL(blob), true);
+    if (im.naturalWidth) return await __normalizePhoto(im, im.naturalWidth, im.naturalHeight);
+  } catch(e) { /* agla raasta */ }
+  // Raasta 3 — data URL (kuch phone blob URL block kar dete hain)
+  try {
+    const im = await __imgFromSrc(await __blobToDataURL(blob), false);
+    if (im.naturalWidth) return await __normalizePhoto(im, im.naturalWidth, im.naturalHeight);
+  } catch(e) { /* neeche wala error */ }
+
+  if (isHeic) {
+    throw new Error('Ye HEIC photo hai — ye phone ka browser ise nahi kholta. Camera Settings me photo format "JPEG / Most compatible" karke dobara kheencho, ya photo ko JPG me convert karke daalo.');
+  }
+  throw new Error('Is photo ka format browser support nahi karta (' + (kind || 'unknown') + '). JPG ya PNG photo try karo.');
+}
+
+function askPhotoCount(img) {
   const P = window.__shopPrices || { p4: 0, p6: 0, p10: 0 };
   const ov = document.createElement('div');
   ov.id = 'photoCountModal';
@@ -1247,7 +1376,7 @@ function askPhotoCount(file) {
     <button onclick="document.getElementById('photoCountModal').remove()" style="margin-top:12px;background:none;border:none;color:#9b9690;font-size:12px;cursor:pointer;">Cancel</button>
   </div>`;
   document.body.appendChild(ov);
-  window.__photoFile = file;
+  window.__photoImg = img;   // pehle se decode ho chuki hai
 }
 
 async function buildPhotoSheet(count, isRebuild) {
@@ -1308,17 +1437,10 @@ async function buildPhotoSheet(count, isRebuild) {
   }
 
   document.getElementById('photoCountModal')?.remove();
-  try {
-    const img = await new Promise((res, rej) => {
-      const i = new Image();
-      i.onload = () => res(i);
-      i.onerror = () => rej(new Error('Photo load nahi hui'));
-      i.src = URL.createObjectURL(window.__photoFile);
-    });
-    openPhotoCrop(img, count);   // Pehle CROP window — confirm par sheet banegi
-  } catch(e) {
-    toast('❌ ' + e.message);
-  }
+  // Photo select karte hi decode ho chuki hai — yahan dobara load nahi karte
+  const img = window.__photoImg;
+  if (!img || !img.width) { toast('❌ Photo mili nahi — dobara select karo'); return; }
+  openPhotoCrop(img, count);   // Pehle CROP window — confirm par sheet banegi
 }
 
 // ═══ PHOTO CROP WINDOW (sirf passport-photo flow) ═══
@@ -1339,7 +1461,7 @@ function openPhotoCrop(img, count) {
     <div style="color:#fff;font-family:'Syne',sans-serif;font-weight:800;font-size:16px;margin-bottom:4px;">✂️ Photo Crop Karo</div>
     <div style="color:#ccc;font-size:12px;margin-bottom:14px;">Photo ko ungli se ghumao, do ungli/slider se zoom karo</div>
     <div id="cropFrame" style="width:${fw}px;height:${fh}px;overflow:hidden;position:relative;border:3px solid #ff4d1c;border-radius:8px;touch-action:none;background:#222;">
-      <img id="cropImg" src="${img.src}" draggable="false" style="position:absolute;transform-origin:0 0;user-select:none;-webkit-user-drag:none;">
+      <img id="cropImg" draggable="false" style="position:absolute;transform-origin:0 0;user-select:none;-webkit-user-drag:none;">
     </div>
     <input type="range" id="cropZoom" min="0" max="100" value="0" style="width:${fw}px;margin-top:14px;accent-color:#ff4d1c;">
     <div style="display:flex;gap:12px;margin-top:16px;">
@@ -1347,6 +1469,8 @@ function openPhotoCrop(img, count) {
       <button onclick="finishPhotoCrop()" style="background:#ff4d1c;color:#fff;border:none;border-radius:12px;padding:12px 26px;font-weight:800;cursor:pointer;font-family:inherit;">✂️ Crop & Aage Badho</button>
     </div>`;
   document.body.appendChild(ov);
+  // src alag se — dataURL kai MB ka ho sakta hai, use innerHTML me daalna mehnga hai
+  document.getElementById('cropImg').src = img.src;
   __cropApply();
 
   const frame = document.getElementById('cropFrame');
