@@ -43,12 +43,13 @@ SERVER_URL         = "https://qrseprint.in"
 CHECK_INTERVAL     = 5          # Job aane par / turant baad — itni jaldi check
 IDLE_INTERVAL_1    = 12         # 2 minute khaali gaye to itna
 IDLE_INTERVAL_2    = 25         # 10 minute khaali gaye to itna
+IDLE_INTERVAL_3    = 45         # 60 minute khaali gaye to itna (raat/band dukaan)
 # Dukaan din bhar me sirf kuch der busy rehti hai. Har 5 second poll karne se
 # roz lakhon request jaati hain aur server ka bandwidth khatam ho jaata hai.
 # Isliye khaali waqt me dheere check karo — par job aate hi turant 5s par
 # wapas aa jao, taaki print me deri na ho.
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 23           # Integer version number — server ke agent_version se compare hota hai
+VERSION            = 24           # Integer version number — server ke agent_version se compare hota hai
 SUPPORT_WA         = "918404832414"  # Admin WhatsApp (shop-login Support jaisa) — Contact Admin isi par khulega
 
 # Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
@@ -524,21 +525,24 @@ def extract_selected_pages(pdf_path, selected_pages_str, total_pages=None):
     if not selected_pages_str or not selected_pages_str.strip():
         return pdf_path  # All pages selected — kuch extract nahi karna
 
-    # PyPDF2/pypdf import
+    # pypdf/PyPDF2 import — pypdf (actively maintained fork) ko priority
+    # dete hain kyunki ye real-world "ajeeb" PDFs (scanner apps, govt
+    # portals, non-UTF8 metadata) ko zyada gracefully handle karta hai.
+    # PyPDF2 3.x abhi bhi kaam karta hai isliye fallback rakha hai.
     PdfReader = None
     PdfWriter = None
     try:
-        from PyPDF2 import PdfReader, PdfWriter
+        from pypdf import PdfReader, PdfWriter
     except ImportError:
         try:
-            from pypdf import PdfReader, PdfWriter
+            from PyPDF2 import PdfReader, PdfWriter
         except ImportError:
-            log("⚠️  PyPDF2/pypdf nahi hai! Install kar raha hai...", "WARN")
-            os.system("pip install PyPDF2 pycryptodome --quiet")
+            log("⚠️  pypdf/PyPDF2 nahi hai! Install kar raha hai...", "WARN")
+            os.system("pip install pypdf pycryptodome --quiet")
             try:
-                from PyPDF2 import PdfReader, PdfWriter
+                from pypdf import PdfReader, PdfWriter
             except Exception as e:
-                log(f"❌ PyPDF2 install bhi fail hua: {e}", "ERROR")
+                log(f"❌ pypdf install bhi fail hua: {e}", "ERROR")
                 return None
 
     # PyCryptodome missing hone se aane wala specific error pre-emptively fix karo
@@ -570,7 +574,22 @@ def extract_selected_pages(pdf_path, selected_pages_str, total_pages=None):
 
         log(f"📑 Specific pages extract ho rahe hain: {page_numbers}")
 
-        reader = PdfReader(pdf_path)
+        try:
+            reader = PdfReader(pdf_path, strict=False)
+        except Exception as e1:
+            # Kuch "ajeeb" PDFs (galat-encoded metadata waale) pypdf ke
+            # strict-mode se crash ho jaate hain — dusri library se retry.
+            log(f"⚠️  PDF read attempt 1 fail ({e1}) — dusri library se retry kar rahe hain", "WARN")
+            try:
+                from PyPDF2 import PdfReader as _AltReader
+                reader = _AltReader(pdf_path, strict=False)
+            except Exception:
+                try:
+                    from pypdf import PdfReader as _AltReader2
+                    reader = _AltReader2(pdf_path, strict=False)
+                except Exception:
+                    raise e1
+
         # Encrypted na ho to crypto touch hi na ho — try/except safety
         try:
             if getattr(reader, 'is_encrypted', False):
@@ -1846,7 +1865,7 @@ def run_tray_icon():
 # ─── MAIN PRINT LOOP (background thread mein chalta hai jab tray active ho) ──
 def print_loop():
     log("=" * 50)
-    log(f"Print jobs check: har {CHECK_INTERVAL}s (khaali ho to {IDLE_INTERVAL_1}s/{IDLE_INTERVAL_2}s — job aate hi wapas {CHECK_INTERVAL}s)")
+    log(f"Print jobs check: har {CHECK_INTERVAL}s (khaali ho to {IDLE_INTERVAL_1}s/{IDLE_INTERVAL_2}s/{IDLE_INTERVAL_3}s — job aate hi wapas {CHECK_INTERVAL}s)")
     log("=" * 50)
     update_tray_status("Running — waiting for jobs")
 
@@ -1874,7 +1893,9 @@ def print_loop():
                     log(f"⚡ Fast mode — har {CHECK_INTERVAL}s check")
             else:
                 idle_sec = time.time() - idle_since
-                if idle_sec > 600:
+                if idle_sec > 3600:
+                    new_interval = IDLE_INTERVAL_3
+                elif idle_sec > 600:
                     new_interval = IDLE_INTERVAL_2
                 elif idle_sec > 120:
                     new_interval = IDLE_INTERVAL_1
