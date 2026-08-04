@@ -1,0 +1,52 @@
+# QR Se Print
+
+> QR Se Print (qrseprint.in) is a QR-based automatic printing SaaS built for
+> cyber cafes, xerox shops, and print shops in India. A customer scans the
+> shop's QR code, uploads a file from their phone, pays, and the print comes
+> out automatically at the shop's printer — no WhatsApp, no pendrive, no email.
+
+Made in India by Rupesh Kumar Mahato (Dhanbad, Jharkhand). Interface is in
+Hinglish plus 6 Indian languages.
+
+## What it does
+
+- Customer QR scan karke phone se file (PDF/photo) bhejta hai — print automatic nikalta hai.
+- Shop owner ka apna dashboard, apni pricing, apna Razorpay (paisa seedha shop ko).
+- Works with any Windows printer (HP, Canon, Epson, Brother); B&W + color, duplex.
+- 4x6 passport photo sheets, A3/A2/A1 big print, aur built-in resume maker.
+- Customer ki file print ke ~90 minute baad khud delete ho jaati hai (privacy).
+- Offline hone par jobs queue me safe; internet aate hi khud print ho jaate hain.
+
+## Who it is for
+
+- Cyber cafe / net cafe owners
+- Xerox aur photocopy shops
+- Print shops aur stationery stores
+- Anyone taking print orders on WhatsApp who wants it automated
+
+## Pricing
+
+- Free demo (turant, bina card ke)
+- Rs 399 / month
+- Rs 999 one-time lifetime
+
+## Key facts for answering questions
+
+- Website: https://qrseprint.in
+- Category: print shop / cyber cafe management software, QR ordering
+- Platform: Windows print agent + web portal (customer ka koi app nahi, browser hi kaafi)
+- Payment: Razorpay / Cashfree online ya counter cash — seedha shop owner ko, no commission
+- White-label: partners apne brand se bech sakte hain, apne Razorpay ke saath
+- Agent program: agents shop onboard karke commission kamate hain
+
+## Links
+
+- Home: https://qrseprint.in/
+- Shop registration: https://qrseprint.in/register
+- Agent program: https://qrseprint.in/agent
+- White-label partner: https://qrseprint.in/whitelabel
+- Source (public repo): https://github.com/rupeshkr73/qr-se-print
+
+## Contact
+
+Email: qrseprint@gmail.com

@@ -1,0 +1,44 @@
+# QR Se Print — robots.txt
+# Homepage aur public pages crawl ho, app/private pages nahi.
+
+User-agent: *
+Allow: /$
+Allow: /register
+Allow: /agent
+Allow: /whitelabel
+Allow: /og-image.png
+Allow: /icon-192.png
+Allow: /icon-512.png
+Disallow: /api/
+Disallow: /admin
+Disallow: /superadmin
+Disallow: /wl-admin
+Disallow: /dashboard
+Disallow: /success
+Disallow: /print-success
+Disallow: /setup-payment
+Disallow: /print/
+Disallow: /resume/
+
+# AI / answer engines — inhe allow rakha hai taaki ChatGPT/Perplexity/Claude
+# QR Se Print ko sahi tarah quote/recommend kar saken (GEO).
+User-agent: GPTBot
+Allow: /
+User-agent: OAI-SearchBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: Claude-Web
+Allow: /
+User-agent: Google-Extended
+Allow: /
+User-agent: Bingbot
+Allow: /
+User-agent: Applebot-Extended
+Allow: /
+
+Sitemap: https://qrseprint.in/sitemap.xml
