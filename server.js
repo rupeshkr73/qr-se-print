@@ -588,6 +588,13 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_resume_bw INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS shop_notice VARCHAR(200) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS advanced_active BOOLEAN DEFAULT true;
+      -- Advance ke andar 4 alag-alag module. Har ek ka apna switch, taki
+      -- owner sirf wahi feature customer ko dikhaye jo uski shop me chalta hai.
+      -- Default true = purani shops ka behaviour bilkul waisa hi rehta hai.
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS adv_legal_active  BOOLEAN DEFAULT true;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS adv_resume_active BOOLEAN DEFAULT true;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS adv_4x6_active    BOOLEAN DEFAULT true;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS adv_a3_active     BOOLEAN DEFAULT true;
       -- Purane demo accounts ko bhi advanced features de do. Sirf demo par —
       -- paid shops ka paywall bilkul waise ka waisa rehta hai.
       UPDATE shops SET advanced_unlocked = true
@@ -904,6 +911,31 @@ app.post('/api/shop/advance-active', verifyToken, async (req, res) => {
     const active = req.body.active === true;
     await pool.query('UPDATE shops SET advanced_active=$1 WHERE id=$2', [active, req.shopId]);
     res.json({ success: true, active });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Advance ke 4 module — har ek alag on/off.
+// Column name whitelist se aata hai, isliye SQL injection ka scope nahi.
+const ADV_MODULE_COLS = {
+  legal:  'adv_legal_active',
+  resume: 'adv_resume_active',
+  '4x6':  'adv_4x6_active',
+  a3:     'adv_a3_active'
+};
+
+app.post('/api/shop/advance-module', verifyToken, async (req, res) => {
+  try {
+    const col = ADV_MODULE_COLS[String(req.body.module || '')];
+    if (!col) return res.status(400).json({ error: 'Galat module' });
+    const chk = await pool.query('SELECT advanced_unlocked FROM shops WHERE id=$1', [req.shopId]);
+    if (!chk.rows.length || !chk.rows[0].advanced_unlocked)
+      return res.status(403).json({ error: 'Advance feature unlock nahi hai' });
+    const active = req.body.active === true;
+    const r = await pool.query(
+      `UPDATE shops SET ${col}=$1 WHERE id=$2
+       RETURNING adv_legal_active, adv_resume_active, adv_4x6_active, adv_a3_active`,
+      [active, req.shopId]);
+    res.json({ success: true, modules: r.rows[0] });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -1859,6 +1891,17 @@ app.get('/api/superadmin/action-center', verifySuperAdmin, async (req, res) => {
         AND demo_expires_at > NOW() AND demo_expires_at < NOW() + INTERVAL '3 days'
       ORDER BY demo_expires_at ASC LIMIT ${LIMIT}`);
 
+    // 2b. Demo khatam HO CHUKA — ye sabse garam lead hain, inhone product
+    //     use kiya aur ab band ho gaya. 30 din tak follow-up worth hai.
+    const demoExpired = await pool.query(`
+      SELECT id, name, phone, email, demo_expires_at,
+             GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - demo_expires_at))/86400))::int AS days_ago
+      FROM shops
+      WHERE demo = true AND demo_expires_at IS NOT NULL
+        AND demo_expires_at <= NOW()
+        AND demo_expires_at > NOW() - INTERVAL '30 days'
+      ORDER BY demo_expires_at DESC LIMIT ${LIMIT}`);
+
     // 3. Print agent offline — pehle chal raha tha, ab 24 ghante se nahi.
     //    Jinhone kabhi install hi nahi kiya wo yahan nahi aate, wo alag
     //    problem hai (onboarding), yahan sirf toota hua setup dikhta hai.
@@ -1908,6 +1951,7 @@ app.get('/api/superadmin/action-center', verifySuperAdmin, async (req, res) => {
     res.json({
       unpaid: unpaid.rows,
       demoExpiring: demoExpiring.rows,
+      demoExpired: demoExpired.rows,
       agentOffline: agentOffline.rows,
       silent: silent.rows,
       renewals: renewals.rows,
@@ -3858,7 +3902,7 @@ app.get('/api/shop/:shopId/demo-status', async (req, res) => {
 app.get('/api/shop/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_4x6_10,price_resume_color,price_resume_bw,shop_notice,advanced_active,shop_logo FROM shops WHERE id=$1',
+      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_4x6_10,price_resume_color,price_resume_bw,shop_notice,advanced_active,shop_logo,adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active FROM shops WHERE id=$1',
       [req.params.shopId]
     );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
@@ -3867,7 +3911,14 @@ app.get('/api/shop/:shopId', async (req, res) => {
     }
     const shopInfo = r.rows[0];
     // Customer ke liye advance tabhi ON jab kharida (unlocked) AUR owner ne active rakha
-    shopInfo.advanced_unlocked = !!(shopInfo.advanced_unlocked && shopInfo.advanced_active !== false);
+    const advOn = !!(shopInfo.advanced_unlocked && shopInfo.advanced_active !== false);
+    shopInfo.advanced_unlocked = advOn;
+    // Har module ka effective status = advance ON aur us module ka switch ON.
+    // Customer page inhi 4 flags se apna layout banata hai.
+    shopInfo.adv_legal_active  = advOn && shopInfo.adv_legal_active  !== false;
+    shopInfo.adv_resume_active = advOn && shopInfo.adv_resume_active !== false;
+    shopInfo.adv_4x6_active    = advOn && shopInfo.adv_4x6_active    !== false;
+    shopInfo.adv_a3_active     = advOn && shopInfo.adv_a3_active     !== false;
 
     // White-label ki shop hai to customer page par PARTNER ka brand dikhega
     try {
@@ -3921,7 +3972,8 @@ app.get('/api/shop/:shopId/stats', async (req, res) => {
 app.get('/api/admin/profile', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT id,name,address,phone,demo,plan_type,paid_until,advanced_unlocked,advanced_active,shop_notice,shop_logo,price_4x6_4,price_4x6_6,price_4x6_10,price_resume_color,price_resume_bw,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
+      `SELECT id,name,address,phone,demo,plan_type,paid_until,advanced_unlocked,advanced_active,
+              adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,shop_notice,shop_logo,price_4x6_4,price_4x6_6,price_4x6_10,price_resume_color,price_resume_bw,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
               email,payment_gateway,razorpay_key_id,cashfree_app_id,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
               CASE WHEN cashfree_secret_key != '' THEN true ELSE false END as has_cashfree_secret
