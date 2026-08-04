@@ -1768,9 +1768,10 @@ function applyAdvancedGate(shop) {
     zone.parentNode.insertBefore(menu, zone);
   }
 
-  // Doc aur Big dono band? Phir generic upload box ka koi kaam nahi —
-  // customer card tap karke hi apna flow shuru karega.
-  if (zone) zone.style.display = (M.doc || M.big) ? '' : 'none';
+  // Upload Document zone UNIVERSAL hai — HAMESHA dikhega. Ye base document
+  // print sabke liye khula rehta hai (bina advance ke bhi). Advance ke 4
+  // module sirf neeche wale option cards ko on/off karte hain, is zone ko nahi.
+  if (zone) zone.style.display = '';
 }
 
 function selectService(svc) {
