@@ -111,6 +111,13 @@ body{font-family:'Space Grotesk',sans-serif;background:#f5f0e8;min-height:100vh;
 #svcMenu .svc-card > div:first-child{font-size:21px!important}
 #svcMenu .svc-card > div:nth-child(2){font-size:12px!important;margin-top:3px!important}
 #svcMenu .svc-card > div:nth-child(3){font-size:9.8px!important;line-height:1.45}
+/* Ek hi card bacha ho (ya 3 me se pehla) to wo poori chaudai lega. Square
+   stretch bhadda lagta hai, isliye icon left + text right wala layout. */
+#svcMenu .svc-card.svc-wide{display:grid;grid-template-columns:auto minmax(0,1fr);
+  align-items:center;column-gap:12px;text-align:left!important;padding:13px 15px!important}
+#svcMenu .svc-card.svc-wide > div:first-child{grid-row:1/3;font-size:28px!important}
+#svcMenu .svc-card.svc-wide > div:nth-child(2){grid-column:2;grid-row:1;margin-top:0!important}
+#svcMenu .svc-card.svc-wide > div:nth-child(3){grid-column:2;grid-row:2}
 @media (prefers-reduced-motion:reduce){
   .upbtn,.upbtn::after,.upbtn .up-cloud,.upbtn .up-arrow,.upbtn-wrap .up-dots i{animation:none!important}
   .upbtn::after{display:none}
@@ -1540,57 +1547,106 @@ async function checkResumeHandoff() {
 }
 
 // ═══ ADVANCED GATE ═══
-// Shop ne Advance Feature (₹199) unlock kiya hai?
-//  - NAHI: customer ko sirf A4 — paper dropdown + orientation chhupa do
-//  - HAAN: service menu (Document Print / Big Size A3) + saare paper options
-//  (Resume Maker + 4x6 Photo isi menu me aayenge — agla update)
+// Shop ne Advance Feature unlock kiya hai? Aur uske andar ke 4 module
+// (Document/Legal · Resume · 4×6 Photo · Big Size A3) me se kaun ON hai?
+//  - Kuch bhi ON nahi / locked : customer ko sirf plain A4 (dropdown chhupa)
+//  - Kuch ON hai               : sirf UNHI ka card dikhega, aur grid ka
+//                                layout card ki ginti ke hisaab se badlega
+//                                taki koi khaali box area na bache.
 function applyAdvancedGate(shop) {
-  // Server ne advanced_unlocked ko (unlocked AND active) bana ke bheja hai —
-  // to off/locked dono case me yahan false milega, dropdown chhupa rahega
-  const adv = !!shop.advanced_unlocked;
-  window.__shopAdvanced = adv;
-  const sel = document.getElementById('paperSizeSel');
-  const ori = document.getElementById('orientBtn');
-  if (!adv) {
+  const advPaid = !!shop.advanced_unlocked;   // server = kharida AND master ON
+  const M = {
+    doc:    advPaid && shop.adv_legal_active  !== false,  // Document Print (A4–Legal)
+    resume: advPaid && shop.adv_resume_active !== false,  // Resume Maker
+    photo:  advPaid && shop.adv_4x6_active    !== false,  // 4×6 Photo
+    big:    advPaid && shop.adv_a3_active     !== false   // A3 / A2 / A1
+  };
+  const anyOn = M.doc || M.resume || M.photo || M.big;
+
+  window.__shopAdvanced = advPaid && anyOn;
+  window.__advModules   = M;
+  window.__shopPrices   = {
+    p4: parseInt(shop.price_4x6_4)||0, p6: parseInt(shop.price_4x6_6)||0,
+    p10: parseInt(shop.price_4x6_10)||0, rc: parseInt(shop.price_resume_color)||0,
+    rb: parseInt(shop.price_resume_bw)||0
+  };
+
+  const sel  = document.getElementById('paperSizeSel');
+  const ori  = document.getElementById('orientBtn');
+  const zone = document.getElementById('uploadZone');
+
+  if (!window.__shopAdvanced) {
     if (sel) sel.style.display = 'none';   // A4-only, koi dropdown nahi
     if (ori) ori.style.display = 'none';
     state.paperSize = 'a4';
     state.orientation = 'portrait';
     return;
   }
-  // Advance ON — ab dikhaao
-  if (sel) sel.style.display = '';
+
+  // ── Paper dropdown ──
+  // A4 hamesha rehta hai (base product hai). Baaki size apne module ke
+  // saath hi aate hain, warna customer aisa size chun leta jo shop deti nahi.
+  const sizeOK = { '4x6': M.photo, 'a4': true, 'a5': M.doc, 'letter': M.doc,
+                   'legal': M.doc, 'a3': M.big, 'a2': M.big, 'a1': M.big };
+  if (sel) {
+    let visible = 0;
+    Array.from(sel.options).forEach(o => {
+      const ok = sizeOK[o.value] !== false;
+      o.hidden = !ok; o.disabled = !ok;
+      o.style.display = ok ? '' : 'none';
+      if (ok) visible++;
+    });
+    if (sizeOK[sel.value] === false) { sel.value = 'a4'; state.paperSize = 'a4'; }
+    sel.style.display = visible > 1 ? '' : 'none';   // ek hi size ho to dropdown bekaar
+  }
   if (ori) ori.style.display = '';
-  // Service menu — upload zone ke upar
-  const zone = document.getElementById('uploadZone');
+
+  // ── Service cards ── sirf ON module, aur grid unki ginti se
   if (zone && !document.getElementById('svcMenu')) {
+    const CARDS = [
+      { key:'doc',    on:M.doc,    icon:'📄', title:'Document Print',  sub:'PDF / Photo — A4 se Legal',
+        act:"selectService('doc')" },
+      { key:'resume', on:M.resume, icon:'📝', title:'Resume Maker',    sub:'6 designs — banao, print karo',
+        act:"location.href='/resume/'+shopId" },
+      { key:'photo',  on:M.photo,  icon:'📷', title:'4×6 Photo Print', sub:'Passport photos — 4 ya 6 ki sheet',
+        act:"startPhotoFlow()" },
+      { key:'big',    on:M.big,    icon:'📐', title:'Big Size Print',  sub:'A3 / A2 / A1 bade kagaz',
+        act:"selectService('big')" }
+    ].filter(c => c.on);
+
+    const n = CARDS.length;
+    // Doc ON ho tabhi pehle se select — wahi default upload mode hai.
+    // Resume/Photo card tap karte hi apna alag flow kholte hain, unhe
+    // pehle se "selected" dikhana galat lagta hai.
+    const preselect = M.doc ? 'doc' : null;
+
     const menu = document.createElement('div');
     menu.id = 'svcMenu';
-    menu.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;';
-    menu.innerHTML = `
-      <div class="svc-card" data-svc="doc" onclick="selectService('doc')" style="border:2px solid #ff4d1c;background:#fff5f2;border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;transition:.15s;">
-        <div style="font-size:26px;">📄</div>
-        <div style="font-weight:800;font-size:13px;margin-top:4px;">Document Print</div>
-        <div style="font-size:10.5px;color:#6b6870;">PDF / Photo — A4 se Legal</div>
-      </div>
-      <div class="svc-card" data-svc="resume" onclick="location.href='/resume/'+shopId" style="border:2px solid #e5e0d8;background:#fff;border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;transition:.15s;">
-        <div style="font-size:26px;">📝</div>
-        <div style="font-weight:800;font-size:13px;margin-top:4px;">Resume Maker</div>
-        <div style="font-size:10.5px;color:#6b6870;">6 designs — banao, print karo</div>
-      </div>
-      <div class="svc-card" data-svc="photo" onclick="startPhotoFlow()" style="border:2px solid #e5e0d8;background:#fff;border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;transition:.15s;">
-        <div style="font-size:26px;">📷</div>
-        <div style="font-weight:800;font-size:13px;margin-top:4px;">4×6 Photo Print</div>
-        <div style="font-size:10.5px;color:#6b6870;">Passport photos — 4 ya 6 ki sheet</div>
-      </div>
-      <div class="svc-card" data-svc="big" onclick="selectService('big')" style="border:2px solid #e5e0d8;background:#fff;border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;transition:.15s;">
-        <div style="font-size:26px;">📐</div>
-        <div style="font-weight:800;font-size:13px;margin-top:4px;">Big Size Print</div>
-        <div style="font-size:10.5px;color:#6b6870;">A3 / A2 / A1 bade kagaz</div>
-      </div>`;
-    window.__shopPrices = { p4: parseInt(shop.price_4x6_4)||0, p6: parseInt(shop.price_4x6_6)||0, p10: parseInt(shop.price_4x6_10)||0, rc: parseInt(shop.price_resume_color)||0, rb: parseInt(shop.price_resume_bw)||0 };
+    menu.dataset.count = String(n);
+    //  1 card → poori chaudai   |  2 card → 2 column
+    //  3 card → pehla poora + neeche 2 (koi khaali box nahi)
+    //  4 card → 2×2 (jaisa pehle tha)
+    menu.style.cssText = 'display:grid;gap:10px;margin-bottom:14px;grid-template-columns:' +
+      (n === 1 ? 'minmax(0,1fr)' : 'repeat(2,minmax(0,1fr))') + ';';
+
+    menu.innerHTML = CARDS.map((c, i) => {
+      const wide = (n === 1) || (n === 3 && i === 0);
+      const on   = c.key === preselect;
+      return '<div class="svc-card' + (wide ? ' svc-wide' : '') + '" data-svc="' + c.key + '" onclick="' + c.act + '" ' +
+        'style="border:2px solid ' + (on ? '#ff4d1c' : '#e5e0d8') + ';background:' + (on ? '#fff5f2' : '#fff') +
+        ';border-radius:14px;padding:14px 10px;text-align:center;cursor:pointer;transition:.15s;' +
+        (wide ? 'grid-column:1/-1;' : '') + '">' +
+        '<div style="font-size:26px;">' + c.icon + '</div>' +
+        '<div style="font-weight:800;font-size:13px;margin-top:4px;">' + c.title + '</div>' +
+        '<div style="font-size:10.5px;color:#6b6870;">' + c.sub + '</div></div>';
+    }).join('');
+
     zone.parentNode.insertBefore(menu, zone);
   }
+
+  // Doc aur Big dono band? Phir generic upload box ka koi kaam nahi —
+  // customer card tap karke hi apna flow shuru karega.
+  if (zone) zone.style.display = (M.doc || M.big) ? '' : 'none';
 }
 
 function selectService(svc) {

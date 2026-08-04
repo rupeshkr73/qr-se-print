@@ -619,10 +619,38 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         <button onclick="loadActionCenter()" style="background:#f3f4f6;color:#4b5563;border:none;border-radius:8px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;">↻ Refresh</button>
       </h2>
       <p style="font-size:11.5px;color:#9b9690;margin:-6px 0 14px;">
-        Jo atka hai, jo chhoot raha hai, aur aaj kis shop ko message karna hai — sab ek jagah.
+        Chaar column — <b>Paisa Nahi</b> · <b>Demo Expired</b> · <b>Offline</b> · <b>7 Din Se Soya</b>.
+        Har column me seedha WhatsApp button.
       </p>
       <div id="actionCenter">Loading…</div>
     </div>
+    <style>
+      /* AAJ KA KAAM — 4 column board. Desktop par chaaron saath, tablet par
+         2, phone par 1 — taki har column ki list padhne layak rahe. */
+      .ac-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:start;}
+      @media(max-width:1150px){.ac-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+      @media(max-width:620px){.ac-grid{grid-template-columns:minmax(0,1fr);}}
+      .ac-col{border:1.5px solid;border-radius:14px;padding:12px 13px;display:flex;
+              flex-direction:column;min-width:0;}
+      .ac-col-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
+                   font-size:12.5px;font-weight:800;line-height:1.3;margin-bottom:8px;}
+      .ac-col-head span:first-child{min-width:0;}
+      .ac-badge{color:#fff;font-size:11px;font-weight:800;border-radius:999px;
+                padding:2px 9px;flex:none;font-family:'Syne',sans-serif;}
+      .ac-body{max-height:380px;overflow-y:auto;margin:0 -3px;padding:0 3px;}
+      .ac-row{display:flex;align-items:center;justify-content:space-between;gap:8px;
+              padding:7px 0;border-top:1px solid rgba(0,0,0,.07);}
+      .ac-row:first-child{border-top:none;}
+      .ac-txt{min-width:0;flex:1;}
+      .ac-name{font-size:12.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .ac-sub{font-size:10.5px;color:#7c7770;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .ac-row.hot .ac-sub{color:#b91c1c;font-weight:700;}
+      .ac-empty{font-size:11.5px;color:#166534;font-weight:700;padding:6px 0;}
+      .ac-wa{background:#25d366;color:#fff;text-decoration:none;border-radius:7px;
+             padding:4px 9px;font-size:10.5px;font-weight:800;white-space:nowrap;flex:none;}
+      .ac-small{margin-top:12px;background:#fff9ec;border:1.5px solid #f0e2ba;border-radius:13px;
+                padding:11px 14px;display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;}
+    </style>
 
 
     <!-- DATABASE: BACKUP + MIGRATION -->
@@ -1410,93 +1438,97 @@ async function loadActionCenter() {
       let num = String(phone||'').replace(/\D/g,'');
       if (!num) return '';
       if (num.length === 10) num = '91' + num;
-      return `<a href="https://wa.me/${num}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener"
-        style="background:#25d366;color:#fff;text-decoration:none;border-radius:7px;padding:4px 10px;font-size:11px;font-weight:800;white-space:nowrap;">WhatsApp</a>`;
+      return '<a class="ac-wa" target="_blank" rel="noopener" href="https://wa.me/' + num +
+             '?text=' + encodeURIComponent(msg) + '">WhatsApp</a>';
     };
 
-    const row = (left, right, action) => `
-      <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;
-                  padding:8px 0;border-top:1px solid #f0ece6;flex-wrap:wrap;">
-        <div style="min-width:0;flex:1;">
-          <div style="font-size:13px;font-weight:700;">${left}</div>
-          <div style="font-size:11px;color:#9b9690;margin-top:1px;">${right}</div>
-        </div>
-        ${action || ''}
-      </div>`;
+    /* ── Har column ka data ek jaise shape me — {name,id,phone,sub,hot,msg} ── */
+    const C1 = [];   /* Paisa Nahi   : register hua par paisa nahi + renewal due */
+    (d.unpaid || []).forEach(v => C1.push({
+      name: v.name || v.id, id: v.id, phone: v.phone,
+      sub: v.days_ago + ' din pehle register', hot: v.days_ago >= 3,
+      msg: 'Namaste ' + (v.name||'') + ', QR Se Print par aapka registration ho gaya hai. Setup fee pending hai — activate karne me koi dikkat aa rahi hai kya?'
+    }));
+    (d.renewals || []).forEach(v => C1.push({
+      name: v.name || v.id, id: v.id, phone: v.phone,
+      sub: v.days_left < 0 ? 'Renewal ' + Math.abs(v.days_left) + ' din pehle EXPIRE'
+                           : 'Renewal — ' + v.days_left + ' din baaki',
+      hot: v.days_left < 0,
+      msg: 'Namaste ' + (v.name||'') + ', QR Se Print ka plan ' +
+           (v.days_left < 0 ? 'khatam ho gaya hai' : 'khatam hone wala hai') + '. Renew kar dein?'
+    }));
 
-    /* Ek block — khaali ho to poora chhupa dete hain, warna list lambi lagti hai */
-    const block = (icon, title, tone, items, render, empty) => {
-      const C = { red:['#fef2f2','#fecaca','#b91c1c'], yellow:['#fff9ec','#f0e2ba','#8a6d1f'],
-                  green:['#f0fdf4','#bbf7d0','#166534'], grey:['#fafaf9','#e2ddd6','#57534e'] }[tone];
-      if (!items.length) {
-        return `<div style="background:#fafaf9;border:1.5px solid #e2ddd6;border-radius:13px;padding:11px 14px;margin-bottom:10px;">
-          <div style="font-size:12.5px;font-weight:700;color:#9b9690;">${icon} ${title} — <span style="color:#166534;">${empty}</span></div></div>`;
-      }
-      return `<div style="background:${C[0]};border:1.5px solid ${C[1]};border-radius:13px;padding:12px 14px;margin-bottom:10px;">
-        <div style="font-size:13px;font-weight:800;color:${C[2]};margin-bottom:2px;">
-          ${icon} ${title} <span style="font-family:'Syne',sans-serif;font-size:16px;">(${items.length})</span>
-        </div>
-        ${items.map(render).join('')}
-      </div>`;
+    const C2 = [];   /* Demo Expired : khatam ho chuka + khatam hone wala */
+    (d.demoExpired || []).forEach(v => C2.push({
+      name: v.name || v.id, id: v.id, phone: v.phone,
+      sub: 'EXPIRED — ' + v.days_ago + ' din pehle', hot: true,
+      msg: 'Namaste ' + (v.name||'') + ', aapka QR Se Print demo khatam ho chuka hai. Full version chalu kar dein? Setup wahi ka wahi rahega.'
+    }));
+    (d.demoExpiring || []).forEach(v => C2.push({
+      name: v.name || v.id, id: v.id, phone: v.phone,
+      sub: 'Demo — ' + v.days_left + ' din baaki', hot: false,
+      msg: 'Namaste ' + (v.name||'') + ', aapka QR Se Print demo khatam hone wala hai. Kaisa laga? Full version chalu kar dein?'
+    }));
+
+    const C3 = (d.agentOffline || []).map(v => ({   /* Offline */
+      name: v.name || v.id, id: v.id, phone: v.phone,
+      sub: (v.hours_ago >= 48 ? Math.floor(v.hours_ago/24) + ' din' : v.hours_ago + ' ghante') +
+           ' se offline' + (v.agent_version ? ' · v' + v.agent_version : ''),
+      hot: v.hours_ago >= 72,
+      msg: 'Namaste ' + (v.name||'') + ', aapka QR Se Print agent offline dikh raha hai. PC band hai ya koi dikkat aa rahi hai?'
+    }));
+
+    const C4 = (d.silent || []).map(v => ({         /* 7 din se soya */
+      name: v.name || v.id, id: v.id, phone: v.phone,
+      sub: v.days_silent === null ? 'Kabhi print nahi kiya' : v.days_silent + ' din se print nahi',
+      hot: v.days_silent === null,
+      msg: 'Namaste ' + (v.name||'') + ', kaafi din se QR Se Print par koi order nahi dikha. Sab theek hai? Koi help chahiye to bataiye.'
+    }));
+
+    const rowHtml = v =>
+      '<div class="ac-row' + (v.hot ? ' hot' : '') + '">' +
+        '<div class="ac-txt">' +
+          '<div class="ac-name">' + esc(v.name) + '</div>' +
+          '<div class="ac-sub">' + esc(v.id) + ' · ' + esc(v.sub) + '</div>' +
+        '</div>' + wa(v.phone, v.msg) +
+      '</div>';
+
+    const TONE = { red:['#fef2f2','#fecaca','#b91c1c'], yellow:['#fff9ec','#f0e2ba','#8a6d1f'],
+                   blue:['#eff6ff','#bfdbfe','#1d4ed8'], violet:['#faf5ff','#e9d5ff','#7c3aed'] };
+    const colHtml = (icon, title, tone, items, empty) => {
+      const T = TONE[tone];
+      return '<div class="ac-col" style="background:' + T[0] + ';border-color:' + T[1] + ';">' +
+        '<div class="ac-col-head" style="color:' + T[2] + ';"><span>' + icon + ' ' + title + '</span>' +
+        '<span class="ac-badge" style="background:' + T[2] + ';">' + items.length + '</span></div>' +
+        '<div class="ac-body">' +
+          (items.length ? items.map(rowHtml).join('') : '<div class="ac-empty">' + empty + '</div>') +
+        '</div></div>';
     };
 
-    let html = '';
+    let html = '<div class="ac-grid">' +
+      colHtml('🔴', 'Paisa Nahi',      'red',    C1, 'ek bhi nahi ✅') +
+      colHtml('🟡', 'Demo Expired',    'yellow', C2, 'koi nahi ✅') +
+      colHtml('📵', 'Offline',         'blue',   C3, 'sab online ✅') +
+      colHtml('😴', '7 Din Se Soya',   'violet', C4, 'sab chal rahi hain ✅') +
+    '</div>';
 
-    /* 1. Paisa nahi diya */
-    html += block('🔴', 'Register hue par paisa nahi diya', 'red', d.unpaid || [],
-      v => row(esc(v.name || v.id), `${esc(v.id)} · ${v.days_ago} din pehle`,
-        wa(v.phone, `Namaste ${v.name||''}, QR Se Print par aapka registration ho gaya hai. Setup fee pending hai — activate karne me koi dikkat aa rahi hai kya?`)),
-      'ek bhi nahi ✅');
-
-    /* 2. Renewal */
-    html += block('💰', 'Renewal — khatam ho raha ya ho chuka', 'red', d.renewals || [],
-      v => row(esc(v.name || v.id),
-        v.days_left < 0 ? `${esc(v.id)} · <b style="color:#b91c1c;">${Math.abs(v.days_left)} din pehle EXPIRE</b>`
-                        : `${esc(v.id)} · ${v.days_left} din baaki`,
-        wa(v.phone, `Namaste ${v.name||''}, QR Se Print ka plan ${v.days_left<0?'khatam ho gaya hai':'khatam hone wala hai'}. Renew kar dein?`)),
-      'sab safe ✅');
-
-    /* 3. Demo khatam */
-    html += block('🟡', 'Demo khatam hone wale', 'yellow', d.demoExpiring || [],
-      v => row(esc(v.name || v.id), `${esc(v.id)} · ${v.days_left} din baaki`,
-        wa(v.phone, `Namaste ${v.name||''}, aapka QR Se Print demo khatam hone wala hai. Kaisa laga? Full version chalu kar dein?`)),
-      'koi nahi ✅');
-
-    /* 4. Agent offline */
-    html += block('📵', 'Print agent offline (24 ghante se zyada)', 'yellow', d.agentOffline || [],
-      v => row(esc(v.name || v.id),
-        `${esc(v.id)} · ${v.hours_ago >= 48 ? Math.floor(v.hours_ago/24)+' din' : v.hours_ago+' ghante'} se offline${v.agent_version ? ' · v'+v.agent_version : ''}`,
-        wa(v.phone, `Namaste ${v.name||''}, aapka QR Se Print agent offline dikh raha hai. PC band hai ya koi dikkat aa rahi hai?`)),
-      'sab online ✅');
-
-    /* 5. Chup shops */
-    html += block('😴', 'Chup shops — 7 din se koi print nahi', 'yellow', d.silent || [],
-      v => row(esc(v.name || v.id),
-        `${esc(v.id)} · ${v.days_silent === null ? '<b>kabhi print nahi kiya</b>' : v.days_silent + ' din se print nahi'}`,
-        wa(v.phone, `Namaste ${v.name||''}, kaafi din se QR Se Print par koi order nahi dikha. Sab theek hai? Koi help chahiye to bataiye.`)),
-      'sab chal rahi hain ✅');
-
-    /* 6. Chhote kaam */
+    /* Chhote kaam — inke liye poori list ki zaroorat nahi, sirf link */
     const W = d.withdrawals || {}, rvp = d.reviewsPending || 0;
     const small = [];
-    if (W.cnt) small.push(`<a href="#" onclick="navTo('withdrawals',document.querySelector('[data-nav=withdrawals]'));return false;" style="color:#b91c1c;font-weight:800;text-decoration:none;">💸 ${W.cnt} withdrawal pending — ₹${nf(W.amount)}</a>`);
-    if (rvp) small.push(`<a href="#" onclick="navTo('reviews',document.querySelector('[data-nav=reviews]'));return false;" style="color:#8a6d1f;font-weight:800;text-decoration:none;">⭐ ${rvp} review approval baaki</a>`);
-    if (small.length) {
-      html += `<div style="background:#fff9ec;border:1.5px solid #f0e2ba;border-radius:13px;padding:12px 14px;
-                 display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;">${small.join('')}</div>`;
-    }
+    if (W.cnt) small.push('<a href="#" onclick="navTo(\'withdrawals\',document.querySelector(\'[data-nav=withdrawals]\'));return false;" style="color:#b91c1c;font-weight:800;text-decoration:none;">💸 ' + W.cnt + ' withdrawal pending — ₹' + nf(W.amount) + '</a>');
+    if (rvp) small.push('<a href="#" onclick="navTo(\'reviews\',document.querySelector(\'[data-nav=reviews]\'));return false;" style="color:#8a6d1f;font-weight:800;text-decoration:none;">⭐ ' + rvp + ' review approval baaki</a>');
+    if (small.length) html += '<div class="ac-small">' + small.join('') + '</div>';
 
-    const total = (d.unpaid||[]).length + (d.renewals||[]).length + (d.demoExpiring||[]).length +
-                  (d.agentOffline||[]).length + (d.silent||[]).length + (W.cnt||0) + rvp;
+    const total = C1.length + C2.length + C3.length + C4.length + (W.cnt||0) + rvp;
     if (total === 0) {
-      html = `<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:13px;padding:20px;text-align:center;">
-        <div style="font-size:30px;">✅</div>
-        <div style="font-size:14px;font-weight:800;color:#166534;margin-top:6px;">Sab clear hai</div>
-        <div style="font-size:12px;color:#4b5563;margin-top:3px;">Aaj koi cheez atki hui nahi hai.</div></div>`;
+      html = '<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:13px;padding:20px;text-align:center;">' +
+        '<div style="font-size:30px;">✅</div>' +
+        '<div style="font-size:14px;font-weight:800;color:#166534;margin-top:6px;">Sab clear hai</div>' +
+        '<div style="font-size:12px;color:#4b5563;margin-top:3px;">Aaj koi cheez atki hui nahi hai.</div></div>';
     }
     box.innerHTML = html;
 
-  } catch(e) { box.innerHTML = `<span style="color:#c22;">⚠ ${e.message}</span>`; }
+  } catch(e) { box.innerHTML = '<span style="color:#c22;">⚠ ' + e.message + '</span>'; }
 }
 
 async function loadReviews() {

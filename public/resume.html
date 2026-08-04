@@ -767,8 +767,9 @@ async function init() {
 
     if (r.ok) {
       shopData = await r.json();
-      // QSP integration: ye feature sirf Advance-unlocked shops ke liye
-      if (!shopData.advanced_unlocked) {
+      // QSP integration: Advance unlock ho AUR shop ne Resume module ON rakha ho.
+      // Direct link/bookmark se aane wale ko bhi yahin rok dete hain.
+      if (!shopData.advanced_unlocked || shopData.adv_resume_active === false) {
         document.body.innerHTML = `<div style="max-width:400px;margin:80px auto;padding:30px;text-align:center;font-family:sans-serif;">
           <div style="font-size:48px;">🔒</div>
           <h2>Resume Maker Available Nahi</h2>

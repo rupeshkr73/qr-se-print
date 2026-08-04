@@ -1089,7 +1089,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         <div id="advActiveRow" style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:#f0fdf4;border:1.5px solid #86efac;border-radius:14px;padding:14px 16px;margin-bottom:16px;">
           <div>
             <div style="font-weight:800;font-size:14px;" id="advActiveLabel">🟢 Advance Feature CHALU</div>
-            <div style="font-size:11px;color:#6b6870;margin-top:2px;">Off karoge to customer ko sirf normal print dikhega (Photo/Resume/A3 chhup jayenge)</div>
+            <div style="font-size:11px;color:#6b6870;margin-top:2px;">Master switch — off karoge to neeche wale <b>chaaron</b> option ek saath band ho jayenge (customer ko sirf normal A4 print dikhega)</div>
           </div>
           <label style="position:relative;display:inline-block;width:52px;height:30px;flex-shrink:0;">
             <input type="checkbox" id="advActiveToggle" onchange="toggleAdvanceActive()" style="opacity:0;width:0;height:0;">
@@ -1097,6 +1097,34 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
             <span id="advActiveKnob" style="position:absolute;height:24px;width:24px;left:25px;bottom:3px;background:#fff;border-radius:50%;transition:.2s;"></span>
           </label>
         </div>
+        <!-- 4 ALAG MODULE SWITCH — customer page ka layout inhi se banta hai -->
+        <div id="advModRow" style="background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:14px;padding:14px 16px;margin-bottom:16px;">
+          <div style="font-weight:800;font-size:13.5px;color:#6b21a8;">🎛️ Customer ko kaun-kaun sa option dikhe?</div>
+          <p style="font-size:11px;color:#6b6870;margin:4px 0 12px;line-height:1.55;">
+            Har option alag on/off. Jo <b>ON</b> honge sirf wahi customer page par dikhenge — box ka layout apne aap adjust ho jaayega, khaali jagah nahi bachegi.
+          </p>
+          <div id="advModList"></div>
+          <div id="advModSummary" style="font-size:11.5px;font-weight:700;margin-top:10px;"></div>
+        </div>
+        <style>
+          .adv-mod{display:flex;align-items:center;justify-content:space-between;gap:12px;
+                   background:#fff;border:1.5px solid #ede9fe;border-radius:12px;
+                   padding:11px 13px;margin-bottom:8px;transition:.15s;}
+          .adv-mod:last-child{margin-bottom:0;}
+          .adv-mod.on{border-color:#86efac;background:#f7fef9;}
+          .adv-mod-txt{min-width:0;}
+          .adv-mod-title{font-weight:800;font-size:13px;}
+          .adv-mod-desc{font-size:10.5px;color:#6b6870;margin-top:2px;}
+          .adv-sw{position:relative;display:inline-block;width:46px;height:26px;flex:none;}
+          .adv-sw input{opacity:0;width:0;height:0;}
+          .adv-sw-track{position:absolute;cursor:pointer;inset:0;background:#cbd5e1;border-radius:26px;transition:.2s;}
+          .adv-sw-knob{position:absolute;height:20px;width:20px;left:3px;bottom:3px;background:#fff;
+                       border-radius:50%;transition:.2s;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+          .adv-mod.on .adv-sw-track{background:#16a34a;}
+          .adv-mod.on .adv-sw-knob{left:23px;}
+          #advModRow.dim{opacity:.55;}
+        </style>
+
         <div class="form-group full">
           <label>📷 4×6 PHOTO print kis printer se nikle? (photo printer ho to)</label>
           <select id="setPrinter4x6">
@@ -2109,6 +2137,79 @@ async function savePaymentSettings() {
   setTimeout(() => { ok.style.display = 'none'; er.style.display = 'none'; }, 4000);
 }
 
+// ===== ADVANCE KE 4 MODULE =====
+// key  -> server ka module param (ADV_MODULE_COLS se match karta hai)
+// field-> /api/admin/profile me aane wala column
+const ADV_MODULES = [
+  { key:'legal',  field:'adv_legal_active',  icon:'📄', title:'Document Print',  desc:'A4 · A5 · Letter · Legal' },
+  { key:'resume', field:'adv_resume_active', icon:'📝', title:'Resume Maker',    desc:'6 designs — customer khud banayega' },
+  { key:'4x6',    field:'adv_4x6_active',    icon:'📷', title:'4×6 Photo Print', desc:'Passport photo sheet (4/6/10)' },
+  { key:'a3',     field:'adv_a3_active',     icon:'📐', title:'Big Size Print',  desc:'A3 · A2 · A1 bade kagaz' }
+];
+const advModState = {};
+
+function renderAdvModules(shop) {
+  const host = document.getElementById('advModList');
+  if (!host) return;
+  host.innerHTML = ADV_MODULES.map(m => `
+    <div class="adv-mod" id="advMod_${m.key}">
+      <div class="adv-mod-txt">
+        <div class="adv-mod-title">${m.icon} ${m.title}</div>
+        <div class="adv-mod-desc">${m.desc}</div>
+      </div>
+      <label class="adv-sw">
+        <input type="checkbox" class="adv-mod-toggle" id="advModChk_${m.key}" onchange="toggleAdvModule('${m.key}')">
+        <span class="adv-sw-track"></span><span class="adv-sw-knob"></span>
+      </label>
+    </div>`).join('');
+  ADV_MODULES.forEach(m => setAdvModuleUI(m.key, !shop || shop[m.field] !== false));
+}
+
+function setAdvModuleUI(key, on) {
+  advModState[key] = !!on;
+  const rowEl = document.getElementById('advMod_' + key);
+  const chk = document.getElementById('advModChk_' + key);
+  if (!rowEl || !chk) return;
+  chk.checked = !!on;
+  rowEl.classList.toggle('on', !!on);
+  updateAdvModSummary();
+}
+
+function updateAdvModSummary() {
+  const el = document.getElementById('advModSummary');
+  if (!el) return;
+  const on = ADV_MODULES.filter(m => advModState[m.key]);
+  if (!on.length) {
+    el.innerHTML = '⚠️ Sab band — customer ko sirf <b>normal A4 print</b> dikhega.';
+    el.style.color = '#b45309';
+  } else {
+    el.innerHTML = '✅ Customer ko <b>' + on.length + '</b> option ' + (on.length > 1 ? 'dikhenge' : 'dikhega') +
+                   ' — ' + on.map(m => m.icon + ' ' + m.title).join(' · ');
+    el.style.color = '#166534';
+  }
+}
+
+async function toggleAdvModule(key) {
+  const chk = document.getElementById('advModChk_' + key);
+  if (!chk) return;
+  const active = chk.checked;
+  const prev = !active;
+  setAdvModuleUI(key, active);
+  chk.disabled = true;
+  try {
+    const r = await fetch('/api/shop/advance-module', { method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},
+      body: JSON.stringify({ module: key, active }) });
+    const d = await r.json();
+    if (!r.ok || !d.success) throw new Error(d.error || 'Fail');
+    // Server ne jo bheja wahi sach hai — UI ko usse sync kar do
+    if (d.modules) ADV_MODULES.forEach(m => setAdvModuleUI(m.key, d.modules[m.field] !== false));
+  } catch(e) {
+    setAdvModuleUI(key, prev);
+    alert('❌ ' + e.message);
+  } finally { chk.disabled = false; }
+}
+
 // ===== ADVANCED PRINTING UNLOCK =====
 function applyAdvancedLock(shop) {
   const locked = !(shop && shop.advanced_unlocked);
@@ -2123,8 +2224,11 @@ function applyAdvancedLock(shop) {
   if (inner) inner.querySelectorAll('select,input').forEach(el => { el.disabled = locked; });
   const saveBtn = document.getElementById('advSaveBtn');
   if (saveBtn) { saveBtn.style.display = locked ? 'none' : 'block'; }
-  // Active toggle sirf unlocked shops ke liye
-  if (!locked) setAdvActiveUI(shop.advanced_active !== false);
+  // Active toggle + 4 module switch sirf unlocked shops ke liye
+  if (!locked) {
+    renderAdvModules(shop);
+    setAdvActiveUI(shop.advanced_active !== false);
+  }
 }
 
 function setAdvActiveUI(active) {
@@ -2141,10 +2245,14 @@ function setAdvActiveUI(active) {
   label.textContent = active ? '🟢 Advance Feature CHALU' : '🔴 Advance Feature BAND';
   row.style.background = active ? '#f0fdf4' : '#fef2f2';
   row.style.borderColor = active ? '#86efac' : '#fca5a5';
-  // Band hai to printer/price controls faded (par toggle chalu rahe)
-  if (inner) inner.querySelectorAll('select,input:not(#advActiveToggle)').forEach(el => {
+  // Band hai to printer/price controls faded (par toggle chalu rahe).
+  // Module switch bhi faded — par CLICKABLE, taki owner pehle se set kar sake
+  // aur master ON karte hi wahi setting seedha lag jaaye.
+  if (inner) inner.querySelectorAll('select,input:not(#advActiveToggle):not(.adv-mod-toggle)').forEach(el => {
     el.disabled = !active; el.style.opacity = active ? '1' : '.5';
   });
+  const modRow = document.getElementById('advModRow');
+  if (modRow) modRow.classList.toggle('dim', !active);
   const saveBtn = document.getElementById('advSaveBtn');
   if (saveBtn) { saveBtn.disabled = !active; saveBtn.style.opacity = active ? '1' : '.5'; }
 }
