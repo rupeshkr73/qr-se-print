@@ -176,15 +176,15 @@ app.use((req, res, next) => {
   // listed domains se load hoga — baaki sab (jaise evil.com) block ho jayega.
   res.setHeader('Content-Security-Policy', [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://cdnjs.cloudflare.com https://sdk.cashfree.com",
+    "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://cdnjs.cloudflare.com https://*.cashfree.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: https://res.cloudinary.com https://*.razorpay.com https://*.cashfree.com",
-    "connect-src 'self' https://sdk.cashfree.com https://payments.cashfree.com https://api.cashfree.com",
-    "frame-src https://checkout.razorpay.com https://api.razorpay.com https://sdk.cashfree.com https://payments.cashfree.com https://www.youtube-nocookie.com",
+    "connect-src 'self' https://*.cashfree.com",
+    "frame-src https://checkout.razorpay.com https://api.razorpay.com https://*.cashfree.com https://www.youtube-nocookie.com",
     "object-src 'none'",
     "base-uri 'self'",
-    "form-action 'self' https://checkout.razorpay.com https://payments.cashfree.com https://sdk.cashfree.com",
+    "form-action 'self' https://checkout.razorpay.com https://*.cashfree.com",
     "frame-ancestors 'self'"
   ].join('; '));
   if (req.headers['x-forwarded-proto'] === 'https')
