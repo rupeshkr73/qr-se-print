@@ -1639,6 +1639,22 @@ function buildSheetFromPhoto(photo, count) {
   }
 }
 
+// data: URL ko seedha Blob me convert karta hai — fetch() NAHI use karta,
+// kyunki CSP ka "connect-src 'self'" fetch() ko data:/blob: URLs pe block
+// kar deta hai (Chrome "TypeError: Failed to fetch" deta hai). Ye function
+// sirf base64 decode karta hai, koi network call nahi — isliye CSP-safe hai.
+function dataUrlToBlob(dataUrl) {
+  const commaIdx = dataUrl.indexOf(',');
+  const meta = dataUrl.slice(0, commaIdx);
+  const b64  = dataUrl.slice(commaIdx + 1);
+  const mimeMatch = meta.match(/data:(.*?);base64/);
+  const mime = mimeMatch ? mimeMatch[1] : 'application/pdf';
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
 // ═══ RESUME HANDOFF (resume.html se PDF aata hai) ═══
 async function checkResumeHandoff() {
   let h;
@@ -1647,7 +1663,7 @@ async function checkResumeHandoff() {
   sessionStorage.removeItem('qsp_resume_handoff');
   toast('⏳ Resume load ho raha hai...');
   try {
-    const blob = await (await fetch(h.dataUrl)).blob();
+    const blob = dataUrlToBlob(h.dataUrl);
     const file = new File([blob], 'resume.pdf', { type: 'application/pdf' });
     state.service = 'resume';
     setTimeout(setServiceBadge, 50);

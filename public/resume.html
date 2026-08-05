@@ -1219,7 +1219,7 @@ async function genPDF() {
     const builders=[null,buildT1,buildT2,buildT3,buildT4,buildT5,buildT6];
     await builders[d.tpl](doc,d);
     pdfBlob=doc.output('blob');
-    await renderPrev(URL.createObjectURL(pdfBlob));
+    await renderPrev(pdfBlob);
     const names=['','Classic Standard','Blue Formal','Modern Sidebar','CV Style','Green Classic','Photo Sidebar'];
     document.getElementById('prevLbl').textContent=names[d.tpl]||'';
     hideLoad(); goStep(3); toast('🎉 Resume ready!');
@@ -1763,16 +1763,20 @@ async function buildT6(doc,d){
 // ══════════════════════════════════════════════
 // PDF PREVIEW
 // ══════════════════════════════════════════════
-async function renderPrev(url) {
+async function renderPrev(blob) {
   try {
     pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-    const pdf=await pdfjsLib.getDocument(url).promise;
+    // URL string (blob:...) pass karne par pdf.js andar hi fetch() karta hai,
+    // jise CSP ka connect-src 'self' block kar deta hai — isliye seedha raw
+    // bytes (ArrayBuffer) do, koi network call hoga hi nahi.
+    const buf=await blob.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
     const page=await pdf.getPage(1);
     const vp=page.getViewport({scale:1.4});
     const cvs=document.getElementById('cvs');
     cvs.height=vp.height;cvs.width=vp.width;
     await page.render({canvasContext:cvs.getContext('2d'),viewport:vp}).promise;
-  } catch(e){console.warn('Preview:',e);}
+  } catch(e){console.warn('Preview:',e);toast('⚠️ Preview nahi ban paya, par resume theek hai — print kar sakte ho');}
 }
 
 // ══════════════════════════════════════════════
