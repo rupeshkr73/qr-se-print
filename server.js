@@ -4492,7 +4492,17 @@ app.post('/api/payment/online/create', async (req, res) => {
       // ⚠️ SABSE ZAROORI FARAK: Razorpay PAISE leta hai (₹10 = 1000),
       // Cashfree RUPEES leta hai (₹10 = 10). Yahan *100 kabhi mat karna —
       // warna customer se 100 guna paisa kat jaayega.
-      const cfOrderId = 'QSP_' + jobId;
+      // ⚠️ Cashfree order_id GLOBALLY UNIQUE hona chahiye — same id dobara
+      // bhejne par "order with same id is already present" error aata hai.
+      // Pehle 'QSP_'+jobId fixed tha, isliye customer ke DOBARA "Pay" dabane
+      // (retry / page reload / abandon) par same id jaata aur Cashfree reject
+      // kar deta tha (Razorpay me ye dikkat nahi kyunki wahan jobId sirf
+      // receipt hai, order id Razorpay khud unique banata hai). Ab har attempt
+      // ka fresh unique id. Webhook aur status dono STORED payment_id se job
+      // dhoondhte hain (order_id format se nahi), isliye kuch aur badalne ki
+      // zaroorat nahi. Length ~31 chars (Cashfree limit 50), sirf A-Z 0-9 _.
+      const cfOrderId = 'QSP_' + jobId + '_' + Date.now().toString(36).toUpperCase()
+        + crypto.randomBytes(4).toString('hex').toUpperCase();
       // Cashfree ko customer_phone chahiye hi chahiye, par hum customer ka
       // number lete hi nahi (QR scan karke seedha print — koi login nahi).
       // Isliye placeholder. Payment par iska koi asar nahi padta.
