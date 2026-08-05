@@ -3065,11 +3065,34 @@ async function payOnline() {
     }
 
     if (data.gateway === 'cashfree') {
-      const cashfree = Cashfree({ mode: 'production' });
-      cashfree.checkout({
-        paymentSessionId: data.paymentSessionId,
-        redirectTarget: '_self'
-      });
+      // SDK load hua? (CSP/adblocker/slow net se fail ho sakta hai)
+      if (typeof Cashfree !== 'function') {
+        toast('❌ Cashfree load nahi hua — page refresh karke dobara Pay karo');
+        return;
+      }
+      if (!data.paymentSessionId) {
+        toast('❌ Payment session nahi mila — dobara try karo');
+        return;
+      }
+      try {
+        toast('💳 Cashfree page khul raha hai...');
+        const cashfree = Cashfree({ mode: 'production' });
+        // _self par page Cashfree pe redirect ho jaata hai (yahan wapas nahi aata).
+        // Agar wapas aaya to redirect nahi hua — blank/crash ke bajaye saaf error dikhao.
+        const result = await cashfree.checkout({
+          paymentSessionId: data.paymentSessionId,
+          redirectTarget: '_self'
+        });
+        if (result && result.error) {
+          toast('❌ Cashfree: ' + (result.error.message || 'payment page load nahi hua'));
+        } else if (result && result.redirect) {
+          // SDK redirect kar raha hai — kuch mat karo
+        } else {
+          toast('⏳ Cashfree page nahi khula — dobara Pay Online dabao');
+        }
+      } catch (err) {
+        toast('❌ Cashfree error: ' + (err && err.message ? err.message : 'unknown'));
+      }
       return;
     }
 
