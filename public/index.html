@@ -314,6 +314,56 @@ a{color:inherit}
 }
 .pill:hover{transform:translateY(-2px);border-color:var(--pink);box-shadow:0 8px 18px rgba(255,46,99,.12)}
 
+/* ═══ NEW BANNER-STYLE HERO (brand lockup + headline + feature circles + strip + stats) ═══ */
+.hb-lock{display:flex;align-items:center;gap:13px;justify-content:center;margin:0 0 14px}
+@media(min-width:1000px){.hb-lock{justify-content:flex-start}}
+.hb-logo{width:64px;height:64px;flex:none;filter:drop-shadow(0 7px 16px rgba(124,58,237,.28))}
+@media(min-width:1000px){.hb-logo{width:74px;height:74px}}
+.hb-word{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:clamp(30px,7vw,46px);letter-spacing:-1.5px;line-height:1}
+.hb-word .w-qr{color:#16162e}
+.hb-word .w-rest{background:linear-gradient(95deg,#ff2e63,#7c3aed);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.hb-tag{display:flex;align-items:center;gap:7px;justify-content:center;margin-top:4px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:clamp(9px,2.2vw,12px);letter-spacing:2.4px;color:#6b7280}
+@media(min-width:1000px){.hb-tag{justify-content:flex-start}}
+.hb-tag b{color:var(--pink);font-size:9px;font-weight:900}
+.hb-tag .d{color:#d7cfe6;font-weight:800}
+.hb-head{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;letter-spacing:-1.5px;line-height:1.05;margin:0 0 12px}
+.hb-head span{display:block}
+.hb-l1{color:#16162e;font-size:clamp(29px,7vw,52px)}
+.hb-l2{font-size:clamp(29px,7vw,52px);background:linear-gradient(95deg,#ff2e63,#7c3aed);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.hb-nots{display:flex;align-items:center;gap:9px;justify-content:center;flex-wrap:wrap;font-weight:600;font-size:clamp(14px,3.4vw,19px);color:#2c2c3a;margin-bottom:22px}
+@media(min-width:1000px){.hb-nots{justify-content:flex-start}}
+.hb-nots b{color:var(--pink);font-weight:800}
+.hb-feats{display:flex;gap:clamp(10px,3.2vw,26px);justify-content:center;flex-wrap:wrap;margin-bottom:24px}
+@media(min-width:1000px){.hb-feats{justify-content:flex-start}}
+.hbf{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;width:78px}
+.hbf-c{width:56px;height:56px;border-radius:50%;border:2px solid #efe9f6;display:flex;align-items:center;justify-content:center;color:var(--violet);background:#fff;box-shadow:0 6px 16px rgba(124,58,237,.10);transition:transform .2s var(--ease),box-shadow .2s,border-color .2s}
+.hbf:nth-child(1) .hbf-c,.hbf:nth-child(3) .hbf-c{color:var(--pink)}
+.hbf-c svg{width:26px;height:26px}
+.hbf:hover .hbf-c{transform:translateY(-3px);border-color:var(--pink);box-shadow:0 12px 24px rgba(255,46,99,.18)}
+.hbf b{font-size:11.5px;font-weight:800;color:#16162e;letter-spacing:.1px;white-space:nowrap}
+.hbf small{font-size:11px;color:#8a8a97}
+/* Feature strip */
+.hero-strip{display:flex;flex-wrap:wrap;align-items:stretch;background:#fff;border:1.5px solid #efe9f6;border-radius:20px;box-shadow:0 14px 40px rgba(90,50,140,.10);margin:26px auto 0;padding:6px 4px;max-width:1180px}
+.hs-item{display:flex;align-items:center;gap:11px;padding:14px 18px;flex:1 1 190px;position:relative;font-size:13.5px;color:#33333f;line-height:1.3}
+.hs-item+.hs-item::before{content:"";position:absolute;left:0;top:18%;height:64%;width:1.5px;background:#efe9f6}
+.hs-item b{color:#16162e;font-weight:800}
+.hs-ic{flex:none;width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;color:var(--violet);background:#f7f3fc}
+.hs-ic svg{width:21px;height:21px}
+.hs-lead .hs-ic{color:#fff;background:linear-gradient(135deg,#ff2e63,#7c3aed)}
+.hs-lead b{color:#7c3aed}
+/* Stats bar (full-bleed dark) */
+.hero-stats{background:linear-gradient(90deg,#1a1336,#3a1a5f 55%,#5a1d6e)}
+.hero-stats-inner{display:flex;flex-wrap:wrap;gap:16px 8px;align-items:center;justify-content:space-between;padding:20px 4px}
+.hst{display:flex;align-items:center;gap:12px;flex:1 1 46%;justify-content:flex-start;color:#fff}
+@media(min-width:1000px){.hst{flex:1 1 auto}}
+.hst-ic{flex:none;width:40px;height:40px;color:#ff5c86}
+.hst-ic svg{width:34px;height:34px}
+.hst .n{font-size:24px;font-weight:800;line-height:1;color:#fff}
+.hst .l{font-size:12px;color:#cbb9e0;margin-top:3px}
+.hst-web small{display:block;font-size:11px;color:#cbb9e0;margin-bottom:4px}
+.hst-web a{display:inline-block;background:#fff;color:#16162e;font-weight:800;font-size:13.5px;padding:7px 15px;border-radius:22px;text-decoration:none}
+.brand-mark-img{width:34px;height:34px;border-radius:9px;flex:none}
+
 /* ══════════════════════════════════════════════════════════════
    GUIDE VIDEO — Homepage autoplay "How to Setup" video, hero ke
    turant neeche. Design bilkul site ke gradient/rounded-card
@@ -1983,7 +2033,7 @@ html.legal-open,body.legal-open{overflow:hidden}
   <div class="container head-inner">
     <div class="brand-row">
       <div class="perf" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-      <div class="brand" id="brandWrap"><div class="brand-mark">🖨️</div>QR Se Print</div>
+      <div class="brand" id="brandWrap"><img src="/qr-logo.png" alt="" class="brand-mark-img" width="34" height="34">QR Se Print</div>
       <div class="perf" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
     </div>
     <nav class="main-nav" aria-label="Main">
@@ -2022,36 +2072,31 @@ html.legal-open,body.legal-open{overflow:hidden}
 
       <div class="hero-copy">
         <div class="ref-note" id="refNote"></div>
-        <div class="h-top" data-cfg="heroTop">Customer ke phone se</div>
-        <h1 class="h-hero" data-cfg="heroTitle">Print</h1>
-        <div class="h-sub" data-cfg-html="heroSub">seedha aapke printer par — <span class="mark">in 1 Scan</span></div>
-        <p class="hero-para" data-cfg-html="heroPara">
-          Customer apne phone se <b>QR scan</b> karta hai, file bhejta hai, <b>payment karta hai</b> —
-          aur print aapke printer se <b>khud nikal jata hai</b>.<br>
-          <b style="color:#ff2e63;">Na WhatsApp pe file mangna, na pendrive, na hisaab ki tension.</b>
-        </p>
+        <div class="hb-lock">
+          <img src="/qr-logo.png" alt="QR Se Print" class="hb-logo" width="74" height="74">
+          <div>
+            <div class="hb-word"><span class="w-qr">QR</span><span class="w-rest">SePrint</span></div>
+            <div class="hb-tag"><span class="d">—</span>SCAN<b>•</b>UPLOAD<b>•</b>PAY<b>•</b>PRINT<span class="d">—</span></div>
+          </div>
+        </div>
 
-        <div class="steps">
-          <div data-cfg-html="hero01" class="step"><b data-cfg="step1Ico">📱</b><span data-cfg="step1">QR Scan</span></div>
-          <div data-cfg="hero02" class="step-arrow">›</div>
-          <div data-cfg-html="hero03" class="step"><b data-cfg="step2Ico">📄</b><span data-cfg="step2">File Upload</span></div>
-          <div data-cfg="hero04" class="step-arrow">›</div>
-          <div data-cfg-html="hero05" class="step"><b data-cfg="step3Ico">💳</b><span data-cfg="step3">Pay</span></div>
-          <div data-cfg="hero06" class="step-arrow">›</div>
-          <div data-cfg-html="hero07" class="step"><b data-cfg="step4Ico">🖨️</b><span data-cfg="step4">Auto Print</span></div>
+        <h1 class="hb-head">
+          <span class="hb-l1" data-cfg="hbTop">Customer ke phone se</span>
+          <span class="hb-l2" data-cfg="hbSub">Print seedha aapke printer par</span>
+        </h1>
+
+        <div class="hb-nots"><span>No WhatsApp</span><b>•</b><span>No Pendrive</span><b>•</b><span>No File Transfer</span></div>
+
+        <div class="hb-feats">
+          <div class="hbf"><span class="hbf-c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5.5A1.5 1.5 0 015.5 4H8"/><path d="M16 4h2.5A1.5 1.5 0 0120 5.5V8"/><path d="M20 16v2.5a1.5 1.5 0 01-1.5 1.5H16"/><path d="M8 20H5.5A1.5 1.5 0 014 18.5V16"/><rect x="8" y="8.5" width="3" height="3" rx=".4"/><path d="M14 8.5h1.5M14 12h2M9 15h6"/></svg></span><b>SCAN</b><small>QR Code</small></div>
+          <div class="hbf"><span class="hbf-c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V5"/><path d="M8 9l4-4 4 4"/><path d="M5 19h14"/></svg></span><b>UPLOAD</b><small>Document</small></div>
+          <div class="hbf"><span class="hbf-c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M3 10h18"/><path d="M7 14.5h3"/></svg></span><b>PAY</b><small>Online</small></div>
+          <div class="hbf"><span class="hbf-c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V4h10v5"/><path d="M7 18H5a2 2 0 01-2-2v-3a2 2 0 012-2h14a2 2 0 012 2v3a2 2 0 01-2 2h-2"/><rect x="7" y="15" width="10" height="5" rx="1"/><circle cx="17.5" cy="12.5" r=".6" fill="currentColor" stroke="none"/></svg></span><b>AUTO PRINT</b><small>Instantly</small></div>
         </div>
 
         <button data-cfg-html="hero08" class="cta-price" onclick="document.getElementById('pricingSection').scrollIntoView({behavior:'smooth'})">
           <span data-cfg="ctaPriceBtn">💰 See Setup Price</span> <span class="arr">↓</span>
         </button>
-
-        <div class="pills">
-          <div class="pill" data-cfg="pill1">✅ 0% Commission</div>
-          <div class="pill" data-cfg="pill2">⚡ Automatic Print</div>
-          <div class="pill" data-cfg="pill3">💳 Online + Counter Pay</div>
-          <div class="pill" data-cfg="pill4">🖥️ System Tray Agent</div>
-          <div class="pill" data-cfg="pill5">🔄 Auto Update</div>
-        </div>
       </div>
 
       <!-- Signature visual: phone scan → files fly → printer se paper nikalta hua -->
@@ -2108,6 +2153,27 @@ html.legal-open,body.legal-open{overflow:hidden}
 
     </div>
   </section>
+
+  <!-- ═══ Feature strip (banner style) ═══ -->
+  <div class="container">
+    <div class="hero-strip">
+      <div class="hs-item hs-lead"><span class="hs-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 16c-1.2 1.2-1.4 4.2-1.4 4.2s3-.2 4.2-1.4c.7-.7.7-1.8 0-2.5-.7-.7-1.8-.7-2.8-.3z"/><path d="M9 15l-2.5-.8a12 12 0 019-9.5 12 12 0 01-.5 11l-.8 2.3"/><circle cx="13.5" cy="9.5" r="1.4"/></svg></span><div>Smart Printing Solution for <b>Print Shops, Cyber Cafes, CSC Centers &amp; More</b></div></div>
+      <div class="hs-item"><span class="hs-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V4h10v5"/><path d="M7 18H5a2 2 0 01-2-2v-3a2 2 0 012-2h14a2 2 0 012 2v3a2 2 0 01-2 2h-2"/><rect x="7" y="15" width="10" height="5" rx="1"/></svg></span><div><b>All Printer</b> Supported</div></div>
+      <div class="hs-item"><span class="hs-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.5a15 15 0 0119 0"/><path d="M5.5 12a11 11 0 0113 0"/><path d="M8.5 15.2a6 6 0 017 0"/><circle cx="12" cy="19" r=".9" fill="currentColor" stroke="none"/><path d="M3 3l18 18"/></svg></span><div><b>No Wi-Fi Printer</b> Required</div></div>
+      <div class="hs-item"><span class="hs-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 000 18 1.6 1.6 0 001.3-2.6 1.5 1.5 0 011.2-2.4H16a5 5 0 005-5c0-3.9-4-8-9-8z"/><circle cx="7.5" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="10" cy="7.5" r="1" fill="currentColor" stroke="none"/><circle cx="14.5" cy="7.5" r="1" fill="currentColor" stroke="none"/></svg></span><div><b>Black &amp; White</b> &amp; Color Print</div></div>
+      <div class="hs-item"><span class="hs-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg></span><div><b>Setup in</b> 2 Minutes</div></div>
+    </div>
+  </div>
+
+  <!-- ═══ Stats bar (banner style) ═══ -->
+  <div class="hero-stats">
+    <div class="container hero-stats-inner">
+      <div class="hst"><span class="hst-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v9a1 1 0 001 1h14a1 1 0 001-1v-9"/><path d="M3.5 10l1.3-4.2A1 1 0 015.8 5h12.4a1 1 0 011 .8L20.5 10a2.2 2.2 0 01-4.2.7 2.2 2.2 0 01-4.1 0 2.2 2.2 0 01-4.1 0A2.2 2.2 0 013.5 10z"/><path d="M9.5 20v-5h5v5"/></svg></span><div><div class="n">1000+</div><div class="l">Shops Onboarded</div></div></div>
+      <div class="hst"><span class="hst-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a1 1 0 00-1 1v16a1 1 0 001 1h10a1 1 0 001-1V7z"/><path d="M14 3v4h4"/><path d="M9 12h6M9 15.5h6M9 8.5h2"/></svg></span><div><div class="n">500K+</div><div class="l">Documents Printed</div></div></div>
+      <div class="hst"><span class="hst-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 007 0"/><circle cx="9" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="15" cy="10" r="1" fill="currentColor" stroke="none"/></svg></span><div><div class="n">98%+</div><div class="l">Happy Customers</div></div></div>
+      <div class="hst hst-web"><span class="hst-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 000 18 14 14 0 000-18z"/></svg></span><div><small>Visit Our Website</small><a href="https://qrseprint.in" target="_blank" rel="noopener">www.qrseprint.in</a></div></div>
+    </div>
+  </div>
 
   <!-- ═══ GUIDE VIDEO: autoplay "How to Setup" — hero ke turant neeche ═══ -->
   <section class="sec container guide-video-sec" id="guide">
