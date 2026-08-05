@@ -180,11 +180,11 @@ app.use((req, res, next) => {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: https://res.cloudinary.com https://*.razorpay.com https://*.cashfree.com",
-    "connect-src 'self'",
+    "connect-src 'self' https://sdk.cashfree.com https://payments.cashfree.com https://api.cashfree.com",
     "frame-src https://checkout.razorpay.com https://api.razorpay.com https://sdk.cashfree.com https://payments.cashfree.com https://www.youtube-nocookie.com",
     "object-src 'none'",
     "base-uri 'self'",
-    "form-action 'self' https://checkout.razorpay.com",
+    "form-action 'self' https://checkout.razorpay.com https://payments.cashfree.com https://sdk.cashfree.com",
     "frame-ancestors 'self'"
   ].join('; '));
   if (req.headers['x-forwarded-proto'] === 'https')
