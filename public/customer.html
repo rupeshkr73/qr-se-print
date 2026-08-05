@@ -3205,62 +3205,9 @@ function showSuccess(method, amount) {
 </script>
 
 <div id="langSwitch" style="position:fixed;bottom:14px;left:12px;z-index:400;opacity:.9;">
-  <select id="langSel" onchange="setLang(this.value)" style="border:1.5px solid #d9d4cc;border-radius:10px;padding:6px 8px;font-size:12px;font-weight:700;background:#fff;color:#111;">
-    <option value="hi">🇮🇳 हिंदी</option>
-    <option value="en">EN English</option>
-    <option value="bn">🇧🇩 বাংলা</option>
-  </select>
+  <select id="langSel" onchange="setLang(this.value)" style="border:1.5px solid #d9d4cc;border-radius:10px;padding:6px 8px;font-size:12px;font-weight:700;background:#fff;color:#111;"></select>
 </div>
-<script>
-// ── Lightweight i18n: key visible strings hi/en/bn ──
-const I18N = {
-  en: {
-    'Document Adjust Karo':'Adjust Document','Drag karke move karo, corner se size badlo/chhota karo':'Drag to move, resize from corner',
-    'Upload':'Upload','Edit':'Edit','Preview':'Preview','Pay':'Pay',
-    'File Upload Karo':'Upload File','Aage Badho':'Continue','Wapas':'Back',
-    'Print Preview':'Print Preview','Payment Karo':'Make Payment','Copies':'Copies',
-    'Kitne Copies?':'How many copies?','B&W':'B&W','Color':'Color',
-    'Pay at Counter':'Pay at Counter','Online Pay Karo':'Pay Online',
-    'Loading...':'Loading...','Print ho raha hai...':'Printing...',
-  },
-  bn: {
-    'Document Adjust Karo':'ডকুমেন্ট ঠিক করুন','Drag karke move karo, corner se size badlo/chhota karo':'টেনে সরান, কোণা থেকে সাইজ বদলান',
-    'Upload':'আপলোড','Edit':'এডিট','Preview':'প্রিভিউ','Pay':'পেমেন্ট',
-    'File Upload Karo':'ফাইল আপলোড করুন','Aage Badho':'এগিয়ে যান','Wapas':'পিছনে',
-    'Print Preview':'প্রিন্ট প্রিভিউ','Payment Karo':'পেমেন্ট করুন','Copies':'কপি',
-    'Kitne Copies?':'কয়টি কপি?','B&W':'সাদা-কালো','Color':'রঙিন',
-    'Pay at Counter':'কাউন্টারে পেমেন্ট','Online Pay Karo':'অনলাইন পেমেন্ট',
-    'Loading...':'লোড হচ্ছে...','Print ho raha hai...':'প্রিন্ট হচ্ছে...',
-  }
-};
-let _origText = new Map();
-function setLang(lang){
-  try{ localStorage.setItem('qsp_lang', lang); }catch(e){}
-  const dict = I18N[lang];
-  // Sab text nodes walk karo — original save, translate ya restore
-  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-  const nodes = [];
-  while (walker.nextNode()) nodes.push(walker.currentNode);
-  nodes.forEach(node=>{
-    const t = node.textContent.trim();
-    if (!t) return;
-    if (!_origText.has(node)) _origText.set(node, node.textContent);
-    const orig = _origText.get(node).trim();
-    if (!dict) { node.textContent = _origText.get(node); return; }  // hi = original
-    if (dict[orig]) node.textContent = node.textContent.replace(orig, dict[orig]);
-    else node.textContent = _origText.get(node);
-  });
-  const sel = document.getElementById('langSel');
-  if (sel) sel.value = lang;
-}
-window.addEventListener('load', ()=>{
-  let saved = 'hi';
-  try{ saved = localStorage.getItem('qsp_lang') || 'hi'; }catch(e){}
-  if (saved !== 'hi') setTimeout(()=>setLang(saved), 400);
-  const sel = document.getElementById('langSel');
-  if (sel) sel.value = saved;
-});
-</script>
+<!-- purana inline i18n hata diya: ab /i18n.js (English default + Hinglish) sab handle karta hai -->
 <script>
 /* Upload zone — drag karte waqt visual feedback.
    File drop khud browser handle karta hai (input zone ko cover karta hai),
