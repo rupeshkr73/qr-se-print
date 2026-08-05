@@ -4489,6 +4489,9 @@ app.post('/api/payment/online/create', async (req, res) => {
         return res.status(400).json({ error: 'Shop ki Cashfree keys set nahi hain' });
       }
 
+      // DEBUG log — Render logs me dikhega ki create call hua aur kya bana
+      console.log('[Cashfree] create attempt job=' + jobId + ' shop=' + job.shop_id + ' amount=' + amount + ' appid_len=' + String(job.cashfree_app_id).length);
+
       // ⚠️ SABSE ZAROORI FARAK: Razorpay PAISE leta hai (₹10 = 1000),
       // Cashfree RUPEES leta hai (₹10 = 10). Yahan *100 kabhi mat karna —
       // warna customer se 100 guna paisa kat jaayega.
@@ -4527,12 +4530,14 @@ app.post('/api/payment/online/create', async (req, res) => {
         job.cashfree_app_id, job.cashfree_secret_key, cfBody);
 
       if (!cfOrder || !cfOrder.payment_session_id) {
-        console.error('Cashfree order failed:', JSON.stringify(cfOrder).slice(0, 300));
+        console.error('[Cashfree] order FAILED job=' + jobId + ' resp=' + JSON.stringify(cfOrder).slice(0, 400));
         return res.status(400).json({
           error: 'Cashfree order nahi bana — shop ki keys check karo',
-          details: (cfOrder && cfOrder.message) || 'unknown'
+          details: (cfOrder && (cfOrder.message || cfOrder.type || cfOrder.code)) || 'unknown'
         });
       }
+
+      console.log('[Cashfree] order OK job=' + jobId + ' cfid=' + cfOrderId + ' session=' + String(cfOrder.payment_session_id).slice(0, 22) + '...');
 
       // cf_order_id nahi, HAMARA order_id save karte hain — webhook aur
       // status dono isi se job dhoondhte hain
