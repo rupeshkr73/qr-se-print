@@ -21,6 +21,15 @@ const BASE_URL = process.env.BASE_URL || 'https://qr-se-print.onrender.com';
 // ── White-label homepage settings ──
 // Monthly plan ka minimum — partner isse neeche price nahi rakh sakta.
 const WL_MIN_MONTHLY = 399;
+
+// Price decimal me bhi ho sakta hai (2.5, 1.5) — 2 decimal tak round karo.
+// Galat/negative aaye to null lautao taaki purana price waisa hi rahe.
+function parsePrice(v) {
+  if (v === undefined || v === null || v === '') return null;
+  const n = parseFloat(v);
+  if (isNaN(n) || n < 0 || n > 100000) return null;
+  return Math.round(n * 100) / 100;
+}
 // Homepage ke jo button/section partner on-off kar sakta hai.
 const WL_HP_BUTTON_KEYS = ['contact','partner','agent','features','setupGuide',
                            'pricing','reviews','faq','demo','register','shopLogin'];
@@ -599,6 +608,17 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS demo_expires_at TIMESTAMP;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS duplex_mode VARCHAR(10) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_bw_duplex INTEGER DEFAULT 0;
+      -- ── Decimal price support (₹2.50 / ₹1.50 jaise rate) ──
+      -- INTEGER me 2.5 nahi ban sakta, isliye NUMERIC(10,2) kar rahe hain.
+      ALTER TABLE shops ALTER COLUMN price_bw            TYPE NUMERIC(10,2);
+      ALTER TABLE shops ALTER COLUMN price_color         TYPE NUMERIC(10,2);
+      ALTER TABLE shops ALTER COLUMN price_bw_duplex     TYPE NUMERIC(10,2);
+      ALTER TABLE shops ALTER COLUMN price_color_duplex  TYPE NUMERIC(10,2);
+      ALTER TABLE shops ALTER COLUMN price_4x6_4         TYPE NUMERIC(10,2);
+      ALTER TABLE shops ALTER COLUMN price_4x6_6         TYPE NUMERIC(10,2);
+      ALTER TABLE shops ALTER COLUMN price_4x6_10        TYPE NUMERIC(10,2);
+      ALTER TABLE shops ALTER COLUMN price_resume_color  TYPE NUMERIC(10,2);
+      ALTER TABLE shops ALTER COLUMN price_resume_bw     TYPE NUMERIC(10,2);
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_color_duplex INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS printer_name_4x6 VARCHAR(300) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS printer_name_a3 VARCHAR(300) DEFAULT '';
@@ -1206,8 +1226,8 @@ app.post('/api/agent/onboard', verifyToken, async (req, res) => {
 
     // Baaki details — normal registration jaisi hi
     const printerModel = String(req.body.printer_model || '').trim().slice(0,120);
-    const priceBw    = parseInt(req.body.price_bw, 10);
-    const priceColor = parseInt(req.body.price_color, 10);
+    const priceBw    = parsePrice(req.body.price_bw);
+    const priceColor = parsePrice(req.body.price_color);
     const modes = ['counter_only','both','online_only'];
     const payMode = modes.includes(req.body.payment_mode) ? req.body.payment_mode : 'counter_only';
     // Online payment ke liye shop owner ki apni keys chahiye — wo baad me
@@ -4370,17 +4390,17 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
       // Advance pricing (4x6 sheet: 4-photo/6-photo; resume: color/bw)
       for (const [key, col] of [['price_4x6_4','price_4x6_4'],['price_4x6_6','price_4x6_6'],['price_4x6_10','price_4x6_10'],
                                 ['price_resume_color','price_resume_color'],['price_resume_bw','price_resume_bw']]) {
-        const v = parseInt(req.body[key]);
-        if (!isNaN(v) && v >= 0 && v <= 100000) {
+        const v = parsePrice(req.body[key]);
+        if (v !== null) {
           await pool.query(`UPDATE shops SET ${col}=$1 WHERE id=$2`, [v, req.shopId]);
         }
       }
     }
     // Duplex prices — sirf tab store jab valid non-negative int mile
-    const pbwd = parseInt(req.body.price_bw_duplex);
-    const pcld = parseInt(req.body.price_color_duplex);
-    if (!isNaN(pbwd) && pbwd >= 0) await pool.query('UPDATE shops SET price_bw_duplex=$1 WHERE id=$2', [pbwd, req.shopId]);
-    if (!isNaN(pcld) && pcld >= 0) await pool.query('UPDATE shops SET price_color_duplex=$1 WHERE id=$2', [pcld, req.shopId]);
+    const pbwd = parsePrice(req.body.price_bw_duplex);
+    const pcld = parsePrice(req.body.price_color_duplex);
+    if (pbwd !== null) await pool.query('UPDATE shops SET price_bw_duplex=$1 WHERE id=$2', [pbwd, req.shopId]);
+    if (pcld !== null) await pool.query('UPDATE shops SET price_color_duplex=$1 WHERE id=$2', [pcld, req.shopId]);
     res.json({ success: true, shop: r.rows[0] });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
