@@ -338,6 +338,12 @@ function isPng(buf) {
 // PNG me transparency hai? IHDR color type padho (offset 25):
 //  type 4 = grayscale+alpha, 6 = RGBA -> alpha channel hai.
 //  type 3 (palette) me tRNS chunk ho to bhi transparent ho sakta hai.
+// JPEG hai? (magic bytes FF D8 FF ... aur end me FF D9)
+function isJpeg(buf) {
+  return buf && buf.length > 3 &&
+    buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF;
+}
+
 function pngHasAlpha(buf) {
   try {
     if (!isPng(buf) || buf.length < 26) return false;
@@ -2430,6 +2436,38 @@ app.put('/api/whitelabel/branding', verifyWhitelabel, async (req, res) => {
       [req.wlId, cut(b.brand_name, 120) || '', cut(b.powered_by, 160), cut(b.logo_url, 400), email, phone]);
     res.json({ success: true });
   } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Partner ka logo — file upload (PNG/JPG, max 40 KB) ──
+const WL_LOGO_MAX_KB = 40;
+app.post('/api/whitelabel/upload-logo', verifyWhitelabel, upload.single('logo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Koi file nahi mili' });
+
+    const mt = req.file.mimetype;
+    const isP = (mt === 'image/png')  && isPng(req.file.buffer);
+    const isJ = (mt === 'image/jpeg' || mt === 'image/jpg') && isJpeg(req.file.buffer);
+    if (!isP && !isJ) {
+      return res.status(400).json({ error: 'Sirf PNG ya JPG file chalegi' });
+    }
+    if (req.file.size > WL_LOGO_MAX_KB * 1024) {
+      return res.status(400).json({
+        error: `Logo ${WL_LOGO_MAX_KB} KB se chhota hona chahiye (abhi ${Math.round(req.file.size / 1024)} KB hai)`
+      });
+    }
+
+    const url = await uploadImageToCloudinary(req.file.buffer, isP ? 'image/png' : 'image/jpeg');
+    // logo_url VARCHAR(400) hai — Cloudinary URL isme aaram se aa jaata hai
+    await pool.query('UPDATE whitelabels SET logo_url=$2 WHERE id=$1', [req.wlId, String(url).slice(0, 400)]);
+    res.json({ success: true, logoUrl: url, sizeKb: Math.round(req.file.size / 1024) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/whitelabel/remove-logo', verifyWhitelabel, async (req, res) => {
+  try {
+    await pool.query("UPDATE whitelabels SET logo_url='' WHERE id=$1", [req.wlId]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── Homepage customization (title, tagline, socials, buttons on/off, price) ──
