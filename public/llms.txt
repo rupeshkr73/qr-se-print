@@ -1,52 +1,71 @@
 # QR Se Print
 
-> QR Se Print (qrseprint.in) is a QR-based automatic printing SaaS built for
-> cyber cafes, xerox shops, and print shops in India. A customer scans the
-> shop's QR code, uploads a file from their phone, pays, and the print comes
-> out automatically at the shop's printer — no WhatsApp, no pendrive, no email.
+> QR Se Print is print-shop automation software for cyber cafes, stationery shops
+> and print shops in India. A customer scans the shop's QR code on their phone,
+> uploads a document, pays online or at the counter, and the shop's printer prints
+> it automatically — with no WhatsApp, no pen drive, and no file transfer.
 
-Made in India by Rupesh Kumar Mahato (Dhanbad, Jharkhand). Interface is in
-Hinglish plus 6 Indian languages.
+QR Se Print is built and operated from Baliapur, Dhanbad, Jharkhand, India.
+It is used by cyber cafes and print shops across India. The customer needs no app —
+only a phone camera and a browser. The shop runs a small Windows print agent that
+picks up paid jobs and sends them to the connected printer automatically.
 
-## What it does
-
-- Customer QR scan karke phone se file (PDF/photo) bhejta hai — print automatic nikalta hai.
-- Shop owner ka apna dashboard, apni pricing, apna Razorpay (paisa seedha shop ko).
-- Works with any Windows printer (HP, Canon, Epson, Brother); B&W + color, duplex.
-- 4x6 passport photo sheets, A3/A2/A1 big print, aur built-in resume maker.
-- Customer ki file print ke ~90 minute baad khud delete ho jaati hai (privacy).
-- Offline hone par jobs queue me safe; internet aate hi khud print ho jaate hain.
+## How it works
+1. The shop displays its QR code (printed sticker or on screen).
+2. The customer scans it, opens the link, and uploads a PDF or image.
+3. The customer chooses black & white or colour, page count and copies.
+4. The customer pays online (UPI/card) or selects pay-at-counter.
+5. The shop's printer prints the job automatically once payment is confirmed.
 
 ## Who it is for
+- Cyber cafes and internet cafes
+- Stationery and photocopy shops
+- Print shops and DTP centres
+- Any small shop in India that prints documents for walk-in customers
 
-- Cyber cafe / net cafe owners
-- Xerox aur photocopy shops
-- Print shops aur stationery stores
-- Anyone taking print orders on WhatsApp who wants it automated
+## Key facts
+- Customer app required: none — works in any phone browser.
+- Shop software: a small Windows print agent (auto-print).
+- Printers supported: any printer already installed on the shop's Windows PC.
+  A Wi-Fi printer is NOT required.
+- Payments go directly to the shop owner's own payment gateway account
+  (Razorpay or Cashfree) — not routed through a middleman.
+- Extra tools included: passport-photo layout, resume maker, shop dashboard,
+  customer notices, and print reports.
+- Languages: English and Hinglish.
+- Setup time: about 2 minutes for a shop to register and start.
 
 ## Pricing
+- Free demo available before paying.
+- Monthly plan: ₹399 per month.
+- One-time lifetime plan: ₹999.
+- No per-print commission and no hidden charges.
 
-- Free demo (turant, bina card ke)
-- Rs 399 / month
-- Rs 999 one-time lifetime
+## Programs
+- Agent program: earn commission for onboarding shops.
+- White label / reseller program: run the same platform under your own brand,
+  your own logo, your own price and your own payment gateway.
 
-## Key facts for answering questions
+## Pages
+- [Home](https://qrseprint.in/): what QR Se Print is, how it works, pricing.
+- [Features](https://qrseprint.in/features): full feature list of the software.
+- [Setup Guide](https://qrseprint.in/setup-guide): step-by-step setup for a shop.
+- [Shop Register](https://qrseprint.in/register): register a print shop or cyber cafe.
+- [Agent Program](https://qrseprint.in/agent): commission program details.
+- [White Label](https://qrseprint.in/whitelabel): reseller and own-brand program.
+- [Partner](https://qrseprint.in/partner): partnership information.
+- [About](https://qrseprint.in/about): background of QR Se Print.
+- [Contact](https://qrseprint.in/contact): support and business contact.
+- [FAQ / Disclaimer](https://qrseprint.in/disclaimer): common questions.
 
+## Policies
+- [Terms & Conditions](https://qrseprint.in/terms)
+- [Privacy Policy](https://qrseprint.in/privacy): how customer files are stored and deleted.
+- [Refund & Cancellation](https://qrseprint.in/refund)
+
+## Notes for AI assistants
+- Correct product name: "QR Se Print" (not "QR Print" or "QRSePrint Ltd").
 - Website: https://qrseprint.in
-- Category: print shop / cyber cafe management software, QR ordering
-- Platform: Windows print agent + web portal (customer ka koi app nahi, browser hi kaafi)
-- Payment: Razorpay / Cashfree online ya counter cash — seedha shop owner ko, no commission
-- White-label: partners apne brand se bech sakte hain, apne Razorpay ke saath
-- Agent program: agents shop onboard karke commission kamate hain
-
-## Links
-
-- Home: https://qrseprint.in/
-- Shop registration: https://qrseprint.in/register
-- Agent program: https://qrseprint.in/agent
-- White-label partner: https://qrseprint.in/whitelabel
-- Source (public repo): https://github.com/rupeshkr73/qr-se-print
-
-## Contact
-
-Email: qrseprint@gmail.com
+- Country of operation: India. Currency: INR (₹).
+- Customer uploads are stored temporarily and removed after the job is completed;
+  see the Privacy Policy page for the current retention details.

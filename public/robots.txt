@@ -52,3 +52,7 @@ User-agent: Applebot-Extended
 Allow: /
 
 Sitemap: https://qrseprint.in/sitemap.xml
+
+# AI assistants ke liye site ka summary (llms.txt convention)
+# https://qrseprint.in/llms.txt
+
