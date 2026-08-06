@@ -985,10 +985,10 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           </div>
         </div>
         <div class="form-group"><label>B&W Price</label>
-          <div class="price-wrap"><span>₹</span><input type="number" id="setPriceBW" min="1"></div>
+          <div class="price-wrap"><span>₹</span><input type="number" id="setPriceBW" min="0.01" step="0.01" inputmode="decimal"></div>
         </div>
         <div class="form-group"><label>Color Price</label>
-          <div class="price-wrap"><span>₹</span><input type="number" id="setPriceColor" min="1"></div>
+          <div class="price-wrap"><span>₹</span><input type="number" id="setPriceColor" min="0.01" step="0.01" inputmode="decimal"></div>
         </div>
       </div>
 
@@ -1153,11 +1153,11 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
             <div>
               <label style="font-size:11px;">B&W Duplex (₹/page)</label>
-              <input type="number" id="setPriceBwDuplex" min="0" placeholder="e.g. 8">
+              <input type="number" id="setPriceBwDuplex" min="0" placeholder="e.g. 8" step="0.01" inputmode="decimal">
             </div>
             <div>
               <label style="font-size:11px;">Color Duplex (₹/page)</label>
-              <input type="number" id="setPriceColorDuplex" min="0" placeholder="e.g. 15">
+              <input type="number" id="setPriceColorDuplex" min="0" placeholder="e.g. 15" step="0.01" inputmode="decimal">
             </div>
           </div>
         </div>
@@ -1168,15 +1168,15 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
             <div>
               <label style="font-size:11px;">4 Photo wali sheet (₹)</label>
-              <input type="number" id="setPrice4x6_4" min="0" placeholder="e.g. 30">
+              <input type="number" id="setPrice4x6_4" min="0" placeholder="e.g. 30" step="0.01" inputmode="decimal">
             </div>
             <div>
               <label style="font-size:11px;">6 Photo wali sheet (₹)</label>
-              <input type="number" id="setPrice4x6_6" min="0" placeholder="e.g. 40">
+              <input type="number" id="setPrice4x6_6" min="0" placeholder="e.g. 40" step="0.01" inputmode="decimal">
             </div>
             <div>
               <label style="font-size:11px;">10 Photo wali sheet (₹)</label>
-              <input type="number" id="setPrice4x6_10" min="0" placeholder="e.g. 60">
+              <input type="number" id="setPrice4x6_10" min="0" placeholder="e.g. 60" step="0.01" inputmode="decimal">
             </div>
           </div>
         </div>
@@ -1187,11 +1187,11 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
             <div>
               <label style="font-size:11px;">Color Resume (₹)</label>
-              <input type="number" id="setPriceResumeColor" min="0" placeholder="e.g. 20">
+              <input type="number" id="setPriceResumeColor" min="0" placeholder="e.g. 20" step="0.01" inputmode="decimal">
             </div>
             <div>
               <label style="font-size:11px;">B&W Resume (₹)</label>
-              <input type="number" id="setPriceResumeBw" min="0" placeholder="e.g. 10">
+              <input type="number" id="setPriceResumeBw" min="0" placeholder="e.g. 10" step="0.01" inputmode="decimal">
             </div>
           </div>
         </div>
@@ -2469,8 +2469,8 @@ async function agentOnboard() {
         phone: document.getElementById('agOnPhone').value,
         address: document.getElementById('agOnAddr').value,
         printer_model: document.getElementById('agOnPrinter').value,
-        price_bw: parseInt(document.getElementById('agOnBw').value, 10),
-        price_color: parseInt(document.getElementById('agOnColor').value, 10),
+        price_bw: parseFloat(document.getElementById('agOnBw').value),
+        price_color: parseFloat(document.getElementById('agOnColor').value),
         password: document.getElementById('agOnPass').value,
         payment_mode: 'counter_only'
       })

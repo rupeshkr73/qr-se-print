@@ -743,8 +743,8 @@ async function init() {
     }
     applyAdvancedGate(shop);
     checkResumeHandoff();
-    state.priceBwDuplex    = parseInt(shop.price_bw_duplex)    || 0;
-    state.priceColorDuplex = parseInt(shop.price_color_duplex) || 0;
+    state.priceBwDuplex    = parseFloat(shop.price_bw_duplex)    || 0;
+    state.priceColorDuplex = parseFloat(shop.price_color_duplex) || 0;
     if (state.shopDuplexMode) {
       const dr = document.getElementById('duplexRow');
       if (dr) dr.style.display = 'block';
@@ -755,8 +755,8 @@ async function init() {
     document.getElementById('priceColorBadge').textContent = `Color: ₹${shop.price_color}/page`;
     document.getElementById('optBWPrice').textContent = `₹${shop.price_bw}/page`;
     document.getElementById('optColorPrice').textContent = `₹${shop.price_color}/page`;
-    state.priceBW = shop.price_bw;
-    state.priceColor = shop.price_color;
+    state.priceBW = parseFloat(shop.price_bw) || 0;
+    state.priceColor = parseFloat(shop.price_color) || 0;
     state.shopPaymentMode = shop.payment_mode || 'both';
     state.shopGateway = shop.payment_gateway || '';
     state.razorpayKeyId = shop.razorpay_key_id || '';
@@ -1706,9 +1706,9 @@ function applyAdvancedGate(shop) {
   window.__shopAdvanced = advPaid && anyOn;
   window.__advModules   = M;
   window.__shopPrices   = {
-    p4: parseInt(shop.price_4x6_4)||0, p6: parseInt(shop.price_4x6_6)||0,
-    p10: parseInt(shop.price_4x6_10)||0, rc: parseInt(shop.price_resume_color)||0,
-    rb: parseInt(shop.price_resume_bw)||0
+    p4: parseFloat(shop.price_4x6_4)||0, p6: parseFloat(shop.price_4x6_6)||0,
+    p10: parseFloat(shop.price_4x6_10)||0, rc: parseFloat(shop.price_resume_color)||0,
+    rb: parseFloat(shop.price_resume_bw)||0
   };
 
   const sel  = document.getElementById('paperSizeSel');
@@ -2958,11 +2958,24 @@ function getServiceRate() {
     return state.colorMode === 'bw' ? (P.rb||0) : (P.rc||0);
   return 0;
 }
+// Duplex chuna ho aur shop ne duplex ka alag rate rakha ho to wahi rate lagta hai.
+// Server bhi yahi karta hai (price_bw_duplex / price_color_duplex), isliye
+// screen par dikhne wala price aur payment ka price ab hamesha same rahega.
+function getPerPageRate() {
+  if (state.colorMode === 'bw')
+    return (state.duplex && state.priceBwDuplex > 0) ? state.priceBwDuplex : state.priceBW;
+  return (state.duplex && state.priceColorDuplex > 0) ? state.priceColorDuplex : state.priceColor;
+}
+// Paisa 2 decimal tak — 2.5 x 3 = 7.5 jaisa sahi dikhe, 7.500000001 nahi
+function money(v) {
+  const n = Math.round((parseFloat(v) || 0) * 100) / 100;
+  return Number.isInteger(n) ? String(n) : n.toFixed(2);
+}
 function getTotal() {
   const rate = getServiceRate();
   if (rate > 0) return rate * state.copies;
-  const pricePerPage = state.colorMode === 'bw' ? state.priceBW : state.priceColor;
-  return pricePerPage * getEffectivePageCount() * state.copies;
+  const pricePerPage = getPerPageRate();
+  return Math.round(pricePerPage * getEffectivePageCount() * state.copies * 100) / 100;
 }
 function updatePriceSummary() {
   setServiceBadge();
@@ -2996,13 +3009,17 @@ function updatePriceSummary() {
     document.getElementById('sumTotal').textContent = '₹' + total;
     return;
   }
-  const pricePerPage = state.colorMode === 'bw' ? state.priceBW : state.priceColor;
-  const total = pricePerPage * printPages * state.copies;
-  document.getElementById('sumType').textContent = (state.colorMode === 'bw' ? 'B&W' : 'Color') + ' Print';
-  document.getElementById('sumPerPage').textContent = '₹' + pricePerPage + '/page';
+  const pricePerPage = getPerPageRate();
+  const total = Math.round(pricePerPage * printPages * state.copies * 100) / 100;
+  const dupOn = state.duplex &&
+    ((state.colorMode === 'bw' && state.priceBwDuplex > 0) ||
+     (state.colorMode !== 'bw' && state.priceColorDuplex > 0));
+  document.getElementById('sumType').textContent =
+    (state.colorMode === 'bw' ? 'B&W' : 'Color') + ' Print' + (dupOn ? ' (Dual-Side)' : '');
+  document.getElementById('sumPerPage').textContent = '₹' + money(pricePerPage) + '/page';
   document.getElementById('sumPages').textContent = printPages + ' page' + (printPages>1?'s':'') + ' × ' + state.copies + ' cop' + (state.copies>1?'ies':'y');
-  document.getElementById('sumPagesAmt').textContent = '₹' + total;
-  document.getElementById('sumTotal').textContent = '₹' + total;
+  document.getElementById('sumPagesAmt').textContent = '₹' + money(total);
+  document.getElementById('sumTotal').textContent = '₹' + money(total);
 }
 
 // ═══════════════════════════════════════════════
