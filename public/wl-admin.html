@@ -271,8 +271,18 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
           <input id="bBrand" maxlength="120">
           <label>"Powered by" me kya likhe</label>
           <input id="bPowered" maxlength="160" placeholder="jaise — ABC Print Solutions">
-          <label>Logo URL (optional)</label>
-          <input id="bLogo" maxlength="400" placeholder="https://...">
+          <label>Logo (PNG ya JPG \u2014 40 KB se chhota)</label>
+          <div class="msg err" id="lgErr"></div>
+          <div class="msg ok" id="lgOk"></div>
+          <div id="lgPrevBox" style="display:none;align-items:center;gap:12px;margin:4px 0 10px;">
+            <img id="lgPrev" alt="logo" style="width:56px;height:56px;object-fit:contain;
+                 border:1px solid #e6e6ef;border-radius:12px;background:#fafafd;padding:5px;">
+            <button class="btn" style="background:#fee2e2;color:#991b1b;margin:0;width:auto;padding:8px 14px;"
+                    onclick="removeLogo()">\ud83d\uddd1\ufe0f Logo Hatao</button>
+          </div>
+          <input type="file" id="bLogoFile" accept="image/png,image/jpeg">
+          <p class="hint" style="margin:6px 0 10px;">Square logo (jaise 256\u00d7256) sabse achha lagta hai.</p>
+          <button class="btn" style="background:#eef2ff;color:#3730a3;" onclick="uploadLogo()">\u2b06\ufe0f Logo Upload Karo</button>
           <button class="btn green" onclick="saveBranding()">💾 Branding Save Karo</button>
         </div>
 
@@ -539,7 +549,7 @@ async function boot() {
 
     $('bBrand').value = ME.brandName || '';
     $('bPowered').value = ME.poweredBy || '';
-    $('bLogo').value = ME.logoUrl || '';
+    showLogoPreview(ME.logoUrl || '');
     // ── Payment gateway ──
     $('cfApp').value = ME.cashfreeAppId || '';
     if ($('gwSel')) $('gwSel').value = (ME.gateway === 'cashfree') ? 'cashfree' : 'razorpay';
@@ -617,7 +627,7 @@ async function savePrice() {
 async function saveBranding() {
   try {
     await api('/api/whitelabel/branding', { method: 'PUT', body: JSON.stringify({
-      brand_name: $('bBrand').value, powered_by: $('bPowered').value, logo_url: $('bLogo').value }) });
+      brand_name: $('bBrand').value, powered_by: $('bPowered').value }) });
     show('brOk', '✅ Branding save ho gayi', 'ok');
     boot();
   } catch (e) { show('brErr', '❌ ' + e.message, 'err'); }
@@ -699,6 +709,42 @@ async function createDemo() {
       '</div>';
     $('dmName').value = ''; $('dmPhone').value = '';
   } catch (e) { if (out) out.innerHTML = ''; show('dmErr', '\u274c ' + e.message, 'err'); }
+}
+function showLogoPreview(url) {
+  var box = $('lgPrevBox'), img = $('lgPrev');
+  if (!box || !img) return;
+  if (url) { img.src = url; box.style.display = 'flex'; }
+  else { img.removeAttribute('src'); box.style.display = 'none'; }
+}
+async function uploadLogo() {
+  var f = $('bLogoFile').files && $('bLogoFile').files[0];
+  if (!f) return show('lgErr', '\u274c Pehle file choose karo', 'err');
+  var okType = (f.type === 'image/png' || f.type === 'image/jpeg' || f.type === 'image/jpg');
+  if (!okType) return show('lgErr', '\u274c Sirf PNG ya JPG chalegi', 'err');
+  if (f.size > 40 * 1024)
+    return show('lgErr', '\u274c Logo 40 KB se chhota hona chahiye (abhi ' + Math.round(f.size / 1024) + ' KB hai)', 'err');
+  try {
+    var fd = new FormData();
+    fd.append('logo', f);
+    // FormData par Content-Type khud browser set karta hai — isliye api() nahi
+    var r = await fetch('/api/whitelabel/upload-logo', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN }, body: fd });
+    var dj = await r.json().catch(function () { return {}; });
+    if (r.status === 401) { logout(); return; }
+    if (!r.ok) throw new Error(dj.error || 'Upload nahi hua');
+    showLogoPreview(dj.logoUrl);
+    $('bLogoFile').value = '';
+    show('lgOk', '\u2705 Logo lag gaya (' + (dj.sizeKb || 0) + ' KB)', 'ok');
+    boot();
+  } catch (e) { show('lgErr', '\u274c ' + e.message, 'err'); }
+}
+async function removeLogo() {
+  try {
+    await api('/api/whitelabel/remove-logo', { method: 'POST' });
+    showLogoPreview('');
+    show('lgOk', '\u2705 Logo hata diya', 'ok');
+    boot();
+  } catch (e) { show('lgErr', '\u274c ' + e.message, 'err'); }
 }
 async function saveContact() {
   try {
