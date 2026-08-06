@@ -104,6 +104,10 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
 /* ── Login ── */
 #login{max-width:400px;margin:60px auto;padding:0 18px}
 #panel{display:none}
+.hp-btn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:6px 0 14px;}
+.hp-btn-item{display:flex;align-items:center;gap:6px;background:#f7f7fb;border:1px solid #e6e6ef;
+  border-radius:10px;padding:9px 11px;font-size:13.5px;font-weight:600;cursor:pointer;margin:0;}
+.hp-btn-item input{width:auto;margin:0;}
 </style>
 </head>
 <body>
@@ -214,6 +218,35 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
         </div>
 
         <div class="card">
+          <h2>💰 Apna Cashfree <span class="hint">(Razorpay ka doosra option)</span></h2>
+          <p class="hint" style="margin:0 0 12px;">
+            Razorpay ya Cashfree — jo chalu ho wahi use hoga. Dono bhar sakte ho, par
+            <b>neeche jo select karoge wahi</b> shop payment ke liye chalega.
+          </p>
+          <div class="msg err" id="cfErr"></div>
+          <div class="msg ok" id="cfOk"></div>
+          <label>Cashfree App ID (x-client-id)</label>
+          <input id="cfApp" maxlength="120" placeholder="1234567abcdef...">
+          <label>Cashfree Secret Key (x-secret-key)</label>
+          <input id="cfSec" maxlength="200" placeholder="cfsk_ma_prod_...">
+          <p class="hint" style="margin:6px 0 10px;">Secret dobara nahi dikhega — badalna ho tabhi bharo.</p>
+          <button class="btn green" onclick="saveCashfree()">💾 Cashfree Save Karo</button>
+        </div>
+
+        <div class="card">
+          <h2>🔀 Kaunsa Gateway Chalu Rahe</h2>
+          <div class="msg err" id="gwErr"></div>
+          <div class="msg ok" id="gwOk"></div>
+          <label>Payment Gateway</label>
+          <select id="gwSel">
+            <option value="razorpay">Razorpay</option>
+            <option value="cashfree">Cashfree</option>
+          </select>
+          <p class="hint" id="gwHint" style="margin:8px 0 10px;"></p>
+          <button class="btn green" onclick="saveGateway()">💾 Gateway Save Karo</button>
+        </div>
+
+        <div class="card">
           <h2>🏷️ Shop Registration Price</h2>
           <p class="hint" style="margin:0 0 12px;">
             Base price <b>₹<span id="pBase">—</span></b> hai. Isse <b>upar</b> jo chahe rakho —
@@ -241,6 +274,43 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
           <label>Logo URL (optional)</label>
           <input id="bLogo" maxlength="400" placeholder="https://...">
           <button class="btn green" onclick="saveBranding()">💾 Branding Save Karo</button>
+        </div>
+
+        <div class="card">
+          <h2>🏠 Homepage Customize</h2>
+          <p class="hint" style="margin:0 0 12px;">
+            Ye sab <b>aapke apne homepage</b> par dikhega. Khali chhoda to default rahega.
+          </p>
+          <div class="msg err" id="hpErr"></div>
+          <div class="msg ok" id="hpOk"></div>
+
+          <label>Homepage Title (badi heading)</label>
+          <input id="hpTitle" maxlength="160" placeholder="Customer ke phone se">
+          <label>Title ki doosri line</label>
+          <input id="hpSub" maxlength="200" placeholder="Print seedha aapke printer par">
+
+          <label>Footer Tagline</label>
+          <input id="hpTag" maxlength="200" placeholder="Automated cyber cafe printing network">
+
+          <label>"Made in" me kya likhe</label>
+          <input id="hpMade" maxlength="120" placeholder="Dhanbad, Jharkhand">
+
+          <label>Monthly Plan Price (₹)</label>
+          <input id="hpMonthlyP" type="number" min="399" step="1" placeholder="399">
+          <p class="hint" id="hpMonthlyHint" style="margin:6px 0 10px;">Minimum ₹399 — isse kam nahi rakh sakte.</p>
+
+          <label>Instagram Link</label>
+          <input id="hpIg" maxlength="300" placeholder="https://instagram.com/...">
+          <label>YouTube Link</label>
+          <input id="hpYt" maxlength="300" placeholder="https://youtube.com/@...">
+          <label>Facebook Link</label>
+          <input id="hpFb" maxlength="300" placeholder="https://facebook.com/...">
+
+          <label style="margin-top:14px;">Homepage ke Button ON / OFF</label>
+          <p class="hint" style="margin:0 0 8px;">Tick hataoge to wo button/section aapke homepage par nahi dikhega.</p>
+          <div id="hpBtns" class="hp-btn-grid"></div>
+
+          <button class="btn green" onclick="saveHomepage()">💾 Homepage Save Karo</button>
         </div>
 
         <div class="card">
@@ -278,6 +348,24 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
 
       <!-- ═══ SHOP ONBOARD ═══ -->
       <div data-sect="onboard">
+        <div class="card">
+          <h2>🎁 Demo Account Banao</h2>
+          <p class="hint" style="margin:0 0 12px;">
+            Demo ab sirf yahan se banta hai — homepage par koi demo button nahi hai.
+            Shop ko ID + password (mobile number) de do.
+          </p>
+          <div class="msg err" id="dmErr"></div>
+          <div class="msg ok" id="dmOk"></div>
+          <label>Shop ka naam</label>
+          <input id="dmName" maxlength="100" placeholder="jaise — Sharma Cyber Cafe">
+          <label>Mobile number (yahi password hoga)</label>
+          <input id="dmPhone" maxlength="10" inputmode="numeric" placeholder="10 digit">
+          <label>Kitne minute chalega</label>
+          <input id="dmMin" type="number" min="10" max="43200" placeholder="60">
+          <button class="btn green" onclick="createDemo()">🎁 Demo Banao</button>
+          <div id="dmOut" style="margin-top:12px;"></div>
+        </div>
+
         <div class="card">
           <h2>➕ Shop Onboard Karo</h2>
           <p class="hint" style="margin:0 0 12px;">
@@ -321,6 +409,7 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
               <span><i style="display:inline-block;width:9px;height:9px;background:#ff2e63;border-radius:2px;margin-right:5px;"></i>Paid shops</span>
             </div>
             <div id="anChart" style="width:100%;overflow-x:auto;">Loading…</div>
+          <div id="anExtra" style="margin-top:16px;"></div>
           </div>
         </div>
       </div>
@@ -451,6 +540,30 @@ async function boot() {
     $('bBrand').value = ME.brandName || '';
     $('bPowered').value = ME.poweredBy || '';
     $('bLogo').value = ME.logoUrl || '';
+    // ── Payment gateway ──
+    $('cfApp').value = ME.cashfreeAppId || '';
+    if ($('gwSel')) $('gwSel').value = (ME.gateway === 'cashfree') ? 'cashfree' : 'razorpay';
+    if ($('gwHint')) {
+      $('gwHint').innerHTML =
+        'Razorpay: ' + (ME.razorpayReady ? '<b style="color:#16a34a">ready ✅</b>' : '<b style="color:#dc2626">set nahi ❌</b>') +
+        ' &nbsp;·&nbsp; Cashfree: ' + (ME.cashfreeReady ? '<b style="color:#16a34a">ready ✅</b>' : '<b style="color:#dc2626">set nahi ❌</b>');
+    }
+
+    // ── Homepage customize ──
+    $('hpTitle').value    = ME.hpTitle || '';
+    $('hpSub').value      = ME.hpSubtitle || '';
+    $('hpTag').value      = ME.hpTagline || '';
+    $('hpMade').value     = ME.madeIn || '';
+    $('hpIg').value       = ME.socialInstagram || '';
+    $('hpYt').value       = ME.socialYoutube || '';
+    $('hpFb').value       = ME.socialFacebook || '';
+    var minM = ME.minMonthlyPrice || 399;
+    $('hpMonthlyP').min   = minM;
+    $('hpMonthlyP').value = ME.monthlyPrice || '';
+    $('hpMonthlyP').placeholder = String(minM);
+    $('hpMonthlyHint').textContent = 'Minimum \u20b9' + minM + ' \u2014 isse kam nahi rakh sakte.';
+    renderHpButtons(ME.buttonKeys || [], ME.buttons || {});
+
     $('bEmail').value = ME.supportEmail || '';
     $('bPhone').value = ME.supportPhone || '';
     $('bcMsg').value = ME.broadcast || '';
@@ -508,6 +621,84 @@ async function saveBranding() {
     show('brOk', '✅ Branding save ho gayi', 'ok');
     boot();
   } catch (e) { show('brErr', '❌ ' + e.message, 'err'); }
+}
+/* Homepage ke button toggles — checkbox banao */
+var HP_BTN_LABELS = {
+  contact: 'Contact', partner: 'Partner Program', agent: 'Agent Program',
+  features: 'Features', setupGuide: 'Setup Guide', pricing: 'Pricing',
+  reviews: 'Reviews', faq: 'FAQ', demo: 'Demo', register: 'Register',
+  shopLogin: 'Shop Login'
+};
+function renderHpButtons(keys, vals) {
+  var box = $('hpBtns');
+  if (!box) return;
+  if (!keys || !keys.length) keys = Object.keys(HP_BTN_LABELS);
+  box.innerHTML = '';
+  keys.forEach(function (k) {
+    if (k === 'demo') return; // demo homepage par hai hi nahi
+    var on = (vals[k] === undefined) ? true : !!vals[k];
+    var lab = document.createElement('label');
+    lab.className = 'hp-btn-item';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = on; cb.dataset.k = k;
+    lab.appendChild(cb);
+    lab.appendChild(document.createTextNode(' ' + (HP_BTN_LABELS[k] || k)));
+    box.appendChild(lab);
+  });
+}
+async function saveHomepage() {
+  try {
+    var btns = {};
+    Array.prototype.slice.call(document.querySelectorAll('#hpBtns input[type=checkbox]'))
+      .forEach(function (c) { btns[c.dataset.k] = c.checked; });
+    var body = {
+      hp_title: $('hpTitle').value, hp_subtitle: $('hpSub').value,
+      hp_tagline: $('hpTag').value, made_in: $('hpMade').value,
+      social_instagram: $('hpIg').value, social_youtube: $('hpYt').value,
+      social_facebook: $('hpFb').value, buttons: btns
+    };
+    var mp = $('hpMonthlyP').value.trim();
+    if (mp !== '') body.monthly_price = mp;
+    await api('/api/whitelabel/homepage', { method: 'PUT', body: JSON.stringify(body) });
+    show('hpOk', '\u2705 Homepage save ho gaya \u2014 apna link kholkar dekh lo', 'ok');
+    boot();
+  } catch (e) { show('hpErr', '\u274c ' + e.message, 'err'); }
+}
+async function saveCashfree() {
+  try {
+    await api('/api/whitelabel/cashfree', { method: 'PUT', body: JSON.stringify({
+      cashfree_app_id: $('cfApp').value, cashfree_secret_key: $('cfSec').value }) });
+    $('cfSec').value = '';
+    show('cfOk', '\u2705 Cashfree save ho gaya', 'ok');
+    boot();
+  } catch (e) { show('cfErr', '\u274c ' + e.message, 'err'); }
+}
+async function saveGateway() {
+  try {
+    var r = await api('/api/whitelabel/gateway', { method: 'PUT',
+      body: JSON.stringify({ gateway: $('gwSel').value }) });
+    show('gwOk', '\u2705 Ab ' + r.gateway + ' chalu hai', 'ok');
+    boot();
+  } catch (e) { show('gwErr', '\u274c ' + e.message, 'err'); }
+}
+async function createDemo() {
+  var out = $('dmOut');
+  try {
+    var body = { name: $('dmName').value, phone: $('dmPhone').value };
+    var m = $('dmMin').value.trim();
+    if (m !== '') body.minutes = m;
+    var r = await api('/api/whitelabel/demo/create', { method: 'POST', body: JSON.stringify(body) });
+    show('dmOk', '\u2705 Demo ban gaya', 'ok');
+    out.innerHTML =
+      '<div class="card" style="background:#f6fff8;border:1px solid #bbf7d0;">' +
+      '<div><b>Shop ID:</b> ' + esc(r.shopId) + '</div>' +
+      '<div><b>Password:</b> ' + esc(r.password) + '</div>' +
+      '<div><b>Chalega:</b> ' + esc(String(r.expiresInMinutes)) + ' minute</div>' +
+      '<div style="margin-top:8px;"><b>QR link:</b> <a href="' + esc(r.qrUrl) + '" target="_blank" rel="noopener">' + esc(r.qrUrl) + '</a></div>' +
+      (r.qrCode ? '<img src="' + r.qrCode + '" alt="QR" style="width:170px;margin-top:10px;border-radius:10px;">' : '') +
+      '</div>';
+    $('dmName').value = ''; $('dmPhone').value = '';
+  } catch (e) { if (out) out.innerHTML = ''; show('dmErr', '\u274c ' + e.message, 'err'); }
 }
 async function saveContact() {
   try {
@@ -696,6 +887,35 @@ async function loadWlAnalytics() {
       stat(reg.cnt, 'Register button click', ['#eff6ff','#bfdbfe','#1e40af']) +
       stat(paid, 'Paid shops bani', ['#f0fdf4','#bbf7d0','#166534']) +
       stat(pct(paid, pv.cnt) + '%', 'Visit → Paid', ['#f5f3ff','#ddd6fe','#5b21b6']);
+
+    // ── Superadmin jaisa detail — business summary + top lists ──
+    (function () {
+      var ex = $('anExtra'); if (!ex) return;
+      var sm = d.summary || {};
+      var row = function (label, val) {
+        return '<div style="display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-bottom:1px solid #f0f0f5;">' +
+               '<span style="color:#6b6b7b;font-size:13px;">' + esc(label) + '</span>' +
+               '<b style="font-size:13px;">' + esc(String(val == null ? 0 : val)) + '</b></div>';
+      };
+      var list = function (title, rows, keyName) {
+        if (!rows || !rows.length) return '';
+        var h = '<div class="card" style="padding:14px;"><h2 style="font-size:15px;margin:0 0 8px;">' + esc(title) + '</h2>';
+        rows.forEach(function (r) { h += row(r[keyName], r.cnt); });
+        return h + '</div>';
+      };
+      ex.innerHTML =
+        '<div class="card" style="padding:14px;"><h2 style="font-size:15px;margin:0 0 8px;">📦 Business Summary</h2>' +
+          row('Total paid shops', sm.shops_total) +
+          row('Is range me nayi shops', sm.shops_new) +
+          row('Demo accounts', sm.demo_total) +
+          row('Total prints (sab shops)', sm.prints_total) +
+          row('Is range me prints', sm.prints_range) +
+          row('Total kamai (₹)', sm.earned_total) +
+        '</div>' +
+        list('🔗 Top Pages', d.topPaths, 'path') +
+        list('↩️ Top Referrers', d.topRefs, 'ref') +
+        list('📣 Top Sources (utm)', d.topSources, 'source');
+    })();
 
     const dates = [];
     const today = new Date();

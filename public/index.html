@@ -3848,6 +3848,87 @@ function sendInq(via){
         if(fp){ fp.setAttribute('href','tel:'+d.supportPhone); fp.textContent='\ud83d\udcde '+d.supportPhone; }
       }
 
+      /* ── Partner ka apna homepage (wl-admin se set hota hai) ── */
+      var q=function(sel){ return document.querySelector(sel); };
+      var qa=function(sel){ return Array.prototype.slice.call(document.querySelectorAll(sel)); };
+
+      // Hero heading — partner ka apna title/subtitle
+      if(d.hpTitle){ var _t=q('[data-cfg="hbTop"]'); if(_t) _t.textContent=d.hpTitle; }
+      if(d.hpSubtitle){ var _s=q('[data-cfg="hbSub"]'); if(_s) _s.textContent=d.hpSubtitle; }
+
+      // Logo — header ke saath hero ka bada logo bhi
+      if(d.logoUrl){
+        qa('img.hb-logo, img.brand-mark-img').forEach(function(im){
+          im.src=d.logoUrl; im.alt=brand||'';
+        });
+      }
+
+      // Stats — seedha DB se (hardcoded 1000+/500K+ nahi)
+      if(d.stats){
+        var fmtN=function(n){
+          n=parseInt(n,10)||0;
+          if(n>=1000000) return (n/1000000).toFixed(n>=10000000?0:1).replace(/\.0$/,'')+'M+';
+          if(n>=1000)    return (n/1000).toFixed(n>=10000?0:1).replace(/\.0$/,'')+'K+';
+          return String(n);
+        };
+        var sN1=q('[data-cfg="hstNum1"]'); if(sN1) sN1.textContent=fmtN(d.stats.shops);
+        var sN2=q('[data-cfg="hstNum2"]'); if(sN2) sN2.textContent=fmtN(d.stats.prints);
+      }
+
+      // "Made in ..." partner apna likh sakta hai
+      if(d.madeIn){ var _m=q('[data-cfg="hstMadeLoc"]'); if(_m) _m.textContent=d.madeIn; }
+
+      // Footer tagline — editable (khali chhoda to default)
+      var tag2=q('[data-cfg="ftTagline"]');
+      if(tag2) tag2.textContent = d.hpTagline || 'Automated cyber cafe printing network';
+
+      // Monthly plan ka price
+      if(d.monthlyPrice && d.monthlyPrice>0){
+        var mp=document.getElementById('hpMonthly');
+        if(mp) mp.textContent=String(d.monthlyPrice);
+      }
+
+      // Social links — jo partner ne diye wahi dikhein
+      var soc=d.social||{};
+      var socBox=q('.ft-social');
+      if(socBox){
+        var made=false;
+        [['instagram','Instagram','\ud83d\udcf7'],['youtube','YouTube','\u25b6\ufe0f'],['facebook','Facebook','\ud83d\udc65']]
+        .forEach(function(it){
+          var url=soc[it[0]];
+          if(!url) return;
+          if(!made){ socBox.innerHTML=''; made=true; }
+          var el=document.createElement('a');
+          el.href=url; el.target='_blank'; el.rel='noopener';
+          el.textContent=it[2]+' '+it[1];
+          el.style.cssText='margin-right:12px;text-decoration:none;';
+          socBox.appendChild(el);
+        });
+        if(!made) socBox.style.display='none';
+      }
+
+      // Partner ki site par ye kabhi nahi dikhne chahiye
+      qa('a.super-link, a[href="/superadmin"]').forEach(function(el){ el.style.display='none'; });
+      qa('[onclick="openDemoModal()"]').forEach(function(el){ el.style.display='none'; });
+
+      // Homepage ke button/section ON-OFF (partner apne hisaab se)
+      var BTN={
+        contact:    'a[href="/contact"]',
+        partner:    'a[href="/partner"]',
+        agent:      'a[href="/agent"]',
+        features:   'a[href="/features"], #features',
+        setupGuide: 'a[href="/setup-guide"], #guide',
+        faq:        '#faq, a[href="/disclaimer"]',
+        register:   'a[href^="/register"]',
+        shopLogin:  'a[href="/admin"]'
+      };
+      var bcfg=d.buttons||{};
+      Object.keys(BTN).forEach(function(k){
+        if(bcfg[k]===false){
+          qa(BTN[k]).forEach(function(el){ el.style.display='none'; });
+        }
+      });
+
       // Partner ki site par hamare programs ka koi matlab nahi
       document.querySelectorAll('a[href="/agent"],a[href="/whitelabel"]').forEach(function(a){
         a.style.display='none';
