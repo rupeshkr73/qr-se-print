@@ -5889,6 +5889,103 @@ app.get('/dashboard', (req,res) => res.sendFile(path.join(__dirname,'public','da
 app.get('/admin', (req,res) => res.sendFile(path.join(__dirname,'public','admin.html')));
 app.get('/superadmin', (req,res) => res.sendFile(path.join(__dirname,'public','superadmin.html')));
 app.get('/print-success', (req,res) => res.sendFile(path.join(__dirname,'public','success.html')));
+
+// ═══ SEO: sub-pages ke ASLI URL (Google me alag page + sitelinks ke liye) ═══
+// index.html hi serve hota hai, par har URL ka apna title/description/canonical
+// inject karke bhejte hain — tabhi Google inhe alag page maanta hai.
+// Frontend JS pathname dekh kar wahi section khol deta hai.
+const SEO_PAGES = {
+  '/features': {
+    title: 'Features — QR Se Print | Cyber Cafe Auto Print Software',
+    desc: 'QR Se Print ke saare features: QR se file upload, online payment, auto print, passport photo, resume maker, shop dashboard aur reports.'
+  },
+  '/about': {
+    title: 'About Us — QR Se Print | Cyber Cafe Print Automation',
+    desc: 'QR Se Print ke baare mein — cyber cafe aur print shop ke liye banaya gaya QR se auto print system. Team, mission aur kahani.'
+  },
+  '/contact': {
+    title: 'Contact Us — QR Se Print | Support & Business Inquiry',
+    desc: 'QR Se Print se sampark karein — support, demo, pricing ya business inquiry ke liye call, WhatsApp ya email karein.'
+  },
+  '/setup-guide': {
+    title: 'Setup Guide — QR Se Print Kaise Setup Karein (Step by Step)',
+    desc: 'QR Se Print setup karne ka poora step-by-step guide: shop register, print agent install, printer connect aur payment setup.'
+  },
+  '/partner': {
+    title: 'Partner & White Label — QR Se Print Reseller Program',
+    desc: 'QR Se Print ke saath partner banein — agent commission ya apne brand se white label reselling. Zero investment se shuruaat.'
+  },
+  '/terms': {
+    title: 'Terms & Conditions — QR Se Print',
+    desc: 'QR Se Print ke Terms & Conditions — service ka upyog, shop owner ki zimmedari, payment aur account niyam.'
+  },
+  '/privacy': {
+    title: 'Privacy Policy — QR Se Print',
+    desc: 'QR Se Print Privacy Policy — customer ki file aur data kaise store hota hai, kitne samay tak rehta hai aur kaise delete hota hai.'
+  },
+  '/refund': {
+    title: 'Refund & Cancellation Policy — QR Se Print',
+    desc: 'QR Se Print ki Refund & Cancellation Policy — print job, subscription aur payment refund ke niyam.'
+  },
+  '/disclaimer': {
+    title: 'Disclaimer & FAQ — QR Se Print',
+    desc: 'QR Se Print ka disclaimer aur aksar puche jane wale sawal (FAQ) — service ki seema aur zimmedari ki jankari.'
+  }
+};
+
+let _indexHtmlCache = null;
+// Canonical hamesha asli domain ka hona chahiye (BASE_URL default onrender.com hai,
+// use canonical me daalna SEO ke liye galat hoga)
+const SITE_URL = (process.env.SITE_URL || 'https://qrseprint.in').replace(/\/+$/, '');
+function loadIndexHtml() {
+  if (_indexHtmlCache === null) {
+    try {
+      _indexHtmlCache = fs.readFileSync(path.join(__dirname, 'public', 'index.html'), 'utf8');
+    } catch (e) {
+      console.error('index.html read fail:', e.message);
+      _indexHtmlCache = '';
+    }
+  }
+  return _indexHtmlCache;
+}
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+Object.keys(SEO_PAGES).forEach(function (route) {
+  app.get(route, function (req, res) {
+    const meta = SEO_PAGES[route];
+    let html = loadIndexHtml();
+    // index.html padh nahi paaye to normal file bhej do (site kabhi na toote)
+    if (!html) return res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    const url = SITE_URL + route;
+    const t = esc(meta.title), d = esc(meta.desc);
+    html = html
+      .replace(/<title>[\s\S]*?<\/title>/i, '<title>' + t + '</title>')
+      .replace(/<meta name="description" content="[^"]*">/i,
+               '<meta name="description" content="' + d + '">')
+      .replace(/<link rel="canonical" href="[^"]*">/i,
+               '<link rel="canonical" href="' + url + '">')
+      .replace(/<meta property="og:url" content="[^"]*">/i,
+               '<meta property="og:url" content="' + url + '">')
+      .replace(/<meta property="og:title" content="[^"]*">/i,
+               '<meta property="og:title" content="' + t + '">')
+      .replace(/<meta property="og:description" content="[^"]*">/i,
+               '<meta property="og:description" content="' + d + '">')
+      .replace(/<meta name="twitter:title" content="[^"]*">/i,
+               '<meta name="twitter:title" content="' + t + '">')
+      .replace(/<meta name="twitter:description" content="[^"]*">/i,
+               '<meta name="twitter:description" content="' + d + '">');
+    res.set('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  });
+});
+// Purane / alternate path — asli URL par 301 bhej do (link juice na tootey)
+const SEO_ALIASES = { '/feature': '/features', '/guide': '/setup-guide', '/faq': '/disclaimer', '/declaration': '/disclaimer' };
+Object.keys(SEO_ALIASES).forEach(function (from) {
+  app.get(from, function (req, res) { res.redirect(301, SEO_ALIASES[from]); });
+});
+
 // ═══ SEO: robots.txt + sitemap.xml + private-page noindex ═══
 app.use((req, res, next) => {
   const p = req.path.toLowerCase();
@@ -5928,12 +6025,18 @@ app.get('/api/public-stats', async (req, res) => {
 
 app.get('/robots.txt', (req, res) => {
   res.type('text/plain').send(`User-agent: *
-Allow: /$
-Allow: /register
-Allow: /agent
+Allow: /
 Disallow: /api/
+Disallow: /admin
+Disallow: /superadmin
+Disallow: /dashboard
+Disallow: /wl-admin
+Disallow: /print/
+Disallow: /resume/
+Disallow: /setup-payment/
+Disallow: /print-success
 
-Sitemap: https://qrseprint.in/sitemap.xml
+Sitemap: ${SITE_URL}/sitemap.xml
 `);
 });
 
@@ -5946,12 +6049,29 @@ Canonical: https://qrseprint.in/.well-known/security.txt
 });
 
 app.get('/sitemap.xml', (req, res) => {
-  res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://qrseprint.in/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>
-  <url><loc>https://qrseprint.in/register</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
-  <url><loc>https://qrseprint.in/agent</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>
-</urlset>`);
+  const today = new Date().toISOString().slice(0, 10);
+  const urls = [
+    ['/', 'weekly', '1.0'],
+    ['/features', 'monthly', '0.9'],
+    ['/register', 'monthly', '0.9'],
+    ['/setup-guide', 'monthly', '0.8'],
+    ['/about', 'monthly', '0.7'],
+    ['/contact', 'monthly', '0.7'],
+    ['/agent', 'monthly', '0.7'],
+    ['/whitelabel', 'monthly', '0.7'],
+    ['/partner', 'monthly', '0.6'],
+    ['/terms', 'yearly', '0.3'],
+    ['/privacy', 'yearly', '0.3'],
+    ['/refund', 'yearly', '0.3'],
+    ['/disclaimer', 'yearly', '0.3']
+  ].map(u =>
+    `  <url><loc>${SITE_URL}${u[0]}</loc><lastmod>${today}</lastmod>` +
+    `<changefreq>${u[1]}</changefreq><priority>${u[2]}</priority></url>`
+  ).join('\n');
+  res.type('application/xml').send(
+    `<?xml version="1.0" encoding="UTF-8"?>\n` +
+    `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>`
+  );
 });
 
 app.get('/setup-payment/:shopId', (req,res) => res.sendFile(path.join(__dirname,'public','setup-payment.html')));
