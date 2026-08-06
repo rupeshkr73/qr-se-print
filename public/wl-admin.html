@@ -218,10 +218,10 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
         </div>
 
         <div class="card">
-          <h2>💰 Apna Cashfree <span class="hint">(Razorpay ka doosra option)</span></h2>
+          <h2>💰 Your Cashfree <span class="hint">(alternative to Razorpay)</span></h2>
           <p class="hint" style="margin:0 0 12px;">
-            Razorpay ya Cashfree — jo chalu ho wahi use hoga. Dono bhar sakte ho, par
-            <b>neeche jo select karoge wahi</b> shop payment ke liye chalega.
+            Razorpay or Cashfree — whichever is active will be used. You can fill in both,
+            but <b>the one you select below</b> is what shops will pay through.
           </p>
           <div class="msg err" id="cfErr"></div>
           <div class="msg ok" id="cfOk"></div>
@@ -229,12 +229,12 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
           <input id="cfApp" maxlength="120" placeholder="1234567abcdef...">
           <label>Cashfree Secret Key (x-secret-key)</label>
           <input id="cfSec" maxlength="200" placeholder="cfsk_ma_prod_...">
-          <p class="hint" style="margin:6px 0 10px;">Secret dobara nahi dikhega — badalna ho tabhi bharo.</p>
-          <button class="btn green" onclick="saveCashfree()">💾 Cashfree Save Karo</button>
+          <p class="hint" style="margin:6px 0 10px;">The secret is never shown again — fill it only when you want to change it.</p>
+          <button class="btn green" onclick="saveCashfree()">💾 Save Cashfree</button>
         </div>
 
         <div class="card">
-          <h2>🔀 Kaunsa Gateway Chalu Rahe</h2>
+          <h2>🔀 Which Gateway To Use</h2>
           <div class="msg err" id="gwErr"></div>
           <div class="msg ok" id="gwOk"></div>
           <label>Payment Gateway</label>
@@ -243,7 +243,7 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
             <option value="cashfree">Cashfree</option>
           </select>
           <p class="hint" id="gwHint" style="margin:8px 0 10px;"></p>
-          <button class="btn green" onclick="saveGateway()">💾 Gateway Save Karo</button>
+          <button class="btn green" onclick="saveGateway()">💾 Save Gateway</button>
         </div>
 
         <div class="card">
@@ -271,43 +271,43 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
           <input id="bBrand" maxlength="120">
           <label>"Powered by" me kya likhe</label>
           <input id="bPowered" maxlength="160" placeholder="jaise — ABC Print Solutions">
-          <label>Logo (PNG ya JPG \u2014 40 KB se chhota)</label>
+          <label>Logo (PNG or JPG — under 40 KB)</label>
           <div class="msg err" id="lgErr"></div>
           <div class="msg ok" id="lgOk"></div>
           <div id="lgPrevBox" style="display:none;align-items:center;gap:12px;margin:4px 0 10px;">
             <img id="lgPrev" alt="logo" style="width:56px;height:56px;object-fit:contain;
                  border:1px solid #e6e6ef;border-radius:12px;background:#fafafd;padding:5px;">
             <button class="btn" style="background:#fee2e2;color:#991b1b;margin:0;width:auto;padding:8px 14px;"
-                    onclick="removeLogo()">\ud83d\uddd1\ufe0f Logo Hatao</button>
+                    onclick="removeLogo()">🗑️ Remove Logo</button>
           </div>
           <input type="file" id="bLogoFile" accept="image/png,image/jpeg">
-          <p class="hint" style="margin:6px 0 10px;">Square logo (jaise 256\u00d7256) sabse achha lagta hai.</p>
-          <button class="btn" style="background:#eef2ff;color:#3730a3;" onclick="uploadLogo()">\u2b06\ufe0f Logo Upload Karo</button>
+          <p class="hint" style="margin:6px 0 10px;">A square logo (for example 256×256) looks best.</p>
+          <button class="btn" style="background:#eef2ff;color:#3730a3;" onclick="uploadLogo()">⬆️ Upload Logo</button>
           <button class="btn green" onclick="saveBranding()">💾 Branding Save Karo</button>
         </div>
 
         <div class="card">
           <h2>🏠 Homepage Customize</h2>
           <p class="hint" style="margin:0 0 12px;">
-            Ye sab <b>aapke apne homepage</b> par dikhega. Khali chhoda to default rahega.
+            All of this shows on <b>your own homepage</b>. Leave a field empty to keep the default.
           </p>
           <div class="msg err" id="hpErr"></div>
           <div class="msg ok" id="hpOk"></div>
 
-          <label>Homepage Title (badi heading)</label>
-          <input id="hpTitle" maxlength="160" placeholder="Customer ke phone se">
-          <label>Title ki doosri line</label>
-          <input id="hpSub" maxlength="200" placeholder="Print seedha aapke printer par">
+          <label>Homepage Title (main heading)</label>
+          <input id="hpTitle" maxlength="160" placeholder="Print Documents from">
+          <label>Second line of the title</label>
+          <input id="hpSub" maxlength="200" placeholder="Your Phone. Instantly.">
 
           <label>Footer Tagline</label>
           <input id="hpTag" maxlength="200" placeholder="Automated cyber cafe printing network">
 
-          <label>"Made in" me kya likhe</label>
+          <label>What to show in "Made in"</label>
           <input id="hpMade" maxlength="120" placeholder="Dhanbad, Jharkhand">
 
           <label>Monthly Plan Price (₹)</label>
           <input id="hpMonthlyP" type="number" min="399" step="1" placeholder="399">
-          <p class="hint" id="hpMonthlyHint" style="margin:6px 0 10px;">Minimum ₹399 — isse kam nahi rakh sakte.</p>
+          <p class="hint" id="hpMonthlyHint" style="margin:6px 0 10px;">Minimum ₹399 — you cannot set it lower.</p>
 
           <label>Instagram Link</label>
           <input id="hpIg" maxlength="300" placeholder="https://instagram.com/...">
@@ -316,11 +316,11 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
           <label>Facebook Link</label>
           <input id="hpFb" maxlength="300" placeholder="https://facebook.com/...">
 
-          <label style="margin-top:14px;">Homepage ke Button ON / OFF</label>
-          <p class="hint" style="margin:0 0 8px;">Tick hataoge to wo button/section aapke homepage par nahi dikhega.</p>
+          <label style="margin-top:14px;">Homepage Buttons ON / OFF</label>
+          <p class="hint" style="margin:0 0 8px;">Untick a box to hide that button or section on your homepage.</p>
           <div id="hpBtns" class="hp-btn-grid"></div>
 
-          <button class="btn green" onclick="saveHomepage()">💾 Homepage Save Karo</button>
+          <button class="btn green" onclick="saveHomepage()">💾 Save Homepage</button>
         </div>
 
         <div class="card">
@@ -359,20 +359,20 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
       <!-- ═══ SHOP ONBOARD ═══ -->
       <div data-sect="onboard">
         <div class="card">
-          <h2>🎁 Demo Account Banao</h2>
+          <h2>🎁 Create Demo Account</h2>
           <p class="hint" style="margin:0 0 12px;">
-            Demo ab sirf yahan se banta hai — homepage par koi demo button nahi hai.
-            Shop ko ID + password (mobile number) de do.
+            Demo accounts are created only from here — there is no demo button on the homepage.
+            Give the shop the ID and password (their mobile number).
           </p>
           <div class="msg err" id="dmErr"></div>
           <div class="msg ok" id="dmOk"></div>
-          <label>Shop ka naam</label>
-          <input id="dmName" maxlength="100" placeholder="jaise — Sharma Cyber Cafe">
-          <label>Mobile number (yahi password hoga)</label>
-          <input id="dmPhone" maxlength="10" inputmode="numeric" placeholder="10 digit">
-          <label>Kitne minute chalega</label>
+          <label>Shop name</label>
+          <input id="dmName" maxlength="100" placeholder="e.g. Sharma Cyber Cafe">
+          <label>Mobile number (this is also the password)</label>
+          <input id="dmPhone" maxlength="10" inputmode="numeric" placeholder="10 digits">
+          <label>How many minutes it stays active</label>
           <input id="dmMin" type="number" min="10" max="43200" placeholder="60">
-          <button class="btn green" onclick="createDemo()">🎁 Demo Banao</button>
+          <button class="btn green" onclick="createDemo()">🎁 Create Demo</button>
           <div id="dmOut" style="margin-top:12px;"></div>
         </div>
 
@@ -555,8 +555,8 @@ async function boot() {
     if ($('gwSel')) $('gwSel').value = (ME.gateway === 'cashfree') ? 'cashfree' : 'razorpay';
     if ($('gwHint')) {
       $('gwHint').innerHTML =
-        'Razorpay: ' + (ME.razorpayReady ? '<b style="color:#16a34a">ready ✅</b>' : '<b style="color:#dc2626">set nahi ❌</b>') +
-        ' &nbsp;·&nbsp; Cashfree: ' + (ME.cashfreeReady ? '<b style="color:#16a34a">ready ✅</b>' : '<b style="color:#dc2626">set nahi ❌</b>');
+        'Razorpay: ' + (ME.razorpayReady ? '<b style="color:#16a34a">ready ✅</b>' : '<b style="color:#dc2626">not set ❌</b>') +
+        ' &nbsp;·&nbsp; Cashfree: ' + (ME.cashfreeReady ? '<b style="color:#16a34a">ready ✅</b>' : '<b style="color:#dc2626">not set ❌</b>');
     }
 
     // ── Homepage customize ──
@@ -571,7 +571,7 @@ async function boot() {
     $('hpMonthlyP').min   = minM;
     $('hpMonthlyP').value = ME.monthlyPrice || '';
     $('hpMonthlyP').placeholder = String(minM);
-    $('hpMonthlyHint').textContent = 'Minimum \u20b9' + minM + ' \u2014 isse kam nahi rakh sakte.';
+    $('hpMonthlyHint').textContent = 'Minimum \u20b9' + minM + ' \u2014 you cannot set it lower.';
     renderHpButtons(ME.buttonKeys || [], ME.buttons || {});
 
     $('bEmail').value = ME.supportEmail || '';
@@ -645,7 +645,7 @@ function renderHpButtons(keys, vals) {
   if (!keys || !keys.length) keys = Object.keys(HP_BTN_LABELS);
   box.innerHTML = '';
   keys.forEach(function (k) {
-    if (k === 'demo') return; // demo homepage par hai hi nahi
+    if (k === 'demo') return; // demo button is not on the homepage at all
     var on = (vals[k] === undefined) ? true : !!vals[k];
     var lab = document.createElement('label');
     lab.className = 'hp-btn-item';
@@ -670,7 +670,7 @@ async function saveHomepage() {
     var mp = $('hpMonthlyP').value.trim();
     if (mp !== '') body.monthly_price = mp;
     await api('/api/whitelabel/homepage', { method: 'PUT', body: JSON.stringify(body) });
-    show('hpOk', '\u2705 Homepage save ho gaya \u2014 apna link kholkar dekh lo', 'ok');
+    show('hpOk', '\u2705 Homepage saved \u2014 open your link to see it', 'ok');
     boot();
   } catch (e) { show('hpErr', '\u274c ' + e.message, 'err'); }
 }
@@ -679,7 +679,7 @@ async function saveCashfree() {
     await api('/api/whitelabel/cashfree', { method: 'PUT', body: JSON.stringify({
       cashfree_app_id: $('cfApp').value, cashfree_secret_key: $('cfSec').value }) });
     $('cfSec').value = '';
-    show('cfOk', '\u2705 Cashfree save ho gaya', 'ok');
+    show('cfOk', '\u2705 Cashfree saved', 'ok');
     boot();
   } catch (e) { show('cfErr', '\u274c ' + e.message, 'err'); }
 }
@@ -687,7 +687,7 @@ async function saveGateway() {
   try {
     var r = await api('/api/whitelabel/gateway', { method: 'PUT',
       body: JSON.stringify({ gateway: $('gwSel').value }) });
-    show('gwOk', '\u2705 Ab ' + r.gateway + ' chalu hai', 'ok');
+    show('gwOk', '\u2705 ' + r.gateway + ' is now active', 'ok');
     boot();
   } catch (e) { show('gwErr', '\u274c ' + e.message, 'err'); }
 }
@@ -698,12 +698,12 @@ async function createDemo() {
     var m = $('dmMin').value.trim();
     if (m !== '') body.minutes = m;
     var r = await api('/api/whitelabel/demo/create', { method: 'POST', body: JSON.stringify(body) });
-    show('dmOk', '\u2705 Demo ban gaya', 'ok');
+    show('dmOk', '\u2705 Demo account created', 'ok');
     out.innerHTML =
       '<div class="card" style="background:#f6fff8;border:1px solid #bbf7d0;">' +
       '<div><b>Shop ID:</b> ' + esc(r.shopId) + '</div>' +
       '<div><b>Password:</b> ' + esc(r.password) + '</div>' +
-      '<div><b>Chalega:</b> ' + esc(String(r.expiresInMinutes)) + ' minute</div>' +
+      '<div><b>Active for:</b> ' + esc(String(r.expiresInMinutes)) + ' minutes</div>' +
       '<div style="margin-top:8px;"><b>QR link:</b> <a href="' + esc(r.qrUrl) + '" target="_blank" rel="noopener">' + esc(r.qrUrl) + '</a></div>' +
       (r.qrCode ? '<img src="' + r.qrCode + '" alt="QR" style="width:170px;margin-top:10px;border-radius:10px;">' : '') +
       '</div>';
@@ -718,11 +718,11 @@ function showLogoPreview(url) {
 }
 async function uploadLogo() {
   var f = $('bLogoFile').files && $('bLogoFile').files[0];
-  if (!f) return show('lgErr', '\u274c Pehle file choose karo', 'err');
+  if (!f) return show('lgErr', '\u274c Choose a file first', 'err');
   var okType = (f.type === 'image/png' || f.type === 'image/jpeg' || f.type === 'image/jpg');
-  if (!okType) return show('lgErr', '\u274c Sirf PNG ya JPG chalegi', 'err');
+  if (!okType) return show('lgErr', '\u274c Only PNG or JPG is allowed', 'err');
   if (f.size > 40 * 1024)
-    return show('lgErr', '\u274c Logo 40 KB se chhota hona chahiye (abhi ' + Math.round(f.size / 1024) + ' KB hai)', 'err');
+    return show('lgErr', '\u274c Logo must be under 40 KB (this one is ' + Math.round(f.size / 1024) + ' KB)', 'err');
   try {
     var fd = new FormData();
     fd.append('logo', f);
@@ -731,10 +731,10 @@ async function uploadLogo() {
       method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN }, body: fd });
     var dj = await r.json().catch(function () { return {}; });
     if (r.status === 401) { logout(); return; }
-    if (!r.ok) throw new Error(dj.error || 'Upload nahi hua');
+    if (!r.ok) throw new Error(dj.error || 'Upload failed');
     showLogoPreview(dj.logoUrl);
     $('bLogoFile').value = '';
-    show('lgOk', '\u2705 Logo lag gaya (' + (dj.sizeKb || 0) + ' KB)', 'ok');
+    show('lgOk', '\u2705 Logo updated (' + (dj.sizeKb || 0) + ' KB)', 'ok');
     boot();
   } catch (e) { show('lgErr', '\u274c ' + e.message, 'err'); }
 }
@@ -742,7 +742,7 @@ async function removeLogo() {
   try {
     await api('/api/whitelabel/remove-logo', { method: 'POST' });
     showLogoPreview('');
-    show('lgOk', '\u2705 Logo hata diya', 'ok');
+    show('lgOk', '\u2705 Logo removed', 'ok');
     boot();
   } catch (e) { show('lgErr', '\u274c ' + e.message, 'err'); }
 }
@@ -952,11 +952,11 @@ async function loadWlAnalytics() {
       ex.innerHTML =
         '<div class="card" style="padding:14px;"><h2 style="font-size:15px;margin:0 0 8px;">📦 Business Summary</h2>' +
           row('Total paid shops', sm.shops_total) +
-          row('Is range me nayi shops', sm.shops_new) +
+          row('New shops in this range', sm.shops_new) +
           row('Demo accounts', sm.demo_total) +
-          row('Total prints (sab shops)', sm.prints_total) +
-          row('Is range me prints', sm.prints_range) +
-          row('Total kamai (₹)', sm.earned_total) +
+          row('Total prints (all shops)', sm.prints_total) +
+          row('Prints in this range', sm.prints_range) +
+          row('Total earned (₹)', sm.earned_total) +
         '</div>' +
         list('🔗 Top Pages', d.topPaths, 'path') +
         list('↩️ Top Referrers', d.topRefs, 'ref') +
