@@ -3,12 +3,22 @@
 
 User-agent: *
 Allow: /$
+Allow: /features
+Allow: /about
+Allow: /contact
+Allow: /setup-guide
+Allow: /partner
+Allow: /terms
+Allow: /privacy
+Allow: /refund
+Allow: /disclaimer
 Allow: /register
 Allow: /agent
 Allow: /whitelabel
 Allow: /og-image.png
 Allow: /icon-192.png
 Allow: /icon-512.png
+Allow: /qr-logo.png
 Disallow: /api/
 Disallow: /admin
 Disallow: /superadmin
