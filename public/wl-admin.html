@@ -122,7 +122,7 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
     <input id="lgId" placeholder="Partner ID (WL_XXXXXXXX)" style="text-align:center;font-weight:700;">
     <input id="lgPass" type="password" placeholder="Password" style="text-align:center;">
     <button class="btn pink" onclick="doLogin()">Login</button>
-    <p class="hint">Partner nahi ho? <a href="/whitelabel" style="color:var(--pink);font-weight:700;text-decoration:none;">Yahan register karo ›</a></p>
+    <p class="hint">Not a partner yet? <a href="/whitelabel" style="color:var(--pink);font-weight:700;text-decoration:none;">Register here ›</a></p>
     <a href="/" style="display:flex;align-items:center;justify-content:center;gap:7px;margin-top:16px;padding:12px;border:1.5px solid var(--line);border-radius:12px;color:#4a4f58;font-size:13.5px;font-weight:700;text-decoration:none;transition:background .18s ease,border-color .18s ease;" onmouseover="this.style.background='#faf9f7';this.style.borderColor='#d9d2c8';" onmouseout="this.style.background='';this.style.borderColor='';">🏠 Home Page</a>
   </div>
 </div>
@@ -136,7 +136,7 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
     <div class="side-role">Partner Dashboard<b id="hSub">—</b></div>
 
     <button class="nav-it active" data-nav="overview"  onclick="navTo('overview',this)"><span class="ico">📊</span> Overview</button>
-    <button class="nav-it"        data-nav="shops"     onclick="navTo('shops',this)"><span class="ico">🏪</span> Meri Shops</button>
+    <button class="nav-it"        data-nav="shops"     onclick="navTo('shops',this)"><span class="ico">🏪</span> My Shops</button>
     <button class="nav-it"        data-nav="payment"   onclick="navTo('payment',this)"><span class="ico">💳</span> Payment &amp; Price<span class="dot" id="payDot"></span></button>
     <button class="nav-it"        data-nav="onboard"   onclick="navTo('onboard',this)"><span class="ico">➕</span> Shop Onboard</button>
     <button class="nav-it"        data-nav="analytics" onclick="navTo('analytics',this)"><span class="ico">📈</span> Analytics</button>
@@ -162,26 +162,26 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
       <!-- ═══ OVERVIEW ═══ -->
       <div data-sect="overview" class="show">
         <div id="rzpWarn" class="warnbox" style="display:none;">
-          ⚠️ <b>Razorpay abhi set nahi hai.</b><br>
-          Jab tak aap apna Razorpay nahi lagate, aapke link se koi shop register nahi kar payegi —
-          kyunki paisa kahan jayega ye pata nahi hoga.
-          <br><button onclick="navTo('payment',document.querySelector('[data-nav=payment]'))">💳 Abhi Set Karo ›</button>
+          ⚠️ <b>Razorpay is not set up yet.</b><br>
+          Until you add your own Razorpay, no shop can register through your link —
+          because there would be nowhere for the money to go.
+          <br><button onclick="navTo('payment',document.querySelector('[data-nav=payment]'))">💳 Set It Up Now ›</button>
         </div>
 
         <div class="card">
           <h2>📊 Overview</h2>
           <div class="stats" id="statsBox"></div>
-          <p class="hint">Total collected = aapki paid shops ne jo diya, wo seedha aapke Razorpay me gaya hai.</p>
+          <p class="hint">Total collected = what your paid shops paid, sent straight to your Razorpay.</p>
         </div>
 
         <div class="card">
-          <h2>🔗 Aapka Link</h2>
-          <p class="hint" style="margin:0 0 10px;">Is link se jo bhi register karega, wo <b>aapki shop</b> banegi aur aapka price dekhegi.</p>
+          <h2>🔗 Your Link</h2>
+          <p class="hint" style="margin:0 0 10px;">Whoever registers through this link becomes <b>your shop</b> and will see your price.</p>
           <div class="linkrow">
             <input id="shareLink" readonly>
             <button onclick="copyLink()">Copy</button>
           </div>
-          <button class="btn green" onclick="shareWA()">💬 WhatsApp par Share Karo</button>
+          <button class="btn green" onclick="shareWA()">💬 Share on WhatsApp</button>
           <p class="hint" id="subNote"></p>
         </div>
       </div>
@@ -189,7 +189,7 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
       <!-- ═══ SHOPS ═══ -->
       <div data-sect="shops">
         <div class="card">
-          <h2>🏪 Meri Shops
+          <h2>🏪 My Shops
             <span style="display:flex;gap:7px;">
               <button onclick="exportCsv()" style="background:#166534;color:#fff;border:none;border-radius:9px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">⬇️ CSV</button>
               <button onclick="loadShops()" style="background:#f3f4f6;color:#4b5563;border:none;border-radius:9px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;">↻ Refresh</button>
@@ -202,11 +202,11 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
       <!-- ═══ PAYMENT & PRICE ═══ -->
       <div data-sect="payment">
         <div class="card">
-          <h2>💳 Apna Razorpay</h2>
-          <div id="rzpOkBox" class="okbox" style="display:none;">✅ Razorpay set hai — shops ka paisa seedha aapke account me aayega</div>
+          <h2>💳 Your Razorpay</h2>
+          <div id="rzpOkBox" class="okbox" style="display:none;">✅ Razorpay is set — shop payments go straight into your account</div>
           <p class="hint" style="margin:0 0 12px;">
-            Aapki shops ka registration fee <b>seedha aapke Razorpay</b> me jayega.
-            Keys razorpay.com → Settings → API Keys se milengi.
+            Your shops' registration fee <b>straight to your Razorpay</b> account.
+            Get the keys from razorpay.com → Settings → API Keys.
           </p>
           <div class="msg err" id="rzpErr"></div>
           <div class="msg ok" id="rzpOk"></div>
@@ -214,7 +214,7 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
           <input id="rKey" placeholder="rzp_live_xxxxxxxx">
           <label>Key Secret</label>
           <input id="rSec" type="password" placeholder="Secret key">
-          <button class="btn green" onclick="saveRzp()">💾 Razorpay Save Karo</button>
+          <button class="btn green" onclick="saveRzp()">💾 Save Razorpay</button>
         </div>
 
         <div class="card">
@@ -249,14 +249,14 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
         <div class="card">
           <h2>🏷️ Shop Registration Price</h2>
           <p class="hint" style="margin:0 0 12px;">
-            Base price <b>₹<span id="pBase">—</span></b> hai. Isse <b>upar</b> jo chahe rakho —
-            poora extra aapka margin. Isse neeche nahi ja sakte.
+            Base price is <b>₹<span id="pBase">—</span></b>. Set anything <b>above</b> that —
+            the whole extra amount is your margin. You cannot go below this.
           </p>
           <div class="msg err" id="prErr"></div>
           <div class="msg ok" id="prOk"></div>
           <input id="pPrice" type="number" inputmode="numeric" style="font-size:18px;font-weight:800;">
           <div id="marginNote" style="font-size:12.5px;font-weight:700;color:#166534;margin-bottom:11px;"></div>
-          <button class="btn" onclick="savePrice()">Price Save Karo</button>
+          <button class="btn" onclick="savePrice()">Save Price</button>
         </div>
       </div>
 
@@ -264,13 +264,13 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
       <div data-sect="branding">
         <div class="card">
           <h2>🎨 Branding</h2>
-          <p class="hint" style="margin:0 0 12px;">Ye aapki shops ko aur unke customers ko dikhega — humara naam kahin nahi aayega.</p>
+          <p class="hint" style="margin:0 0 12px;">This shows to your shops and their customers — our name never appears.</p>
           <div class="msg err" id="brErr"></div>
           <div class="msg ok" id="brOk"></div>
           <label>Brand ka naam</label>
           <input id="bBrand" maxlength="120">
           <label>"Powered by" me kya likhe</label>
-          <input id="bPowered" maxlength="160" placeholder="jaise — ABC Print Solutions">
+          <input id="bPowered" maxlength="160" placeholder="e.g. ABC Print Solutions">
           <label>Logo (PNG or JPG — under 40 KB)</label>
           <div class="msg err" id="lgErr"></div>
           <div class="msg ok" id="lgOk"></div>
@@ -283,7 +283,7 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
           <input type="file" id="bLogoFile" accept="image/png,image/jpeg">
           <p class="hint" style="margin:6px 0 10px;">A square logo (for example 256×256) looks best.</p>
           <button class="btn" style="background:#eef2ff;color:#3730a3;" onclick="uploadLogo()">⬆️ Upload Logo</button>
-          <button class="btn green" onclick="saveBranding()">💾 Branding Save Karo</button>
+          <button class="btn green" onclick="saveBranding()">💾 Save Branding</button>
         </div>
 
         <div class="card">
@@ -326,8 +326,8 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
         <div class="card">
           <h2>📞 Support Contact</h2>
           <p class="hint" style="margin:0 0 12px;">
-            Ye aapki shops ke dashboard me <b>Support</b> par dikhega — unka WhatsApp aur email
-            seedha <b>aapke paas</b> aayega, humare paas nahi.
+            This shows on your shops' dashboard under <b>Support</b> par dikhega — unka WhatsApp aur email
+            seedha <b>to you</b> not to us.
           </p>
           <div class="msg err" id="scErr"></div>
           <div class="msg ok" id="scOk"></div>
@@ -335,20 +335,20 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
           <input id="bEmail" type="email" maxlength="160" placeholder="support@aapkibrand.com">
           <label>Support Mobile / WhatsApp</label>
           <input id="bPhone" type="tel" maxlength="10" placeholder="10 digit">
-          <button class="btn green" onclick="saveContact()">💾 Contact Save Karo</button>
+          <button class="btn green" onclick="saveContact()">💾 Save Contact</button>
         </div>
 
         <div class="card">
           <h2>🔔 Naya Shop Alert</h2>
           <p class="hint" style="margin:0 0 12px;">
-            Aapke link se nayi shop register ho ya payment aaye — turant
-            <b>aapke email par</b> message aa jayega.<br>
-            Kuch setup nahi karna — bas apna email daalo.
+            When a new shop registers or a payment arrives through your link, you instantly get an
+            <b>email</b> notification.<br>
+            No setup needed — just enter your email.
           </p>
           <div class="msg err" id="ntErr"></div>
           <div class="msg ok" id="ntOk"></div>
           <label>Alert kis email par aaye</label>
-          <input id="ntTo" type="email" maxlength="160" placeholder="aapka@email.com">
+          <input id="ntTo" type="email" maxlength="160" placeholder="you@email.com">
           <div style="display:flex;gap:9px;">
             <button class="btn green" style="flex:2;" onclick="saveNotify()">💾 Save</button>
             <button class="btn" style="flex:1;" onclick="testNotify()">📤 Test</button>
@@ -377,10 +377,10 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
         </div>
 
         <div class="card">
-          <h2>➕ Shop Onboard Karo</h2>
+          <h2>➕ Onboard a Shop</h2>
           <p class="hint" style="margin:0 0 12px;">
-            Kisi ki dukaan khud register kar do — Shop ID aur password turant ban jayega.
-            Payment aap online kar do ya cash lekar <b>Meri Shops</b> me jaakar activate kar do.
+            Register a shop yourself — the Shop ID and password are created instantly.
+            You can pay online or collect cash, then go to <b>My Shops</b> and activate it.
           </p>
           <div class="msg err" id="obErr"></div>
           <div id="obOk" style="display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534;border-radius:12px;padding:14px;font-size:13px;line-height:1.9;margin-bottom:12px;"></div>
@@ -391,14 +391,14 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
           <label>Address</label>
           <input id="obAddr" maxlength="300">
           <label>Printer ka model</label>
-          <input id="obPrinter" maxlength="120" placeholder="jaise HP LaserJet 1020">
+          <input id="obPrinter" maxlength="120" placeholder="e.g. HP LaserJet 1020">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px;">
             <div><label>B&amp;W rate (₹)</label><input id="obBw" type="number" value="5"></div>
             <div><label>Color rate (₹)</label><input id="obColor" type="number" value="10"></div>
           </div>
-          <label>Password (khaali = apne aap banega)</label>
+          <label>Password (leave empty = generated automatically)</label>
           <input id="obPass" maxlength="40">
-          <button class="btn pink" onclick="doOnboard()">Shop ID Banao</button>
+          <button class="btn pink" onclick="doOnboard()">Create Shop ID</button>
         </div>
       </div>
 
@@ -411,7 +411,7 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
               <option value="30" selected>30 din</option><option value="90">90 din</option>
             </select>
           </h2>
-          <p class="hint" style="margin:-4px 0 14px;">Aapke link (<b id="anSlug">—</b>) se kitne log aaye aur kitni shops bani.</p>
+          <p class="hint" style="margin:-4px 0 14px;">Your link (<b id="anSlug">—</b>) — how many people visited and how many shops were created.</p>
           <div class="stats" id="anStats"></div>
           <div style="background:#fafaf9;border:1.5px solid var(--line);border-radius:14px;padding:14px 10px 6px;margin-top:14px;">
             <div style="display:flex;gap:14px;align-items:center;margin-bottom:8px;padding:0 8px;font-size:11px;font-weight:700;color:#6b6870;">
@@ -428,14 +428,14 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
       <div data-sect="account">
         <div class="card">
           <h2>🔐 Password Badlo</h2>
-          <p class="hint" style="margin:0 0 12px;">Registration ke waqt jo password mila tha, use badal lo — apna yaad rehne wala rakho.</p>
+          <p class="hint" style="margin:0 0 12px;">Change the password you got at registration — pick one you will remember.</p>
           <div class="msg err" id="pwErr"></div>
           <div class="msg ok" id="pwOk"></div>
-          <label>Purana password</label>
+          <label>Old password</label>
           <input id="pwOld" type="password">
-          <label>Naya password (kam se kam 6 akshar)</label>
+          <label>New password (at least 6 characters)</label>
           <input id="pwNew" type="password">
-          <label>Naya password dobara</label>
+          <label>Repeat new password</label>
           <input id="pwNew2" type="password">
           <button class="btn green" onclick="changePassword()">🔐 Password Badlo</button>
         </div>
@@ -450,9 +450,9 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
       <div data-sect="broadcast">
         <div class="card">
           <h2>📢 Broadcast</h2>
-          <p class="hint" style="margin:0 0 12px;">Ye message <b>sirf aapki shops</b> ke dashboard me dikhega. Khaali karke save karo to hat jayega.</p>
+          <p class="hint" style="margin:0 0 12px;">Ye message <b>only your shops</b> will see it on their dashboard. Save it empty to remove it.</p>
           <div class="msg ok" id="bcOk"></div>
-          <textarea id="bcMsg" maxlength="1000" placeholder="jaise — Diwali offer: aaj se 20% off"></textarea>
+          <textarea id="bcMsg" maxlength="1000" placeholder="e.g. Diwali offer: 20% off from today"></textarea>
           <button class="btn" onclick="saveBroadcast()">📢 Bhejo</button>
         </div>
       </div>
@@ -463,7 +463,7 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
 </div>
 
 <script>
-const PAGE_TITLES = { overview:'Overview', shops:'Meri Shops', onboard:'Shop Onboard', analytics:'Analytics', payment:'Payment & Price', branding:'Branding', broadcast:'Broadcast', account:'Account' };
+const PAGE_TITLES = { overview:'Overview', shops:'My Shops', onboard:'Shop Onboard', analytics:'Analytics', payment:'Payment & Price', branding:'Branding', broadcast:'Broadcast', account:'Account' };
 let TOKEN = localStorage.getItem('qrsp_wl_token') || '';
 let ME = null;
 const $ = id => document.getElementById(id);
@@ -489,7 +489,7 @@ function api(path, opts) {
   opts.headers = Object.assign({ 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + TOKEN }, opts.headers || {});
   return fetch(path, opts).then(async r => {
     const d = await r.json().catch(() => ({}));
-    if (r.status === 401) { logout(); throw new Error('Session khatam — dobara login karo'); }
+    if (r.status === 401) { logout(); throw new Error('Session expired — please log in again'); }
     if (!r.ok) throw new Error(d.error || 'Kuch galat hua');
     return d;
   });
@@ -497,7 +497,7 @@ function api(path, opts) {
 
 async function doLogin() {
   const id = $('lgId').value.trim(), pass = $('lgPass').value;
-  if (!id || !pass) return show('loginErr', '❌ ID aur password dono daalo', 'err');
+  if (!id || !pass) return show('loginErr', '❌ Enter both ID and password', 'err');
   try {
     const r = await fetch('/api/whitelabel/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -545,7 +545,7 @@ async function boot() {
 
     $('shareLink').value = ME.shareLink || '';
     $('subNote').innerHTML = 'Subdomain link: <b>' + esc(ME.subdomainLink || '') +
-      '</b> — ye tabhi chalega jab admin DNS set kar de. Tab tak upar wala link use karo.';
+      '</b> — this works only after the admin sets up DNS. Until then, use the link above.';
 
     $('bBrand').value = ME.brandName || '';
     $('bPowered').value = ME.poweredBy || '';
@@ -586,7 +586,7 @@ async function boot() {
        <div><b>Mobile:</b> ${esc(ME.phone || '-')}</div>
        <div><b>Email:</b> ${esc(ME.email || '-')}</div>
        <div><b>License fee:</b> ₹${(ME.licenseFee || 0).toLocaleString('en-IN')}</div>
-       <div><b>Partner bane:</b> ${ME.paidAt ? new Date(ME.paidAt).toLocaleDateString('en-IN') : '-'}</div>`;
+       <div><b>Partner since:</b> ${ME.paidAt ? new Date(ME.paidAt).toLocaleDateString('en-IN') : '-'}</div>`;
 
     loadShops();
     loadWlAnalytics();
@@ -603,7 +603,7 @@ function updateMargin() {
   const el = $('marginNote'); if (!el || !ME) return;
   const p = parseInt($('pPrice').value, 10) || 0;
   const m = p - (ME.basePrice || 0);
-  el.textContent = m > 0 ? `Har shop par aapka margin: ₹${m}` : 'Base price par bech rahe ho — koi extra margin nahi';
+  el.textContent = m > 0 ? `Your margin per shop: ₹${m}` : 'Selling at base price — no extra margin';
   el.style.color = m > 0 ? '#166534' : '#92400e';
 }
 
@@ -611,7 +611,7 @@ async function saveRzp() {
   try {
     await api('/api/whitelabel/razorpay', { method: 'PUT', body: JSON.stringify({
       razorpay_key_id: $('rKey').value, razorpay_key_secret: $('rSec').value }) });
-    show('rzpOk', '✅ Razorpay save ho gaya — ab aapke link se shops register kar sakti hain', 'ok');
+    show('rzpOk', '✅ Razorpay saved — shops can now register through your link', 'ok');
     $('rSec').value = '';
     boot();
   } catch (e) { show('rzpErr', '❌ ' + e.message, 'err'); }
@@ -619,7 +619,7 @@ async function saveRzp() {
 async function savePrice() {
   try {
     const d = await api('/api/whitelabel/price', { method: 'PUT', body: JSON.stringify({ price: parseInt($('pPrice').value, 10) }) });
-    show('prOk', `✅ Price ₹${d.price} set — aapka margin ₹${d.price - d.base} per shop`, 'ok');
+    show('prOk', `✅ Price ₹${d.price} set — your margin is ₹${d.price - d.base} per shop`, 'ok');
     if (ME) ME.shopPrice = d.price;
     updateMargin();
   } catch (e) { show('prErr', '❌ ' + e.message, 'err'); }
@@ -628,11 +628,11 @@ async function saveBranding() {
   try {
     await api('/api/whitelabel/branding', { method: 'PUT', body: JSON.stringify({
       brand_name: $('bBrand').value, powered_by: $('bPowered').value }) });
-    show('brOk', '✅ Branding save ho gayi', 'ok');
+    show('brOk', '✅ Branding saved', 'ok');
     boot();
   } catch (e) { show('brErr', '❌ ' + e.message, 'err'); }
 }
-/* Homepage ke button toggles — checkbox banao */
+/* Homepage button toggles — build checkboxes */
 var HP_BTN_LABELS = {
   contact: 'Contact', partner: 'Partner Program', agent: 'Agent Program',
   features: 'Features', setupGuide: 'Setup Guide', pricing: 'Pricing',
@@ -726,7 +726,7 @@ async function uploadLogo() {
   try {
     var fd = new FormData();
     fd.append('logo', f);
-    // FormData par Content-Type khud browser set karta hai — isliye api() nahi
+    // The browser sets Content-Type for FormData itself — so we don't use api()
     var r = await fetch('/api/whitelabel/upload-logo', {
       method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN }, body: fd });
     var dj = await r.json().catch(function () { return {}; });
@@ -750,7 +750,7 @@ async function saveContact() {
   try {
     await api('/api/whitelabel/branding', { method: 'PUT', body: JSON.stringify({
       support_email: $('bEmail').value, support_phone: $('bPhone').value }) });
-    show('scOk', '✅ Support contact save ho gaya — aapki shops ko yahi dikhega', 'ok');
+    show('scOk', '✅ Support contact saved — this is what your shops will see', 'ok');
     boot();
   } catch (e) { show('scErr', '❌ ' + e.message, 'err'); }
 }
@@ -758,36 +758,36 @@ async function saveNotify() {
   try {
     await api('/api/whitelabel/notify', { method: 'PUT',
       body: JSON.stringify({ notifyEmail: $('ntTo').value }) });
-    show('ntOk', '✅ Save ho gaya — ab Test dabao', 'ok');
+    show('ntOk', '✅ Saved — now press Test', 'ok');
     if (ME) ME.notifyEmail = $('ntTo').value;
   } catch (e) { show('ntErr', '❌ ' + e.message, 'err'); }
 }
 async function testNotify() {
-  show('ntOk', '📤 Bhej rahe hain…', 'ok');
+  show('ntOk', '📤 Sending…', 'ok');
   try {
     const d = await api('/api/whitelabel/notify/test', { method: 'POST' });
-    show('ntOk', '✅ Bhej diya — ' + (d.to || '') + ' check karo (spam folder bhi)', 'ok');
+    show('ntOk', '✅ Sent — ' + (d.to || '') + ' and check it (including the spam folder)', 'ok');
   } catch (e) { show('ntErr', '❌ ' + e.message, 'err'); }
 }
 
 async function saveBroadcast() {
   try {
     await api('/api/whitelabel/broadcast', { method: 'PUT', body: JSON.stringify({ message: $('bcMsg').value }) });
-    show('bcOk', $('bcMsg').value.trim() ? '✅ Message aapki shops ko dikhne laga' : '✅ Message hata diya', 'ok');
+    show('bcOk', $('bcMsg').value.trim() ? '✅ Message your shops ko dikhne laga' : '✅ Message removed', 'ok');
   } catch (e) { show('bcOk', '❌ ' + e.message, 'err'); }
 }
 function copyLink() {
   const el = $('shareLink'); el.select();
-  try { document.execCommand('copy'); alert('✅ Link copy ho gaya'); } catch (e) {}
+  try { document.execCommand('copy'); alert('✅ Link copied'); } catch (e) {}
 }
 function shareWA() {
   if (!ME) return;
   const price = ME.shopPrice || ME.basePrice || 0;
   const brand = ME.brandName || 'Print Software';
   const msg = `🖨️ *${brand}* — cyber cafe ke liye automatic print software\n\n` +
-    `Dukaan me QR chipkao — customer apne phone se scan karke file bhejta hai, payment karta hai, ` +
-    `aur print aapke printer se KHUD nikal jata hai.\n\n` +
-    `✅ 0% commission — paisa seedha aapke account me\n✅ Unlimited print\n✅ Na WhatsApp pe file mangna, na pendrive ka virus\n\n` +
+    `Put the QR in your shop — the customer scans it with their phone, sends the file, pays, ` +
+    `and the print comes out of your printer AUTOMATICALLY.\n\n` +
+    `✅ 0% commission — money goes straight to your account\n✅ Unlimited print\n✅ No asking for files on WhatsApp, no pendrive ka virus\n\n` +
     `💰 Setup: ₹${price} (one-time)\n\n👉 ${ME.shareLink}`;
   window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank', 'noopener');
 }
@@ -807,7 +807,7 @@ async function doOnboard() {
       <b>Shop ID:</b> ${esc(d.shopId)}<br><b>Password:</b> ${esc(d.password)}<br><b>Amount:</b> ₹${d.amount}<br><br>
       <span style="color:#92400e;">⚠️ Ye abhi note kar lo — dobara nahi dikhega.</span><br><br>
       <a href="${esc(d.pay_url)}" target="_blank" style="display:inline-block;background:#16a34a;color:#fff;padding:11px 18px;border-radius:10px;font-weight:800;text-decoration:none;">💳 Ab Payment Karo ›</a>
-      <span style="display:block;margin-top:8px;font-size:11.5px;color:#6b6870;">Ya cash liya ho to <b>Meri Shops</b> me jaakar "Activate" dabao.</span>`;
+      <span style="display:block;margin-top:8px;font-size:11.5px;color:#6b6870;">Ya cash liya ho to <b>My Shops</b> me jaakar "Activate" dabao.</span>`;
     $('obOk').style.display = 'block';
     ['obName','obPhone','obAddr','obPrinter','obPass'].forEach(id => { $(id).value = ''; });
     $('obBw').value = 5; $('obColor').value = 10;
@@ -817,23 +817,23 @@ async function doOnboard() {
 
 // ═══ SHOP ACTIONS ═══
 async function resetShopPass(id, name) {
-  if (!confirm(`"${name}" ka password reset karein?\nPurana password band ho jayega.`)) return;
+  if (!confirm(`"${name}" — reset this password?\nThe old password will stop working.`)) return;
   try {
     const d = await api(`/api/whitelabel/shop/${id}/reset-password`, { method: 'POST' });
-    alert('✅ Naya password: ' + d.tempPassword + '\n\nShop owner ko bhej do — ye dobara nahi dikhega.');
+    alert('✅ Naya password: ' + d.tempPassword + '\n\nSend this to the shop owner — it will not be shown again.');
   } catch (e) { alert('❌ ' + e.message); }
 }
 async function activateShopWl(id, name, amount) {
-  const ref = prompt(`"${name}" ko activate karna hai?\n\nPayment reference daalo — cash liya ho to CASH likh do.\n\n⚠️ Dhyan: ye shop ₹${amount} ki hai. Bina paisa liye activate kiya to nuksan aapka hoga.`);
+  const ref = prompt(`"${name}" — activate this shop?\n\nEnter the payment reference — if you took cash, type CASH.\n\n⚠️ Note: this shop is worth ₹${amount}. If you activate it without taking payment, the loss is yours.`);
   if (!ref) return;
   try {
     await api(`/api/whitelabel/shop/${id}/activate`, { method: 'POST', body: JSON.stringify({ payment_ref: ref }) });
-    alert('✅ Shop activate ho gayi — QR aur software ab mil jayega');
+    alert('✅ Shop activated — the QR and software are now available');
     loadShops(); boot();
   } catch (e) { alert('❌ ' + e.message); }
 }
 async function delShop(id, name) {
-  if (!confirm(`"${name}" ko delete karein?\nYe wapas nahi aayegi.`)) return;
+  if (!confirm(`"${name}" — delete this shop?\nThis cannot be undone.`)) return;
   try {
     await api(`/api/whitelabel/shop/${id}`, { method: 'DELETE' });
     loadShops(); boot();
@@ -853,7 +853,7 @@ async function openPrn(id, name) {
     const online = s.agent_last_seen && (Date.now() - new Date(s.agent_last_seen).getTime()) < 120000;
     const field = (fid, label, val, hint) => `<div style="margin-bottom:12px;">
       <label style="margin-bottom:5px;">${label}</label>
-      <input id="${fid}" list="prnList" value="${esc(val || '')}" placeholder="— koi printer select nahi —" style="margin-bottom:3px;">
+      <input id="${fid}" list="prnList" value="${esc(val || '')}" placeholder="— no printer selected —" style="margin-bottom:3px;">
       ${hint ? `<div style="font-size:10.5px;color:var(--muted);">${hint}</div>` : ''}</div>`;
     const box = list.length
       ? `<div style="background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:11px;padding:11px 13px;margin-bottom:13px;">
@@ -865,9 +865,9 @@ async function openPrn(id, name) {
       <div style="margin-bottom:12px;"><span style="font-size:11px;font-weight:800;background:${online?'#dcfce7':'#fee2e2'};color:${online?'#166534':'#991b1b'};border-radius:999px;padding:5px 11px;">${online?'🟢 Agent online':'🔴 Agent offline'}</span></div>
       ${box}
       ${field('prBw','⚫ B&W Printer', s.printer_name_bw, 'Black & white print isi se niklega')}
-      ${field('prColor','🌈 Color Printer', s.printer_name_color, 'Khaali chhodo to B&W wala use hoga')}
-      ${field('prA3','📄 A3 / Bade Size', s.printer_name_a3, 'Sirf tab jab alag bada printer ho')}
-      ${field('pr4x6','🖼️ 4×6 Photo', s.printer_name_4x6, 'Passport photo ke liye alag printer ho to')}`;
+      ${field('prColor','🌈 Color Printer', s.printer_name_color, 'Leave empty to use the B&W printer')}
+      ${field('prA3','📄 A3 / Bade Size', s.printer_name_a3, 'Only if there is a separate large printer')}
+      ${field('pr4x6','🖼️ 4×6 Photo', s.printer_name_4x6, 'If there is a separate printer for passport photos')}`;
   } catch (e) { $('prnBody').innerHTML = `<div style="color:#c22;font-size:13px;">❌ ${esc(e.message)}</div>`; }
 }
 function closePrn() { $('prnOverlay').style.display = 'none'; _prnShopId = null; }
@@ -878,20 +878,20 @@ async function savePrn() {
     await api(`/api/whitelabel/shop/${_prnShopId}/printers`, { method: 'PUT', body: JSON.stringify({
       printer_name_bw: $('prBw').value, printer_name_color: $('prColor').value,
       printer_name_4x6: $('pr4x6').value, printer_name_a3: $('prA3').value })});
-    b.textContent = '✅ Save ho gaya';
-    setTimeout(() => { b.disabled = false; b.textContent = '💾 Save Karo'; closePrn(); }, 800);
-  } catch (e) { alert('❌ ' + e.message); b.disabled = false; b.textContent = '💾 Save Karo'; }
+    b.textContent = '✅ Saved';
+    setTimeout(() => { b.disabled = false; b.textContent = '💾 Save'; closePrn(); }, 800);
+  } catch (e) { alert('❌ ' + e.message); b.disabled = false; b.textContent = '💾 Save'; }
 }
 
 // ═══ PASSWORD ═══
 async function changePassword() {
   $('pwErr').style.display = 'none'; $('pwOk').style.display = 'none';
   const o = $('pwOld').value, n = $('pwNew').value, n2 = $('pwNew2').value;
-  if (n.length < 6) return show('pwErr', '❌ Naya password kam se kam 6 akshar ka ho', 'err');
-  if (n !== n2) return show('pwErr', '❌ Dono naye password same nahi hain', 'err');
+  if (n.length < 6) return show('pwErr', '❌ New password must be at least 6 characters', 'err');
+  if (n !== n2) return show('pwErr', '❌ The two new passwords do not match', 'err');
   try {
     await api('/api/whitelabel/password', { method: 'PUT', body: JSON.stringify({ old_password: o, new_password: n }) });
-    show('pwOk', '✅ Password badal gaya — agli baar isi se login karna', 'ok');
+    show('pwOk', '✅ Password changed — use it to log in next time', 'ok');
     ['pwOld','pwNew','pwNew2'].forEach(id => { $(id).value = ''; });
   } catch (e) { show('pwErr', '❌ ' + e.message, 'err'); }
 }
@@ -899,7 +899,7 @@ async function changePassword() {
 // ═══ CSV EXPORT ═══
 let _shopsCache = [];
 function exportCsv() {
-  if (!_shopsCache.length) return alert('Abhi koi shop nahi hai');
+  if (!_shopsCache.length) return alert('No shops yet');
   const head = ['Shop ID','Naam','Mobile','Address','Status','Amount','Plan','Register Date'];
   const q = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
   const rows = _shopsCache.map(s => [
@@ -995,7 +995,7 @@ async function loadShops() {
     const d = await api('/api/whitelabel/shops');
     _shopsCache = d.shops || [];
     if (!_shopsCache.length) {
-      box.innerHTML = '<p style="color:var(--muted);">Abhi koi shop nahi. Apna link share karo ya <b>Shop Onboard</b> tab se khud banao.</p>';
+      box.innerHTML = '<p style="color:var(--muted);">No shops yet. Share your link, or create one from the <b>Shop Onboard</b> tab.</p>';
       return;
     }
     const btn = (txt, fn, bg, fg) =>
@@ -1033,7 +1033,7 @@ async function loadShops() {
         <div style="display:flex;gap:7px;flex-wrap:wrap;margin-top:10px;">${actions}</div>
       </div>`;
     }).join('');
-  } catch (e) { box.innerHTML = '<p style="color:#c22;">Load nahi hua</p>'; }
+  } catch (e) { box.innerHTML = '<p style="color:#c22;">Could not load</p>'; }
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -1055,8 +1055,8 @@ boot();
     </div>
     <div id="prnBody" style="padding:17px 19px;max-height:66vh;overflow-y:auto;">Loading…</div>
     <div style="padding:13px 19px 17px;border-top:1.5px solid #f0ece6;display:flex;gap:10px;">
-      <button onclick="closePrn()" style="flex:1;background:#f3f4f6;color:#4b5563;border:none;border-radius:11px;padding:12px;font-weight:700;font-size:13px;cursor:pointer;">Band karo</button>
-      <button id="prnSave" onclick="savePrn()" style="flex:2;background:#16a34a;color:#fff;border:none;border-radius:11px;padding:12px;font-weight:800;font-size:13px;cursor:pointer;">💾 Save Karo</button>
+      <button onclick="closePrn()" style="flex:1;background:#f3f4f6;color:#4b5563;border:none;border-radius:11px;padding:12px;font-weight:700;font-size:13px;cursor:pointer;">Close</button>
+      <button id="prnSave" onclick="savePrn()" style="flex:2;background:#16a34a;color:#fff;border:none;border-radius:11px;padding:12px;font-weight:800;font-size:13px;cursor:pointer;">💾 Save</button>
     </div>
   </div>
 </div>
