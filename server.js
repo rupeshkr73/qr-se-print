@@ -18,6 +18,13 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || 'https://qr-se-print.onrender.com';
 
+// ── White-label homepage settings ──
+// Monthly plan ka minimum — partner isse neeche price nahi rakh sakta.
+const WL_MIN_MONTHLY = 399;
+// Homepage ke jo button/section partner on-off kar sakta hai.
+const WL_HP_BUTTON_KEYS = ['contact','partner','agent','features','setupGuide',
+                           'pricing','reviews','faq','demo','register','shopLogin'];
+
 const CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || '';
 const CLD_API_KEY = process.env.CLOUDINARY_API_KEY || '';
 const CLD_API_SECRET = process.env.CLOUDINARY_API_SECRET || '';
@@ -526,6 +533,19 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_version INT;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS whitelabel_id VARCHAR(50) DEFAULT '';
       ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS notify_email VARCHAR(160) DEFAULT '';
+      -- ── White-label: homepage customization + Cashfree support ──
+      ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS cashfree_app_id VARCHAR(120) DEFAULT '';
+      ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS cashfree_secret_key VARCHAR(200) DEFAULT '';
+      ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS gateway VARCHAR(20) DEFAULT 'razorpay';
+      ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS hp_title VARCHAR(160) DEFAULT '';
+      ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS hp_subtitle VARCHAR(200) DEFAULT '';
+      ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS hp_tagline VARCHAR(200) DEFAULT '';
+      ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS made_in VARCHAR(120) DEFAULT '';
+      ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS social_instagram VARCHAR(300) DEFAULT '';
+      ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS social_youtube VARCHAR(300) DEFAULT '';
+      ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS social_facebook VARCHAR(300) DEFAULT '';
+      ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS hp_buttons TEXT DEFAULT '';
+      ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS monthly_price INTEGER DEFAULT 0;
       -- Partner ka apna domain (jaise https://sharmadigital.in). Set hai to
       -- uski shops ke mail me yahi link jaata hai — mera domain nahi dikhta.
       ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS site_url VARCHAR(200) DEFAULT '';
@@ -2172,6 +2192,22 @@ app.get('/api/whitelabel/branding', async (req, res) => {
   try {
     const wl = await resolveWhitelabel(req);
     if (!wl) return res.json({ isWhitelabel: false });
+    // Homepage ke live counters — seedha DB se (hardcoded nahi)
+    let stats = { shops: 0, prints: 0 };
+    try {
+      const c = await pool.query(
+        `SELECT
+           (SELECT COUNT(*)::int FROM shops
+             WHERE whitelabel_id=$1 AND COALESCE(demo,false)=false) AS shops,
+           (SELECT COUNT(*)::int FROM print_jobs j
+             JOIN shops s ON s.id=j.shop_id
+            WHERE s.whitelabel_id=$1) AS prints`, [wl.id]);
+      stats = { shops: c.rows[0].shops || 0, prints: c.rows[0].prints || 0 };
+    } catch (e) { /* count fail ho to homepage na toote */ }
+
+    let buttons = {};
+    try { buttons = wl.hp_buttons ? JSON.parse(wl.hp_buttons) : {}; } catch (e) { buttons = {}; }
+
     res.json({
       isWhitelabel: true,
       slug: wl.slug,
@@ -2180,7 +2216,19 @@ app.get('/api/whitelabel/branding', async (req, res) => {
       poweredBy: wl.powered_by || wl.brand_name,
       supportEmail: wl.support_email || '',
       supportPhone: wl.support_phone || '',
-      shopPrice: wl.shop_price || 0
+      shopPrice: wl.shop_price || 0,
+      monthlyPrice: wl.monthly_price || 0,
+      hpTitle: wl.hp_title || '',
+      hpSubtitle: wl.hp_subtitle || '',
+      hpTagline: wl.hp_tagline || '',
+      madeIn: wl.made_in || '',
+      social: {
+        instagram: wl.social_instagram || '',
+        youtube:   wl.social_youtube || '',
+        facebook:  wl.social_facebook || ''
+      },
+      buttons: buttons,
+      stats: stats
     });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
@@ -2336,6 +2384,19 @@ app.get('/api/whitelabel/me', verifyWhitelabel, async (req, res) => {
       shopPrice: wl.shop_price || 0, basePrice: wl.base_price || 0,
       razorpayKeyId: wl.razorpay_key_id || '',
       razorpayReady: !!(wl.razorpay_key_id && wl.razorpay_key_secret),
+      cashfreeAppId: wl.cashfree_app_id || '',
+      cashfreeReady: !!(wl.cashfree_app_id && wl.cashfree_secret_key),
+      gateway: wl.gateway || 'razorpay',
+      // Homepage customization
+      hpTitle: wl.hp_title || '', hpSubtitle: wl.hp_subtitle || '',
+      hpTagline: wl.hp_tagline || '', madeIn: wl.made_in || '',
+      socialInstagram: wl.social_instagram || '',
+      socialYoutube: wl.social_youtube || '',
+      socialFacebook: wl.social_facebook || '',
+      buttons: (function () { try { return wl.hp_buttons ? JSON.parse(wl.hp_buttons) : {}; } catch (e) { return {}; } })(),
+      monthlyPrice: wl.monthly_price || 0,
+      minMonthlyPrice: WL_MIN_MONTHLY,
+      buttonKeys: WL_HP_BUTTON_KEYS,
       notifyEmail: wl.notify_email || '',
       blocked: !!wl.blocked, licenseFee: wl.license_fee || 0, paidAt: wl.paid_at,
       stats: s.rows[0], collected: earned.rows[0].total,
@@ -2369,6 +2430,135 @@ app.put('/api/whitelabel/branding', verifyWhitelabel, async (req, res) => {
       [req.wlId, cut(b.brand_name, 120) || '', cut(b.powered_by, 160), cut(b.logo_url, 400), email, phone]);
     res.json({ success: true });
   } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Homepage customization (title, tagline, socials, buttons on/off, price) ──
+app.put('/api/whitelabel/homepage', verifyWhitelabel, async (req, res) => {
+  try {
+    const b = req.body || {};
+    const cut = (v, n) => (typeof v === 'string' ? v.trim().slice(0, n) : null);
+    // Link sirf http(s) — javascript: jaisa kuch na ghuse
+    const link = (v, n) => {
+      const t = cut(v, n);
+      if (t === null) return null;
+      if (t === '') return '';
+      if (!/^https?:\/\//i.test(t)) return null;
+      return t;
+    };
+    const ig = link(b.social_instagram, 300);
+    const yt = link(b.social_youtube, 300);
+    const fb = link(b.social_facebook, 300);
+    if (b.social_instagram && ig === null) return res.status(400).json({ error: 'Instagram link https:// se shuru hona chahiye' });
+    if (b.social_youtube   && yt === null) return res.status(400).json({ error: 'YouTube link https:// se shuru hona chahiye' });
+    if (b.social_facebook  && fb === null) return res.status(400).json({ error: 'Facebook link https:// se shuru hona chahiye' });
+
+    // Monthly plan ka price — 399 se kam nahi ho sakta
+    let monthly = null;
+    if (b.monthly_price !== undefined && b.monthly_price !== null && b.monthly_price !== '') {
+      monthly = parseInt(b.monthly_price, 10);
+      if (isNaN(monthly)) return res.status(400).json({ error: 'Monthly price number me daalo' });
+      if (monthly < WL_MIN_MONTHLY) return res.status(400).json({ error: 'Monthly price ' + WL_MIN_MONTHLY + ' se kam nahi ho sakta' });
+      if (monthly > 100000) return res.status(400).json({ error: 'Monthly price bahut zyada hai' });
+    }
+
+    // Buttons on/off — sirf allowed keys, sirf true/false
+    let btnJson = null;
+    if (b.buttons && typeof b.buttons === 'object') {
+      const clean = {};
+      WL_HP_BUTTON_KEYS.forEach(function (k) {
+        if (b.buttons[k] !== undefined) clean[k] = !!b.buttons[k];
+      });
+      btnJson = JSON.stringify(clean);
+    }
+
+    await pool.query(
+      `UPDATE whitelabels SET
+         hp_title          = COALESCE($2, hp_title),
+         hp_subtitle       = COALESCE($3, hp_subtitle),
+         hp_tagline        = COALESCE($4, hp_tagline),
+         made_in           = COALESCE($5, made_in),
+         social_instagram  = COALESCE($6, social_instagram),
+         social_youtube    = COALESCE($7, social_youtube),
+         social_facebook   = COALESCE($8, social_facebook),
+         hp_buttons        = COALESCE($9, hp_buttons),
+         monthly_price     = COALESCE($10, monthly_price)
+       WHERE id=$1`,
+      [req.wlId, cut(b.hp_title, 160), cut(b.hp_subtitle, 200), cut(b.hp_tagline, 200),
+       cut(b.made_in, 120), ig, yt, fb, btnJson, monthly]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Apna Cashfree (Razorpay ka doosra option) ──
+app.put('/api/whitelabel/cashfree', verifyWhitelabel, async (req, res) => {
+  try {
+    const appId  = String(req.body.cashfree_app_id || '').trim().slice(0, 120);
+    const secret = String(req.body.cashfree_secret_key || '').trim().slice(0, 200);
+    if (appId && !secret) return res.status(400).json({ error: 'Secret key bhi daalo' });
+    if (secret && !appId) return res.status(400).json({ error: 'App ID bhi daalo' });
+    await pool.query(
+      'UPDATE whitelabels SET cashfree_app_id=$2, cashfree_secret_key=$3 WHERE id=$1',
+      [req.wlId, appId, secret]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Kaunsa gateway use karna hai (razorpay / cashfree) ──
+app.put('/api/whitelabel/gateway', verifyWhitelabel, async (req, res) => {
+  try {
+    const g = String(req.body.gateway || '').trim().toLowerCase();
+    if (g !== 'razorpay' && g !== 'cashfree') {
+      return res.status(400).json({ error: 'Gateway razorpay ya cashfree hi ho sakta hai' });
+    }
+    const me = await pool.query(
+      'SELECT razorpay_key_id, cashfree_app_id FROM whitelabels WHERE id=$1', [req.wlId]);
+    if (!me.rows.length) return res.status(404).json({ error: 'Account nahi mila' });
+    if (g === 'razorpay' && !me.rows[0].razorpay_key_id) {
+      return res.status(400).json({ error: 'Pehle Razorpay keys save karo' });
+    }
+    if (g === 'cashfree' && !me.rows[0].cashfree_app_id) {
+      return res.status(400).json({ error: 'Pehle Cashfree keys save karo' });
+    }
+    await pool.query('UPDATE whitelabels SET gateway=$2 WHERE id=$1', [req.wlId, g]);
+    res.json({ success: true, gateway: g });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Demo account — ab sirf partner apne login se bana sakta hai ──
+app.post('/api/whitelabel/demo/create', verifyWhitelabel, async (req, res) => {
+  try {
+    const me = await pool.query('SELECT blocked FROM whitelabels WHERE id=$1', [req.wlId]);
+    if (!me.rows.length) return res.status(404).json({ error: 'Account nahi mila' });
+    if (me.rows[0].blocked) return res.status(403).json({ error: 'Aapka account abhi paused hai' });
+
+    const cfg = await getDemoConfig();
+    const name = String(req.body.name || '').trim().slice(0, 100);
+    const phone = normPhone(req.body.phone);
+    if (!name)  return res.status(400).json({ error: 'Naam daalo' });
+    if (!phone) return res.status(400).json({ error: 'Sahi 10-digit mobile number daalo' });
+
+    const dupShop = await pool.query('SELECT id FROM shops WHERE phone=$1 AND demo=true', [phone]);
+    if (dupShop.rows.length) {
+      return res.status(400).json({ error: 'Is number par demo pehle se hai' });
+    }
+
+    const minutes = Math.min(43200, Math.max(10, parseInt(req.body.minutes, 10) || cfg.minutes || 60));
+    const shopId = 'DEMO_' + crypto.randomBytes(4).toString('hex').toUpperCase();
+    const passwordHash = await hashPassword(phone);
+    await pool.query(
+      `INSERT INTO shops (id, name, phone, price_bw, price_color, payment_mode, password_hash,
+                          setup_paid, setup_amount, demo, demo_expires_at, advanced_unlocked, whitelabel_id)
+       VALUES ($1,$2,$3,5,10,'counter_only',$4,true,0,true,NOW() + ($5 || ' minutes')::INTERVAL,true,$6)`,
+      [shopId, name + ' (Demo)', phone, passwordHash, String(minutes), req.wlId]);
+
+    const qrUrl = `${BASE_URL}/print/${shopId}`;
+    const qrCode = await QRCode.toDataURL(qrUrl, { width: 300, margin: 2 });
+    await pool.query('UPDATE shops SET qr_code=$1 WHERE id=$2', [qrCode, shopId]);
+
+    console.log(`[WL demo] ${shopId} | wl=${req.wlId} | ${phone} | ${minutes}min`);
+    res.json({ success: true, shopId, password: phone, qrUrl, qrCode,
+               expiresInMinutes: minutes, note: 'Login password = shop ka mobile number' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // Apna Razorpay — shops ka setup fee SEEDHA yahan aayega
@@ -2510,11 +2700,13 @@ app.put('/api/whitelabel/password', verifyWhitelabel, async (req, res) => {
 app.post('/api/whitelabel/onboard', verifyWhitelabel, async (req, res) => {
   try {
     const me = await pool.query(
-      'SELECT blocked, shop_price, base_price, razorpay_key_id FROM whitelabels WHERE id=$1', [req.wlId]);
+      `SELECT blocked, shop_price, base_price, razorpay_key_id, cashfree_app_id, gateway
+         FROM whitelabels WHERE id=$1`, [req.wlId]);
     if (!me.rows.length) return res.status(404).json({ error: 'Account nahi mila' });
     if (me.rows[0].blocked) return res.status(403).json({ error: 'Aapka account abhi paused hai' });
-    if (!me.rows[0].razorpay_key_id) {
-      return res.status(400).json({ error: 'Pehle apna Razorpay set karo — warna shop payment nahi kar payegi' });
+    // Razorpay YA Cashfree — koi ek set hona chahiye
+    if (!me.rows[0].razorpay_key_id && !me.rows[0].cashfree_app_id) {
+      return res.status(400).json({ error: 'Pehle apna Razorpay ya Cashfree set karo — warna shop payment nahi kar payegi' });
     }
 
     const name = String(req.body.name || '').trim().slice(0, 200);
@@ -2632,29 +2824,94 @@ app.put('/api/whitelabel/shop/:shopId/printers', verifyWhitelabel, async (req, r
 // Partner ke apne link ka analytics
 app.get('/api/whitelabel/analytics', verifyWhitelabel, async (req, res) => {
   try {
-    const days = Math.min(90, Math.max(1, parseInt(req.query.days, 10) || 30));
+    // Superadmin wale analytics jaisa — chhote range ghante-war, bade din-war
+    const RANGE_MAP = {
+      '1h':  { amount: 1,  unit: 'hours', bucket: 'hour' },
+      '12h': { amount: 12, unit: 'hours', bucket: 'hour' },
+      '1d':  { amount: 24, unit: 'hours', bucket: 'hour' },
+      '7d':  { amount: 7,  unit: 'days',  bucket: 'day'  },
+      '14d': { amount: 14, unit: 'days',  bucket: 'day'  },
+      '30d': { amount: 30, unit: 'days',  bucket: 'day'  },
+      '90d': { amount: 90, unit: 'days',  bucket: 'day'  }
+    };
+    let rangeKey = String(req.query.range || '');
+    if (!RANGE_MAP[rangeKey]) {
+      const legacyDays = Math.min(90, Math.max(1, parseInt(req.query.days, 10) || 30));
+      rangeKey = [7, 14, 30, 90].includes(legacyDays) ? legacyDays + 'd' : '30d';
+    }
+    const cfg = RANGE_MAP[rangeKey];
+    const intervalStr = `${cfg.amount} ${cfg.unit}`;
+    const isHourly = cfg.bucket === 'hour';
+    const days = cfg.unit === 'days' ? cfg.amount : 0;
+    const bucketExpr = isHourly
+      ? `TO_CHAR(created_at + INTERVAL '5 hours 30 minutes', 'YYYY-MM-DD"T"HH24:00')`
+      : `TO_CHAR(created_at, 'YYYY-MM-DD')`;
+
     const me = await pool.query('SELECT slug FROM whitelabels WHERE id=$1', [req.wlId]);
     const slug = me.rows[0]?.slug || '';
 
     const totals = await pool.query(
       `SELECT event_type, COUNT(*)::int AS cnt, COUNT(DISTINCT NULLIF(visitor_id,''))::int AS uniq
        FROM analytics_events
-       WHERE wl=$1 AND created_at > NOW() - ($2 || ' days')::interval
-       GROUP BY event_type`, [slug, days]);
+       WHERE wl=$1 AND created_at > NOW() - ($2)::interval
+       GROUP BY event_type`, [slug, intervalStr]);
 
     const daily = await pool.query(
-      `SELECT TO_CHAR(created_at,'YYYY-MM-DD') AS day, COUNT(*)::int AS cnt
+      `SELECT ${bucketExpr} AS day, COUNT(*)::int AS cnt,
+              COUNT(DISTINCT NULLIF(visitor_id,''))::int AS uniq
        FROM analytics_events
-       WHERE wl=$1 AND event_type='pageview' AND created_at > NOW() - ($2 || ' days')::interval
-       GROUP BY day ORDER BY day ASC`, [slug, days]);
+       WHERE wl=$1 AND event_type='pageview' AND created_at > NOW() - ($2)::interval
+       GROUP BY 1 ORDER BY 1 ASC`, [slug, intervalStr]);
+
+    const topPaths = await pool.query(
+      `SELECT COALESCE(NULLIF(path,''),'/') AS path, COUNT(*)::int AS cnt
+       FROM analytics_events
+       WHERE wl=$1 AND event_type='pageview' AND created_at > NOW() - ($2)::interval
+       GROUP BY 1 ORDER BY cnt DESC LIMIT 10`, [slug, intervalStr]);
+
+    const topRefs = await pool.query(
+      `SELECT COALESCE(NULLIF(ref,''),'direct') AS ref, COUNT(*)::int AS cnt
+       FROM analytics_events
+       WHERE wl=$1 AND event_type='pageview' AND created_at > NOW() - ($2)::interval
+       GROUP BY 1 ORDER BY cnt DESC LIMIT 10`, [slug, intervalStr]);
+
+    const topSources = await pool.query(
+      `SELECT COALESCE(NULLIF(utm_source,''),'(none)') AS source, COUNT(*)::int AS cnt
+       FROM analytics_events
+       WHERE wl=$1 AND created_at > NOW() - ($2)::interval
+       GROUP BY 1 ORDER BY cnt DESC LIMIT 10`, [slug, intervalStr]);
 
     const shopsDaily = await pool.query(
-      `SELECT TO_CHAR(created_at,'YYYY-MM-DD') AS day,
-              COUNT(*) FILTER (WHERE setup_paid=true AND demo=false)::int AS paid
-       FROM shops WHERE whitelabel_id=$1 AND created_at > NOW() - ($2 || ' days')::interval
-       GROUP BY day ORDER BY day ASC`, [req.wlId, days]);
+      `SELECT ${bucketExpr} AS day,
+              COUNT(*) FILTER (WHERE setup_paid=true AND COALESCE(demo,false)=false)::int AS paid,
+              COUNT(*) FILTER (WHERE COALESCE(demo,false)=true)::int                     AS demo
+       FROM shops WHERE whitelabel_id=$1 AND created_at > NOW() - ($2)::interval
+       GROUP BY 1 ORDER BY 1 ASC`, [req.wlId, intervalStr]);
 
-    res.json({ slug, days, totals: totals.rows, daily: daily.rows, shopsDaily: shopsDaily.rows });
+    // Business summary — shops, prints, kamai
+    const summary = await pool.query(
+      `SELECT
+         (SELECT COUNT(*)::int FROM shops
+           WHERE whitelabel_id=$1 AND COALESCE(demo,false)=false) AS shops_total,
+         (SELECT COUNT(*)::int FROM shops
+           WHERE whitelabel_id=$1 AND COALESCE(demo,false)=false
+             AND created_at > NOW() - ($2)::interval) AS shops_new,
+         (SELECT COUNT(*)::int FROM shops
+           WHERE whitelabel_id=$1 AND COALESCE(demo,false)=true) AS demo_total,
+         (SELECT COALESCE(SUM(setup_amount),0)::int FROM shops
+           WHERE whitelabel_id=$1 AND setup_paid=true AND COALESCE(demo,false)=false) AS earned_total,
+         (SELECT COUNT(*)::int FROM print_jobs j JOIN shops s ON s.id=j.shop_id
+           WHERE s.whitelabel_id=$1) AS prints_total,
+         (SELECT COUNT(*)::int FROM print_jobs j JOIN shops s ON s.id=j.shop_id
+           WHERE s.whitelabel_id=$1 AND j.created_at > NOW() - ($2)::interval) AS prints_range`,
+      [req.wlId, intervalStr]);
+
+    res.json({
+      slug, range: rangeKey, days, bucket: cfg.bucket,
+      totals: totals.rows, daily: daily.rows, shopsDaily: shopsDaily.rows,
+      topPaths: topPaths.rows, topRefs: topRefs.rows, topSources: topSources.rows,
+      summary: summary.rows[0]
+    });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
