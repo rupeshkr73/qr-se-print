@@ -50,7 +50,7 @@ IDLE_INTERVAL_3    = 45         # 60 minute khaali gaye to itna (raat/band dukaa
 # Isliye khaali waqt me dheere check karo — par job aate hi turant 5s par
 # wapas aa jao, taaki print me deri na ho.
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 26           # Integer version number — server ke agent_version se compare hota hai
+VERSION            = 29           # Integer version number — server ke agent_version se compare hota hai
 SUPPORT_WA         = "918404832414"  # Admin WhatsApp (shop-login Support jaisa) — Contact Admin isi par khulega
 
 # Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
@@ -291,7 +291,7 @@ def show_shop_id_prompt():
 
     root = tk.Tk()
     root.title("QR Se Print - Setup")
-    root.geometry("420x260")
+    root.geometry("420x290")
     root.resizable(False, False)
     try:
         root.attributes('-topmost', True)
@@ -302,7 +302,7 @@ def show_shop_id_prompt():
     tk.Label(root, text="Paste your Shop ID\n(you received it after registering on the dashboard)",
              font=("Segoe UI", 10), pady=5).pack()
 
-    entry = tk.Entry(root, font=("Segoe UI", 12), justify="center", width=28)
+    entry = tk.Entry(root, font=("Segoe UI", 12), justify="center", width=29)
     entry.pack(pady=10)
     entry.focus()
 
@@ -375,7 +375,12 @@ def _pid_alive(pid):
     except Exception:
         return False
 
-def _ensure_single_instance():
+_MUTEX_HANDLE = None          # process khatam hone tak zinda rakhna zaroori hai
+_MUTEX_NAME = "Local\\QRSePrintAgent_SingleInstance"
+
+
+def _single_instance_by_pidfile():
+    """Fallback (non-Windows / mutex fail). Race-prone, isliye sirf backup."""
     try:
         if os.path.exists(_LOCK_FILE):
             try:
@@ -383,18 +388,71 @@ def _ensure_single_instance():
                     old_pid = int(f.read().strip() or "0")
             except Exception:
                 old_pid = 0
-            # Purana PID abhi bhi zinda + wo hum khud nahi = sach me duplicate
             if old_pid and old_pid != os.getpid() and _pid_alive(old_pid):
                 return False
-            # warna lock stale hai (crash/sleep ke baad bacha hua) — reclaim
         with open(_LOCK_FILE, "w", encoding="utf-8") as f:
             f.write(str(os.getpid()))
         return True
     except Exception as e:
-        log(f"⚠️  Lock check fail (fail-open): {e}", "WARN")
-        return True  # kabhi block mat karo agar lock hi fail ho jaaye
+        log(f"⚠️  Lock check failed (fail-open): {e}", "WARN")
+        return True
+
+
+def _ensure_single_instance():
+    """
+    Only ONE agent may run at a time.
+
+    The old check read a .lock file that held the previous PID. That has a
+    race: at login the agent is launched twice within the same moment (once
+    from the registry Run key, once from the Startup folder). Both copies
+    read the file before either had written to it, both saw "nobody running",
+    and both kept going — which is why several tray icons piled up.
+
+    A Windows named mutex is created by the kernel atomically, so exactly one
+    process can ever win, no matter how close together they start. It is also
+    released automatically if the agent crashes, so no stale lock is left
+    behind.
+    """
+    global _MUTEX_HANDLE
+    if os.name != "nt":
+        return _single_instance_by_pidfile()
+    try:
+        import ctypes
+        from ctypes import wintypes
+        ERROR_ALREADY_EXISTS = 183
+        kernel32 = ctypes.windll.kernel32
+        kernel32.CreateMutexW.restype = wintypes.HANDLE
+        kernel32.CreateMutexW.argtypes = [wintypes.LPVOID, wintypes.BOOL, wintypes.LPCWSTR]
+        handle = kernel32.CreateMutexW(None, False, _MUTEX_NAME)
+        last_error = kernel32.GetLastError()
+        if not handle:
+            log("⚠️  Could not create the single-instance mutex — using the lock file", "WARN")
+            return _single_instance_by_pidfile()
+        if last_error == ERROR_ALREADY_EXISTS:
+            kernel32.CloseHandle(handle)
+            return False
+        _MUTEX_HANDLE = handle          # keep it open for the whole process
+        try:
+            with open(_LOCK_FILE, "w", encoding="utf-8") as f:
+                f.write(str(os.getpid()))     # only for support/debugging
+        except Exception:
+            pass
+        return True
+    except Exception as e:
+        log(f"⚠️  Mutex check failed ({e}) — using the lock file", "WARN")
+        return _single_instance_by_pidfile()
+
 
 def _release_mutex():
+    global _MUTEX_HANDLE
+    try:
+        if _MUTEX_HANDLE:
+            import ctypes
+            ctypes.windll.kernel32.ReleaseMutex(_MUTEX_HANDLE)
+            ctypes.windll.kernel32.CloseHandle(_MUTEX_HANDLE)
+            _MUTEX_HANDLE = None
+    except Exception:
+        pass
     try:
         if os.path.exists(_LOCK_FILE):
             with open(_LOCK_FILE, "r", encoding="utf-8") as f:
@@ -1311,7 +1369,7 @@ def _show_demo_upgrade_popup():
                   bg="#ffffff", fg="#2b2b31", font=("Segoe UI", 10, "bold"),
                   relief="solid", bd=1, cursor="hand2",
                   command=lambda: pick("monthly")).grid(row=0, column=0, padx=6)
-        tk.Button(btns, text="\u267E  Lifetime Plan", width=17, height=2,
+        tk.Button(btns, text="\u297E  Lifetime Plan", width=17, height=2,
                   bg="#ff3b6b", fg="white", font=("Segoe UI", 10, "bold"),
                   relief="flat", bd=0, cursor="hand2",
                   command=lambda: pick("onetime")).grid(row=0, column=1, padx=6)
@@ -1514,7 +1572,7 @@ def ask_approval(job):
                   bg="#16a34a", fg="white", padx=16, pady=8, bd=0,
                   cursor="hand2", command=_ok).pack(side="left", padx=6)
         tk.Button(btns, text="❌ Deny", font=("Segoe UI", 10, "bold"),
-                  bg="#dc2626", fg="white", padx=22, pady=8, bd=0,
+                  bg="#dc2929", fg="white", padx=22, pady=8, bd=0,
                   cursor="hand2", command=_no).pack(side="left", padx=6)
         tk.Label(root, text="Denying will cancel the order and delete the file",
                  font=("Segoe UI", 8), bg="white", fg="#999").pack()
@@ -2009,8 +2067,8 @@ def create_tray_icon_image():
     img = Image.new('RGB', (64, 64), color=(10, 10, 15))
     draw = ImageDraw.Draw(img)
     # Simple printer shape: body + paper
-    draw.rectangle([12, 24, 52, 44], fill=(255, 77, 28))   # printer body
-    draw.rectangle([20, 10, 44, 26], fill=(255, 255, 255)) # paper
+    draw.rectangle([12, 24, 52, 44], fill=(255, 77, 29))   # printer body
+    draw.rectangle([20, 10, 44, 29], fill=(255, 255, 255)) # paper
     draw.rectangle([16, 44, 48, 54], fill=(40, 40, 45))    # tray
     return img
 
