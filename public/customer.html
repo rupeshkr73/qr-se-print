@@ -1350,8 +1350,56 @@ async function loadPhotoFile(file) {
   throw new Error('Is photo ka format browser support nahi karta (' + (kind || 'unknown') + '). JPG ya PNG photo try karo.');
 }
 
+// ═══ 4×6 SHEET LAYOUTS ═══
+// count -> kaunsi row me kitni photo. Ek hi jagah rakha hai kyunki sheet
+// do jagah banti hai (pehli baar + border toggle par rebuild) — alag-alag
+// rakhte to ek jagah change karke doosri bhool jaana pakka tha.
+//   4  → 2 + 2            (seedhi)
+//   6  → 3 + 3            (seedhi)
+//   8  → 3 + 3 + 2        (seedhi, aakhri row bhi usi 3-column grid par
+//                          left-align — isse kaatne ki line seedhi rehti hai)
+//   10 → 3 + 3 + 2×2 leti  (aakhri chaar 90° ghumi hui)
+// Sheet 1200×1800 px (4×6 inch @300 DPI), photo 331×437 px (28×37 mm).
+// 8 wala layout: 59 + 3×437 + 2×47 = 1464 px — 1800 me aaram se aa jata hai,
+// isliye photo ka size 4/6/10 waale se bilkul same rehta hai.
+function layoutPhotoSheet(count, g, api) {
+  const { W, pw, ph, gap, top } = g;
+  if (count === 4) {
+    api.pRow(2, top);
+    api.pRow(2, top + ph + gap);
+  } else if (count === 6) {
+    api.pRow(3, top);
+    api.pRow(3, top + ph + gap);
+  } else if (count === 8) {
+    const x3 = Math.round((W - (3 * pw + 2 * gap)) / 2);   // 3-column grid ka left edge
+    api.pRow(3, top);
+    api.pRow(3, top + ph + gap);
+    api.pRowAt(2, top + 2 * (ph + gap), x3);
+  } else {   // 10 (aur koi bhi anjaan value — pehle jaisa hi behaviour)
+    api.pRow(3, top);
+    api.pRow(3, top + ph + gap);
+    const yL = top + 2 * (ph + gap);
+    api.lRow(2, yL);
+    api.lRow(2, yL + pw + gap);
+  }
+}
+
 function askPhotoCount(img) {
-  const P = window.__shopPrices || { p4: 0, p6: 0, p10: 0 };
+  const P = window.__shopPrices || { p4: 0, p6: 0, p8: 0, p10: 0 };
+  // Har option ka apna button. Rate 0 ho to sirf ginti dikhti hai (jaise
+  // pehle) — shop owner ne rate nahi rakha to bhi option kaam karta hai.
+  const OPTS = [[4, P.p4], [6, P.p6], [8, P.p8], [10, P.p10]];
+  const btns = OPTS.map(function (o, i) {
+    const n = o[0], rate = o[1];
+    const brd = i === 0 ? '#ff4d1c' : '#e5e0d8';
+    const bg  = i === 0 ? '#fff5f2' : '#fff';
+    return '<button onclick="buildPhotoSheet(' + n + ')" style="border:2px solid ' + brd +
+           ';background:' + bg + ';border-radius:14px;padding:16px 8px;cursor:pointer;font-family:inherit;">' +
+           '<div style="font-size:22px;font-weight:800;">' + n + '</div>' +
+           '<div style="font-size:11px;">Photos</div>' +
+           (rate > 0 ? '<div style="font-weight:800;color:#ff4d1c;margin-top:4px;">₹' + rate + '</div>' : '') +
+           '</button>';
+  }).join('');
   const ov = document.createElement('div');
   ov.id = 'photoCountModal';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:24px;';
@@ -1359,20 +1407,7 @@ function askPhotoCount(img) {
     <div style="font-size:34px;">📷</div>
     <h3 style="font-family:'Syne',sans-serif;margin:8px 0 4px;">Kitni photos chahiye?</h3>
     <p style="font-size:12px;color:#6b6870;margin:0 0 16px;">Ek 4×6 sheet par — passport size (35×45mm)</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
-      <button onclick="buildPhotoSheet(4)" style="border:2px solid #ff4d1c;background:#fff5f2;border-radius:14px;padding:16px 8px;cursor:pointer;font-family:inherit;">
-        <div style="font-size:22px;font-weight:800;">4</div><div style="font-size:11px;">Photos</div>
-        ${P.p4 > 0 ? `<div style="font-weight:800;color:#ff4d1c;margin-top:4px;">₹${P.p4}</div>` : ''}
-      </button>
-      <button onclick="buildPhotoSheet(6)" style="border:2px solid #e5e0d8;background:#fff;border-radius:14px;padding:16px 8px;cursor:pointer;font-family:inherit;">
-        <div style="font-size:22px;font-weight:800;">6</div><div style="font-size:11px;">Photos</div>
-        ${P.p6 > 0 ? `<div style="font-weight:800;color:#ff4d1c;margin-top:4px;">₹${P.p6}</div>` : ''}
-      </button>
-      <button onclick="buildPhotoSheet(10)" style="border:2px solid #e5e0d8;background:#fff;border-radius:14px;padding:16px 8px;cursor:pointer;font-family:inherit;">
-        <div style="font-size:22px;font-weight:800;">10</div><div style="font-size:11px;">Photos</div>
-        ${P.p10 > 0 ? `<div style="font-weight:800;color:#ff4d1c;margin-top:4px;">₹${P.p10}</div>` : ''}
-      </button>
-    </div>
+    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">${btns}</div>
     <button onclick="document.getElementById('photoCountModal').remove()" style="margin-top:12px;background:none;border:none;color:#9b9690;font-size:12px;cursor:pointer;">Cancel</button>
   </div>`;
   document.body.appendChild(ov);
@@ -1409,21 +1444,15 @@ async function buildPhotoSheet(count, isRebuild) {
         ctx.strokeStyle = bCol; ctx.lineWidth = bW;
         ctx.strokeRect(x + bW / 2, y + bW / 2, ph - bW, pw - bW);
       };
-      const pRow = (n, y) => {
-        const x0 = Math.round((W - (n * pw + (n - 1) * gap)) / 2);
+      const pRowAt = (n, y, x0) => {
         for (let k = 0; k < n; k++) drawP(x0 + k * (pw + gap), y);
       };
+      const pRow = (n, y) => pRowAt(n, y, Math.round((W - (n * pw + (n - 1) * gap)) / 2));
       const lRow = (n, y) => {
         const x0 = Math.round((W - (n * ph + (n - 1) * gap)) / 2);
         for (let k = 0; k < n; k++) drawL(x0 + k * (ph + gap), y);
       };
-      if (count === 4)      { pRow(2, top); pRow(2, top + ph + gap); }
-      else if (count === 6) { pRow(3, top); pRow(3, top + ph + gap); }
-      else {
-        pRow(3, top); pRow(3, top + ph + gap);
-        const yL = top + 2 * (ph + gap);
-        lRow(2, yL); lRow(2, yL + pw + gap);
-      }
+      layoutPhotoSheet(count, { W, pw, ph, gap, top }, { pRow, pRowAt, lRow });
       pages.length = 0;
       addPage([sheet]);
       applyPaper();
@@ -1587,28 +1616,16 @@ function buildSheetFromPhoto(photo, count) {
       ctx.strokeStyle = bCol; ctx.lineWidth = bW;
       ctx.strokeRect(x + bW / 2, y + bW / 2, ph - bW, pw - bW);
     };
-    const pRow = (n, y) => {
-      const x0 = Math.round((W - (n * pw + (n - 1) * gap)) / 2);
+    const pRowAt = (n, y, x0) => {
       for (let i = 0; i < n; i++) drawP(x0 + i * (pw + gap), y);
     };
+    const pRow = (n, y) => pRowAt(n, y, Math.round((W - (n * pw + (n - 1) * gap)) / 2));
     const lRow = (n, y) => {
       const x0 = Math.round((W - (n * ph + (n - 1) * gap)) / 2);
       for (let i = 0; i < n; i++) drawL(x0 + i * (ph + gap), y);
     };
 
-    if (count === 4) {
-      pRow(2, top);
-      pRow(2, top + ph + gap);
-    } else if (count === 6) {
-      pRow(3, top);
-      pRow(3, top + ph + gap);
-    } else {
-      pRow(3, top);
-      pRow(3, top + ph + gap);
-      const yL = top + 2 * (ph + gap);
-      lRow(2, yL);
-      lRow(2, yL + pw + gap);
-    }
+    layoutPhotoSheet(count, { W, pw, ph, gap, top }, { pRow, pRowAt, lRow });
 
     // NORMAL pipeline me: sheet = ek page, paper 4x6, service tag
     state.paperSize = '4x6';
@@ -1707,7 +1724,8 @@ function applyAdvancedGate(shop) {
   window.__advModules   = M;
   window.__shopPrices   = {
     p4: parseFloat(shop.price_4x6_4)||0, p6: parseFloat(shop.price_4x6_6)||0,
-    p10: parseFloat(shop.price_4x6_10)||0, rc: parseFloat(shop.price_resume_color)||0,
+    p8: parseFloat(shop.price_4x6_8)||0, p10: parseFloat(shop.price_4x6_10)||0,
+    rc: parseFloat(shop.price_resume_color)||0,
     rb: parseFloat(shop.price_resume_bw)||0
   };
 
@@ -1748,7 +1766,7 @@ function applyAdvancedGate(shop) {
         act:"selectService('doc')" },
       { key:'resume', on:M.resume, icon:'📝', title:'Resume Maker',    sub:'6 designs — banao, print karo',
         act:"location.href='/resume/'+shopId" },
-      { key:'photo',  on:M.photo,  icon:'📷', title:'4×6 Photo Print', sub:'Passport photos — 4 ya 6 ki sheet',
+      { key:'photo',  on:M.photo,  icon:'📷', title:'4×6 Photo Print', sub:'Passport photos — 4, 6, 8 or 10 per sheet',
         act:"startPhotoFlow()" },
       { key:'big',    on:M.big,    icon:'📐', title:'Big Size Print',  sub:'A3 / A2 / A1 bade kagaz',
         act:"selectService('big')" }
@@ -2947,13 +2965,16 @@ function changeCopies(delta) {
 function getEffectivePageCount() {
   return (state.selectedPages && state.selectedPages.length) ? state.selectedPages.length : pages.length;
 }
-// Service rate: photo4x6 => sheet rate (4/6/10), resume => resume rate.
+// Service rate: photo4x6 => sheet rate (4/6/8/10), resume => resume rate.
 // Rate 0 ho to normal per-page fallback — SERVER bhi yahi logic use karta
 // hai, isliye jo yahan dikhega wahi charge hoga.
 function getServiceRate() {
   const P = window.__shopPrices || {};
   if (state.service === 'photo4x6')
-    return state.photoCount === 10 ? (P.p10||0) : state.photoCount === 6 ? (P.p6||0) : (P.p4||0);
+    return state.photoCount === 10 ? (P.p10||0)
+         : state.photoCount === 8  ? (P.p8||0)
+         : state.photoCount === 6  ? (P.p6||0)
+         : (P.p4||0);
   if (state.service === 'resume')
     return state.colorMode === 'bw' ? (P.rb||0) : (P.rc||0);
   return 0;
