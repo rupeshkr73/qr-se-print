@@ -671,7 +671,8 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       <h2><span>☁️ Cloudinary Storage</span></h2>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px;">
         <div id="cldStatus" style="font-size:13px;">Loading...</div>
-        <button onclick="sweepCloudinary()" style="background:#7c3aed;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🧹 Abhi Saaf Karo</button>
+        <button onclick="sweepCloudinary()" style="background:#7c3aed;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🧹 Clean Old (90+ min)</button>
+            <button onclick="sweepCloudinaryBySize()" style="background:#b45309;color:#fff;border:none;border-radius:10px;padding:10px 16px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;margin-left:6px;">📦 Delete &gt; 40 KB</button>
       </div>
       <div id="cldFiles" style="margin-top:10px;"></div>
     </div>
@@ -1125,15 +1126,28 @@ async function loadCloudinaryStatus(){
     const d = await r.json();
     const el = document.getElementById('cldStatus');
     const files = document.getElementById('cldFiles');
+    // Agar Cloudinary ne error diya to "0 files" mat dikhao — warna lagta hai
+    // sab saaf hai jabki asal me list hi nahi ho paayi.
+    if (d.errors && d.errors.length) {
+      el.innerHTML = '<span style="color:#b91c1c;font-weight:800;">❌ Cloudinary list nahi ho payi</span>' +
+        '<div style="font-size:11px;color:#b91c1c;margin-top:3px;">' + d.errors.join('<br>') + '</div>';
+      files.innerHTML = '';
+      return;
+    }
     if (d.count === 0) {
-      el.innerHTML = '<span style="color:#16a34a;font-weight:800;">✅ Cloudinary bilkul khali hai — 0 files</span>';
+      el.innerHTML = '<span style="color:#16a34a;font-weight:800;">✅ Cloudinary is completely empty — 0 files</span>';
       files.innerHTML = '';
       return;
     }
     const staleWarn = d.stale > 0
       ? `<div style="color:#b91c1c;font-weight:700;margin-top:3px;">⚠️ ${d.stale} file 90+ min purani — sweep hona chahiye tha</div>`
       : '<div style="color:#16a34a;font-size:12px;margin-top:3px;">✅ Sab fresh hain (abhi active jobs ki) — koi leak nahi</div>';
-    el.innerHTML = `<b>${d.count} file(s)</b> · ${d.total_kb} KB${staleWarn}`;
+    const types = d.by_type ? Object.entries(d.by_type).map(([k,v]) => `${k}: ${v}`).join(' · ') : '';
+    const bigWarn = d.over_40kb > 0
+      ? `<div style="color:#b45309;font-weight:700;margin-top:3px;">📦 ${d.over_40kb} file 40 KB se badi</div>` : '';
+    el.innerHTML = `<b>${d.count} file(s)</b> · ${d.total_kb} KB (${d.total_mb || 0} MB)` +
+      (types ? `<div style="font-size:11px;color:#6b7280;margin-top:2px;">${types}</div>` : '') +
+      bigWarn + staleWarn;
     files.innerHTML = d.files.map(f =>
       `<div style="display:flex;justify-content:space-between;font-size:11px;font-family:monospace;padding:5px 8px;border-radius:6px;background:${f.age_min>=90?'#fee2e2':'#f8f8fa'};margin-bottom:3px;">
         <span>${f.public_id}</span><span>${f.age_min} min · ${Math.round(f.bytes/1024)} KB</span>
@@ -1141,12 +1155,34 @@ async function loadCloudinaryStatus(){
   }catch(e){ document.getElementById('cldStatus').textContent = 'Load fail'; }
 }
 async function sweepCloudinary(){
-  if(!confirm('90+ minute purani saari orphan files delete karein?')) return;
+  if(!confirm('Delete all orphan files older than 90 minutes?')) return;
+  await runSweep({});
+}
+
+// "40 KB se badi sab file delete karo" — user ka apna rule.
+// Jo file abhi print hone wali hai (queued/printing) wo phir bhi bachi rahegi.
+async function sweepCloudinaryBySize(){
+  const kb = prompt('Delete every file LARGER than how many KB?', '40');
+  if (kb === null) return;
+  const n = parseInt(kb, 10);
+  if (isNaN(n) || n < 0) return alert('Enter a valid number');
+  if (!confirm(`Delete every Cloudinary file larger than ${n} KB?\n\nFiles for jobs that are still queued or printing will be kept.`)) return;
+  await runSweep({ min_kb: n });
+}
+
+async function runSweep(body){
   try{
-    const r = await fetch('/api/superadmin/cloudinary-sweep', { method:'POST', headers:{'Authorization':'Bearer '+authToken} });
+    const r = await fetch('/api/superadmin/cloudinary-sweep', {
+      method:'POST',
+      headers:{'Authorization':'Bearer '+authToken, 'Content-Type':'application/json'},
+      body: JSON.stringify(body || {}) });
     const d = await r.json();
-    if(d.success){ alert(`✅ ${d.swept} file(s) delete ho gayi`); loadCloudinaryStatus(); }
-    else alert('❌ '+(d.error||'Fail'));
+    if(d.success){
+      alert(`✅ Deleted ${d.swept} file(s) · freed ${d.freed_kb} KB\n` +
+            `Scanned: ${d.scanned} · kept (in use): ${d.skipped_active} · failed: ${d.failed}` +
+            ((d.errors && d.errors.length) ? `\n\n⚠️ ${d.errors.join(', ')}` : ''));
+      loadCloudinaryStatus();
+    } else alert('❌ '+(d.error||'Failed'));
   }catch(e){ alert('❌ '+e.message); }
 }
 
@@ -1214,7 +1250,7 @@ async function loadDemos(){
       return `<div style="border:1.5px solid ${expired?'#e2e2e2':'#bbf7d0'};border-radius:12px;padding:12px 14px;margin-bottom:8px;background:${expired?'#fafafa':'#f0fdf4'};">
         <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:8px;">
           <div>
-            <div style="font-weight:800;font-size:14px;">${(d.agent_last_seen && (Date.now()-new Date(d.agent_last_seen).getTime())<120000) ? '🟢' : '🔴'} ${sanitize(d.name||'-')} <span style="font-family:monospace;font-size:11px;color:#6b6870;">${d.id}</span></div>
+            <div style="font-weight:800;font-size:14px;">${(d.agent_seconds_ago !== undefined && d.agent_seconds_ago !== null ? d.agent_seconds_ago < 120 : (d.agent_last_seen && (Date.now()-new Date(d.agent_last_seen).getTime())<120000)) ? '🟢' : '🔴'} ${sanitize(d.name||'-')} <span style="font-family:monospace;font-size:11px;color:#6b6870;">${d.id}</span></div>
             <div style="font-size:12px;color:#6b6870;margin-top:3px;">📱 ${sanitize(d.phone||'-')} &nbsp;|&nbsp; 🖨️ ${d.prints} paid prints (${d.total_jobs} total jobs) &nbsp;${agentVerBadge(d.agent_version, d.agent_last_seen)}</div>
             <div style="font-size:11px;color:#9a9aa0;margin-top:3px;">Shuru: ${createdStr} &nbsp;|&nbsp; ${statusHtml}</div>
           </div>
@@ -2166,7 +2202,7 @@ function renderAgents(d) {
       const base = s.base_price_at_signup || 0;
       const sold = s.sold_price || s.setup_amount || 0;
       const mk = Math.max(0, sold - base);
-      const online = s.agent_last_seen && (Date.now() - new Date(s.agent_last_seen).getTime()) < 120000;
+      const online = (s.agent_seconds_ago !== undefined && s.agent_seconds_ago !== null ? s.agent_seconds_ago < 120 : (s.agent_last_seen && (Date.now() - new Date(s.agent_last_seen).getTime()) < 120000));
       return `<tr style="border-top:1px solid #f0ece6;">
         <td style="padding:8px 6px;font-size:12px;"><b>${esc(s.name||'—')}</b><br><span style="color:#9b9690;font-size:10.5px;">${esc(s.id)}</span></td>
         <td style="padding:8px 6px;font-size:11.5px;">${esc(s.phone||'-')}</td>
@@ -2274,7 +2310,7 @@ function renderPrinterPanel(d) {
   const s = d.shop || {};
   const list = d.available || [];
   const opts = list.map(p => `<option value="${_pesc(p)}"></option>`).join('');
-  const online = s.agent_last_seen && (Date.now() - new Date(s.agent_last_seen).getTime()) < 120000;
+  const online = (s.agent_seconds_ago !== undefined && s.agent_seconds_ago !== null ? s.agent_seconds_ago < 120 : (s.agent_last_seen && (Date.now() - new Date(s.agent_last_seen).getTime()) < 120000));
   const reported = d.reported_at
     ? new Date(d.reported_at).toLocaleString('en-IN', {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',hour12:true})
     : null;
@@ -2734,7 +2770,7 @@ async function renderShops() {
 
     tr.innerHTML = `
       <td>
-        <div class="shop-name">${(shop.agent_last_seen && (Date.now()-new Date(shop.agent_last_seen).getTime())<120000) ? '🟢' : '🔴'} ${sanitize(shop.name)}${shop.plan_type === 'monthly' ? `<br><span style="font-size:10px;font-weight:700;color:${shop.paid_until && new Date(shop.paid_until) > new Date() ? '#0ea5e9' : '#dc2626'};">📅 Monthly ${shop.paid_until ? (new Date(shop.paid_until) > new Date() ? '· till ' + new Date(shop.paid_until).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : '· ❌ EXPIRED') : ''}</span>` : ''}</div>
+        <div class="shop-name">${(shop.agent_seconds_ago !== undefined && shop.agent_seconds_ago !== null ? shop.agent_seconds_ago < 120 : (shop.agent_last_seen && (Date.now()-new Date(shop.agent_last_seen).getTime())<120000)) ? '🟢' : '🔴'} ${sanitize(shop.name)}${shop.plan_type === 'monthly' ? `<br><span style="font-size:10px;font-weight:700;color:${shop.paid_until && new Date(shop.paid_until) > new Date() ? '#0ea5e9' : '#dc2626'};">📅 Monthly ${shop.paid_until ? (new Date(shop.paid_until) > new Date() ? '· till ' + new Date(shop.paid_until).toLocaleDateString('en-IN',{day:'numeric',month:'short'}) : '· ❌ EXPIRED') : ''}</span>` : ''}</div>
         <div class="shop-id-mono">${sanitize(shop.id)}</div>
       </td>
       <td class="contact-cell">
