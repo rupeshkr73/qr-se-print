@@ -1621,7 +1621,8 @@ app.put('/api/superadmin/demo-config', verifySuperAdmin, async (req, res) => {
 app.get('/api/superadmin/demos', verifySuperAdmin, async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT s.id, s.name, s.phone, s.created_at, s.demo_expires_at, s.agent_last_seen, s.agent_version,
+      `SELECT s.id, s.name, s.phone, s.created_at, s.demo_expires_at, s.agent_last_seen,
+              EXTRACT(EPOCH FROM (NOW() - s.agent_last_seen))::int AS agent_seconds_ago, s.agent_version,
               (SELECT COUNT(*) FROM print_jobs j WHERE j.shop_id = s.id) as total_jobs,
               (SELECT COUNT(*) FROM print_jobs j WHERE j.shop_id = s.id AND j.payment_status='paid') as prints
        FROM shops s WHERE s.demo = true
@@ -3000,7 +3001,9 @@ app.get('/api/whitelabel/shop/:shopId/printers', verifyWhitelabel, async (req, r
     const chk = await assertWlShop(req.wlId, req.params.shopId);
     if (chk.err) return res.status(403).json({ error: chk.err });
     const s = await pool.query(
-      `SELECT id, name, agent_last_seen, printer_name_bw, printer_name_color,
+      `SELECT id, name, agent_last_seen,
+              EXTRACT(EPOCH FROM (NOW() - agent_last_seen))::int AS agent_seconds_ago,
+              printer_name_bw, printer_name_color,
               printer_name_4x6, printer_name_a3
        FROM shops WHERE id=$1`, [req.params.shopId]);
     const p = await pool.query('SELECT value, updated_at FROM system_settings WHERE key=$1',
@@ -5743,7 +5746,9 @@ app.get('/api/superadmin/shops', verifySuperAdmin, async (req, res) => {
     const r = await pool.query(`
       SELECT id, name, address, phone, printer_model, price_bw, price_color,
              payment_mode, payment_gateway, setup_paid, setup_amount, created_at,
-             demo, plan_type, paid_until, advanced_unlocked, agent_last_seen, agent_version, onboarded_by
+             demo, plan_type, paid_until, advanced_unlocked, agent_last_seen,
+             EXTRACT(EPOCH FROM (NOW() - agent_last_seen))::int AS agent_seconds_ago,
+             agent_version, onboarded_by
       FROM shops ORDER BY created_at DESC
     `);
     res.json({ shops: r.rows });
@@ -5759,6 +5764,7 @@ app.get('/api/superadmin/shop/:shopId/printers', verifySuperAdmin, async (req, r
     const shopId = req.params.shopId;
     const s = await pool.query(
       `SELECT id, name, demo, payment_mode, agent_last_seen,
+              EXTRACT(EPOCH FROM (NOW() - agent_last_seen))::int AS agent_seconds_ago,
               printer_name_bw, printer_name_color, printer_name_4x6, printer_name_a3
        FROM shops WHERE id=$1`, [shopId]);
     if (!s.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
