@@ -50,7 +50,7 @@ IDLE_INTERVAL_3    = 45         # 60 minute khaali gaye to itna (raat/band dukaa
 # Isliye khaali waqt me dheere check karo — par job aate hi turant 5s par
 # wapas aa jao, taaki print me deri na ho.
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 25           # Integer version number — server ke agent_version se compare hota hai
+VERSION            = 26           # Integer version number — server ke agent_version se compare hota hai
 SUPPORT_WA         = "918404832414"  # Admin WhatsApp (shop-login Support jaisa) — Contact Admin isi par khulega
 
 # Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
@@ -191,6 +191,54 @@ def is_running_as_exe():
     """
     return getattr(sys, 'frozen', False)
 
+def _powershell_input(prompt, title="QR Se Print"):
+    """
+    Ask for one line of text WITHOUT tkinter.
+
+    Some .exe builds ship without the Tcl/Tk runtime, so any tkinter window
+    dies with "Tcl data directory ... not found". PowerShell's InputBox is
+    part of Windows itself and always works.
+    """
+    try:
+        ps = (
+            "Add-Type -AssemblyName Microsoft.VisualBasic;"
+            "[Microsoft.VisualBasic.Interaction]::InputBox("
+            f"'{prompt}','{title}','')"
+        )
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+            capture_output=True, text=True, timeout=300,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+        return (out.stdout or "").strip()
+    except Exception as e:
+        log(f"⚠️  PowerShell input failed: {e}", "WARN")
+        return ""
+
+
+def _shop_id_without_tkinter():
+    """Fallback first-run setup when tkinter is unusable."""
+    for _ in range(3):
+        value = _powershell_input(
+            "Paste your Shop ID (you got it after registering on the dashboard)"
+        ).strip().upper()
+        if not value:
+            break
+        try:
+            r = requests.get(f"{SERVER_URL}/api/shop/{value}", timeout=30)
+            if r.status_code == 404:
+                _msgbox("This Shop ID was not found on the server. Please check it.",
+                        "QR Se Print", 0x10)
+                continue
+        except Exception:
+            pass          # server sleeping / offline — accept the ID anyway
+        return value
+    try:
+        return input("Enter your Shop ID: ").strip().upper()
+    except Exception:
+        log("❌ Could not read Shop ID — no window and no console available", "ERROR")
+        return None
+
+
 def show_shop_id_prompt():
     """
     .exe ka first-run setup: ek chhota Tkinter window kholo jisme
@@ -200,16 +248,17 @@ def show_shop_id_prompt():
     Agar Tkinter kisi reason se available na ho (rare), console input
     fallback use karte hain (sirf agar console attached hai, warna fail).
     """
+    # NOTE: catching Exception, not just ImportError. When the .exe is built
+    # without the Tcl runtime, "import tkinter" SUCCEEDS and the failure only
+    # appears later as TclError. ImportError alone would miss that and crash.
     try:
         import tkinter as tk
         from tkinter import messagebox
-    except ImportError:
-        log("⚠️  Tkinter not available — trying console input", "WARN")
-        try:
-            return input("Enter your Shop ID: ").strip().upper()
-        except Exception:
-            log("❌ Could not read Shop ID — neither Tkinter nor console is available", "ERROR")
-            return None
+        _probe = tk.Tk()          # prove Tcl really works before relying on it
+        _probe.destroy()
+    except Exception as e:
+        log(f"⚠️  Tkinter unusable ({e}) — using the PowerShell prompt instead", "WARN")
+        return _shop_id_without_tkinter()
 
     result = {"shop_id": None}
 
@@ -793,6 +842,33 @@ def get_bundled_resource_path(filename):
     return None
 
 # ─── Problem 5: B&W / Color Print + Fit-to-A4 ────────────────────────
+def _sumatra_page_range(selected_pages):
+    """
+    "1,3,4,5" -> "1,3-5"  (SumatraPDF -print-settings ka format).
+
+    Sirf tabhi use hota hai jab PDF library se page extract na ho paye.
+    Galat/khali input par "" lautata hai, taaki galti se poora document
+    print na ho jaye.
+    """
+    try:
+        nums = sorted({int(x.strip()) for x in str(selected_pages).split(',') if x.strip()})
+        nums = [x for x in nums if x >= 1]
+        if not nums:
+            return ""
+        parts, start, prev = [], nums[0], nums[0]
+        for cur in nums[1:] + [None]:
+            if cur == prev + 1:
+                prev = cur
+                continue
+            parts.append(str(start) if start == prev else f"{start}-{prev}")
+            if cur is None:
+                break
+            start = prev = cur
+        return ",".join(parts)
+    except Exception:
+        return ""
+
+
 def print_pdf_sumatra(filepath, copies=1, color_mode="bw", printer_name=None, extra="", scale_mode="fit"):
     """
     SumatraPDF se print — B&W/Color setting ke saath
@@ -966,6 +1042,8 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
     extracted_pdf = None
 
     try:
+        sumatra_page_extra = ""   # sirf extraction-fail wale fallback me bharta hai
+
         # Problem 1: Image files ko pehle A4-fit PDF mein convert karo
         if ext in ['.jpg', '.jpeg', '.png', '.bmp', '.gif']:
             log(f"🔄 Image file detected — converting to A4 PDF...")
@@ -980,9 +1058,25 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
             if selected_pages:
                 extracted_pdf = extract_selected_pages(filepath, selected_pages, total_pages)
                 if extracted_pdf is None:
-                    log("❌ Page extraction failed — stopping the print for safety (so the whole document is not printed by mistake)", "ERROR")
-                    return False
-                print_path = extracted_pdf
+                    # Extraction fail hua (aksar .exe me PyCryptodome ka native
+                    # module missing hone se: "Cannot load native module
+                    # Crypto.Util._cpuid_c"). Pehle yahan print ROK diya jaata
+                    # tha — shop ka kaam ruk jaata tha.
+                    # Ab SumatraPDF ko seedha page range de dete hain. Sumatra
+                    # khud PDF ka page range print karta hai, koi Python PDF
+                    # library nahi chahiye — aur extra page bhi nahi nikalta.
+                    page_range = _sumatra_page_range(selected_pages)
+                    if page_range:
+                        log(f"⚠️  Page extraction failed — printing pages {page_range} "
+                            f"directly through SumatraPDF instead", "WARN")
+                        sumatra_page_extra = page_range
+                        print_path = filepath
+                    else:
+                        log("❌ Page extraction failed and the page list is unusable — "
+                            "stopping the print for safety", "ERROR")
+                        return False
+                else:
+                    print_path = extracted_pdf
         elif ext in ['.doc', '.docx']:
             return print_word(filepath, copies, color_mode, printer_name)
         else:
@@ -1003,7 +1097,9 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
         _scale = "fit"
         _paper_extra = f"paper={_ptok}" if _ptok else ""
         def _mix(dup_extra=""):
-            return ",".join([t for t in (_paper_extra, dup_extra) if t])
+            # sumatra_page_extra sirf tab bharta hai jab PDF se page extract
+            # nahi ho paya — tab Sumatra ko khud page range dena padta hai.
+            return ",".join([t for t in (_paper_extra, dup_extra, sumatra_page_extra) if t])
 
         # duplex_on / duplex_mode / duplex_pages ab parameters hain —
         # v9 me yahan job.get() tha par is function me 'job' hota hi nahi
@@ -1728,6 +1824,58 @@ def apply_exe_update_and_restart():
 def manual_update_check(icon=None, item=None):
     threading.Thread(target=_manual_update_ui, daemon=True).start()
 
+def _msgbox(text, title="QR Se Print", flags=0x40):
+    """Windows message box via ctypes — needs no Tkinter/Tcl."""
+    try:
+        import ctypes
+        ctypes.windll.user32.MessageBoxW(0, text, title, flags)
+    except Exception:
+        pass
+
+
+def _manual_update_headless():
+    """
+    Update check without any Tkinter window.
+
+    Needed because some builds of the .exe do not ship the Tcl/Tk runtime.
+    In that case opening a Tkinter window fails with "Can't find a usable
+    init.tcl", and earlier that error was simply shown to the shop owner and
+    nothing else happened. Now the update still runs — only the progress
+    window is missing.
+    """
+    try:
+        remote = get_remote_version()
+        if remote is None:
+            _msgbox("Could not get the version from the server.\n"
+                    "Check your internet or the server, then try again.",
+                    "QR Se Print — Update", 0x30)
+            return
+        if remote <= VERSION:
+            _msgbox(f"You have the latest version.\n\nInstalled: v{VERSION}",
+                    "QR Se Print — Update")
+            return
+
+        log(f"🔄 New version available: v{VERSION} → v{remote} (headless update)")
+        _msgbox(f"New version found: v{VERSION} -> v{remote}\n\n"
+                f"Downloading now. The agent will restart by itself.\n"
+                f"This can take a few minutes on a slow connection.",
+                "QR Se Print — Update")
+        try:
+            installer_path, err = download_installer(None)
+        except Exception as e:
+            installer_path, err = None, str(e)
+        if not installer_path:
+            log(f"❌ Manual update (headless): {err}", "ERROR")
+            _msgbox(f"Update download failed.\n\n{err}",
+                    "QR Se Print — Update", 0x10)
+            return
+        log(f"✅ Installing v{remote} (headless)...")
+        run_installer_and_exit(installer_path)
+    except Exception as e:
+        log(f"❌ Headless update error: {e}", "ERROR")
+        _msgbox(f"Update check error: {e}", "QR Se Print", 0x10)
+
+
 def _manual_update_ui():
     try:
         import tkinter as tk
@@ -1807,7 +1955,12 @@ def _manual_update_ui():
         root.destroy()
         run_installer_and_exit(installer_path)
     except Exception as e:
-        log(f"❌ Manual update UI error: {e}", "ERROR")
+        # Tkinter/Tcl missing in this .exe build (classic symptom:
+        # "Can't find a usable init.tcl"). Do not dump that at the shop owner —
+        # run the same update without a window instead.
+        log(f"⚠️  Update window unavailable ({e}) — running update without UI", "WARN")
+        _manual_update_headless()
+        return
         try:
             import ctypes
             ctypes.windll.user32.MessageBoxW(None,
