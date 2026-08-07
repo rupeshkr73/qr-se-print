@@ -681,6 +681,11 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_4x6_4 INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_4x6_6 INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_4x6_10 INTEGER DEFAULT 0;
+      -- 8-photo sheet ka rate. Ye column JAAN-BUJH KAR seedha NUMERIC me
+      -- banaya hai — upar wale ALTER COLUMN TYPE group me daalte to naye
+      -- DB par wo line column banne se pehle chalti aur poora migration
+      -- block rollback ho jata.
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_4x6_8 NUMERIC(10,2) DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_resume_color INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_resume_bw INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS shop_notice VARCHAR(200) DEFAULT '';
@@ -4392,7 +4397,7 @@ app.get('/api/shop/:shopId/demo-status', async (req, res) => {
 app.get('/api/shop/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_4x6_10,price_resume_color,price_resume_bw,shop_notice,advanced_active,shop_logo,adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active FROM shops WHERE id=$1',
+      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,shop_notice,advanced_active,shop_logo,adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active FROM shops WHERE id=$1',
       [req.params.shopId]
     );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
@@ -4463,7 +4468,7 @@ app.get('/api/admin/profile', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
       `SELECT id,name,address,phone,demo,plan_type,paid_until,advanced_unlocked,advanced_active,
-              adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,shop_notice,shop_logo,price_4x6_4,price_4x6_6,price_4x6_10,price_resume_color,price_resume_bw,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
+              adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,shop_notice,shop_logo,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
               email,payment_gateway,razorpay_key_id,cashfree_app_id,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
               CASE WHEN cashfree_secret_key != '' THEN true ELSE false END as has_cashfree_secret
@@ -4562,8 +4567,9 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
         await pool.query('UPDATE shops SET printer_name_4x6=$1 WHERE id=$2', [req.body.printer_name_4x6.slice(0,300), req.shopId]);
       if (typeof req.body.printer_name_a3 === 'string')
         await pool.query('UPDATE shops SET printer_name_a3=$1 WHERE id=$2', [req.body.printer_name_a3.slice(0,300), req.shopId]);
-      // Advance pricing (4x6 sheet: 4-photo/6-photo; resume: color/bw)
-      for (const [key, col] of [['price_4x6_4','price_4x6_4'],['price_4x6_6','price_4x6_6'],['price_4x6_10','price_4x6_10'],
+      // Advance pricing (4x6 sheet: 4/6/8/10-photo; resume: color/bw)
+      for (const [key, col] of [['price_4x6_4','price_4x6_4'],['price_4x6_6','price_4x6_6'],
+                                ['price_4x6_8','price_4x6_8'],['price_4x6_10','price_4x6_10'],
                                 ['price_resume_color','price_resume_color'],['price_resume_bw','price_resume_bw']]) {
         const v = parsePrice(req.body[key]);
         if (v !== null) {
@@ -4750,7 +4756,7 @@ app.post('/api/upload/confirm', async (req, res) => {
        ['4x6','a4','a5','letter','legal','a3','a2','a1'].includes(b.paperSize) ? b.paperSize : 'a4',
        ['portrait','landscape'].includes(b.orientation) ? b.orientation : 'portrait',
        ['doc','resume','photo4x6'].includes(b.service) ? b.service : 'doc',
-       [4,6].includes(parseInt(b.photoCount)) ? parseInt(b.photoCount) : 0]
+       [4,6,8,10].includes(parseInt(b.photoCount)) ? parseInt(b.photoCount) : 0]
     );
     console.log(`Direct upload confirmed: ${jobId} (${(cldInfo && cldInfo.bytes) || '?'} bytes, Render se nahi guzri)`);
     res.json({ success: true, jobId, fileName, fileType, amount,
@@ -4789,7 +4795,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
        ['4x6','a4','a5','letter','legal','a3','a2','a1'].includes(req.body.paperSize) ? req.body.paperSize : 'a4',
        ['portrait','landscape'].includes(req.body.orientation) ? req.body.orientation : 'portrait',
        ['doc','resume','photo4x6'].includes(req.body.service) ? req.body.service : 'doc',
-       [4,6].includes(parseInt(req.body.photoCount)) ? parseInt(req.body.photoCount) : 0]
+       [4,6,8,10].includes(parseInt(req.body.photoCount)) ? parseInt(req.body.photoCount) : 0]
     );
     res.json({ success:true, jobId, fileName:req.file.originalname, fileType, amount, copies:numCopies, totalPages:numPages, colorMode:colorMode||'bw' });
   } catch(err) {
@@ -4866,7 +4872,7 @@ app.post('/api/payment/online/create', async (req, res) => {
     const { jobId, colorMode, copies, totalPages, selectedPages } = req.body;
 
     const jobCheck = await pool.query(
-      `SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.price_4x6_4, s.price_4x6_6, s.price_4x6_10, s.price_resume_color, s.price_resume_bw, s.payment_mode, s.payment_gateway, s.paused, s.plan_type, s.paid_until,
+      `SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.price_4x6_4, s.price_4x6_6, s.price_4x6_8, s.price_4x6_10, s.price_resume_color, s.price_resume_bw, s.payment_mode, s.payment_gateway, s.paused, s.plan_type, s.paid_until,
               s.razorpay_key_id, s.razorpay_key_secret,
               s.cashfree_app_id, s.cashfree_secret_key
        FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1`, [jobId]
@@ -4904,7 +4910,7 @@ app.post('/api/payment/online/create', async (req, res) => {
     const _rateColor = (finalDuplex && parseInt(job.price_color_duplex) > 0) ? job.price_color_duplex : job.price_color;
     const pricePerPage = finalColorMode === 'color' ? _rateColor : _rateBw;
     // ── ADVANCE SERVICE PRICING ── resume: owner ka resume rate (color/bw)
-    // x copies; photo4x6: sheet rate (4/6 photo) x copies; rate 0 ho to
+    // x copies; photo4x6: sheet rate (4/6/8/10 photo) x copies; rate 0 ho to
     // normal per-page pricing fallback
     let amount = pricePerPage * finalPages * effCopies;
     if (job.service === 'resume') {
@@ -4912,6 +4918,7 @@ app.post('/api/payment/online/create', async (req, res) => {
       if (rRate > 0) amount = rRate * effCopies;
     } else if (job.service === 'photo4x6') {
       const pRate = job.photo_count === 10 ? (parseInt(job.price_4x6_10) || 0)
+                 : job.photo_count === 8 ? (parseInt(job.price_4x6_8) || 0)
                  : job.photo_count === 6 ? (parseInt(job.price_4x6_6) || 0)
                  : (parseInt(job.price_4x6_4) || 0);
       if (pRate > 0) amount = pRate * effCopies;
@@ -5188,7 +5195,7 @@ app.post('/api/payment/counter', async (req, res) => {
     if (!jobId) return res.status(400).json({ error:'Job ID required' });
 
     const jobCheck = await pool.query(
-      'SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.price_4x6_4, s.price_4x6_6, s.price_4x6_10, s.price_resume_color, s.price_resume_bw, s.payment_mode, s.paused, s.plan_type, s.paid_until FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1', [jobId]
+      'SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.price_4x6_4, s.price_4x6_6, s.price_4x6_8, s.price_4x6_10, s.price_resume_color, s.price_resume_bw, s.payment_mode, s.paused, s.plan_type, s.paid_until FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1', [jobId]
     );
     if (!jobCheck.rows.length) return res.status(404).json({ error:'Job not found' });
 
@@ -5231,7 +5238,7 @@ app.post('/api/payment/counter', async (req, res) => {
     const _rateColor = (finalDuplex && parseInt(job.price_color_duplex) > 0) ? job.price_color_duplex : job.price_color;
     const pricePerPage = finalColorMode === 'color' ? _rateColor : _rateBw;
     // ── ADVANCE SERVICE PRICING ── resume: owner ka resume rate (color/bw)
-    // x copies; photo4x6: sheet rate (4/6 photo) x copies; rate 0 ho to
+    // x copies; photo4x6: sheet rate (4/6/8/10 photo) x copies; rate 0 ho to
     // normal per-page pricing fallback
     let amount = pricePerPage * finalPages * effCopies;
     if (job.service === 'resume') {
@@ -5239,6 +5246,7 @@ app.post('/api/payment/counter', async (req, res) => {
       if (rRate > 0) amount = rRate * effCopies;
     } else if (job.service === 'photo4x6') {
       const pRate = job.photo_count === 10 ? (parseInt(job.price_4x6_10) || 0)
+                 : job.photo_count === 8 ? (parseInt(job.price_4x6_8) || 0)
                  : job.photo_count === 6 ? (parseInt(job.price_4x6_6) || 0)
                  : (parseInt(job.price_4x6_4) || 0);
       if (pRate > 0) amount = pRate * effCopies;
