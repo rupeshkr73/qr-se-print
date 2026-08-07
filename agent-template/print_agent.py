@@ -12,6 +12,7 @@ import tempfile
 import subprocess
 import threading
 import shutil
+import secrets
 from datetime import datetime
 from pathlib import Path
 
@@ -49,7 +50,7 @@ IDLE_INTERVAL_3    = 45         # 60 minute khaali gaye to itna (raat/band dukaa
 # Isliye khaali waqt me dheere check karo — par job aate hi turant 5s par
 # wapas aa jao, taaki print me deri na ho.
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 24           # Integer version number — server ke agent_version se compare hota hai
+VERSION            = 25           # Integer version number — server ke agent_version se compare hota hai
 SUPPORT_WA         = "918404832414"  # Admin WhatsApp (shop-login Support jaisa) — Contact Admin isi par khulega
 
 # Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
@@ -89,9 +90,45 @@ _pin_ca_bundle()
 LOCAL_VERSION_FILE = os.path.join(_APPDATA_DIR, "agent_version.txt")
 SHOP_CONFIG_FILE   = os.path.join(_APPDATA_DIR, "shop_config.txt")
 APPROVAL_CONFIG    = os.path.join(_APPDATA_DIR, "approval_mode.txt")
+AGENT_TOKEN_FILE   = os.path.join(_APPDATA_DIR, "agent_token.txt")
+
+
+def load_or_create_agent_token():
+    """
+    Secret that proves this really is the shop's own agent.
+
+    Why: /api/jobs/pending/<shop_id> used to be open to anyone. A Shop ID is
+    printed on the QR poster, so anybody could poll it, read customers'
+    uploaded files and steal print jobs. Now every request carries this token.
+
+    The token is created once on this PC and reused forever. The first agent
+    that sends a token claims that shop on the server, so nobody else can.
+    """
+    try:
+        if os.path.exists(AGENT_TOKEN_FILE):
+            with open(AGENT_TOKEN_FILE, "r", encoding="utf-8") as f:
+                tok = f.read().strip()
+            if 16 <= len(tok) <= 64:
+                return tok
+        tok = secrets.token_urlsafe(24)[:40]
+        with open(AGENT_TOKEN_FILE, "w", encoding="utf-8") as f:
+            f.write(tok)
+        return tok
+    except Exception:
+        # Even if the file cannot be written, keep printing (server allows
+        # a missing token until the admin enforces it).
+        return ""
+
+
+AGENT_TOKEN = load_or_create_agent_token()
+
+
+def auth_headers():
+    """Header sent with every agent request."""
+    return {"X-Agent-Token": AGENT_TOKEN} if AGENT_TOKEN else {}
 
 def get_machine_id():
-    """Windows MachineGuid — demo machine-lock ke liye. Fail par hostname."""
+    """Windows MachineGuid — used for demo machine-lock. Falls back to hostname."""
     try:
         import winreg
         key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
@@ -110,7 +147,7 @@ def get_machine_id():
 MACHINE_ID = get_machine_id()
 
 def approval_enabled():
-    """Counter jobs par owner-approval popup — default ON."""
+    """Owner-approval popup for counter jobs — ON by default."""
     try:
         if os.path.exists(APPROVAL_CONFIG):
             return open(APPROVAL_CONFIG).read().strip() != "off"
@@ -167,11 +204,11 @@ def show_shop_id_prompt():
         import tkinter as tk
         from tkinter import messagebox
     except ImportError:
-        log("⚠️  Tkinter nahi hai — console input try kar rahe hain", "WARN")
+        log("⚠️  Tkinter not available — trying console input", "WARN")
         try:
-            return input("Apna Shop ID daalo: ").strip().upper()
+            return input("Enter your Shop ID: ").strip().upper()
         except Exception:
-            log("❌ Shop ID nahi le paaye — Tkinter aur console dono available nahi", "ERROR")
+            log("❌ Could not read Shop ID — neither Tkinter nor console is available", "ERROR")
             return None
 
     result = {"shop_id": None}
@@ -185,17 +222,17 @@ def show_shop_id_prompt():
         # hamesha nonexistent shop poll karta rahega, "waiting" dikhata
         # rahega, aur kabhi print nahi karega — debug karna nightmare.
         # timeout 30s: Render free tier sleep se 30-60s mein jaagta hai.
-        status_lbl.config(text="⏳ Shop ID verify ho raha hai...")
+        status_lbl.config(text="⏳ Verifying Shop ID...")
         root.update()
         try:
             r = requests.get(f"{SERVER_URL}/api/shop/{value}", timeout=30)
             if r.status_code == 404:
-                status_lbl.config(text="❌ Yeh Shop ID server pe nahi mila — check karo")
+                status_lbl.config(text="❌ This Shop ID was not found on the server — please check it")
                 return
             # 200/403/500 sab pe aage badho — shop exist karta hai ya
             # server issue hai, dono case mein ID save karna theek hai
         except requests.exceptions.Timeout:
-            status_lbl.config(text="⏳ Server jaag raha hai — 30 sec baad dobara dabao")
+            status_lbl.config(text="⏳ Server is waking up — try again in 30 seconds")
             return
         except Exception:
             # Offline/net issue — verify skip, save kar do (fail-open)
@@ -213,14 +250,14 @@ def show_shop_id_prompt():
         pass
 
     tk.Label(root, text="QR Se Print Setup", font=("Segoe UI", 16, "bold"), pady=10).pack()
-    tk.Label(root, text="Apna Shop ID paste karo\n(Dashboard pe register karne ke baad mila tha)",
+    tk.Label(root, text="Paste your Shop ID\n(you received it after registering on the dashboard)",
              font=("Segoe UI", 10), pady=5).pack()
 
     entry = tk.Entry(root, font=("Segoe UI", 12), justify="center", width=28)
     entry.pack(pady=10)
     entry.focus()
 
-    tk.Button(root, text="Shuru Karo", font=("Segoe UI", 11, "bold"),
+    tk.Button(root, text="Start", font=("Segoe UI", 11, "bold"),
               bg="#ff4d1c", fg="white", padx=20, pady=8, command=on_submit).pack(pady=6)
 
     status_lbl = tk.Label(root, text="", font=("Segoe UI", 9), fg="#b45309")
@@ -275,7 +312,7 @@ def resolve_shop_id():
 _LOCK_FILE = os.path.join(_APPDATA_DIR, "agent.lock")
 
 def _pid_alive(pid):
-    """Kya is PID ka process abhi chal raha hai?"""
+    """Is the process with this PID still running?"""
     try:
         import ctypes
         PROCESS_QUERY = 0x1000
@@ -318,31 +355,112 @@ def _release_mutex():
         pass
 
 if not _ensure_single_instance():
-    log("⛔ Agent already chal raha hai — duplicate instance exit ho raha hai")
+    log("⛔ Agent is already running — this duplicate instance is exiting")
     sys.exit(0)
 
 SHOP_ID = resolve_shop_id()
 
 # ─── AUTO STARTUP (PC restart pe tray mein khud start ho) ─────────────
-def add_to_startup():
-    """HKCU Run key mein register — admin rights ki zaroorat nahi."""
+STARTUP_VBS_NAME = "QRSePrintAgent.vbs"
+
+
+def _startup_command():
+    """The exact command Windows must run at login (current paths, quoted)."""
+    if is_running_as_exe():
+        return f'"{sys.executable}"'
+    py = sys.executable.replace('python.exe', 'pythonw.exe')
+    if not os.path.exists(py):
+        py = sys.executable
+    return f'"{py}" "{os.path.abspath(__file__)}"'
+
+
+def _startup_folder():
+    """%APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs\\Startup"""
+    appdata = os.environ.get('APPDATA', '')
+    if not appdata:
+        return ""
+    return os.path.join(appdata, "Microsoft", "Windows",
+                        "Start Menu", "Programs", "Startup")
+
+
+def _register_run_key(cmd):
+    """Layer 1 — HKCU Run key. Written and then READ BACK to confirm."""
     try:
         import winreg
-        if is_running_as_exe():
-            cmd = f'"{sys.executable}"'
-        else:
-            py = sys.executable.replace('python.exe', 'pythonw.exe')
-            if not os.path.exists(py):
-                py = sys.executable
-            cmd = f'"{py}" "{os.path.abspath(__file__)}"'
         key = winreg.OpenKey(winreg.HKEY_CURRENT_USER,
             r"Software\Microsoft\Windows\CurrentVersion\Run",
-            0, winreg.KEY_SET_VALUE)
+            0, winreg.KEY_SET_VALUE | winreg.KEY_QUERY_VALUE)
         winreg.SetValueEx(key, "QRSePrintAgent", 0, winreg.REG_SZ, cmd)
+        saved, _ = winreg.QueryValueEx(key, "QRSePrintAgent")
         winreg.CloseKey(key)
-        log("✅ Windows startup mein register ho gaya (restart pe khud chalega)")
+        return saved == cmd
     except Exception as e:
-        log(f"⚠️  Startup register nahi hua: {e}", "WARN")
+        log(f"⚠️  Startup registry entry failed: {e}", "WARN")
+        return False
+
+
+def _register_startup_folder(cmd):
+    """
+    Layer 2 — a .vbs in the Startup folder.
+
+    Why a second method: the Run key alone is not reliable. Antivirus and
+    "PC cleaner" tools delete it, some office PCs block it by policy, and
+    after an update the old entry can point at a path that no longer exists.
+    The Startup folder keeps working in all of those cases. VBS is used
+    instead of BAT so no black console window flashes at login.
+    """
+    folder = _startup_folder()
+    if not folder:
+        return False
+    try:
+        os.makedirs(folder, exist_ok=True)
+        vbs_path = os.path.join(folder, STARTUP_VBS_NAME)
+        # In VBS a quote inside a string is written as two quotes
+        vbs_cmd = cmd.replace('"', '""')
+        content = (
+            'Set WshShell = CreateObject("WScript.Shell")\r\n'
+            'WshShell.Run "' + vbs_cmd + '", 0, False\r\n'
+        )
+        # newline="" is important: without it Windows turns each \r\n into
+        # \r\r\n and the .vbs can fail to run.
+        with open(vbs_path, "w", encoding="utf-8", newline="") as f:
+            f.write(content)
+        return os.path.exists(vbs_path) and os.path.getsize(vbs_path) > 0
+    except Exception as e:
+        log(f"⚠️  Startup folder entry failed: {e}", "WARN")
+        return False
+
+
+def add_to_startup():
+    """
+    Make sure the agent starts by itself after a Windows restart.
+
+    Shop owners reported the agent not starting after a restart. Reasons found:
+    the registry entry gets removed by antivirus/cleaner tools, and after an
+    update it can still point to the old file path. So now:
+
+      * both methods are used (registry + Startup folder), either one is enough
+      * both are rewritten on EVERY launch with the CURRENT path, so an entry
+        left over from an older version repairs itself automatically
+      * the registry value is read back to confirm it was really saved
+    """
+    if os.name != "nt":
+        return
+    cmd = _startup_command()
+    ok_reg = _register_run_key(cmd)
+    ok_folder = _register_startup_folder(cmd)
+
+    if ok_reg and ok_folder:
+        log("✅ Auto-start is set (registry + Startup folder) — the agent will "
+            "start by itself after a restart")
+    elif ok_reg or ok_folder:
+        which = "registry" if ok_reg else "Startup folder"
+        log(f"✅ Auto-start is set via {which} — the agent will start by itself "
+            f"after a restart")
+    else:
+        log("❌ Auto-start could NOT be set. The agent will not start on its own "
+            "after a restart — please start it manually, or contact support.",
+            "ERROR")
 
 def show_banner():
     # CRITICAL FIX: yahan bare print() tha — try ke bahar. --noconsole exe
@@ -370,17 +488,17 @@ def check_printer():
             default = win32print.GetDefaultPrinter()
             log(f"✅ System Default Printer (Auto Detected): {default}")
             return True, default
-        log("❌ Printer nahi mila!", "ERROR")
+        log("❌ No printer found!", "ERROR")
         return False, None
     except ImportError:
-        log("⚠️  Mock mode (win32print nahi hai)", "WARN")
+        log("⚠️  Mock mode (win32print not available)", "WARN")
         return True, "MockPrinter"
     except Exception as e:
         log(f"❌ Printer error: {e}", "ERROR")
         return False, None
 
 def list_all_printers():
-    """System pe installed sab printers ki list — Dashboard dropdown ke liye"""
+    """List of all printers installed on this system — for the dashboard dropdown"""
     try:
         import win32print
         printers = win32print.EnumPrinters(
@@ -394,7 +512,7 @@ def list_all_printers():
         return []
 
 def report_printers_to_server():
-    """Apni printer list server ko bhejo, taaki Dashboard dropdown mein dikhe"""
+    """Send the printer list to the server so it appears in the dashboard dropdown"""
     try:
         printers = list_all_printers()
         if not printers:
@@ -402,20 +520,21 @@ def report_printers_to_server():
         requests.post(
             f"{SERVER_URL}/api/agent/printers/{SHOP_ID}",
             json={"printers": printers},
+            headers=auth_headers(),
             timeout=15
         )
-        log(f"📋 Printer list server ko bheji: {printers}")
+        log(f"📋 Printer list sent to server: {printers}")
     except Exception as e:
         log(f"⚠️  Printer list report fail: {e}", "WARN")
 
 def download_file(url, ext):
-    """Cloudinary se file download karo"""
+    """Download the file from Cloudinary"""
     try:
         log(f"⬇️  Downloading...")
         resp = requests.get(url, timeout=60)
         resp.raise_for_status()
         if len(resp.content) < 100:
-            log(f"❌ Downloaded file bahut choti hai: {len(resp.content)} bytes", "ERROR")
+            log(f"❌ Downloaded file is too small: {len(resp.content)} bytes", "ERROR")
             return None
         suffix = f".{ext}" if ext else ".pdf"
         tmp = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
@@ -442,7 +561,7 @@ def convert_image_to_pdf(image_path):
     """
     try:
         from PIL import Image
-        log(f"🔄 Image → A4 PDF convert ho raha hai...")
+        log(f"🔄 Converting image to A4 PDF...")
 
         img = Image.open(image_path)
 
@@ -468,7 +587,7 @@ def convert_image_to_pdf(image_path):
         # Agar image ka ratio A4 se bahut close hai (Canvas Editor se aaya hai),
         # to seedha resize karke wrap karo — koi extra zoom/margin nahi
         if ratio_diff < 0.01:
-            log("ℹ️  Image already A4-ratio mein hai (Canvas Editor output) — seedha use kar rahe hain")
+            log("ℹ️  Image is already A4 ratio (Canvas Editor output) — using it as is")
             a4_canvas = img.resize((a4_width_px, a4_height_px), Image.LANCZOS)
         else:
             # Create a full white A4 canvas
@@ -503,7 +622,7 @@ def convert_image_to_pdf(image_path):
         return pdf_path
 
     except ImportError:
-        log("❌ Pillow install nahi hai! Run: pip install Pillow", "ERROR")
+        log("❌ Pillow is not installed! Run: pip install Pillow", "ERROR")
         return None
     except Exception as e:
         log(f"❌ Image convert error: {e}", "ERROR")
@@ -537,25 +656,25 @@ def extract_selected_pages(pdf_path, selected_pages_str, total_pages=None):
         try:
             from PyPDF2 import PdfReader, PdfWriter
         except ImportError:
-            log("⚠️  pypdf/PyPDF2 nahi hai! Install kar raha hai...", "WARN")
+            log("⚠️  pypdf/PyPDF2 not found! Installing...", "WARN")
             os.system("pip install pypdf pycryptodome --quiet")
             try:
                 from pypdf import PdfReader, PdfWriter
             except Exception as e:
-                log(f"❌ pypdf install bhi fail hua: {e}", "ERROR")
+                log(f"❌ pypdf installation also failed: {e}", "ERROR")
                 return None
 
     # PyCryptodome missing hone se aane wala specific error pre-emptively fix karo
     try:
         import Crypto  # noqa
     except ImportError:
-        log("⚠️  PyCryptodome nahi hai — install kar raha hai (encrypted PDF ke liye zaroori)", "WARN")
+        log("⚠️  PyCryptodome not found — installing (required for encrypted PDFs)", "WARN")
         os.system("pip install pycryptodome --quiet")
 
     try:
         page_numbers = [int(p.strip()) for p in selected_pages_str.split(',') if p.strip()]
         if not page_numbers:
-            log("⚠️  Page list empty hai — original PDF print hoga", "WARN")
+            log("⚠️  Page list is empty — the original PDF will be printed", "WARN")
             return pdf_path
 
         # ── KOI FAST-PATH NAHI ── hamesha extract karo.
@@ -572,14 +691,14 @@ def extract_selected_pages(pdf_path, selected_pages_str, total_pages=None):
         # safe hai. Saare page chune ho tab bhi extract karna nuksan nahi —
         # wahi PDF wapas banta hai, bas thoda CPU lagta hai.
 
-        log(f"📑 Specific pages extract ho rahe hain: {page_numbers}")
+        log(f"📑 Extracting specific pages: {page_numbers}")
 
         try:
             reader = PdfReader(pdf_path, strict=False)
         except Exception as e1:
             # Kuch "ajeeb" PDFs (galat-encoded metadata waale) pypdf ke
             # strict-mode se crash ho jaate hain — dusri library se retry.
-            log(f"⚠️  PDF read attempt 1 fail ({e1}) — dusri library se retry kar rahe hain", "WARN")
+            log(f"⚠️  PDF read attempt 1 failed ({e1}) — retrying with another library", "WARN")
             try:
                 from PyPDF2 import PdfReader as _AltReader
                 reader = _AltReader(pdf_path, strict=False)
@@ -606,10 +725,10 @@ def extract_selected_pages(pdf_path, selected_pages_str, total_pages=None):
                 writer.add_page(reader.pages[idx])
                 added_count += 1
             else:
-                log(f"⚠️  Page {pnum} PDF mein nahi hai (PDF mein {total_pdf_pages} pages hain)", "WARN")
+                log(f"⚠️  Page {pnum} is not in the PDF (the PDF has {total_pdf_pages} pages)", "WARN")
 
         if added_count == 0:
-            log("❌ Koi valid page extract nahi hua! Print ROK rahe hain (safety ke liye)", "ERROR")
+            log("❌ No valid page could be extracted! Stopping the print for safety", "ERROR")
             return None
 
         extracted_path = pdf_path + '_extracted.pdf'
@@ -619,10 +738,10 @@ def extract_selected_pages(pdf_path, selected_pages_str, total_pages=None):
         # Verify extracted file properly bani hai
         verify_size = os.path.getsize(extracted_path)
         if verify_size < 50:
-            log(f"❌ Extracted PDF khaali/corrupt hai ({verify_size} bytes)!", "ERROR")
+            log(f"❌ Extracted PDF is empty or corrupt ({verify_size} bytes)!", "ERROR")
             return None
 
-        log(f"✅ {added_count} page(s) extract ho gaye: {extracted_path} ({verify_size} bytes)")
+        log(f"✅ Extracted {added_count} page(s): {extracted_path} ({verify_size} bytes)")
         return extracted_path
 
     except Exception as e:
@@ -633,12 +752,12 @@ def extract_selected_pages(pdf_path, selected_pages_str, total_pages=None):
             # Poora document print karna yahan GALAT hai — customer ne shayad
             # sirf 1 page ka paisa diya ho aur 10 page nikal jayein.
             # Print rokna hi sahi hai: shop bata dega, customer dobara bhej dega.
-            log(f"❌ Crypto module missing ({e}) — specific pages nikal nahi sakte", "ERROR")
-            log("⚠️  Print ROKA gaya taaki extra page print na ho.", "WARN")
-            log("👉 Agent ko v20 ya usse naya update karo — usme ye theek hai.", "WARN")
+            log(f"❌ Crypto module missing ({e}) — cannot extract specific pages", "ERROR")
+            log("⚠️  Print stopped so that extra pages are not printed.", "WARN")
+            log("👉 Update the agent to v20 or newer — this is fixed there.", "WARN")
             return None
         log(f"❌ Page extract error: {e}", "ERROR")
-        log(f"⚠️  SAFETY: Print ROK rahe hain taaki galat (zyada) pages print na ho", "WARN")
+        log(f"⚠️  SAFETY: Stopping the print so that wrong (extra) pages are not printed", "WARN")
         return None
 
 def get_bundled_resource_path(filename):
@@ -738,9 +857,9 @@ def print_pdf_sumatra(filepath, copies=1, color_mode="bw", printer_name=None, ex
 
     use_specific_printer = bool(printer_name and printer_name.strip())
     if use_specific_printer:
-        log(f"🎯 Specific printer route: '{printer_name}' ({color_mode.upper()} ke liye configured)")
+        log(f"🎯 Specific printer route: '{printer_name}' (configured for {color_mode.upper()})")
     else:
-        log(f"ℹ️  Koi specific printer set nahi hai {color_mode.upper()} ke liye — system Default Printer use hoga")
+        log(f"ℹ️  No specific printer set for {color_mode.upper()} — the system default printer will be used")
 
     log(f"SumatraPDF paths to try: {sumatra_paths}")
     for sumatra in sumatra_paths:
@@ -784,12 +903,12 @@ def print_pdf_sumatra(filepath, copies=1, color_mode="bw", printer_name=None, ex
                 # printer pe fallback try karte hain (taaki print bilkul
                 # ruk na jaaye — kam se kam kahin to nikal jaaye)
                 if use_specific_printer:
-                    log(f"⚠️  '{printer_name}' pe print fail hua, default printer try kar rahe hain...", "WARN")
+                    log(f"⚠️  Printing on '{printer_name}' failed, trying the default printer...", "WARN")
                     try:
                         fallback_cmd = [sumatra, "-print-to-default", "-silent", "-print-settings", print_settings, filepath]
                         fb_result = subprocess.run(fallback_cmd, timeout=120, capture_output=True)
                         if fb_result.returncode == 0:
-                            log(f"✅ Default printer se print ho gaya (fallback)")
+                            log(f"✅ Printed on the default printer (fallback)")
                             return True
                     except Exception:
                         pass
@@ -797,11 +916,11 @@ def print_pdf_sumatra(filepath, copies=1, color_mode="bw", printer_name=None, ex
             log(f"⚠️  SumatraPDF subprocess error: {runErr}", "WARN")
 
     # Fallback
-    log("⚠️  SumatraPDF nahi mila, Windows shell se try kar raha hai...", "WARN")
+    log("⚠️  SumatraPDF not found, trying the Windows shell...", "WARN")
     try:
         os.startfile(filepath, "print")
         time.sleep(5)
-        log("✅ Windows shell se print hua (fit/B&W setting aur specific printer apply nahi hogi)")
+        log("✅ Printed via the Windows shell (fit/B&W settings and specific printer will not apply)")
         return True
     except Exception as e:
         log(f"❌ Print failed: {e}", "ERROR")
@@ -818,13 +937,13 @@ def print_word(filepath, copies=1, color_mode="bw", printer_name=None):
                 word.ActivePrinter = printer_name
                 log(f"🎯 Word ActivePrinter set: {printer_name}")
             except Exception as ape:
-                log(f"⚠️  ActivePrinter set nahi ho paaya, default use hoga: {ape}", "WARN")
+                log(f"⚠️  Could not set ActivePrinter, the default will be used: {ape}", "WARN")
         doc = word.Documents.Open(os.path.abspath(filepath))
         doc.PrintOut(Copies=copies)
         time.sleep(5)
         doc.Close(False)
         word.Quit()
-        log("✅ Word print hua!")
+        log("✅ Word document printed!")
         return True
     except:
         try:
@@ -836,7 +955,7 @@ def print_word(filepath, copies=1, color_mode="bw", printer_name=None):
             return False
 
 def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_name=None, duplex_on=False, duplex_mode="", duplex_pages=1, paper_size="a4", total_pages=None):
-    """Main print function — sab file types handle karta hai"""
+    """Main print function — handles all file types"""
     ext = Path(filepath).suffix.lower()
     log(f"🖨️  Printing: {os.path.basename(filepath)}")
     log(f"   Copies: {copies} | Mode: {color_mode.upper()} | Type: {ext}")
@@ -849,7 +968,7 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
     try:
         # Problem 1: Image files ko pehle A4-fit PDF mein convert karo
         if ext in ['.jpg', '.jpeg', '.png', '.bmp', '.gif']:
-            log(f"🔄 Image file detect hua — A4 PDF mein convert kar raha hai...")
+            log(f"🔄 Image file detected — converting to A4 PDF...")
             converted_pdf = convert_image_to_pdf(filepath)
             if not converted_pdf:
                 log("❌ Image to PDF conversion failed!", "ERROR")
@@ -861,7 +980,7 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
             if selected_pages:
                 extracted_pdf = extract_selected_pages(filepath, selected_pages, total_pages)
                 if extracted_pdf is None:
-                    log("❌ Page extraction fail hua — SAFETY ke liye print ROK rahe hain (taaki poora document galti se print na ho)", "ERROR")
+                    log("❌ Page extraction failed — stopping the print for safety (so the whole document is not printed by mistake)", "ERROR")
                     return False
                 print_path = extracted_pdf
         elif ext in ['.doc', '.docx']:
@@ -907,16 +1026,16 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
             ok1 = print_pdf_sumatra(print_path, 1, color_mode, printer_name, extra=_mix("odd"), scale_mode=_scale)
             if not ok1:
                 return False
-            update_tray_status("📄 Back side ka wait — pages palto!")
+            update_tray_status("📄 Waiting for the back side — flip the pages!")
             if ask_backside():
                 log("📄 MANUAL duplex — pass 2: back (even pages)")
                 return print_pdf_sumatra(print_path, 1, color_mode, printer_name, extra=_mix("even"), scale_mode=_scale)
             else:
-                log("📄 Owner ne back side skip kiya — sirf front print hua")
+                log("📄 Owner skipped the back side — only the front was printed")
                 return True  # front print hua tha, job done
 
         if duplex_on and total_pgs <= 1:
-            log("📄 Duplex select tha par 1 hi page hai — normal print")
+            log("📄 Duplex was selected but there is only 1 page — printing normally")
 
         # PDF print karo with fit-to-page (image bhi ab already A4-fitted PDF hai)
         success = print_pdf_sumatra(print_path, copies, color_mode, printer_name, extra=_mix(), scale_mode=_scale)
@@ -946,15 +1065,19 @@ def get_pending_jobs():
             url += f"?m={MACHINE_ID}&v={VERSION}"
         else:
             url += f"?v={VERSION}"
-        resp = requests.get(url, timeout=15)
+        resp = requests.get(url, headers=auth_headers(), timeout=15)
+        if resp.status_code == 403:
+            log("❌ Agent token rejected by the server. Open the shop dashboard "
+                "and use 'Re-link agent' to reset it.", "ERROR")
+            return []
         if resp.status_code != 200:
             return []
         d = resp.json()
         if d.get("demo_expired"):
-            update_tray_status("⏰ Demo khatam — register karo!")
+            update_tray_status("⏰ Demo has ended — please register!")
             if not _demo_expired_shown:
                 _demo_expired_shown = True
-                log("⏰ Demo period khatam — register karke naya Shop ID lo")
+                log("⏰ Demo period has ended — register to get a new Shop ID")
                 threading.Thread(target=_show_demo_expired_popup, daemon=True).start()
             return []
         return d.get("jobs", [])
@@ -967,11 +1090,11 @@ def _show_demo_expired_popup():
     try:
         import ctypes
         r = ctypes.windll.user32.MessageBoxW(None,
-            "Aapka 2 ghante ka demo khatam ho gaya!\n\n"
-            "Pasand aaya? Register karke apna permanent Shop ID lo:\n"
+            "Your 2-hour demo has ended!\n\n"
+            "Liked it? Register to get your own permanent Shop ID:\n"
             f"{SERVER_URL}/register\n\n"
-            "OK dabane par register page khulega.",
-            "QR Se Print — Demo Khatam", 0x40 | 0x1)  # OK/Cancel + info icon
+            "Pressing OK will open the registration page.",
+            "QR Se Print — Demo Ended", 0x40 | 0x1)  # OK/Cancel + info icon
         if r == 1:  # OK
             os.startfile(f"{SERVER_URL}/register")
     except Exception:
@@ -1011,7 +1134,7 @@ def _demo_status():
 
 
 def _demo_slot_index(now=None):
-    """Abhi kaunsa slot chal raha hai (0-3), ya None agar time se bahar."""
+    """Which slot is active right now (0-3), or None if outside the window."""
     n = now or datetime.now()
     cur = None
     for i, (h, m) in enumerate(DEMO_SLOTS):
@@ -1054,7 +1177,7 @@ def _open_register(plan):
 
 
 def _show_demo_upgrade_popup():
-    """Do plan button + Dismiss. tkinter fail ho to MessageBox fallback."""
+    """Two plan buttons + Dismiss. Falls back to MessageBox if tkinter fails."""
     try:
         import tkinter as tk
         root = tk.Tk()
@@ -1069,13 +1192,13 @@ def _show_demo_upgrade_popup():
         head = tk.Frame(root, bg="#ff3b6b", height=76)
         head.pack(fill="x")
         head.pack_propagate(False)
-        tk.Label(head, text="\u23f3  Demo Chal Raha Hai", bg="#ff3b6b", fg="white",
+        tk.Label(head, text="\u23f3  Demo Is Running", bg="#ff3b6b", fg="white",
                  font=("Segoe UI", 14, "bold")).pack(pady=(14, 0))
-        tk.Label(head, text="Plan lo — warna print nikalna band ho jayega",
+        tk.Label(head, text="Choose a plan — otherwise printing will stop",
                  bg="#ff3b6b", fg="white", font=("Segoe UI", 9)).pack()
 
-        tk.Label(root, text="Aapki dukaan abhi demo Shop ID par chal rahi hai.\n"
-                            "Continue karne ke liye koi ek plan choose kariye:",
+        tk.Label(root, text="Your shop is currently running on a demo Shop ID.\n"
+                            "Choose one plan to continue:",
                  bg="white", fg="#2b2b31", font=("Segoe UI", 10), justify="center").pack(pady=(16, 12))
 
         btns = tk.Frame(root, bg="white")
@@ -1097,10 +1220,10 @@ def _show_demo_upgrade_popup():
                   relief="flat", bd=0, cursor="hand2",
                   command=lambda: pick("onetime")).grid(row=0, column=1, padx=6)
 
-        tk.Label(root, text="Button dabate hi browser me nayi shop registration khulegi",
+        tk.Label(root, text="Pressing the button opens new shop registration in your browser",
                  bg="white", fg="#9b9690", font=("Segoe UI", 8)).pack(pady=(10, 0))
 
-        tk.Button(root, text="Abhi nahi — Dismiss", bg="white", fg="#9b9690",
+        tk.Button(root, text="Not now — Dismiss", bg="white", fg="#9b9690",
                   font=("Segoe UI", 9), relief="flat", bd=0, cursor="hand2",
                   command=root.destroy).pack(pady=(12, 0))
 
@@ -1111,9 +1234,9 @@ def _show_demo_upgrade_popup():
             import ctypes
             r = ctypes.windll.user32.MessageBoxW(
                 None,
-                "Aapki dukaan abhi DEMO Shop ID par chal rahi hai.\n\n"
-                "Continue karne ke liye Monthly ya Lifetime plan lijiye.\n\n"
-                "OK dabane par registration page khulega.",
+                "Your shop is currently running on a DEMO Shop ID.\n\n"
+                "Choose the Monthly or Lifetime plan to continue.\n\n"
+                "Pressing OK will open the registration page.",
                 "QR Se Print — Demo", 0x40 | 0x1)
             if r == 1:
                 _open_register("onetime")
@@ -1122,7 +1245,7 @@ def _show_demo_upgrade_popup():
 
 
 def demo_reminder_loop():
-    """Background thread — har 5 min dekhta hai ki slot ka time hua ya nahi."""
+    """Background thread — checks every 5 minutes whether a slot is due."""
     last_status_check = 0
     is_demo, expired = False, False
     while agent_state["running"]:
@@ -1155,19 +1278,19 @@ def _report_with_retry(url, payload, job_id, what):
             r = requests.post(url, json=payload, timeout=15)
             if r.status_code == 200:
                 if attempt > 1:
-                    log(f"✅ {what} report {attempt}vi koshish me pahuncha ({job_id})")
+                    log(f"✅ {what} report delivered on attempt {attempt} ({job_id})")
                 return True
             log(f"⚠️ {what} report HTTP {r.status_code} (koshish {attempt}/6)", "WARN")
         except Exception as e:
             log(f"⚠️ {what} report fail (koshish {attempt}/6): {e}", "WARN")
         if attempt < 6:
             time.sleep(10)
-    log(f"❌ {what} report 6 koshish ke baad bhi nahi pahuncha — job {job_id} "
-        f"server par atka rahega (10 min me server khud sambhal lega)", "ERROR")
+    log(f"❌ {what} report failed after 6 attempts — job {job_id} "
+        f"will stay stuck on the server (the server clears it in 10 minutes)", "ERROR")
     return False
 
 def mark_complete(job_id):
-    log(f"✅ Job {job_id} complete! Server ko report ho raha hai...")
+    log(f"✅ Job {job_id} complete! Reporting to the server...")
     _report_with_retry(f"{SERVER_URL}/api/jobs/complete/{job_id}", {}, job_id, "Complete")
 
 def mark_failed(job_id, reason=""):
@@ -1198,16 +1321,16 @@ def ask_backside():
         sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
         root.geometry(f"{w}x{h}+{sw - w - 20}+{sh - h - 80}")
         root.configure(bg="white")
-        tk.Label(root, text="📄 Front Side Print Ho Gaya!", font=("Segoe UI", 13, "bold"),
+        tk.Label(root, text="📄 Front Side Printed!", font=("Segoe UI", 13, "bold"),
                  bg="white").pack(pady=(18, 4))
-        tk.Label(root, text="Ab printed pages ko printer ki tray mein\n"
-                            "WAPAS lagao (blank side print hone wali taraf).\n"
-                            "Phir neeche button dabao — back side chhapega.",
+        tk.Label(root, text="Now put the printed pages back into the printer tray\n"
+                            "(with the blank side facing the print head).\n"
+                            "Then press the button below — the back side will print.",
                  font=("Segoe UI", 10), bg="white", fg="#444", justify="center").pack(pady=4)
         btns = tk.Frame(root, bg="white"); btns.pack(pady=12)
         def _ok(): result["ok"] = True; root.destroy()
         def _no(): result["ok"] = False; root.destroy()
-        tk.Button(btns, text="🖨️ Ab Back Side Print Karo", font=("Segoe UI", 10, "bold"),
+        tk.Button(btns, text="🖨️ Print The Back Side Now", font=("Segoe UI", 10, "bold"),
                   bg="#16a34a", fg="white", padx=14, pady=8, bd=0, cursor="hand2",
                   command=_ok).pack(side="left", padx=6)
         tk.Button(btns, text="❌ Rehne Do", font=("Segoe UI", 10, "bold"),
@@ -1221,8 +1344,8 @@ def ask_backside():
         try:
             import ctypes
             r = ctypes.windll.user32.MessageBoxW(None,
-                "Front side print ho gaya!\n\nPages printer mein WAPAS lagao,\n"
-                "phir OK dabao — back side print hoga.\n(Cancel = back side skip)",
+                "Front side printed!\n\nPut the pages back into the printer,\n"
+                "then press OK — the back side will print.\n(Cancel = skip the back side)",
                 "QR Se Print — Back Side", 0x40 | 0x1)
             return r == 1
         except Exception:
@@ -1263,7 +1386,7 @@ def ask_approval(job):
 
         tk.Label(root, text="🪙 Counter Payment Order", font=("Segoe UI", 13, "bold"),
                  bg="white").pack(pady=(16, 2))
-        tk.Label(root, text="Customer counter par cash dega — print approve karein?",
+        tk.Label(root, text="The customer will pay cash at the counter — approve this print?",
                  font=("Segoe UI", 9), bg="white", fg="#666").pack()
 
         box = tk.Frame(root, bg="#f6f4ff", padx=14, pady=10)
@@ -1274,7 +1397,7 @@ def ask_approval(job):
             pages_txt += f" (pages: {sel})"
         rows = [
             ("Print", f"{mode_txt}  •  {pages_txt}  •  {copies} cop{'ies' if copies!=1 else 'y'}"),
-            ("Amount", f"₹{amount}  (counter par lena hai)"),
+            ("Amount", f"₹{amount}  (to be collected at the counter)"),
             ("File", fname[:38]),
         ]
         if tstr:
@@ -1297,7 +1420,7 @@ def ask_approval(job):
         tk.Button(btns, text="❌ Deny", font=("Segoe UI", 10, "bold"),
                   bg="#dc2626", fg="white", padx=22, pady=8, bd=0,
                   cursor="hand2", command=_no).pack(side="left", padx=6)
-        tk.Label(root, text="Deny karne par order cancel + file delete ho jayegi",
+        tk.Label(root, text="Denying will cancel the order and delete the file",
                  font=("Segoe UI", 8), bg="white", fg="#999").pack()
 
         root.mainloop()
@@ -1353,16 +1476,16 @@ def process_job(job):
         f"target='{target_printer or 'DEFAULT PRINTER'}'")
 
     if job.get("payment_method") == "counter" and approval_enabled():
-        update_tray_status("Counter order — approval ka wait")
+        update_tray_status("Counter order — waiting for approval")
         ans = ask_approval(job)
         if ans is None:
-            log(f"⏸️ Approval window band hui bina jawab ke — job {job_id} baad mein dobara aayega")
+            log(f"⏸️ Approval window closed without a response — job {job_id} will come back later")
             return
         if ans is False:
             log(f"❌ Owner ne DENY kiya — job {job_id} cancel")
             mark_failed(job_id, "Shop owner ne counter order deny kiya")
             return
-        log(f"✅ Owner ne approve kiya — job {job_id} print ho raha hai")
+        log(f"✅ Owner approved — job {job_id} is printing")
 
     log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     log(f"📄 Job: {job_id}")
@@ -1374,7 +1497,7 @@ def process_job(job):
         log(f"   🎯 Target Printer ({color.upper()}): {target_printer}")
 
     if not url:
-        log("❌ File URL nahi!", "ERROR")
+        log("❌ No file URL!", "ERROR")
         mark_failed(job_id, "No URL")
         return
 
@@ -1419,7 +1542,7 @@ def process_job(job):
 def check_dependencies():
     if is_running_as_exe():
         # .exe build mein sab kuch already bundled hai (PyInstaller ne pack kiya hai)
-        log("🔍 Dependencies check... (.exe mode — sab bundled hai)")
+        log("🔍 Checking dependencies... (.exe mode — everything is bundled)")
         log("✅ Pillow, win32print, PyPDF2, PyCryptodome, pystray — sab ready (bundled)")
         return
 
@@ -1428,50 +1551,50 @@ def check_dependencies():
         from PIL import Image
         log("✅ Pillow (image→PDF) ready")
     except ImportError:
-        log("⚠️  Pillow nahi hai! Installing...", "WARN")
+        log("⚠️  Pillow not found! Installing...", "WARN")
         os.system("pip install Pillow --quiet")
         try:
             from PIL import Image
-            log("✅ Pillow install ho gaya!")
+            log("✅ Pillow installed!")
         except:
-            log("❌ Pillow install nahi hua — JPG/PNG print nahi hoga!", "ERROR")
+            log("❌ Pillow could not be installed — JPG/PNG printing will not work!", "ERROR")
     try:
         import win32print
         log("✅ win32print ready")
     except ImportError:
-        log("⚠️  win32print nahi hai! Run: pip install pywin32", "WARN")
+        log("⚠️  win32print not found! Run: pip install pywin32", "WARN")
     try:
         from PyPDF2 import PdfReader
         log("✅ PyPDF2 (page range) ready")
     except ImportError:
-        log("⚠️  PyPDF2 nahi hai! Installing...", "WARN")
+        log("⚠️  PyPDF2 not found! Installing...", "WARN")
         os.system("pip install PyPDF2 --quiet")
     try:
         import Crypto  # noqa
         log("✅ PyCryptodome (encrypted PDF) ready")
     except ImportError:
-        log("⚠️  PyCryptodome nahi hai! Installing...", "WARN")
+        log("⚠️  PyCryptodome not found! Installing...", "WARN")
         os.system("pip install pycryptodome --quiet")
         try:
             import Crypto  # noqa
-            log("✅ PyCryptodome install ho gaya!")
+            log("✅ PyCryptodome installed!")
         except:
-            log("❌ PyCryptodome install nahi hua — kuch PDFs page-extract fail ho sakte hain!", "ERROR")
+            log("❌ PyCryptodome could not be installed — page extraction may fail for some PDFs!", "ERROR")
     try:
         import pystray
         log("✅ pystray (System Tray) ready")
     except ImportError:
-        log("⚠️  pystray nahi hai! Installing...", "WARN")
+        log("⚠️  pystray not found! Installing...", "WARN")
         os.system("pip install pystray --quiet")
         try:
             import pystray
-            log("✅ pystray install ho gaya!")
+            log("✅ pystray installed!")
         except:
-            log("⚠️  pystray install nahi hua — Tray mode kaam nahi karega, console mode use hoga", "WARN")
+            log("⚠️  pystray could not be installed — tray mode will not work, using console mode", "WARN")
 
 # ─── AUTO-UPDATE: Server se check karo naya version hai ya nahi ──────
 def get_remote_version():
-    """Server se latest agent version number fetch karo"""
+    """Fetch the latest agent version number from the server"""
     try:
         resp = requests.get(f"{SERVER_URL}/api/agent/version", timeout=15)
         resp.raise_for_status()
@@ -1484,13 +1607,13 @@ def get_remote_version():
         return None
 
 def download_latest_agent():
-    """Naya print_agent.py code download karo server se"""
+    """Download the new print_agent.py code from the server"""
     try:
         resp = requests.get(f"{SERVER_URL}/api/agent/download-latest", timeout=30)
         resp.raise_for_status()
         return resp.text
     except Exception as e:
-        log(f"❌ Naya agent download nahi hua: {e}", "ERROR")
+        log(f"❌ Could not download the new agent: {e}", "ERROR")
         return None
 
 def apply_update_and_restart(new_code=None):
@@ -1523,7 +1646,7 @@ def apply_update_and_restart(new_code=None):
         with open(current_file, 'w', encoding='utf-8') as f:
             f.write(new_code)
 
-        log("✅ Naya code install ho gaya! Agent restart ho raha hai...")
+        log("✅ New code installed! Restarting the agent...")
 
         # Khud ko restart karo — naye Python process mein same script chalao.
         # pythonw.exe force karte hain taaki restart ke baad bhi koi console
@@ -1549,7 +1672,7 @@ def download_installer(progress_cb=None):
     """
     resp = requests.get(f"{SERVER_URL}/api/agent/download-latest-exe", timeout=120, stream=True)
     if resp.status_code == 404:
-        return None, "Server par naya installer upload nahi hua hai (Super Admin ko batao)"
+        return None, "No new installer has been uploaded to the server (inform the Super Admin)"
     resp.raise_for_status()
 
     total = int(resp.headers.get('content-length') or 0)
@@ -1574,11 +1697,11 @@ def download_installer(progress_cb=None):
                     pct = int(done * 100 / total) if total else None
                     progress_cb(pct, done / 1048576)
     if done < 100_000:  # <100KB = installer nahi, koi error page hai
-        return None, "Download hui file installer nahi lagti (bahut chhoti hai) — installer URL check karo"
+        return None, "The downloaded file does not look like an installer (too small) — check the installer URL"
     return installer_path, None
 
 def run_installer_and_exit(installer_path):
-    log("🔄 Silent update install ho raha hai...")
+    log("🔄 Installing silent update...")
     subprocess.Popen([installer_path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"])
     time.sleep(2)
     if agent_state["tray_icon"]:
@@ -1586,14 +1709,14 @@ def run_installer_and_exit(installer_path):
     os._exit(0)
 
 def apply_exe_update_and_restart():
-    """Auto-update path (hourly loop) — silent, koi UI nahi."""
+    """Auto-update path (hourly loop) — silent, no UI."""
     try:
-        log("⬇️  Naya installer download ho raha hai...")
+        log("⬇️  Downloading the new installer...")
         installer_path, err = download_installer()
         if err:
             log(f"❌ {err}", "ERROR")
             return
-        log(f"✅ Installer download ho gaya: {installer_path}")
+        log(f"✅ Installer downloaded: {installer_path}")
         run_installer_and_exit(installer_path)
     except Exception as e:
         log(f"❌ .exe update apply karne mein error: {e}", "ERROR")
@@ -1618,36 +1741,36 @@ def _manual_update_ui():
         frame = tk.Frame(root, bg='white')
         frame.pack(fill='both', expand=True)
 
-        title = tk.Label(frame, text="🔍 Update check ho raha hai...",
+        title = tk.Label(frame, text="🔍 Checking for updates...",
                          font=('Segoe UI', 12, 'bold'), bg='white')
         title.pack(pady=(22, 4))
-        sub = tk.Label(frame, text=f"Abhi installed: v{VERSION}",
+        sub = tk.Label(frame, text=f"Currently installed: v{VERSION}",
                        font=('Segoe UI', 10), bg='white', fg='#666')
         sub.pack()
         bar = ttk.Progressbar(frame, length=300, mode='determinate')
         pct_lbl = tk.Label(frame, text="", font=('Segoe UI', 10, 'bold'), bg='white')
-        close_btn = tk.Button(frame, text="Band Karo", font=('Segoe UI', 10),
+        close_btn = tk.Button(frame, text="Close", font=('Segoe UI', 10),
                               command=root.destroy)
         root.update()
 
         # 1) Version check
         remote = get_remote_version()
         if remote is None:
-            title.config(text="⚠️ Server se version nahi mila")
-            sub.config(text="Internet ya server check karo, phir dobara try karo")
+            title.config(text="⚠️ Could not get the version from the server")
+            sub.config(text="Check your internet or the server, then try again")
             close_btn.pack(pady=14)
             root.mainloop()
             return
         if remote <= VERSION:
-            title.config(text="✅ Aapke paas latest version hai")
+            title.config(text="✅ You have the latest version")
             sub.config(text=f"Installed v{VERSION} = Server v{remote}")
             close_btn.pack(pady=14)
             root.mainloop()
             return
 
         # 2) Naya version mila — download with %
-        title.config(text=f"🔄 Naya version mila: v{VERSION} → v{remote}")
-        sub.config(text="Download ho raha hai...")
+        title.config(text=f"🔄 New version available: v{VERSION} → v{remote}")
+        sub.config(text="Downloading...")
         bar.pack(pady=(14, 4))
         pct_lbl.pack()
         root.update()
@@ -1677,8 +1800,8 @@ def _manual_update_ui():
         # 3) Install + restart
         bar['value'] = 100
         pct_lbl.config(text="100%")
-        title.config(text=f"✅ v{remote} install ho raha hai...")
-        sub.config(text="Agent khud restart hoga — tray mein naya version dikhega")
+        title.config(text=f"✅ Installing v{remote}...")
+        sub.config(text="The agent will restart itself — the new version will show in the tray")
         root.update()
         time.sleep(1.5)
         root.destroy()
@@ -1693,14 +1816,14 @@ def _manual_update_ui():
             pass
 
 def update_checker_loop():
-    """Background thread — har UPDATE_CHECK_INTERVAL seconds mein naya version check karta hai"""
+    """Background thread — checks for a new version every UPDATE_CHECK_INTERVAL seconds"""
     # Pehla check thoda delay se — taaki agent properly start ho jaye pehle
     time.sleep(30)
     while agent_state["running"]:
         try:
             remote_version = get_remote_version()
             if remote_version is not None and remote_version > VERSION:
-                log(f"🔄 Naya version mila: v{remote_version} (abhi v{VERSION} chal raha hai)")
+                log(f"🔄 New version available: v{remote_version} (currently running v{VERSION})")
                 update_tray_status(f"Updating to v{remote_version}...")
 
                 if is_running_as_exe():
@@ -1712,14 +1835,14 @@ def update_checker_loop():
                     if new_code:
                         apply_update_and_restart(new_code)
                     else:
-                        log("⚠️  Update download fail hua, agle check mein phir try karenge", "WARN")
+                        log("⚠️  Update download failed, will try again at the next check", "WARN")
         except Exception as e:
             log(f"⚠️  Update checker error: {e}", "WARN")
         time.sleep(UPDATE_CHECK_INTERVAL)
 
 # ─── SYSTEM TRAY ───────────────────────────────────────────────────
 def update_tray_status(status_text):
-    """Tray icon ka tooltip/status update karo"""
+    """Update the tray icon tooltip/status"""
     agent_state["status"] = status_text
     if agent_state["tray_icon"]:
         try:
@@ -1728,7 +1851,7 @@ def update_tray_status(status_text):
             pass
 
 def create_tray_icon_image():
-    """Simple printer-jaisa chhota icon banate hain (Pillow se draw karke)"""
+    """Draw a small printer-like icon (using Pillow)"""
     from PIL import Image, ImageDraw
     img = Image.new('RGB', (64, 64), color=(10, 10, 15))
     draw = ImageDraw.Draw(img)
@@ -1754,7 +1877,7 @@ def open_logs(icon=None, item=None):
         if os.path.exists(log_path):
             os.startfile(log_path)
         else:
-            log("Log file abhi tak nahi bani")
+            log("The log file has not been created yet")
     except Exception as e:
         log(f"Logs open karne mein error: {e}", "ERROR")
 
@@ -1774,16 +1897,16 @@ def contact_admin(icon=None, item=None):
         )
         url = f"https://wa.me/{SUPPORT_WA}?text=" + urllib.parse.quote(text)
         webbrowser.open(url)
-        log("\U0001F4AC Contact Admin — WhatsApp khola gaya")
+        log("\U0001F4AC Contact Admin — WhatsApp opened")
     except Exception as e:
         log(f"Contact Admin error: {e}", "ERROR")
 
 def change_shop_id(icon=None, item=None):
     """
-    Tray se 'Shop ID Change Karo' click karne par config file delete karo
+    Tray se 'Change Shop ID' click karne par config file delete karo
     aur agent ko restart karo — restart hote hi naya Shop ID popup khulega.
     """
-    log("🔄 Shop ID change request — agent restart ho raha hai...")
+    log("🔄 Shop ID change requested — restarting the agent...")
     try:
         if os.path.exists(SHOP_CONFIG_FILE):
             os.remove(SHOP_CONFIG_FILE)
@@ -1810,8 +1933,8 @@ def change_shop_id(icon=None, item=None):
     os._exit(0)
 
 def quit_agent(icon=None, item=None):
-    """Tray se 'Exit' click karne par agent ko gracefully band karo"""
-    log("👋 Tray se Exit dabaya gaya — agent band ho raha hai...")
+    """Shut the agent down gracefully when 'Exit' is clicked in the tray"""
+    log("👋 Exit pressed from the tray — shutting the agent down...")
     agent_state["running"] = False
     if agent_state["tray_icon"]:
         agent_state["tray_icon"].stop()
@@ -1845,10 +1968,10 @@ def run_tray_icon():
             Item(version_label, None, enabled=False),
             pystray.Menu.SEPARATOR,
             Item(lambda item: f"🔔 Counter Approval: {'ON' if approval_enabled() else 'OFF'}", toggle_approval),
-            Item("📋 Logs Dekho", open_logs),
+            Item("📋 View Logs", open_logs),
             Item("💬 Contact Admin", contact_admin),
             Item("⬆️ Check for Update", manual_update_check),
-            Item("🔄 Shop ID Change Karo", change_shop_id),
+            Item("🔄 Change Shop ID", change_shop_id),
             Item("❌ Exit", quit_agent),
         )
 
@@ -1857,15 +1980,15 @@ def run_tray_icon():
         agent_state["tray_icon"] = icon
         icon.run()
     except ImportError:
-        log("⚠️  pystray/Pillow nahi hai — tray mode disable, normal console mode mein chal raha hai", "WARN")
-        log("    Install karne ke liye: pip install pystray Pillow", "WARN")
+        log("⚠️  pystray/Pillow not available — tray mode disabled, running in normal console mode", "WARN")
+        log("    To install: pip install pystray Pillow", "WARN")
     except Exception as e:
-        log(f"❌ Tray icon start nahi hua: {e}", "ERROR")
+        log(f"❌ Tray icon could not start: {e}", "ERROR")
 
 # ─── MAIN PRINT LOOP (background thread mein chalta hai jab tray active ho) ──
 def print_loop():
     log("=" * 50)
-    log(f"Print jobs check: har {CHECK_INTERVAL}s (khaali ho to {IDLE_INTERVAL_1}s/{IDLE_INTERVAL_2}s/{IDLE_INTERVAL_3}s — job aate hi wapas {CHECK_INTERVAL}s)")
+    log(f"Checking print jobs every {CHECK_INTERVAL}s (when idle: {IDLE_INTERVAL_1}s/{IDLE_INTERVAL_2}s/{IDLE_INTERVAL_3}s — back to {CHECK_INTERVAL}s as soon as a job arrives)")
     log("=" * 50)
     update_tray_status("Running — waiting for jobs")
 
@@ -1880,7 +2003,7 @@ def print_loop():
             jobs = get_pending_jobs()
             check_count += 1
             if jobs:
-                log(f"📬 {len(jobs)} naya job!")
+                log(f"📬 {len(jobs)} new job(s)!")
                 update_tray_status(f"Printing {len(jobs)} job(s)...")
                 for job in jobs:
                     process_job(job)
@@ -1903,13 +2026,13 @@ def print_loop():
                     new_interval = CHECK_INTERVAL
                 if new_interval != cur_interval:
                     cur_interval = new_interval
-                    log(f"💤 Khaali chal raha hai — ab har {cur_interval}s check (bandwidth bachane ke liye)")
+                    log(f"💤 Idle — checking every {cur_interval}s now (to save bandwidth)")
                 elapsed_min += cur_interval / 60.0
                 if check_count % 60 == 0:
                     log(f"👀 Waiting... ({int(elapsed_min)} min)")
             time.sleep(cur_interval)
         except KeyboardInterrupt:
-            log("\n👋 Band ho raha hai...")
+            log("\n👋 Shutting down...")
             break
         except Exception as e:
             errors += 1
@@ -1938,7 +2061,7 @@ def main():
     # Windows Startup se agent turant launch hota hai, lekin printer driver/
     # USB/network printer abhi initialize nahi hua hota — check_printer()
     # fail ho jaata, aur poora process crash ho jaata bina kisi visible
-    # error ke. Isi wajah se "kabhi-kabhi tray se gayab ho jaata hai" wala
+    # error ke. Isi wajah se "it sometimes disappears from the tray" wala
     # symptom aata tha.
     #
     # FIX: ab hum RETRY karte hain (printer thodi der mein ready ho sakta
@@ -1949,13 +2072,13 @@ def main():
     retry_count = 0
     while not printer_ok and retry_count < 6:
         retry_count += 1
-        log(f"⏳ Printer abhi ready nahi hai, {retry_count}/6 retry mein 10 sec wait kar rahe hain...", "WARN")
+        log(f"⏳ Printer is not ready yet, waiting 10s before retry {retry_count}/6...", "WARN")
         time.sleep(10)
         printer_ok, printer_name = check_printer()
 
     if not printer_ok:
-        log("⚠️  Printer abhi bhi nahi mila — tray icon phir bhi chalu rakhte hain, "
-            "background mein print_loop printer ko dobara try karta rahega", "WARN")
+        log("⚠️  Printer still not found — keeping the tray icon running anyway, "
+            "print_loop will keep retrying the printer in the background", "WARN")
         printer_name = "Not Detected"
     else:
         log(f"✅ Printer: {printer_name}")
@@ -2001,13 +2124,13 @@ def main():
 
     # Agar tray fail ho jaye (pystray missing), normal console mode mein chalte raho
     if agent_state["tray_icon"] is None:
-        log("ℹ️  Console mode mein chal raha hai (Ctrl+C se band karo)")
+        log("ℹ️  Running in console mode (press Ctrl+C to stop)")
         log("=" * 50)
         try:
             while agent_state["running"]:
                 time.sleep(1)
         except KeyboardInterrupt:
-            log("\n👋 Band ho raha hai...")
+            log("\n👋 Shutting down...")
             agent_state["running"] = False
 
 if __name__ == "__main__":
@@ -2015,7 +2138,7 @@ if __name__ == "__main__":
     # kahin bhi koi unexpected exception aati (kisi bhi function se), poora
     # process SILENTLY CRASH ho jaata — tray se gayab ho jaata bina kisi
     # trace ke. Ab har crash LOG_FILE mein likha jaata hai, taaki Tray menu
-    # ke "📋 Logs Dekho" se customer/owner asal wajah dekh sake.
+    # ke "📋 View Logs" se customer/owner asal wajah dekh sake.
     try:
         main()
     except Exception as fatalErr:
