@@ -608,6 +608,8 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS demo_expires_at TIMESTAMP;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS duplex_mode VARCHAR(10) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_bw_duplex INTEGER DEFAULT 0;
+      -- Agent ka apna secret. NULL = purana agent (chalta rahega).
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_token VARCHAR(64);
       -- ── Decimal price support (₹2.50 / ₹1.50 jaise rate) ──
       -- INTEGER me 2.5 nahi ban sakta, isliye NUMERIC(10,2) kar rahe hain.
       ALTER TABLE shops ALTER COLUMN price_bw            TYPE NUMERIC(10,2);
@@ -2490,6 +2492,69 @@ app.post('/api/whitelabel/remove-logo', verifyWhitelabel, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// Shop owner apne agent ko dobara link kar sake.
+// Zaroorat kab: PC badla / Windows reinstall hua / token file gum ho gayi,
+// ya kisi galat agent ne token claim kar liya. Reset ke baad agli baar jo
+// agent token bhejega wahi is shop ka agent ban jaayega.
+app.post('/api/shop/agent-token/reset', verifyToken, async (req, res) => {
+  try {
+    await pool.query('UPDATE shops SET agent_token=NULL WHERE id=$1', [req.shopId]);
+    console.log('[agent] token reset by owner: ' + req.shopId);
+    res.json({ success: true,
+      message: 'Agent unlinked. Start the print agent on the shop PC — it will link automatically.' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Print agent ka token check ───────────────────────────────────────────
+// PROBLEM: /api/jobs/pending/:shopId jaise endpoint bina kisi auth ke chalte the.
+// Shop ID public hota hai (QR link me chhapa hota hai), matlab koi bhi us shop
+// ke customers ki uploaded file ka URL nikaal sakta tha aur job churaa sakta tha.
+//
+// FIX (bina kisi shop ko toda): jis shop ka agent_token set hai, uske liye token
+// LAZMI hai. Jiska set nahi (purana agent) wo pehle jaisa chalta rahega —
+// aur jaise hi naya agent pehli baar token bhejta hai, wo token us shop par
+// lock ho jaata hai. Sab shops upgrade ho jaayein to AGENT_TOKEN_REQUIRED=true
+// kar do, phir bina token wale sab block ho jaayenge.
+const AGENT_TOKEN_REQUIRED = String(process.env.AGENT_TOKEN_REQUIRED || '') === 'true';
+
+function agentTokenFromReq(req) {
+  const t = req.get('X-Agent-Token') || req.query.t || (req.body && req.body.agent_token) || '';
+  return String(t).trim().slice(0, 64);
+}
+
+async function verifyAgent(req, res, next) {
+  try {
+    const shopId = req.params.shopId;
+    if (!shopId) return res.status(400).json({ error: 'shopId missing' });
+    const r = await pool.query('SELECT agent_token FROM shops WHERE id=$1', [shopId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Shop not found' });
+
+    const stored = r.rows[0].agent_token;
+    const sent   = agentTokenFromReq(req);
+
+    if (stored) {
+      // Timing-safe compare — token guess karna aur mushkil
+      const a = Buffer.from(String(stored));
+      const b = Buffer.from(sent.padEnd(a.length, '\0').slice(0, a.length));
+      if (sent.length !== a.length || !crypto.timingSafeEqual(a, b)) {
+        return res.status(403).json({ error: 'Agent token galat hai' });
+      }
+      return next();
+    }
+
+    // Token abhi set nahi hai
+    if (sent && /^[A-Za-z0-9_-]{16,64}$/.test(sent)) {
+      // Pehla agent jo token bhejta hai, wahi is shop ka agent ban jaata hai
+      await pool.query('UPDATE shops SET agent_token=$2 WHERE id=$1 AND agent_token IS NULL', [shopId, sent]);
+      return next();
+    }
+    if (AGENT_TOKEN_REQUIRED) {
+      return res.status(403).json({ error: 'Agent purana hai — naya print agent install karo' });
+    }
+    return next();   // legacy agent — abhi chalne do
+  } catch (err) { return res.status(500).json({ error: err.message }); }
+}
+
 // ── Homepage customization (title, tagline, socials, buttons on/off, price) ──
 app.put('/api/whitelabel/homepage', verifyWhitelabel, async (req, res) => {
   try {
@@ -4175,7 +4240,15 @@ app.post('/api/shop/login', loginLimiter, async (req, res) => {
 // set karke shop hijack kar sakta tha. Ab: shop ka registered number do,
 // match hua tabhi. Phone public API se hata diya gaya hai (neeche), to
 // attacker use remotely nahi jaan sakta. + IP rate-limit (brute force).
-const _spAttempts = new Map();  // ip -> {count, reset}
+const _spAttempts = new Map();
+// Shop-wise reset attempts (IP rotate karke targeted attack na ho)
+const _spShopAttempts = new Map();
+// Dono map ko har ghante saaf karo — warna memory dheere-dheere badhti rahegi
+setInterval(() => {
+  const t = Date.now();
+  for (const [k, v] of _spAttempts)     if (t > v.reset) _spAttempts.delete(k);
+  for (const [k, v] of _spShopAttempts) if (t > v.reset) _spShopAttempts.delete(k);
+}, 3600e3).unref();  // ip -> {count, reset}
 app.post('/api/shop/set-password', async (req, res) => {
   try {
     const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
@@ -4186,6 +4259,19 @@ app.post('/api/shop/set-password', async (req, res) => {
     rec.count++; _spAttempts.set(ip, rec);
 
     const { shopId, phone, newPassword } = req.body;
+
+    // Sirf IP-limit kaafi nahi tha: attacker IP badal-badal kar ek hi shop par
+    // baar-baar koshish kar sakta tha. Isliye SHOP-wise limit bhi — chahe
+    // kitne bhi IP se aaye, ek shop par 1 ghante me 5 se zyada nahi.
+    if (shopId) {
+      const sKey = String(shopId).trim().toUpperCase();
+      const sRec = _spShopAttempts.get(sKey) || { count: 0, reset: now + 3600e3 };
+      if (now > sRec.reset) { sRec.count = 0; sRec.reset = now + 3600e3; }
+      if (sRec.count >= 5) {
+        return res.status(429).json({ error: 'Is shop par bahut zyada koshish — 1 ghante baad try karo' });
+      }
+      sRec.count++; _spShopAttempts.set(sKey, sRec);
+    }
     if (!shopId || !phone || !newPassword || newPassword.length < 4) {
       return res.status(400).json({ error: 'Shop ID, registered mobile aur 4+ character password — teeno chahiye' });
     }
@@ -5098,7 +5184,7 @@ app.get('/api/agent/version', async (req, res) => {
 // Agent apni system pe installed printers ki list yahan bhejta hai (har
 // startup pe aur har 30 min mein) — taaki dashboard mein owner ko dropdown
 // se sahi printer naam dikh sakein, bina manually type kiye (typo-proof).
-app.post('/api/agent/printers/:shopId', async (req, res) => {
+app.post('/api/agent/printers/:shopId', verifyAgent, async (req, res) => {
   try {
     const { printers } = req.body;
     if (!Array.isArray(printers)) return res.status(400).json({ error: 'printers array chahiye' });
@@ -5147,7 +5233,7 @@ app.get('/api/agent/download-latest-exe', async (req, res) => {
   }
 });
 
-app.get('/api/jobs/pending/:shopId', async (req, res) => {
+app.get('/api/jobs/pending/:shopId', verifyAgent, async (req, res) => {
   try {
     // Agent heartbeat — dashboard ka Online/Offline indicator isi se chalta hai.
     // Agent apna version bhi bhejta hai (?v=), taaki superadmin dekh sake kis
