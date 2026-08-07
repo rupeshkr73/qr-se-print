@@ -443,11 +443,21 @@ async function uploadToCloudinary(fileBuffer, fileType) {
 // DB ki nazar se orphan files (jinka job row hi nahi) sirf isse dikhti hain.
 let _sweepTick = 0;
 
-async function listCloudinaryFiles(nextCursor = '') {
+// Cloudinary par file 3 alag "resource type" me ho sakti hai:
+//   raw   -> PDF / DOC (jo hum upload karte hain)
+//   image -> JPG / PNG (customer ki photo, passport photo, canvas editor output)
+//   video -> almost never, par safety ke liye
+// Pehle sirf `raw` list hota tha, isliye superadmin panel me hamesha 0 dikhta
+// tha jabki Cloudinary me files padi rehti thi. Ab teeno type dekhte hain.
+// Error ab chupaya nahi jaata — warna auth fail hone par bhi "0 files" dikhta hai.
+async function listCloudinaryFilesOfType(resourceType, nextCursor = '', prefix = '') {
   return new Promise((resolve) => {
-    if (!CLOUD_NAME || !CLD_API_KEY || !CLD_API_SECRET) return resolve({ resources: [] });
+    if (!CLOUD_NAME || !CLD_API_KEY || !CLD_API_SECRET) {
+      return resolve({ resources: [], error: 'Cloudinary keys set nahi hain' });
+    }
     const auth = Buffer.from(`${CLD_API_KEY}:${CLD_API_SECRET}`).toString('base64');
-    let path = `/v1_1/${CLOUD_NAME}/resources/raw?prefix=qrprint_&max_results=100`;
+    let path = `/v1_1/${CLOUD_NAME}/resources/${resourceType}?max_results=100`;
+    if (prefix) path += `&prefix=${encodeURIComponent(prefix)}`;
     if (nextCursor) path += `&next_cursor=${encodeURIComponent(nextCursor)}`;
     const req = https.request({
       hostname: 'api.cloudinary.com', path, method: 'GET',
@@ -458,28 +468,59 @@ async function listCloudinaryFiles(nextCursor = '') {
       res.on('end', () => {
         try {
           const j = JSON.parse(body);
-          resolve({ resources: j.resources || [], next_cursor: j.next_cursor || '' });
-        } catch (e) { resolve({ resources: [] }); }
+          if (res.statusCode >= 400) {
+            return resolve({ resources: [], error: `${resourceType}: ${(j.error && j.error.message) || res.statusCode}` });
+          }
+          resolve({
+            resources: (j.resources || []).map(r => ({ ...r, resource_type: r.resource_type || resourceType })),
+            next_cursor: j.next_cursor || ''
+          });
+        } catch (e) { resolve({ resources: [], error: `${resourceType}: bad response` }); }
       });
     });
-    req.on('error', () => resolve({ resources: [] }));
-    req.setTimeout(20000, () => { req.destroy(); resolve({ resources: [] }); });
+    req.on('error', (e) => resolve({ resources: [], error: `${resourceType}: ${e.message}` }));
+    req.setTimeout(20000, () => { req.destroy(); resolve({ resources: [], error: `${resourceType}: timeout` }); });
     req.end();
   });
 }
 
-async function deleteFromCloudinary(publicId) {
+// Teeno type ki saari files ek list me (pages ke saath)
+async function listAllCloudinaryFiles(prefix = '') {
+  const out = [];
+  const errors = [];
+  for (const type of ['raw', 'image', 'video']) {
+    let cursor = '';
+    for (let page = 0; page < 20; page++) {
+      const r = await listCloudinaryFilesOfType(type, cursor, prefix);
+      if (r.error) { errors.push(r.error); break; }
+      out.push(...r.resources);
+      if (!r.next_cursor) break;
+      cursor = r.next_cursor;
+    }
+  }
+  return { files: out, errors };
+}
+
+// Purana naam chalta rahe (baaki code isko use karta hai)
+async function listCloudinaryFiles(nextCursor = '') {
+  return listCloudinaryFilesOfType('raw', nextCursor, 'qrprint_');
+}
+
+
+// resourceType zaroori hai: image file ko 'raw' bolkar delete karne ki koshish
+// karoge to Cloudinary "not found" bolta hai aur file wahin padi reh jaati hai.
+async function deleteFromCloudinary(publicId, resourceType = 'raw') {
   return new Promise((resolve) => {
     const timestamp = Math.round(Date.now() / 1000);
     const signStr = `public_id=${publicId}&timestamp=${timestamp}${CLD_API_SECRET}`;
     const signature = crypto.createHash('sha256').update(signStr).digest('hex');
     const postData = new URLSearchParams({
       public_id: publicId, api_key: CLD_API_KEY,
-      timestamp: timestamp.toString(), signature, resource_type: 'raw'
+      timestamp: timestamp.toString(), signature, resource_type: resourceType
     }).toString();
     const options = {
       hostname: 'api.cloudinary.com',
-      path: `/v1_1/${CLOUD_NAME}/raw/destroy`,
+      path: `/v1_1/${CLOUD_NAME}/${resourceType}/destroy`,
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(postData) }
     };
@@ -1187,6 +1228,7 @@ app.get('/api/agent/shops', verifyToken, async (req, res) => {
     const r = await pool.query(
       `SELECT s.id, s.name, s.phone, s.address, s.created_at, s.setup_paid, s.demo, s.plan_type,
               s.base_price_at_signup, s.sold_price, s.setup_amount, s.agent_last_seen,
+              EXTRACT(EPOCH FROM (NOW() - s.agent_last_seen))::int AS agent_seconds_ago,
               c.total AS earned, c.markup, c.commission, c.bonus
        FROM shops s
        LEFT JOIN agent_commissions c ON c.shop_id = s.id AND c.agent_id = $1
@@ -1276,7 +1318,8 @@ app.get('/api/superadmin/agents', verifySuperAdmin, async (req, res) => {
     for (const a of ags.rows) {
       const sh = await pool.query(
         `SELECT s.id,s.name,s.phone,s.created_at,s.setup_paid,s.demo,s.plan_type,
-                s.base_price_at_signup,s.sold_price,s.setup_amount,s.agent_last_seen,s.paused,
+                s.base_price_at_signup,s.sold_price,s.setup_amount,s.agent_last_seen,
+                EXTRACT(EPOCH FROM (NOW() - s.agent_last_seen))::int AS agent_seconds_ago,s.paused,
                 c.total AS earned, c.markup, c.commission, c.bonus
          FROM shops s
          LEFT JOIN agent_commissions c ON c.shop_id=s.id AND c.agent_id=$1
@@ -1480,49 +1523,83 @@ app.get('/api/superadmin/db-counts', verifySuperAdmin, async (req, res) => {
 
 app.get('/api/superadmin/cloudinary-status', verifySuperAdmin, async (req, res) => {
   try {
-    let cursor = '', all = [];
-    for (let p = 0; p < 5; p++) {
-      const { resources, next_cursor } = await listCloudinaryFiles(cursor);
-      all = all.concat(resources);
-      if (!next_cursor) break;
-      cursor = next_cursor;
-    }
+    const { files, errors } = await listAllCloudinaryFiles();
     const now = Date.now();
-    const files = all.map(r => ({
+    const mapped = files.map(r => ({
       public_id: r.public_id,
+      resource_type: r.resource_type,
       bytes: r.bytes || 0,
+      kb: Math.round((r.bytes || 0) / 1024),
       age_min: Math.round((now - new Date(r.created_at).getTime()) / 60000)
-    })).sort((a, b) => b.age_min - a.age_min);
-    const totalBytes = files.reduce((s, f) => s + f.bytes, 0);
+    })).sort((a, b) => b.bytes - a.bytes);
+
+    const totalBytes = mapped.reduce((s, f) => s + f.bytes, 0);
+    const byType = {};
+    mapped.forEach(f => { byType[f.resource_type] = (byType[f.resource_type] || 0) + 1; });
+
     res.json({
-      count: files.length,
+      count: mapped.length,
       total_kb: Math.round(totalBytes / 1024),
-      stale: files.filter(f => f.age_min >= 90).length,   // ye nahi hone chahiye
-      files: files.slice(0, 20)
+      total_mb: Math.round(totalBytes / 1048576 * 10) / 10,
+      stale: mapped.filter(f => f.age_min >= 90).length,
+      over_40kb: mapped.filter(f => f.kb > 40).length,
+      by_type: byType,
+      errors,                       // khali na ho to panel me dikhao
+      files: mapped.slice(0, 20)
     });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
 // Manual sweep — "abhi saaf karo" button
+// Body options (sab optional):
+//   min_kb    : itne KB se badi file delete karo (jaise 40)
+//   min_age   : itne minute purani file delete karo (default 90)
+//   any_size  : true bhejo to size dekhe bina purani sab delete
 app.post('/api/superadmin/cloudinary-sweep', verifySuperAdmin, async (req, res) => {
   try {
-    let cursor = '', swept = 0;
-    for (let p = 0; p < 5; p++) {
-      const { resources, next_cursor } = await listCloudinaryFiles(cursor);
-      for (const r of resources) {
-        const ageMin = (Date.now() - new Date(r.created_at).getTime()) / 60000;
-        if (ageMin < 90) continue;
-        const active = await pool.query(
-          "SELECT 1 FROM print_jobs WHERE file_public_id=$1 AND status IN ('queued','printing')", [r.public_id]);
-        if (active.rows.length) continue;
-        await deleteFromCloudinary(r.public_id);
+    const minKb  = req.body && req.body.min_kb  !== undefined ? parseInt(req.body.min_kb, 10)  : null;
+    const minAge = req.body && req.body.min_age !== undefined ? parseInt(req.body.min_age, 10) : 90;
+
+    const { files, errors } = await listAllCloudinaryFiles();
+    let swept = 0, freedBytes = 0, skippedActive = 0, skippedRule = 0;
+    const failed = [];
+
+    for (const r of files) {
+      const ageMin = (Date.now() - new Date(r.created_at).getTime()) / 60000;
+      const kb = Math.round((r.bytes || 0) / 1024);
+
+      // Rule: size wala rule diya ho to wahi, warna umar wala
+      const matches = (minKb !== null && !isNaN(minKb))
+        ? kb > minKb
+        : ageMin >= minAge;
+      if (!matches) { skippedRule++; continue; }
+
+      // Jo file abhi print hone wali hai use kabhi mat chhedo
+      const active = await pool.query(
+        "SELECT 1 FROM print_jobs WHERE file_public_id=$1 AND status IN ('queued','printing')",
+        [r.public_id]);
+      if (active.rows.length) { skippedActive++; continue; }
+
+      try {
+        await deleteFromCloudinary(r.public_id, r.resource_type);
         await pool.query('UPDATE print_jobs SET file_deleted=true WHERE file_public_id=$1', [r.public_id]);
-        swept++;
+        swept++; freedBytes += (r.bytes || 0);
+      } catch (e) {
+        failed.push(r.public_id);
       }
-      if (!next_cursor) break;
-      cursor = next_cursor;
     }
-    res.json({ success: true, swept });
+
+    console.log(`[cloudinary-sweep] deleted=${swept} freed=${Math.round(freedBytes/1024)}KB ` +
+                `skipped(active=${skippedActive}, rule=${skippedRule}) failed=${failed.length}`);
+    res.json({
+      success: true, swept,
+      freed_kb: Math.round(freedBytes / 1024),
+      scanned: files.length,
+      skipped_active: skippedActive,
+      skipped_rule: skippedRule,
+      failed: failed.length,
+      errors
+    });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -2737,7 +2814,8 @@ app.get('/api/whitelabel/shops', verifyWhitelabel, async (req, res) => {
   try {
     const r = await pool.query(
       `SELECT id, name, phone, address, created_at, setup_paid, demo, demo_expires_at,
-              plan_type, setup_amount, agent_last_seen, paused
+              plan_type, setup_amount, agent_last_seen,
+              EXTRACT(EPOCH FROM (NOW() - agent_last_seen))::int AS agent_seconds_ago, paused
        FROM shops WHERE whitelabel_id=$1 ORDER BY created_at DESC LIMIT 500`, [req.wlId]);
     res.json({ shops: r.rows });
   } catch(err) { res.status(500).json({ error: err.message }); }
