@@ -1,7 +1,15 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const { Pool } = require('pg');
+const { Pool, types: pgTypes } = require('pg');
+
+// ⚠️ ZAROORI: price columns ab NUMERIC(10,2) hain (decimal rate ke liye).
+// node-postgres NUMERIC ko by-default STRING deta hai (precision na tootey
+// isliye). Uske kaaran price se hone wala har calculation aur comparison
+// silently galat ho gaya tha — superadmin me shops "offline" dikhne lagi
+// aur print ke baad error aane laga. Yahan parser lagakar NUMERIC ko wapas
+// number bana dete hain, taaki baaki poora code pehle jaisa hi chale.
+pgTypes.setTypeParser(1700, (v) => (v === null ? null : parseFloat(v)));   // NUMERIC / DECIMAL
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
