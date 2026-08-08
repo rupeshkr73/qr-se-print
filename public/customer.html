@@ -1350,32 +1350,48 @@ async function loadPhotoFile(file) {
   throw new Error('Is photo ka format browser support nahi karta (' + (kind || 'unknown') + '). JPG ya PNG photo try karo.');
 }
 
-// ═══ 4×6 SHEET LAYOUTS ═══
-// count -> kaunsi row me kitni photo. Ek hi jagah rakha hai kyunki sheet
-// do jagah banti hai (pehli baar + border toggle par rebuild) — alag-alag
-// rakhte to ek jagah change karke doosri bhool jaana pakka tha.
-//   4  → 2 + 2            (seedhi)
-//   6  → 3 + 3            (seedhi)
-//   8  → 3 + 3 + 2        (seedhi, aakhri row bhi usi 3-column grid par
-//                          left-align — isse kaatne ki line seedhi rehti hai)
-//   10 → 3 + 3 + 2×2 leti  (aakhri chaar 90° ghumi hui)
-// Sheet 1200×1800 px (4×6 inch @300 DPI), photo 331×437 px (28×37 mm).
-// 8 wala layout: 59 + 3×437 + 2×47 = 1464 px — 1800 me aaram se aa jata hai,
-// isliye photo ka size 4/6/10 waale se bilkul same rehta hai.
+// ═══ 4×6 SHEET GEOMETRY ═══
+// Kaunse count par sheet ka rukh kya, photo kitni badi, margin/gap kitna.
+// Ek hi jagah rakha hai — crop, pehli build aur border-rebuild teeno yahi
+// padhte hain, isliye teeno kabhi alag nahi ho sakte.
+//
+//  4 / 6 / 10 → PORTRAIT 4×6 sheet (1200×1800 @300 DPI), photo 28×37 mm
+//               — jaisa pehle se chal raha hai, ek pixel nahi badla.
+//  8          → LANDSCAPE 6×4 sheet (1800×1200), 4 column × 2 row,
+//               photo 420×555 px = 35.6×47.0 mm (lagbhag standard passport
+//               size). 4×420 + 3×24 gap + 2×24 margin = 1800 — sheet poori
+//               bhar jaati hai, koi khaali jagah nahi.
+// Photo ka ratio har jagah 28:37 hai (420×555 bhi wahi), isliye crop window
+// ka frame badalne ki zaroorat nahi.
+function sheetGeom(count) {
+  const dpi = 300, mm = dpi / 25.4;
+  if (count === 8) {
+    const W = 6 * dpi, H = 4 * dpi;                       // 1800 × 1200
+    const gap = Math.round(2 * mm);                       // 24 px = 2 mm
+    const pw = Math.round((W - 5 * gap) / 4);             // 420 px = 35.6 mm
+    const ph = Math.round(pw * 37 / 28);                  // 555 px = 47.0 mm
+    return { land: true, W, H, pw, ph, gap,
+             top: Math.round((H - (2 * ph + gap)) / 2), dpi, mm };
+  }
+  const W = 4 * dpi, H = 6 * dpi;                         // 1200 × 1800
+  return { land: false, W, H,
+           pw: Math.round(28 * mm), ph: Math.round(37 * mm),
+           gap: Math.round(4 * mm), top: Math.round(5 * mm), dpi, mm };
+}
+
+// count → kaunsi row me kitni photo. pRow = seedhi, lRow = 90° ghumi hui.
 function layoutPhotoSheet(count, g, api) {
-  const { W, pw, ph, gap, top } = g;
-  if (count === 4) {
+  const { ph, pw, gap, top } = g;
+  if (count === 4) {                       // 2 + 2
     api.pRow(2, top);
     api.pRow(2, top + ph + gap);
-  } else if (count === 6) {
+  } else if (count === 6) {                // 3 + 3
     api.pRow(3, top);
     api.pRow(3, top + ph + gap);
-  } else if (count === 8) {
-    const x3 = Math.round((W - (3 * pw + 2 * gap)) / 2);   // 3-column grid ka left edge
-    api.pRow(3, top);
-    api.pRow(3, top + ph + gap);
-    api.pRowAt(2, top + 2 * (ph + gap), x3);
-  } else {   // 10 (aur koi bhi anjaan value — pehle jaisa hi behaviour)
+  } else if (count === 8) {                // 4 + 4  (landscape sheet)
+    api.pRow(4, top);
+    api.pRow(4, top + ph + gap);
+  } else {                                 // 10 — aur koi anjaan value bhi
     api.pRow(3, top);
     api.pRow(3, top + ph + gap);
     const yL = top + 2 * (ph + gap);
@@ -1386,17 +1402,20 @@ function layoutPhotoSheet(count, g, api) {
 
 function askPhotoCount(img) {
   const P = window.__shopPrices || { p4: 0, p6: 0, p8: 0, p10: 0 };
-  // Har option ka apna button. Rate 0 ho to sirf ginti dikhti hai (jaise
-  // pehle) — shop owner ne rate nahi rakha to bhi option kaam karta hai.
+  // Har option ka apna button. Size sheetGeom se hi aata hai — hardcode nahi,
+  // isliye layout badla to yahan ka label apne aap sahi rehta hai.
   const OPTS = [[4, P.p4], [6, P.p6], [8, P.p8], [10, P.p10]];
   const btns = OPTS.map(function (o, i) {
     const n = o[0], rate = o[1];
+    const g = sheetGeom(n);
+    const wmm = Math.round(g.pw / g.mm), hmm = Math.round(g.ph / g.mm);
     const brd = i === 0 ? '#ff4d1c' : '#e5e0d8';
     const bg  = i === 0 ? '#fff5f2' : '#fff';
     return '<button onclick="buildPhotoSheet(' + n + ')" style="border:2px solid ' + brd +
-           ';background:' + bg + ';border-radius:14px;padding:16px 8px;cursor:pointer;font-family:inherit;">' +
+           ';background:' + bg + ';border-radius:14px;padding:14px 8px;cursor:pointer;font-family:inherit;">' +
            '<div style="font-size:22px;font-weight:800;">' + n + '</div>' +
            '<div style="font-size:11px;">Photos</div>' +
+           '<div style="font-size:10px;color:#9b9690;margin-top:3px;">' + wmm + '×' + hmm + 'mm</div>' +
            (rate > 0 ? '<div style="font-weight:800;color:#ff4d1c;margin-top:4px;">₹' + rate + '</div>' : '') +
            '</button>';
   }).join('');
@@ -1406,7 +1425,7 @@ function askPhotoCount(img) {
   ov.innerHTML = `<div style="background:#fff;border-radius:20px;padding:22px;max-width:340px;width:100%;text-align:center;font-family:'Space Grotesk',sans-serif;">
     <div style="font-size:34px;">📷</div>
     <h3 style="font-family:'Syne',sans-serif;margin:8px 0 4px;">Kitni photos chahiye?</h3>
-    <p style="font-size:12px;color:#6b6870;margin:0 0 16px;">Ek 4×6 sheet par — passport size (35×45mm)</p>
+    <p style="font-size:12px;color:#6b6870;margin:0 0 16px;">Ek 4×6 sheet par — har option ka size neeche likha hai</p>
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">${btns}</div>
     <button onclick="document.getElementById('photoCountModal').remove()" style="margin-top:12px;background:none;border:none;color:#9b9690;font-size:12px;cursor:pointer;">Cancel</button>
   </div>`;
@@ -1419,14 +1438,13 @@ async function buildPhotoSheet(count, isRebuild) {
   // maangni, purani photo hi use karni hai.
   if (isRebuild && PHOTO_SHEET) {
     try {
-      const { photo, pw, ph, dpi, mm } = PHOTO_SHEET;
-      const W = 4 * dpi, H = 6 * dpi;
+      const { photo } = PHOTO_SHEET;
+      const { W, H, pw, ph, gap, top, dpi } = sheetGeom(count);
       const sheet = document.createElement('canvas');
       sheet.width = W; sheet.height = H;
       const ctx = sheet.getContext('2d');
       ctx.imageSmoothingQuality = 'high';
       ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
-      const gap = Math.round(4 * mm), top = Math.round(5 * mm);
       const bOn = !!PHOTO_BORDER.on;
       const bCol = bOn ? '#000' : '#d0d0d0';
       const bW = bOn ? Math.max(2, Math.round(PHOTO_BORDER.width * (dpi / 96))) : 2;
@@ -1444,15 +1462,15 @@ async function buildPhotoSheet(count, isRebuild) {
         ctx.strokeStyle = bCol; ctx.lineWidth = bW;
         ctx.strokeRect(x + bW / 2, y + bW / 2, ph - bW, pw - bW);
       };
-      const pRowAt = (n, y, x0) => {
+      const pRow = (n, y) => {
+        const x0 = Math.round((W - (n * pw + (n - 1) * gap)) / 2);
         for (let k = 0; k < n; k++) drawP(x0 + k * (pw + gap), y);
       };
-      const pRow = (n, y) => pRowAt(n, y, Math.round((W - (n * pw + (n - 1) * gap)) / 2));
       const lRow = (n, y) => {
         const x0 = Math.round((W - (n * ph + (n - 1) * gap)) / 2);
         for (let k = 0; k < n; k++) drawL(x0 + k * (ph + gap), y);
       };
-      layoutPhotoSheet(count, { W, pw, ph, gap, top }, { pRow, pRowAt, lRow });
+      layoutPhotoSheet(count, { W, pw, ph, gap, top }, { pRow, lRow });
       pages.length = 0;
       addPage([sheet]);
       applyPaper();
@@ -1565,8 +1583,11 @@ function cancelPhotoCrop() {
 }
 function finishPhotoCrop() {
   const c2 = __crop;
-  const dpi = 300, mm = dpi / 25.4;
-  const pw = Math.round(28 * mm), ph = Math.round(37 * mm);  // 331 x 437 px
+  // Photo ka final size count se aata hai (8 wali sheet ki photo badi hai).
+  // Yahin sahi size par kaatna zaroori hai — baad me chhoti photo ko bada
+  // karte to blur aa jata.
+  const G = sheetGeom(c2.count);
+  const pw = G.pw, ph = G.ph;
   const sx = -c2.tx / c2.s, sy = -c2.ty / c2.s;
   const sw = c2.fw / c2.s, sh = c2.fh / c2.s;
   const photo = document.createElement('canvas');
@@ -1583,17 +1604,16 @@ function finishPhotoCrop() {
 function buildSheetFromPhoto(photo, count) {
   toast('⏳ Photo sheet ban rahi hai...');
   try {
-    const dpi = 300, mm = dpi / 25.4;
+    // Sheet ka rukh aur photo ka size — dono count se (sheetGeom dekho).
+    // 8 wali sheet LANDSCAPE 6×4 hoti hai, baaki PORTRAIT 4×6.
+    const G = sheetGeom(count);
+    const { W, H, gap, top, dpi, mm } = G;
     const pw = photo.width, ph = photo.height;
-
-    // SHEET: 4x6 @ 300 DPI = 1200x1800
-    const W = 4 * dpi, H = 6 * dpi;
     const sheet = document.createElement('canvas');
     sheet.width = W; sheet.height = H;
     const ctx = sheet.getContext('2d');
     ctx.imageSmoothingQuality = 'high';
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
-    const gap = Math.round(4 * mm), top = Math.round(5 * mm);
 
     // Har photo ke chaaron taraf border. Default halka grey (sirf kaatne
     // ki line). Customer "Black Border" on kare to kaala aur mota ho jaata
@@ -1616,26 +1636,32 @@ function buildSheetFromPhoto(photo, count) {
       ctx.strokeStyle = bCol; ctx.lineWidth = bW;
       ctx.strokeRect(x + bW / 2, y + bW / 2, ph - bW, pw - bW);
     };
-    const pRowAt = (n, y, x0) => {
+    const pRow = (n, y) => {
+      const x0 = Math.round((W - (n * pw + (n - 1) * gap)) / 2);
       for (let i = 0; i < n; i++) drawP(x0 + i * (pw + gap), y);
     };
-    const pRow = (n, y) => pRowAt(n, y, Math.round((W - (n * pw + (n - 1) * gap)) / 2));
     const lRow = (n, y) => {
       const x0 = Math.round((W - (n * ph + (n - 1) * gap)) / 2);
       for (let i = 0; i < n; i++) drawL(x0 + i * (ph + gap), y);
     };
 
-    layoutPhotoSheet(count, { W, pw, ph, gap, top }, { pRow, pRowAt, lRow });
+    layoutPhotoSheet(count, { W, pw, ph, gap, top }, { pRow, lRow });
 
-    // NORMAL pipeline me: sheet = ek page, paper 4x6, service tag
+    // NORMAL pipeline me: sheet = ek page, paper 4x6, service tag.
+    // 8 wali sheet landscape hai — currentPaper() orientation dekh kar
+    // mm swap kar deta hai, isliye PDF bhi 152.4×101.6 ki banti hai aur
+    // agent use 4×6 kagaz par poora fit kar deta hai.
     state.paperSize = '4x6';
-    state.orientation = 'portrait';
+    state.orientation = G.land ? 'landscape' : 'portrait';
     state.service = 'photo4x6';
     state.photoCount = count;
     setServiceBadge();
     state.colorMode = 'color';
     const selEl = document.getElementById('paperSizeSel');
     if (selEl) selEl.value = '4x6';
+    // Orientation button ka label bhi sach bole
+    const oriEl = document.getElementById('orientBtn');
+    if (oriEl) oriEl.textContent = G.land ? '📃 Landscape' : '📄 Portrait';
 
     // Border badalne par sheet dobara banani padti hai, isliye photo aur
     // count sambhal kar rakho
