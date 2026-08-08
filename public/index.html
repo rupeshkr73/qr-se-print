@@ -904,6 +904,13 @@ a{color:inherit}
 .plan3 .p3p small{font-size:12px;color:#6b6870;font-weight:600;letter-spacing:0}
 .plan3 .p3p .cut3{font-size:14px;color:#9b9690;text-decoration:line-through;margin-right:6px;font-weight:600;letter-spacing:0}
 .plan3 .p3note{font-size:10.5px;text-align:center;font-weight:700;margin-bottom:14px}
+.festival-banner{display:inline-block;margin:0 auto 8px;padding:5px 14px;border-radius:20px;
+  background:linear-gradient(120deg,var(--pink),var(--orange));color:#fff;font-size:11.5px;font-weight:800;
+  text-align:center;letter-spacing:.2px;font-family:'Plus Jakarta Sans',sans-serif;box-shadow:0 6px 14px rgba(255,46,99,.3)}
+.festival-banner-wrap{text-align:center}
+.festival-countdown{display:flex;align-items:center;justify-content:center;gap:6px;margin:0 0 10px;
+  font-size:12px;font-weight:700;color:#b45309;font-family:'Plus Jakarta Sans',sans-serif;text-align:center}
+.festival-countdown b{color:var(--pink);font-variant-numeric:tabular-nums}
 .plan3 ul{list-style:none;padding:14px 0 0;margin:0 0 16px;font-size:12px;line-height:2.1;color:#333;border-top:1px dashed #ece3d2}
 .plan3 .p3btn{
   margin-top:auto;display:block;text-align:center;padding:13px;border-radius:14px;
@@ -2430,8 +2437,10 @@ html.legal-open,body.legal-open{overflow:hidden}
         <a data-cfg="plan09" class="p3btn violet" href="/register">Setup Now</a>
       </div>
       <div class="plan3 hot">
+        <div class="festival-banner-wrap"><span id="festivalBanner" class="festival-banner" style="display:none;"></span></div>
         <div data-cfg="plan10" class="p3t">💎 One-Time</div>
         <div data-cfg-html="plan11" class="p3p"><span class="cut3" id="hpCut">₹1999</span>₹<span id="hpOnetime">999</span></div>
+        <div id="festivalCountdown" class="festival-countdown" style="display:none;"></div>
         <div data-cfg="plan12" class="p3note" style="color:#166534;">Lifetime Access &amp; Update — No renewal</div>
         <ul id="planOnetimeList">
           <li>✅ Auto Print Software</li>
@@ -3628,8 +3637,46 @@ loadPrices();
     if (d.monthlyFee) document.getElementById('hpMonthly').textContent = d.monthlyFee;
     if (d.offerPrice !== undefined) document.getElementById('hpOnetime').textContent = d.offerPrice;
     if (d.actualPrice) document.getElementById('hpCut').textContent = '₹' + d.actualPrice;
+    initFestivalOffer(d.festivalOfferEnabled, d.festivalOfferName, d.festivalOfferEnd);
   } catch(e) {}
 })();
+
+// Festival Offer — banner + live ulta countdown, One-Time price card ke saath.
+// Superadmin se OFF ho ya date nikal chuki ho to dono chhupe rehte hain
+// (default homepage jaisa hi dikhta hai, kuch nahi badalta).
+function initFestivalOffer(enabled, name, endAt) {
+  if (!enabled || !endAt) return;
+  const endTime = new Date(endAt).getTime();
+  if (isNaN(endTime) || endTime <= Date.now()) return;
+
+  const bannerEl = document.getElementById('festivalBanner');
+  const cdEl = document.getElementById('festivalCountdown');
+  if (name) {
+    bannerEl.textContent = '🎉 ' + name;
+    bannerEl.style.display = 'inline-block';
+  }
+  cdEl.style.display = 'flex';
+
+  function tick() {
+    const diff = endTime - Date.now();
+    if (diff <= 0) {
+      cdEl.style.display = 'none';
+      bannerEl.style.display = 'none';
+      clearInterval(timer);
+      return;
+    }
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    let parts = [];
+    if (d > 0) parts.push(d + 'd');
+    parts.push(h + 'h');
+    if (d === 0) parts.push(m + 'm');
+    cdEl.innerHTML = '⏰ Offer Ending in <b>' + parts.join(' ') + '</b>';
+  }
+  tick();
+  const timer = setInterval(tick, 60000);
+}
 
 function openDemoModal(){ document.getElementById('demoModal').classList.add('open'); }
 function closeDemoModal(){ document.getElementById('demoModal').classList.remove('open'); }
