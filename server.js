@@ -899,6 +899,11 @@ async function initDB() {
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('wl_base_price','0') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('monthly_actual_price','0') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('advanced_actual_price','0') ON CONFLICT DO NOTHING");
+    // Festival Offer — homepage One-Time price ke saath banner + countdown.
+    // OFF by default; superadmin Setup Fee page se ON karega naam/date/time ke saath.
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('festival_offer_enabled','0') ON CONFLICT DO NOTHING");
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('festival_offer_name','') ON CONFLICT DO NOTHING");
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('festival_offer_end','') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('homepage_config', $1) ON CONFLICT DO NOTHING", ["{\"logoUrl\": \"\", \"statShops\": \"\", \"statPrints\": \"\", \"showStats\": true, \"supportEmail\": \"mahatonetcafe@gmail.com\", \"supportPhone\": \"9999999999\", \"planDemo\": [\"Demo Auto Print Software\", \"Personalize QR For Shop\", \"Unlimited Print 24/Hrs\", \"Setup Guide (README) included\"], \"planMonthly\": [\"Auto Print Software\", \"Personalize QR For Shop\", \"Unlimited Print\", \"Advance Feature (4x6 Photo, Resume, A3, Duplex) \\u2014 sab included\", \"Assistant in Setup\", \"On Demand Service will be added\", \"Bug fix on update\", \"WhatsApp Assistant\"], \"planOnetime\": [\"Sab kuch Monthly wala\", \"Assistant in Online Payment Gateway Setup\", \"Bug Fix Within 2Hr\", \"AnyDesk Remote Support\", \"Lifetime Access & Update\", \"No renewal \\u2014 ek baar pay\"], \"faqs\": [{\"q\": \"QR Se Print kya hai?\", \"a\": \"QR Se Print cyber cafe aur print shop ke liye ek automatic print software hai. Aap apni shop ka QR code lagate ho \\u2014 customer apne phone se scan karke file upload karta hai, payment karta hai, aur print aapke printer se automatic nikal jata hai. Na WhatsApp pe file mangni padti hai, na pendrive, na email.\"}, {\"q\": \"Customer file kaise bhejta hai?\", \"a\": \"Shop par laga QR code scan karo, file select karo (PDF, photo \\u2014 ek saath kai files), edit karo (crop, rotate, brightness), payment karo (online ya counter cash) \\u2014 print automatic nikal jata hai. Poora kaam customer ke phone se, 1 minute me.\"}, {\"q\": \"WhatsApp pe file lene se ye better kyun hai?\", \"a\": \"WhatsApp me aapka personal number public ho jata hai, chat me files kho jaati hain, aur hisaab manually rakhna padta hai. QR Se Print me number private rehta hai, har print ka payment record automatic banta hai, aur customer ki file print ke 90 minute baad khud delete ho jaati hai.\"}, {\"q\": \"Kaunse printer ke saath chalta hai?\", \"a\": \"Har Windows printer ke saath \\u2014 HP, Canon, Epson, Brother, sab. B&W aur Color ke liye alag printer set kar sakte ho. Advance me 4x6 photo printer, A3 bada printer aur duplex (dono side) printing bhi support hai.\"}, {\"q\": \"Payment kaise milta hai? Koi commission?\", \"a\": \"Do tarike: counter par cash, ya online payment (Razorpay/Cashfree) jo seedha aapke account me jata hai. Hum beech me nahi aate \\u2014 koi commission nahi, unlimited prints.\"}, {\"q\": \"Kitna kharcha aata hai?\", \"a\": \"Free demo se shuru karo. Phir Rs 399/month ka monthly plan ya Rs 999 one-time lifetime plan \\u2014 ek baar do, hamesha chalao. Koi hidden charge nahi, koi per-print commission nahi.\"}, {\"q\": \"Internet chala jaye to print ka kya hoga?\", \"a\": \"Customer ke jobs queue me safe rehte hain. Internet wapas aate hi software khud jobs utha ke print nikal deta hai \\u2014 kuch khota nahi.\"}]}"]);
 
     // Broken demo logins repair (bcrypt hash galti se gaya tha; login sha256
@@ -935,6 +940,26 @@ async function getSetupPricing() {
     };
   } catch(e) {
     return { offerPrice: SETUP_FEE_AMOUNT, actualPrice: SETUP_ACTUAL_PRICE };
+  }
+}
+
+// Festival Offer — banner + countdown timer jo One-Time price ke saath
+// homepage par dikhta hai. endAt ek ISO datetime string hai (jaise
+// "2026-08-15T23:59"); front-end isi se ulta countdown chalata hai.
+async function getFestivalOffer() {
+  try {
+    const r = await pool.query(
+      "SELECT key, value FROM system_settings WHERE key IN ('festival_offer_enabled','festival_offer_name','festival_offer_end')"
+    );
+    const map = {};
+    r.rows.forEach(row => { map[row.key] = row.value; });
+    return {
+      enabled: map.festival_offer_enabled === '1',
+      name: map.festival_offer_name || '',
+      endAt: map.festival_offer_end || ''
+    };
+  } catch(e) {
+    return { enabled: false, name: '', endAt: '' };
   }
 }
 
@@ -3796,11 +3821,15 @@ app.post('/api/whitelabel/notify/test', verifyWhitelabel, async (req, res) => {
 app.get('/api/setup-fee/current', async (req, res) => {
   try {
     const pricing = await getSetupPricing();
+    const festival = await getFestivalOffer();
     const out = {
       amount: pricing.offerPrice, ...pricing,
       advancedFee: await getAdvancedFee(),
       monthlyActualPrice: await getMonthlyActualFee(),
-      advancedActualPrice: await getAdvancedActualFee()
+      advancedActualPrice: await getAdvancedActualFee(),
+      festivalOfferEnabled: festival.enabled,
+      festivalOfferName: festival.name,
+      festivalOfferEnd: festival.endAt
     };
     // ?ref=QRA-1234 — agent ka apna price (sirf one-time plan par).
     // Agent ka floor ab AGENT BASE PRICE hai, public Offer Price nahi —
@@ -5962,7 +5991,11 @@ app.get('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
       wlBasePrice: await getWlBasePrice(),
       agentBasePriceIsSet: (await pool.query("SELECT value FROM system_settings WHERE key='agent_base_price'")).rows[0]?.value > 0,
       defaultOfferPrice: SETUP_FEE_AMOUNT,
-      defaultActualPrice: SETUP_ACTUAL_PRICE
+      defaultActualPrice: SETUP_ACTUAL_PRICE,
+      ...(await (async () => {
+        const f = await getFestivalOffer();
+        return { festivalOfferEnabled: f.enabled, festivalOfferName: f.name, festivalOfferEnd: f.endAt };
+      })())
     });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
@@ -6045,6 +6078,26 @@ app.put('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
       if (isNaN(abp) || abp < 0) return res.status(400).json({ error: 'Valid Agent Base Price daalo' });
       if (abp > 0 && abp < newOfferPrice) return res.status(400).json({ error: 'Agent Base Price, Offer Price se kam nahi ho sakta' });
       await pool.query("UPDATE system_settings SET value=$1 WHERE key='agent_base_price'", [String(abp)]);
+    }
+
+    // Festival Offer — banner + countdown (One-Time price ke saath homepage par)
+    if (req.body.festivalOfferEnabled !== undefined) {
+      const fOn = (req.body.festivalOfferEnabled === true || req.body.festivalOfferEnabled === '1' || req.body.festivalOfferEnabled === 1) ? '1' : '0';
+      await pool.query(
+        `INSERT INTO system_settings (key, value, updated_at) VALUES ('festival_offer_enabled', $1, NOW())
+         ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`, [fOn]);
+    }
+    if (req.body.festivalOfferName !== undefined) {
+      const fName = String(req.body.festivalOfferName).slice(0, 60);
+      await pool.query(
+        `INSERT INTO system_settings (key, value, updated_at) VALUES ('festival_offer_name', $1, NOW())
+         ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`, [fName]);
+    }
+    if (req.body.festivalOfferEnd !== undefined) {
+      const fEnd = String(req.body.festivalOfferEnd).slice(0, 40);
+      await pool.query(
+        `INSERT INTO system_settings (key, value, updated_at) VALUES ('festival_offer_end', $1, NOW())
+         ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`, [fEnd]);
     }
 
     await pool.query(
