@@ -908,9 +908,14 @@ a{color:inherit}
   background:linear-gradient(120deg,var(--pink),var(--orange));color:#fff;font-size:11.5px;font-weight:800;
   text-align:center;letter-spacing:.2px;font-family:'Plus Jakarta Sans',sans-serif;box-shadow:0 6px 14px rgba(255,46,99,.3)}
 .festival-banner-wrap{text-align:center}
-.festival-countdown{display:flex;align-items:center;justify-content:center;gap:6px;margin:0 0 10px;
-  font-size:12px;font-weight:700;color:#b45309;font-family:'Plus Jakarta Sans',sans-serif;text-align:center}
-.festival-countdown b{color:var(--pink);font-variant-numeric:tabular-nums}
+.festival-countdown{display:none;align-items:center;justify-content:center;gap:8px;margin:0 0 14px;flex-wrap:nowrap}
+.festival-countdown .fc-lead{font-size:11px;font-weight:800;color:#b45309;margin-right:2px;white-space:nowrap}
+.fc-box{display:flex;flex-direction:column;align-items:center;background:linear-gradient(160deg,#1a1030,#3a1a5f);
+  border-radius:9px;min-width:38px;padding:5px 4px 4px;box-shadow:0 4px 10px rgba(26,16,48,.25)}
+.fc-box .fc-num{font-size:16px;font-weight:800;color:#fff;line-height:1;font-variant-numeric:tabular-nums;
+  font-family:'Plus Jakarta Sans',sans-serif}
+.fc-box .fc-lbl{font-size:8px;font-weight:700;color:#cbb9e0;text-transform:uppercase;letter-spacing:.3px;margin-top:2px}
+.fc-sep{font-size:16px;font-weight:800;color:var(--pink);line-height:1;padding-bottom:8px}
 .plan3 ul{list-style:none;padding:14px 0 0;margin:0 0 16px;font-size:12px;line-height:2.1;color:#333;border-top:1px dashed #ece3d2}
 .plan3 .p3btn{
   margin-top:auto;display:block;text-align:center;padding:13px;border-radius:14px;
@@ -2440,7 +2445,16 @@ html.legal-open,body.legal-open{overflow:hidden}
         <div class="festival-banner-wrap"><span id="festivalBanner" class="festival-banner" style="display:none;"></span></div>
         <div data-cfg="plan10" class="p3t">💎 One-Time</div>
         <div data-cfg-html="plan11" class="p3p"><span class="cut3" id="hpCut">₹1999</span>₹<span id="hpOnetime">999</span></div>
-        <div id="festivalCountdown" class="festival-countdown" style="display:none;"></div>
+        <div id="festivalCountdown" class="festival-countdown" style="display:none;">
+          <span class="fc-lead">⏰ Ending in</span>
+          <div class="fc-box" id="fcDaysBox"><span class="fc-num" id="fcDays">00</span><span class="fc-lbl">Days</span></div>
+          <span class="fc-sep" id="fcSep1">:</span>
+          <div class="fc-box"><span class="fc-num" id="fcHours">00</span><span class="fc-lbl">Hrs</span></div>
+          <span class="fc-sep">:</span>
+          <div class="fc-box"><span class="fc-num" id="fcMins">00</span><span class="fc-lbl">Min</span></div>
+          <span class="fc-sep">:</span>
+          <div class="fc-box"><span class="fc-num" id="fcSecs">00</span><span class="fc-lbl">Sec</span></div>
+        </div>
         <div data-cfg="plan12" class="p3note" style="color:#166534;">Lifetime Access &amp; Update — No renewal</div>
         <ul id="planOnetimeList">
           <li>✅ Auto Print Software</li>
@@ -3651,11 +3665,19 @@ function initFestivalOffer(enabled, name, endAt) {
 
   const bannerEl = document.getElementById('festivalBanner');
   const cdEl = document.getElementById('festivalCountdown');
+  const daysBox = document.getElementById('fcDaysBox');
+  const sep1 = document.getElementById('fcSep1');
+  const daysEl = document.getElementById('fcDays');
+  const hoursEl = document.getElementById('fcHours');
+  const minsEl = document.getElementById('fcMins');
+  const secsEl = document.getElementById('fcSecs');
   if (name) {
     bannerEl.textContent = '🎉 ' + name;
     bannerEl.style.display = 'inline-block';
   }
   cdEl.style.display = 'flex';
+
+  const pad = n => String(n).padStart(2, '0');
 
   function tick() {
     const diff = endTime - Date.now();
@@ -3668,14 +3690,21 @@ function initFestivalOffer(enabled, name, endAt) {
     const d = Math.floor(diff / 86400000);
     const h = Math.floor((diff % 86400000) / 3600000);
     const m = Math.floor((diff % 3600000) / 60000);
-    let parts = [];
-    if (d > 0) parts.push(d + 'd');
-    parts.push(h + 'h');
-    if (d === 0) parts.push(m + 'm');
-    cdEl.innerHTML = '⏰ Offer Ending in <b>' + parts.join(' ') + '</b>';
+    const s = Math.floor((diff % 60000) / 1000);
+    if (d > 0) {
+      daysBox.style.display = 'flex';
+      sep1.style.display = 'inline';
+      daysEl.textContent = pad(d);
+    } else {
+      daysBox.style.display = 'none';
+      sep1.style.display = 'none';
+    }
+    hoursEl.textContent = pad(h);
+    minsEl.textContent = pad(m);
+    secsEl.textContent = pad(s);
   }
   tick();
-  const timer = setInterval(tick, 60000);
+  const timer = setInterval(tick, 1000);
 }
 
 function openDemoModal(){ document.getElementById('demoModal').classList.add('open'); }

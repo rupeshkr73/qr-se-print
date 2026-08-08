@@ -695,7 +695,11 @@ async function init() {
       document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Space Grotesk',sans-serif;">
         <div style="font-size:52px;margin-bottom:16px;">⏸️</div>
         <h2 style="font-family:'Syne',sans-serif;font-size:22px;margin-bottom:10px;">Shop Abhi Inactive Hai</h2>
-        <p style="color:#6b6870;font-size:14px;line-height:1.6;">${shop.name} ki online print service abhi inactive hai.<br>Shop owner se counter par baat karo.</p>
+        <p style="color:#6b6870;font-size:14px;line-height:1.6;">
+          <b style="color:#3a3740;">${shop.name}</b><br>
+          <span>Online print service abhi inactive hai.</span><br>
+          <span>Shop owner se counter par baat karo.</span>
+        </p>
       </div>`;
       return;
     }
@@ -705,7 +709,11 @@ async function init() {
       document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Space Grotesk',sans-serif;">
         <div style="font-size:52px;margin-bottom:16px;">🏪</div>
         <h2 style="font-family:'Syne',sans-serif;font-size:22px;margin-bottom:10px;">Shop Abhi Band Hai</h2>
-        <p style="color:#6b6870;font-size:14px;line-height:1.6;">${shop.name} abhi temporarily band hai.<br>Thodi der baad dobara QR scan karo.</p>
+        <p style="color:#6b6870;font-size:14px;line-height:1.6;">
+          <b style="color:#3a3740;">${shop.name}</b><br>
+          <span>Abhi temporarily band hai.</span><br>
+          <span>Thodi der baad dobara QR scan karo.</span>
+        </p>
       </div>`;
       return;
     }
@@ -3148,7 +3156,7 @@ async function payOnline() {
           redirectTarget: '_self'
         });
         if (result && result.error) {
-          toast('❌ Cashfree: ' + (result.error.message || 'payment page load nahi hua'));
+          toast('❌ Cashfree: ' + (result.error.message || 'the payment page could not load'));
         } else if (result && result.redirect) {
           // SDK redirect kar raha hai — kuch mat karo
         } else {
