@@ -1479,6 +1479,18 @@ html{scroll-behavior:smooth}
 .ft-social a.soc-ig:hover{color:#fff;background:linear-gradient(45deg,#f9a03f,#e4405f 45%,#8a3ab9);border-color:transparent;box-shadow:0 10px 20px rgba(228,64,95,.35)}
 .ft-social a.soc-fb:hover{color:#fff;background:#1877f2;border-color:#1877f2;box-shadow:0 10px 20px rgba(24,119,242,.35)}
 .ft-social a.soc-yt:hover{color:#ff0000;border-color:#ff0000;box-shadow:0 10px 20px rgba(255,0,0,.25)}
+.creator-sec .creator-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.creator-sec .creator-name{font-size:16.5px;font-weight:800;color:var(--ink)}
+.creator-sec .creator-sub{font-size:14.5px;font-weight:800;color:var(--ink);margin:16px 0 8px}
+.creator-soc{display:flex;gap:8px}
+.creator-soc a{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--line);background:#fff;
+  display:inline-flex;align-items:center;justify-content:center;text-decoration:none;color:#6b7280;
+  box-shadow:var(--shadow-sm);
+  transition:transform .18s var(--ease),border-color .18s,box-shadow .18s,color .18s,background .18s}
+.creator-soc a svg{width:16px;height:16px;display:block}
+.creator-soc a:hover{transform:translateY(-2px)}
+.creator-soc a.soc-li:hover{color:#fff;background:#0A66C2;border-color:#0A66C2;box-shadow:0 8px 16px rgba(10,102,194,.35)}
+.creator-soc a.soc-ig:hover{color:#fff;background:linear-gradient(45deg,#f9a03f,#e4405f 45%,#8a3ab9);border-color:transparent;box-shadow:0 8px 16px rgba(228,64,95,.35)}
 .ft-col h4{
   font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:13.5px;color:var(--ink);
   letter-spacing:.3px;margin-bottom:12px;
@@ -2925,42 +2937,8 @@ html.legal-open,body.legal-open{overflow:hidden}
     <div class="brand"><div data-cfg="ab01" class="brand-mark">🖨️</div> QR Se Print</div>
     <a data-cfg="ab02" href="#" class="lg-back" onclick="closeLegal();return false;">← Back to Home</a>
   </div>
-  <div class="rope" id="aboutRope">
-    <svg class="rope-svg" viewBox="0 0 64 400" preserveAspectRatio="none" aria-hidden="true" focusable="false">
-      <path class="rope-line" d="M32 0 L32 150"/>
-    </svg>
-    <button type="button" class="rope-grip" id="ropeGrip"
-            aria-label="Rope kheench kar page neeche karo">
-      <svg viewBox="0 0 44 52" aria-hidden="true" focusable="false">
-        <rect class="rg-paper" x="6" y="10" width="32" height="38" rx="7"/>
-        <path class="rg-fold" d="M30 10 L38 18 L30 18 Z"/>
-        <circle class="rg-eye" cx="17" cy="27" r="2.6"/>
-        <circle class="rg-eye" cx="27" cy="27" r="2.6"/>
-        <path class="rg-smile" d="M16.5 34.5 Q22 39 27.5 34.5"/>
-        <path class="rg-arm" d="M12 18 Q7 12 10 6"/>
-        <path class="rg-arm" d="M32 18 Q37 12 34 6"/>
-      </svg>
-    </button>
-    <span class="rope-hint" id="ropeHint" data-cfg="ab53">mujhe niche khicho</span>
-  </div>
 
   <div class="lg-wrap">
-    <div class="rail-wrap" aria-hidden="true">
-      <svg class="rail-svg" viewBox="0 0 60 1200" preserveAspectRatio="none" focusable="false">
-        <defs>
-          <linearGradient id="railGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%"   stop-color="#ff2e63"/>
-            <stop offset="34%"  stop-color="#ff6b35"/>
-            <stop offset="68%"  stop-color="#ffd22e"/>
-            <stop offset="100%" stop-color="#7c3aed"/>
-          </linearGradient>
-        </defs>
-        <path class="rail-track" d="M30 4C8 120 52 210 30 330C8 450 52 540 30 660C8 780 52 870 30 990C14 1080 40 1130 30 1196"/>
-        <path class="rail-glow"  pathLength="1" d="M30 4C8 120 52 210 30 330C8 450 52 540 30 660C8 780 52 870 30 990C14 1080 40 1130 30 1196"/>
-        <path class="rail-core"  pathLength="1" d="M30 4C8 120 52 210 30 330C8 450 52 540 30 660C8 780 52 870 30 990C14 1080 40 1130 30 1196"/>
-      </svg>
-      <span class="rail-head"></span>
-    </div>
     <div class="lg-cover">
       <span data-cfg="ab03" class="lg-eyebrow">✨ About</span>
       <h2 data-cfg="ab04" class="lg-title" id="aboutPageT">About QR Se Print</h2>
@@ -3064,6 +3042,28 @@ html.legal-open,body.legal-open{overflow:hidden}
       <h3 data-cfg="ab38" data-n="6">Hamara Vision</h3>
       <p data-cfg="ab39">Hamara vision hai ki QR Se Print India ka sabse trusted Smart Printing Platform bane — jahan har print shop bina expensive infrastructure ke smart aur automated printing service de sake.</p>
       <p data-cfg="ab40">Hum lagatar naye features, better security, faster performance aur reliable technology par kaam kar rahe hain, taaki har business confidently digital printing ka future apna sake.</p>
+    </div>
+
+    <div class="lg-sec creator-sec">
+      <h3 data-n="7">About the Creator</h3>
+      <div class="creator-head">
+        <span class="creator-name">Rupesh Kumar Mahato</span>
+        <span class="creator-soc">
+          <a class="soc-li" href="https://www.linkedin.com/me?trk=p_mwlite_feed-secondary_nav" target="_blank" rel="noopener" aria-label="LinkedIn" title="LinkedIn">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="3" fill="currentColor"/><path fill="#fff" d="M7.6 9.9h2.4v7.3H7.6zm1.2-3.8a1.4 1.4 0 110 2.8 1.4 1.4 0 010-2.8zm3.1 3.8h2.3v1h.03c.32-.6 1.1-1.24 2.27-1.24 2.43 0 2.88 1.6 2.88 3.68v4.1h-2.4v-3.63c0-.87-.02-1.98-1.2-1.98-1.22 0-1.4.95-1.4 1.92v3.69h-2.4z"/></svg>
+          </a>
+          <a class="soc-ig" href="https://www.instagram.com/rupeshkr73" target="_blank" rel="noopener" aria-label="Instagram" title="Instagram">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5.4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="4.1" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17.4" cy="6.6" r="1.35" fill="currentColor"/></svg>
+          </a>
+        </span>
+      </div>
+      <p>Rupesh Kumar Mahato is a technology-focused entrepreneur, creative professional, and the creator of <strong>QR Se Print</strong> — an innovative solution designed to simplify QR-based document printing for cyber cafés, shops, and businesses.</p>
+      <p>With a professional background spanning 2D Animation, Video Editing, Graphic Design, Digital Technology, and Business Operations, Rupesh has worked across creative and technology-driven environments. He has experience in 2D character rigging, animation, advertising video production, visual storytelling, video editing, and graphic design.</p>
+      <p>He has professional experience as a 2D Animator &amp; Video Editor, Animation Faculty, and Team Leader in the animation industry, followed by entrepreneurship and technology-focused business operations.</p>
+      <p>His technical and professional certifications include Google Digital Marketing, IIBF Banking &amp; Finance, Insurance Business, and UIDAI Aadhaar Operator/Supervisor. In 2026, he also completed an AI certification from Google, strengthening his knowledge of modern Artificial Intelligence technologies and their practical applications.</p>
+      <h4 class="creator-sub">Creator's Focus</h4>
+      <p>Rupesh focuses on combining technology, automation, AI, and creative problem-solving to build practical solutions for everyday business needs. QR Se Print is an example of this approach — turning a simple QR-based workflow into an automated printing solution that can be used by businesses without requiring complex technical infrastructure.</p>
+      <p>QR Se Print is built with a simple philosophy: use technology to make everyday work faster, easier, and smarter.</p>
     </div>
 
     <div data-cfg-html="ab41" class="lg-note"><b>QR Se Print</b>Scan. Upload. Pay. Auto Print.<br>Making printing smarter, faster &amp; simpler.</div>
@@ -4314,6 +4314,12 @@ function initReviewCarousel(count){
 })();
 
 
+// Contact page ka hash-sync — pehle rail wale IIFE ke andar tha,
+// ab About page ki design se independent hai isliye alag rakha hai.
+window.addEventListener('hashchange',function(){
+  if(location.hash==='#contact' && typeof syncContactPage==='function') setTimeout(syncContactPage,80);
+});
+
 /* ── About page ka neon rail: scroll ke saath line draw hoti hai ──
    .legal-page khud scroll container hai (position:fixed + overflow-y:auto),
    isliye window par nahi, usi element par scroll sunte hain.
@@ -4358,9 +4364,6 @@ function initReviewCarousel(count){
   page.addEventListener('scroll',onScroll,{passive:true});
   window.addEventListener('resize',onScroll);
   window.addEventListener('hashchange',function(){ setTimeout(draw,60); });
-  window.addEventListener('hashchange',function(){
-    if(location.hash==='#contact' && typeof syncContactPage==='function') setTimeout(syncContactPage,80);
-  });
   setTimeout(draw,80);
 })();
 
