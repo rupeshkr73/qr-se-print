@@ -5,7 +5,7 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>QR Se Print</title>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
@@ -44,7 +44,7 @@
 }
 
 body{
-  font-family:'Space Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
   background:var(--bg); color:var(--ink);
   min-height:100vh; padding:14px 12px 90px;
   font-size:14.5px; line-height:1.55;
@@ -73,12 +73,12 @@ body{
 .shop-icon img{width:100%;height:100%;object-fit:contain;padding:5px;display:block}
 .shop-info{min-width:0;flex:1 1 auto;position:relative;z-index:1}
 .shop-info h2{
-  font-family:'Syne',sans-serif;font-weight:800;font-size:21px;color:#fff;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:19px;color:#fff;
   letter-spacing:-.3px;line-height:1.2;display:flex;align-items:center;gap:7px;flex-wrap:wrap;
 }
 .shop-info h2::after{
   content:'✓';flex:0 0 auto;width:19px;height:19px;border-radius:50%;
-  background:#3b82f6;color:#fff;font-size:11px;font-weight:800;
+  background:#3b82f6;color:#fff;font-size:11px;font-weight:700;
   display:grid;place-items:center;line-height:1;
 }
 .shop-info p{font-size:12.5px;color:#a8a8bd;margin-top:5px;line-height:1.5}
@@ -100,7 +100,7 @@ body{
 .step.done:not(:last-child)::after{background:var(--violet)}
 .step .dot{
   width:46px;height:46px;border-radius:50%;display:grid;place-items:center;
-  font-family:'Syne',sans-serif;font-weight:800;font-size:17px;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:16px;
   background:#e9e7f2;color:#9997ab;transition:.25s;position:relative;z-index:1;
 }
 .step.active .dot{
@@ -117,9 +117,9 @@ body{
   background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);
   padding:22px 18px;margin-bottom:14px;box-shadow:var(--shadow);
 }
-.card h2,.card h3{font-family:'Syne',sans-serif;font-weight:800;letter-spacing:-.25px}
-.card h2{font-size:20px}
-.card h3{font-size:17px;margin-bottom:12px}
+.card h2,.card h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;letter-spacing:-.2px}
+.card h2{font-size:18px}
+.card h3{font-size:16px;margin-bottom:12px}
 
 /* ── UPLOAD ZONE ───────────────────────────────────────────── */
 .upload-zone{
@@ -136,7 +136,7 @@ body{
 .upload-icon svg{width:38px;height:38px;stroke:var(--violet);fill:none;stroke-width:1.9;
   stroke-linecap:round;stroke-linejoin:round}
 .upload-zone h3{
-  font-family:'Syne',sans-serif;font-weight:800;font-size:29px;letter-spacing:-.6px;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:25px;letter-spacing:-.4px;
   background:var(--grad);-webkit-background-clip:text;background-clip:text;
   -webkit-text-fill-color:transparent;margin-bottom:9px;line-height:1.15;
 }
@@ -144,7 +144,7 @@ body{
 .upload-zone > p b{color:var(--ink-2);font-weight:700}
 .ftypes{display:flex;gap:9px;justify-content:center;margin-bottom:16px;flex-wrap:wrap}
 .ft{
-  font-size:12.5px;font-weight:800;padding:7px 17px;border-radius:11px;
+  font-size:12.5px;font-weight:700;padding:7px 17px;border-radius:11px;
   border:1.5px solid var(--line);background:#fff;color:var(--muted);
 }
 .ft:nth-child(1){color:#e11d48;border-color:#fbcfe0;background:#fff5f8}
@@ -169,7 +169,7 @@ body{
 .upbtn{
   display:inline-flex;align-items:center;justify-content:center;gap:9px;
   background:var(--grad);color:#fff;border:none;border-radius:14px;
-  padding:15px 34px;font-family:'Syne',sans-serif;font-weight:800;font-size:16px;
+  padding:15px 34px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:15.5px;
   cursor:pointer;box-shadow:0 8px 24px rgba(124,58,237,.3);transition:.16s;
 }
 .upbtn:active{transform:scale(.975)}
@@ -195,7 +195,7 @@ body{
   background:var(--violet-soft);display:grid;place-items:center;font-size:26px;line-height:1;
 }
 .svc-card > div:nth-child(2){
-  font-family:'Syne',sans-serif;font-weight:800;font-size:16px;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:16px;
   color:var(--violet);letter-spacing:-.2px;
 }
 .svc-card > div:nth-child(3){font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:4px}
@@ -221,23 +221,24 @@ body{
 #secUpload{display:flex;flex-direction:column}
 #secUpload #uploadZone{order:1}
 #secUpload #svcMenu{order:2;margin-top:0;margin-bottom:14px}
+#secUpload .trust-row{order:3}          /* sabse neeche — pehle Upload dikhe */
 
 /* ── TRUST ROW ─────────────────────────────────────────────── */
 .trust-row{
   display:flex;background:var(--card);border:1px solid var(--line);
-  border-radius:var(--r-lg);padding:15px 8px;margin-bottom:14px;box-shadow:var(--shadow-sm);
+  border-radius:var(--r);padding:10px 6px;margin-bottom:14px;box-shadow:var(--shadow-sm);
 }
-.trust-item{flex:1 1 0;text-align:center;padding:0 8px;min-width:0}
+.trust-item{flex:1 1 0;text-align:center;padding:0 6px;min-width:0}
 .trust-item + .trust-item{border-left:1px solid var(--line)}
-.trust-item .ti{font-size:21px;line-height:1;margin-bottom:6px}
-.trust-item b{display:block;font-size:12.5px;font-weight:800;letter-spacing:-.1px}
-.trust-item span{display:block;font-size:11px;color:var(--muted);margin-top:2px;line-height:1.4}
+.trust-item .ti{font-size:15px;line-height:1;margin-bottom:3px}
+.trust-item b{display:block;font-size:11px;font-weight:700;letter-spacing:0}
+.trust-item span{display:block;font-size:9.5px;color:var(--muted);margin-top:1px;line-height:1.35}
 
 /* ── BUTTONS ───────────────────────────────────────────────── */
 .btn-row{display:flex;gap:10px;margin-bottom:14px}
 .btn{
   flex:1 1 0;border:none;border-radius:15px;padding:16px;
-  font-family:'Syne',sans-serif;font-weight:800;font-size:15.5px;cursor:pointer;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:15px;cursor:pointer;
   transition:.16s;background:#fff;color:var(--ink);border:1.5px solid var(--line);
 }
 .btn:active{transform:scale(.98)}
@@ -248,7 +249,7 @@ body{
 .btn-red{background:var(--red);color:#fff;border-color:transparent}
 .btn-primary{
   width:100%;background:var(--grad);color:#fff;border:none;border-radius:15px;padding:17px;
-  font-family:'Syne',sans-serif;font-weight:800;font-size:16px;cursor:pointer;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:15.5px;cursor:pointer;
   box-shadow:0 8px 24px rgba(124,58,237,.3);
 }
 .btn-primary:active{transform:scale(.98)}
@@ -270,20 +271,20 @@ body{
 }
 .remove-item-handle{
   position:absolute;right:-9px;top:-9px;width:26px;height:26px;border-radius:50%;
-  background:var(--red);border:2.5px solid #fff;color:#fff;font-size:15px;font-weight:800;
+  background:var(--red);border:2.5px solid #fff;color:#fff;font-size:15px;font-weight:700;
   display:grid;place-items:center;cursor:pointer;box-shadow:0 3px 9px rgba(0,0,0,.24);
 }
 .edit-toolbar{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px}
 .edit-btn{
   background:#fff;border:1.5px solid var(--line);border-radius:13px;padding:13px 9px;
-  font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;cursor:pointer;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:13px;cursor:pointer;
   color:var(--ink-2);transition:.14s;
 }
 .edit-btn:active{transform:scale(.97)}
 .edit-btn.on{background:#faf8ff;border-color:var(--violet);color:var(--violet)}
 .add-doc-btn{
   width:100%;background:#faf8ff;border:1.5px dashed #cfc6f3;border-radius:13px;
-  padding:14px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13.5px;
+  padding:14px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:13.5px;
   color:var(--violet);cursor:pointer;margin-bottom:12px;
 }
 .adjust-panel,.border-panel,.rotate-panel{
@@ -306,7 +307,7 @@ body{
 .page-nav{display:flex;align-items:center;justify-content:center;gap:15px}
 .page-nav-btn{
   width:42px;height:42px;border-radius:50%;border:1.5px solid var(--line);
-  background:#fff;font-size:20px;font-weight:800;color:var(--ink-2);cursor:pointer;
+  background:#fff;font-size:20px;font-weight:700;color:var(--ink-2);cursor:pointer;
 }
 .page-nav-btn:disabled{opacity:.35}
 .page-info{font-size:13.5px;font-weight:700}
@@ -314,20 +315,61 @@ body{
   background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);
   padding:18px;margin-bottom:14px;box-shadow:var(--shadow-sm);
 }
-.page-range-box label{display:block;font-family:'Syne',sans-serif;font-weight:800;
+.page-range-box label{display:block;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;
   font-size:15px;margin-bottom:11px}
 .range-toggle{display:flex;gap:9px;margin-bottom:11px}
 .tog-btn{
   flex:1 1 0;border:1.5px solid var(--line);background:#fff;border-radius:12px;padding:12px;
-  font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13.5px;cursor:pointer;color:var(--ink-2);
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:13.5px;cursor:pointer;color:var(--ink-2);
 }
 .tog-btn.on{background:var(--grad);color:#fff;border-color:transparent}
 .range-input{
   width:100%;border:1.5px solid var(--line);border-radius:12px;padding:13px;
-  font-family:'Space Grotesk',sans-serif;font-size:14.5px;outline:none;
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:14.5px;outline:none;
 }
 .range-input:focus{border-color:var(--violet)}
 .range-hint{font-size:12px;color:var(--muted);margin-top:8px}
+
+/* ── MINI PRINT ────────────────────────────────────────────── */
+.mini-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+.mini-opt{
+  border:1.5px solid var(--line);background:#fff;border-radius:13px;padding:11px 4px;
+  cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;transition:.14s;text-align:center;
+}
+.mini-opt:active{transform:scale(.96)}
+.mini-opt b{display:block;font-size:19px;font-weight:800;line-height:1.1}
+.mini-opt span{display:block;font-size:9.5px;color:var(--muted);margin-top:2px}
+.mini-opt.sel{border-color:var(--violet);background:#faf8ff;
+  box-shadow:0 0 0 3px rgba(124,58,237,.1)}
+.mini-opt.sel b{color:var(--violet)}
+.mini-border-row{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:13px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
+}
+.mini-border-row b{display:block;font-size:13.5px;font-weight:700}
+.mini-border-row span{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+.mini-switch{
+  flex:0 0 auto;width:50px;height:29px;border-radius:99px;border:none;cursor:pointer;
+  background:#d7d5e2;position:relative;transition:background .18s;padding:0;
+}
+.mini-switch i{
+  position:absolute;top:3px;left:3px;width:23px;height:23px;border-radius:50%;
+  background:#fff;transition:left .18s;box-shadow:0 1px 4px rgba(0,0,0,.25);
+}
+.mini-switch.on{background:var(--violet)}
+.mini-switch.on i{left:24px}
+.mini-sum{
+  background:#faf8ff;border:1px solid #e6dffb;border-radius:13px;
+  padding:13px;margin-top:14px;font-size:13px;line-height:1.75;
+}
+.mini-sum b{font-weight:800;color:var(--violet)}
+.mini-preview{
+  background:#f8f7fc;border:1px solid var(--line);border-radius:14px;
+  padding:12px;display:flex;justify-content:center;min-height:180px;align-items:center;
+}
+.mini-preview img{max-width:100%;max-height:400px;border-radius:8px;
+  box-shadow:0 6px 20px rgba(20,20,40,.16)}
+.mini-loading{font-size:12.5px;color:var(--muted)}
 
 /* ── OPTIONS ───────────────────────────────────────────────── */
 .opt-toggle{display:grid;grid-template-columns:1fr 1fr;gap:11px}
@@ -337,7 +379,7 @@ body{
 }
 .opt-card:active{transform:scale(.985)}
 .opt-card .ic{font-size:26px;line-height:1}
-.opt-card .lbl{font-family:'Syne',sans-serif;font-weight:800;font-size:14.5px;margin-top:7px}
+.opt-card .lbl{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14.5px;margin-top:7px}
 .opt-card .pr{font-size:12.5px;color:var(--muted);margin-top:3px}
 .opt-card.sel{border-color:var(--violet);background:#faf8ff;
   box-shadow:0 0 0 3px rgba(124,58,237,.09)}
@@ -345,29 +387,29 @@ body{
   display:flex;align-items:center;justify-content:space-between;gap:12px;
   margin-top:14px;padding:14px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);
 }
-.copies-row .lbl{font-family:'Syne',sans-serif;font-weight:800;font-size:15px}
+.copies-row .lbl{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:15px}
 .copies-ctrl{display:flex;align-items:center;gap:15px}
 .copies-ctrl button{
   width:40px;height:40px;border-radius:12px;border:1.5px solid var(--line);background:#fff;
-  font-size:21px;font-weight:800;color:var(--ink-2);cursor:pointer;line-height:1;
+  font-size:21px;font-weight:700;color:var(--ink-2);cursor:pointer;line-height:1;
 }
 .copies-ctrl button:active{transform:scale(.94)}
-.copies-ctrl span{font-family:'Syne',sans-serif;font-weight:800;font-size:19px;min-width:26px;text-align:center}
+.copies-ctrl span{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:19px;min-width:26px;text-align:center}
 .price-summary{margin-top:15px}
 .price-row{display:flex;justify-content:space-between;gap:12px;font-size:13.5px;
   color:var(--ink-2);margin-bottom:9px}
 .price-total{
   display:flex;justify-content:space-between;align-items:center;gap:12px;
   padding-top:13px;border-top:2px solid var(--line);
-  font-family:'Syne',sans-serif;font-weight:800;font-size:16px;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:16px;
 }
-.price-total strong{font-size:25px;background:var(--grad);
+.price-total strong{font-size:25px;font-weight:800;background:var(--grad);
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 
 /* ── PAYMENT ───────────────────────────────────────────────── */
 .pay-btn{
   width:100%;border:none;border-radius:16px;padding:19px;
-  font-family:'Syne',sans-serif;font-weight:800;font-size:16.5px;cursor:pointer;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:16px;cursor:pointer;
   margin-bottom:11px;transition:.16s;
 }
 .pay-btn:active{transform:scale(.985)}
@@ -382,7 +424,7 @@ body{
 @keyframes pop{from{opacity:0;transform:translateY(14px) scale(.97)}to{opacity:1;transform:none}}
 .thank-you-emoji{font-size:52px;line-height:1;margin-bottom:6px}
 .thank-you-text{
-  font-family:'Syne',sans-serif;font-weight:800;font-size:27px;letter-spacing:-.5px;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:24px;letter-spacing:-.4px;
   background:var(--grad);-webkit-background-clip:text;background-clip:text;
   -webkit-text-fill-color:transparent;margin-bottom:18px;
 }
@@ -394,7 +436,7 @@ body{
 }
 .sicon.counter{background:linear-gradient(135deg,#f59e0b,#d97706);box-shadow:0 10px 30px rgba(245,158,11,.32)}
 .sicon.online{background:linear-gradient(135deg,#16a34a,#15803d)}
-.success-screen h2{font-family:'Syne',sans-serif;font-weight:800;font-size:23px;margin-bottom:9px}
+.success-screen h2{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:23px;margin-bottom:9px}
 .order-id{
   display:inline-block;background:#f2f1f7;border:1px solid var(--line);border-radius:11px;
   padding:9px 17px;font-size:13px;font-weight:700;color:var(--ink-2);
@@ -406,7 +448,7 @@ body{
 }
 .collect-box.counter{background:var(--amber-soft);border-color:var(--amber-line)}
 .collect-box.online{background:var(--green-soft);border-color:var(--green-line)}
-.collect-box h3{font-family:'Syne',sans-serif;font-weight:800;font-size:16.5px;margin-bottom:7px}
+.collect-box h3{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:16.5px;margin-bottom:7px}
 .collect-box p{font-size:13.5px;color:var(--ink-2);line-height:1.65}
 .amount-box{
   display:flex;align-items:center;justify-content:space-between;gap:12px;
@@ -415,7 +457,7 @@ body{
 }
 .amount-box span{font-size:14px;font-weight:700;color:var(--muted)}
 .amount-box strong{
-  font-family:'Syne',sans-serif;font-weight:800;font-size:27px;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:27px;
   background:var(--grad);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
 }
 
@@ -425,7 +467,7 @@ body{
   display:flex;flex-direction:column;
 }
 .crop-header{padding:16px;text-align:center;flex:0 0 auto}
-.crop-title{font-family:'Syne',sans-serif;font-weight:800;font-size:17px;color:#fff}
+.crop-title{font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:16px;color:#fff}
 .crop-sub{font-size:12px;color:#a8a8bd;margin-top:5px;line-height:1.5}
 .crop-stage{flex:1 1 auto;position:relative;display:flex;align-items:center;
   justify-content:center;overflow:hidden;padding:8px}
@@ -433,7 +475,7 @@ body{
 .crop-toolbar{display:flex;gap:9px;padding:14px;flex:0 0 auto}
 .crop-btn{
   flex:1 1 0;border:none;border-radius:13px;padding:15px 9px;
-  font-family:'Syne',sans-serif;font-weight:800;font-size:14px;cursor:pointer;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14px;cursor:pointer;
 }
 .crop-btn.grey{background:#23232f;color:#e6e6f0}
 .crop-btn.primary{background:var(--grad);color:#fff}
@@ -451,14 +493,14 @@ body{
 .footer{text-align:center;padding:22px 10px 10px;line-height:1.7}
 .footer p{font-size:12.5px}
 .footer b{background:var(--grad);-webkit-background-clip:text;background-clip:text;
-  -webkit-text-fill-color:transparent;font-weight:800}
+  -webkit-text-fill-color:transparent;font-weight:700}
 .footer-insta{display:inline-block;margin-top:8px}
 
 /* ── LANGUAGE SWITCH ───────────────────────────────────────── */
 #langSwitch{position:fixed;bottom:14px;left:12px;z-index:400}
 #langSel{
   border:1px solid var(--line);border-radius:13px;padding:11px 13px;
-  font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;font-weight:700;
   background:#fff;color:var(--ink);box-shadow:var(--shadow-sm);cursor:pointer;outline:none;
 }
 
@@ -545,14 +587,14 @@ body{
         <canvas id="choiceCanvas" style="max-width:100%;max-height:340px;border-radius:9px;box-shadow:0 6px 20px rgba(0,0,0,.10);"></canvas>
       </div>
 
-      <button onclick="chooseAllGood()" style="width:100%;background:#16a34a;color:#fff;border:none;border-radius:15px;padding:17px;font-family:'Syne',sans-serif;font-weight:800;font-size:16px;cursor:pointer;box-shadow:0 8px 22px rgba(22,163,74,.26);margin-bottom:10px;">
+      <button onclick="chooseAllGood()" style="width:100%;background:#16a34a;color:#fff;border:none;border-radius:15px;padding:17px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:16px;cursor:pointer;box-shadow:0 8px 22px rgba(22,163,74,.26);margin-bottom:10px;">
         ✅ Sab Theek Hai — Aage Bado
       </button>
       <p style="font-size:11.5px;color:var(--muted);text-align:center;margin-bottom:16px;line-height:1.6;">
         File jaisi hai waisi hi print hogi — sabse saaf aur sabse tez
       </p>
 
-      <button onclick="chooseEdit()" style="width:100%;background:#fff;color:var(--ink);border:1.5px solid var(--line);border-radius:15px;padding:15px;font-family:'Syne',sans-serif;font-weight:700;font-size:15px;cursor:pointer;">
+      <button onclick="chooseEdit()" style="width:100%;background:#fff;color:var(--ink);border:1.5px solid var(--line);border-radius:15px;padding:15px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:15px;cursor:pointer;">
         ✏️ Edit Karna Hai
       </button>
       <p style="font-size:11.5px;color:var(--muted);text-align:center;margin-top:8px;line-height:1.6;">
@@ -666,8 +708,8 @@ body{
     <!-- ═══ UPLOAD PROGRESS — preview ke theek neeche ═══ -->
     <div id="upProgWrap" style="display:none;margin:14px 0 4px;">
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
-        <span id="upProgLabel" style="font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:var(--ink);">📤 File Upload Ho Rahi Hai…</span>
-        <span id="upProgPct" style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:17px;color:#7c3aed;">0%</span>
+        <span id="upProgLabel" style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:14px;color:var(--ink);">📤 File Upload Ho Rahi Hai…</span>
+        <span id="upProgPct" style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:16px;color:#7c3aed;">0%</span>
       </div>
       <div style="height:10px;background:#eceaf4;border-radius:99px;overflow:hidden;">
         <div id="upProgBar" style="height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#7c3aed,#ec2a7a);transition:width .25s ease;position:relative;overflow:hidden;">
@@ -694,6 +736,43 @@ body{
   </div>
 
   <!-- STEP 4a: Options (B&W/Color, Copies, Price) -->
+  <!-- MINI PRINT — ek A4 sheet par kai pages. Koi editing tool nahi:
+       sirf pages-per-sheet aur border. Live preview turant banta hai. -->
+  <div id="secMini" class="hidden">
+    <div class="card">
+      <h3>🗒️ Mini Print</h3>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6">
+        Ek A4 page par kai pages — kagaz aur paisa dono bachta hai.
+      </p>
+
+      <label style="display:block;font-size:12px;font-weight:700;color:var(--ink-2);margin-bottom:8px">
+        Ek sheet par kitne pages?</label>
+      <div class="mini-grid" id="miniOpts"></div>
+
+      <div class="mini-border-row">
+        <div>
+          <b>Page ka border</b>
+          <span>Har chhote page ke chaaro taraf patli line</span>
+        </div>
+        <button class="mini-switch on" id="miniBorderBtn" onclick="toggleMiniBorder()"
+                aria-label="Border on/off"><i></i></button>
+      </div>
+
+      <div class="mini-sum" id="miniSummary"></div>
+
+      <label style="display:block;font-size:12px;font-weight:700;color:var(--ink-2);margin:16px 0 8px">
+        Live Preview</label>
+      <div class="mini-preview" id="miniPreview">
+        <div class="mini-loading">Preview ban raha hai…</div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-grey" onclick="miniBack()">← Back</button>
+      <button class="btn btn-green" id="miniNextBtn" onclick="miniConfirm()">Aage Bado →</button>
+    </div>
+  </div>
+
   <div id="secOptions" class="hidden">
     <div class="card">
       <h3>⚙️ Print Options</h3>
@@ -772,7 +851,7 @@ body{
     <div id="dlBox" style="display:none;margin:16px 0;padding:16px;background:#f0fdf4;border:1.5px solid #bbf7d0;border-radius:14px;text-align:center;">
       <div style="font-size:13.5px;font-weight:800;color:#166534;margin-bottom:4px;">📄 Apna Resume Save Kar Lo</div>
       <div style="font-size:11.5px;color:#3f7a52;margin-bottom:12px;">Aage kabhi kaam aayega — abhi download kar lo</div>
-      <button onclick="downloadMyPdf()" style="width:100%;background:#166534;color:#fff;border:none;border-radius:12px;padding:14px;font-family:'Syne',sans-serif;font-weight:800;font-size:15px;cursor:pointer;">⬇️ PDF Download Karo</button>
+      <button onclick="downloadMyPdf()" style="width:100%;background:#166534;color:#fff;border:none;border-radius:12px;padding:14px;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:15px;cursor:pointer;">⬇️ PDF Download Karo</button>
     </div>
     <div id="fbBox" style="text-align:center;margin:16px 0;padding:14px;background:#f8f7fc;border-radius:14px;">
       <div style="font-size:13px;font-weight:700;margin-bottom:10px;">Print kaisa laga?</div>
@@ -896,17 +975,17 @@ async function init() {
 
     if (shopRes.status === 403) {
       const errData = await shopRes.json();
-      document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Space Grotesk',sans-serif;">
+      document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Plus Jakarta Sans',sans-serif;">
         <div style="font-size:48px;margin-bottom:16px;">⚠️</div>
-        <h2 style="font-family:'Syne',sans-serif;font-size:20px;margin-bottom:10px;">Shop Abhi Active Nahi Hai</h2>
+        <h2 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;margin-bottom:10px;">Shop Abhi Active Nahi Hai</h2>
         <p style="color:#7a7a8c;font-size:14px;">${errData.error}</p>
       </div>`;
       return;
     }
     if (shopRes.status === 404) {
-      document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Space Grotesk',sans-serif;">
+      document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Plus Jakarta Sans',sans-serif;">
         <div style="font-size:48px;margin-bottom:16px;">❌</div>
-        <h2 style="font-family:'Syne',sans-serif;font-size:20px;">Shop Nahi Mila</h2>
+        <h2 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;">Shop Nahi Mila</h2>
       </div>`;
       return;
     }
@@ -915,9 +994,9 @@ async function init() {
 
     // ── Subscription khatam? Poora block ──
     if (shop.subscription_expired) {
-      document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Space Grotesk',sans-serif;">
+      document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Plus Jakarta Sans',sans-serif;">
         <div style="font-size:52px;margin-bottom:16px;">⏸️</div>
-        <h2 style="font-family:'Syne',sans-serif;font-size:22px;margin-bottom:10px;">Shop Abhi Inactive Hai</h2>
+        <h2 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;margin-bottom:10px;">Shop Abhi Inactive Hai</h2>
         <p style="color:#7a7a8c;font-size:14px;line-height:1.6;">
           <b style="color:#3a3740;">${shop.name}</b><br>
           <span>Online print service abhi inactive hai.</span><br>
@@ -929,9 +1008,9 @@ async function init() {
 
     // ── Shop band hai? Poora block — order flow shuru hi nahi hoga ──
     if (shop.paused) {
-      document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Space Grotesk',sans-serif;">
+      document.body.innerHTML = `<div style="max-width:420px;margin:80px auto;padding:30px;text-align:center;font-family:'Plus Jakarta Sans',sans-serif;">
         <div style="font-size:52px;margin-bottom:16px;">🏪</div>
-        <h2 style="font-family:'Syne',sans-serif;font-size:22px;margin-bottom:10px;">Shop Abhi Band Hai</h2>
+        <h2 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;margin-bottom:10px;">Shop Abhi Band Hai</h2>
         <p style="color:#7a7a8c;font-size:14px;line-height:1.6;">
           <b style="color:#3a3740;">${shop.name}</b><br>
           <span>Abhi temporarily band hai.</span><br>
@@ -1653,9 +1732,9 @@ function askPhotoCount(img) {
   const ov = document.createElement('div');
   ov.id = 'photoCountModal';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:24px;';
-  ov.innerHTML = `<div style="background:#fff;border-radius:20px;padding:22px;max-width:340px;width:100%;text-align:center;font-family:'Space Grotesk',sans-serif;">
+  ov.innerHTML = `<div style="background:#fff;border-radius:20px;padding:22px;max-width:340px;width:100%;text-align:center;font-family:'Plus Jakarta Sans',sans-serif;">
     <div style="font-size:34px;">📷</div>
-    <h3 style="font-family:'Syne',sans-serif;margin:8px 0 4px;">Kitni photos chahiye?</h3>
+    <h3 style="font-family:'Plus Jakarta Sans',sans-serif;margin:8px 0 4px;">Kitni photos chahiye?</h3>
     <p style="font-size:12px;color:#7a7a8c;margin:0 0 16px;">Ek 4×6 sheet par — har option ka size neeche likha hai</p>
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">${btns}</div>
     <button onclick="document.getElementById('photoCountModal').remove()" style="margin-top:12px;background:none;border:none;color:#9b9690;font-size:12px;cursor:pointer;">Cancel</button>
@@ -1736,7 +1815,7 @@ function openPhotoCrop(img, count) {
   ov.id = 'photoCropModal';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:1000;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;';
   ov.innerHTML = `
-    <div style="color:#fff;font-family:'Syne',sans-serif;font-weight:800;font-size:16px;margin-bottom:4px;">✂️ Photo Crop Karo</div>
+    <div style="color:#fff;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:16px;margin-bottom:4px;">✂️ Photo Crop Karo</div>
     <div style="color:#ccc;font-size:12px;margin-bottom:14px;">Photo ko ungli se ghumao, do ungli/slider se zoom karo</div>
     <div id="cropFrame" style="width:${fw}px;height:${fh}px;overflow:hidden;position:relative;border:3px solid #7c3aed;border-radius:8px;touch-action:none;background:#222;">
       <img id="cropImg" draggable="false" style="position:absolute;transform-origin:0 0;user-select:none;-webkit-user-drag:none;">
@@ -1973,9 +2052,10 @@ function applyAdvancedGate(shop) {
     doc:    advPaid && shop.adv_legal_active  !== false,  // Document Print (A4–Legal)
     resume: advPaid && shop.adv_resume_active !== false,  // Resume Maker
     photo:  advPaid && shop.adv_4x6_active    !== false,  // 4×6 Photo
-    big:    advPaid && shop.adv_a3_active     !== false   // A3 / A2 / A1
+    big:    advPaid && shop.adv_a3_active     !== false,  // A3 / A2 / A1
+    mini:   advPaid && shop.adv_mini_active   !== false   // Mini Print
   };
-  const anyOn = M.doc || M.resume || M.photo || M.big;
+  const anyOn = M.doc || M.resume || M.photo || M.big || M.mini;
 
   window.__shopAdvanced = advPaid && anyOn;
   window.__advModules   = M;
@@ -2026,7 +2106,9 @@ function applyAdvancedGate(shop) {
       { key:'photo',  on:M.photo,  icon:'📷', title:'4×6 Photo Print', sub:'Passport photos — 4, 6, 8 or 10 per sheet',
         act:"startPhotoFlow()" },
       { key:'big',    on:M.big,    icon:'📐', title:'Big Size Print',  sub:'A3 / A2 / A1 bade kagaz',
-        act:"selectService('big')" }
+        act:"selectService('big')" },
+      { key:'mini',   on:M.mini,   icon:'🗒️', title:'Mini Print',      sub:'Ek page par 2, 4, 6, 8, 9, 12 ya 16 pages',
+        act:"startMiniFlow()" }
     ].filter(c => c.on);
 
     const n = CARDS.length;
@@ -3021,8 +3103,38 @@ function upProgSet(pct) {
   if (b) b.style.width = pct + '%';
   if (p) p.textContent = pct + '%';
 }
+/**
+ * Upload 100% hone par chhoti si "ho gaya" beep.
+ * Koi audio file download nahi karte — WebAudio se do sur bajate hain,
+ * isliye na koi extra file, na koi bandwidth.
+ * Phone silent ho ya browser sound block kare to chupchaap skip ho jaata
+ * hai — upload par koi asar nahi.
+ */
+function playUploadDoneSound(){
+  try{
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    const ac = new AC();
+    if(ac.state === 'suspended' && ac.resume) ac.resume();
+    const now = ac.currentTime;
+    // Do chadhte sur — "ting-ting" jaisa
+    [[880, 0], [1318.5, 0.11]].forEach(function(n){
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(n[0], now + n[1]);
+      g.gain.setValueAtTime(0.0001, now + n[1]);
+      g.gain.exponentialRampToValueAtTime(0.16, now + n[1] + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + n[1] + 0.20);
+      o.connect(g); g.connect(ac.destination);
+      o.start(now + n[1]); o.stop(now + n[1] + 0.22);
+    });
+    setTimeout(function(){ try{ ac.close(); }catch(e){} }, 900);
+  }catch(e){ /* sound na baje to bhi upload theek hai */ }
+}
+
 function upProgDone() {
   upProgSet(100);
+  playUploadDoneSound();
   const l = document.getElementById('upProgLabel');
   const h = document.getElementById('upProgHint');
   const p = document.getElementById('upProgPct');
@@ -3104,6 +3216,224 @@ function preflightUploadCheck(blob, pageCount) {
   if (Number.isInteger(n) && n > MAX_PDF_PAGES) {
     throw new Error(`Maximum ${MAX_PDF_PAGES} page PDF is allowed. Your file has ${n} pages.`);
   }
+}
+
+// ══════════════════════════════════════════════════════════════
+// MINI PRINT — ek A4 sheet par kai pages
+//
+// 18-page PDF + 4 per sheet = 5 sheet. Customer 5 sheet ka hi paisa
+// deta hai (18 ka nahi) — usko bachat, shop ka kagaz aur ink bachta hai.
+//
+// Yahan koi editing tool nahi: sirf pages-per-sheet aur border.
+// Har badlav par preview turant dobara banta hai.
+// ══════════════════════════════════════════════════════════════
+const MINI_LAYOUTS = {
+  2:  { c:1, r:2 },  4:  { c:2, r:2 },  6:  { c:2, r:3 },
+  8:  { c:2, r:4 },  9:  { c:3, r:3 }, 12: { c:3, r:4 }, 16: { c:4, r:4 }
+};
+const MINI_CHOICES = [2,4,6,8,9,12,16];
+
+const mini = {
+  active: false,
+  per: 4,            // ek sheet par kitne pages
+  border: true,      // default ON (spec)
+  sheets: [],        // bane hue A4 canvases
+  building: false,
+  again: false       // build ke beech me user ne option badla
+};
+
+function startMiniFlow(){
+  if(!pages.length){
+    toast('Pehle file upload karo, phir Mini Print chuno');
+    return;
+  }
+  mini.active = true;
+  mini.per = 4;
+  mini.border = true;
+  hide('secUpload'); hide('secChoice'); hide('secEditor'); hide('secPreviewStep');
+  show('secMini');
+  setStep(2);
+  renderMiniOptions();
+  document.getElementById('miniBorderBtn').classList.toggle('on', mini.border);
+  buildMiniPreview();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function renderMiniOptions(){
+  const box = document.getElementById('miniOpts');
+  if(!box) return;
+  box.innerHTML = MINI_CHOICES.map(function(n){
+    const L = MINI_LAYOUTS[n];
+    return '<button class="mini-opt' + (n===mini.per?' sel':'') + '" onclick="setMiniPer(' + n + ')">'
+      + '<b>' + n + '</b><span>' + L.c + '×' + L.r + '</span></button>';
+  }).join('');
+}
+
+function setMiniPer(n){
+  if(!MINI_LAYOUTS[n] || mini.per === n) return;
+  mini.per = n;
+  renderMiniOptions();
+  buildMiniPreview();
+}
+
+function toggleMiniBorder(){
+  mini.border = !mini.border;
+  document.getElementById('miniBorderBtn').classList.toggle('on', mini.border);
+  buildMiniPreview();
+}
+
+function miniSheetCount(){
+  return Math.ceil(pages.length / mini.per);
+}
+
+/** Ek A4 sheet banao: startIdx se shuru karke mini.per pages tak. */
+function buildMiniSheet(startIdx, dpi){
+  const L = MINI_LAYOUTS[mini.per];
+  const A4_W = Math.round(210 / 25.4 * dpi);
+  const A4_H = Math.round(297 / 25.4 * dpi);
+
+  const sheet = document.createElement('canvas');
+  sheet.width = A4_W; sheet.height = A4_H;
+  const ctx = sheet.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, A4_W, A4_H);
+
+  // Sheet ka bahari margin + cells ke beech ka gap (screenshot jaisa patla)
+  const margin = Math.round(A4_W * 0.030);
+  const gap    = Math.round(A4_W * 0.014);
+  const cellW  = (A4_W - margin*2 - gap*(L.c-1)) / L.c;
+  const cellH  = (A4_H - margin*2 - gap*(L.r-1)) / L.r;
+
+  for(let i = 0; i < mini.per; i++){
+    const srcIdx = startIdx + i;
+    if(srcIdx >= pages.length) break;
+    const col = i % L.c, row = Math.floor(i / L.c);
+    const cx = margin + col * (cellW + gap);
+    const cy = margin + row * (cellH + gap);
+
+    // Us page ka poora A4 canvas banao, phir cell me fit karo
+    const src = composePageCanvas(pages[srcIdx], Math.max(110, Math.round(dpi/2.2)));
+    if(!src) continue;
+
+    const sc = Math.min(cellW / src.width, cellH / src.height);
+    const w = src.width * sc, h = src.height * sc;
+    const x = cx + (cellW - w)/2, y = cy + (cellH - h)/2;
+    ctx.drawImage(src, x, y, w, h);
+
+    if(mini.border){
+      // Screenshot jaisa: har chhote page ke chaaro taraf patli kaali line
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = Math.max(1, Math.round(A4_W * 0.0013));
+      ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+    }
+  }
+  return sheet;
+}
+
+/** Ek page ke saare items ko ek A4 canvas par rakho (editor jaisa hi). */
+function composePageCanvas(page, dpi){
+  try{
+    const A4_W = Math.round(210 / 25.4 * dpi);
+    const A4_H = Math.round(297 / 25.4 * dpi);
+    const c = document.createElement('canvas');
+    c.width = A4_W; c.height = A4_H;
+    const x = c.getContext('2d');
+    x.fillStyle = '#fff'; x.fillRect(0, 0, A4_W, A4_H);
+    const sx = A4_W / A4_DISPLAY_W, sy = A4_H / A4_DISPLAY_H;
+    (page.items || []).forEach(function(it){
+      if(!it.canvas) return;
+      x.drawImage(it.canvas, it.x * sx, it.y * sy, it.w * sx, it.h * sy);
+    });
+    return c;
+  }catch(e){
+    console.error('[mini] page compose failed', e);
+    return null;
+  }
+}
+
+async function buildMiniPreview(){
+  // Build ke beech me option badla to dobara chala do
+  if(mini.building){ mini.again = true; return; }
+  mini.building = true;
+
+  const box = document.getElementById('miniPreview');
+  const btn = document.getElementById('miniNextBtn');
+  if(btn) btn.disabled = true;
+  if(box) box.innerHTML = '<div class="mini-loading">Preview ban raha hai…</div>';
+
+  try{
+    const total = miniSheetCount();
+    // Preview ke liye sirf PEHLI sheet — halka aur turant
+    await new Promise(function(r){ setTimeout(r, 20); });   // UI ko saans lene do
+    const first = buildMiniSheet(0, 150);
+
+    if(box){
+      box.innerHTML = '';
+      const img = document.createElement('img');
+      img.alt = 'Mini Print preview';
+      img.src = first.toDataURL('image/jpeg', 0.85);
+      box.appendChild(img);
+    }
+
+    const sum = document.getElementById('miniSummary');
+    if(sum){
+      // Rate wahi jo abhi chuna hua hai — 5 sheet × ₹5 = ₹25 (B&W),
+      // 5 sheet × ₹10 = ₹50 (color). Sheet ke hisaab se, original page ke nahi.
+      const rate = (state.colorMode === 'color') ? state.priceColor : state.priceBW;
+      const price = (parseFloat(rate) || 0) * total;
+      sum.innerHTML =
+          pages.length + ' pages → <b>' + total + ' sheet' + (total>1?'s':'') + '</b>'
+        + ' (' + mini.per + ' per sheet)<br>'
+        + 'Aap sirf <b>' + total + ' sheet</b> ka paisa denge'
+        + (price ? ' — abhi ke rate se <b>₹' + Math.round(price) + '</b>' : '')
+        + '<br><span style="font-size:11.5px;color:var(--muted)">Bachat: '
+        + (pages.length - total) + ' sheet kam</span>';
+    }
+  }catch(e){
+    console.error('[mini] preview failed', e);
+    if(box) box.innerHTML = '<div class="mini-loading">Preview nahi ban paya — dobara try karo</div>';
+  }finally{
+    mini.building = false;
+    if(btn) btn.disabled = false;
+    if(mini.again){ mini.again = false; buildMiniPreview(); }
+  }
+}
+
+/** Confirm: saari sheets bana kar unhe hi asli pages bana do. */
+async function miniConfirm(){
+  const btn = document.getElementById('miniNextBtn');
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Sheets ban rahi hain…'; }
+  try{
+    const total = miniSheetCount();
+    const built = [];
+    for(let i = 0; i < total; i++){
+      built.push(buildMiniSheet(i * mini.per, 220));
+      if(btn) btn.textContent = '⏳ Sheet ' + (i+1) + '/' + total + '…';
+      await new Promise(function(r){ setTimeout(r, 10); });   // UI freeze na ho
+    }
+
+    // Purane pages hata kar nayi mini sheets daal do — aage ka flow
+    // (preview → page range → payment) bilkul waisa hi chalega.
+    pages.length = 0;
+    activePageIdx = 0;
+    built.forEach(function(c){ addPage([c], true); });
+    activePageIdx = 0;
+
+    mini.active = false;
+    hide('secMini');
+    goToPreview();
+  }catch(e){
+    console.error('[mini] build failed', e);
+    toast('Sheets nahi ban payin — dobara try karo', 'err');
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = 'Aage Bado →'; }
+  }
+}
+
+function miniBack(){
+  mini.active = false;
+  hide('secMini');
+  show('secUpload');
+  setStep(1);
 }
 
 async function uploadDirect(blob, fileName) {
