@@ -4461,6 +4461,35 @@ app.post('/api/whitelabel/notify/test', verifyWhitelabel, async (req, res) => {
 app.get('/api/setup-fee/current', async (req, res) => {
   try {
     const pricing = await getSetupPricing();
+
+    // ── WHITE LABEL ──
+    // Partner ke site (subdomain ya ?wl=slug) par uska APNA price dikhna
+    // chahiye, hamara nahi. Pehle ye poori tarah chhoot gaya tha, isliye
+    // partner price badalta tha par uske URL par purana hi dikhta tha.
+    const wlHere = await resolveWhitelabel(req);
+    if (wlHere) {
+      const wlBase = wlHere.base_price || await getWlBasePrice();
+      const wlPrice = (wlHere.shop_price && wlHere.shop_price > wlBase) ? wlHere.shop_price : wlBase;
+      const fest0 = await getFestivalOffer();
+      return res.json({
+        ...pricing,
+        amount: wlPrice,
+        offerPrice: wlPrice,
+        actualPrice: wlPrice,        // partner ke yahan koi "cut" price nahi
+        monthlyPrice: wlHere.monthly_price || pricing.monthlyPrice,
+        advancedFee: await getAdvancedFee(),
+        monthlyActualPrice: wlHere.monthly_price || await getMonthlyActualFee(),
+        advancedActualPrice: await getAdvancedActualFee(),
+        // Festival offer hamara hai — partner ke price par lagu nahi hota
+        festivalOfferEnabled: false,
+        festivalOfferName: '',
+        festivalOfferEnd: null,
+        isWhitelabel: true,
+        wlSlug: wlHere.slug,
+        brandName: wlHere.brand_name
+      });
+    }
+
     const festival = await getFestivalOffer();
     const out = {
       amount: pricing.offerPrice, ...pricing,
@@ -4608,6 +4637,22 @@ app.post('/api/setup-fee/create', async (req, res) => {
     // Razorpay (uski kamai seedha usi ke paas jaati hai, hamare paas nahi).
     let payKeyId = OWNER_RAZORPAY_KEY_ID, payKeySecret = OWNER_RAZORPAY_KEY_SECRET;
     const wlIdOfShop = shopResult.rows[0].whitelabel_id || '';
+
+    // SAFETY: request kisi partner ke URL se aayi hai par shop par
+    // whitelabel_id nahi hai — matlab registration ke waqt context kho
+    // gaya tha. Aise me paisa CHUPCHAAP hamare account me nahi lena.
+    // Saaf error do taaki galti pakdi jaye, paisa galat jagah na jaye.
+    if (!wlIdOfShop) {
+      const wlReq = await resolveWhitelabel(req);
+      if (wlReq) {
+        console.error(`SETUP FEE MISMATCH: shop ${shopId} par whitelabel_id khaali hai `
+          + `par request partner "${wlReq.slug}" ke URL se aayi. Payment roka gaya.`);
+        return res.status(409).json({
+          error: 'Is shop ka partner account link nahi hua. Apne partner se sampark kariye.',
+          code: 'WL_LINK_MISSING'
+        });
+      }
+    }
     if (wlIdOfShop) {
       const w = await pool.query(
         'SELECT razorpay_key_id, razorpay_key_secret, blocked FROM whitelabels WHERE id=$1', [wlIdOfShop]);
