@@ -238,7 +238,13 @@ function selPlan(p) {
 }
 (async () => {
   try {
-    const r = await fetch('/api/setup-fee/current' + (new URLSearchParams(location.search).get('ref') ? '?ref=' + encodeURIComponent(new URLSearchParams(location.search).get('ref')) : ''));
+    // Page ke URL ka ?ref= aur ?wl= dono API ko bhejo.
+    // ?wl= gaya to partner ka apna price aata hai, hamara nahi.
+    const _q = new URLSearchParams(location.search);
+    const _p = new URLSearchParams();
+    if (_q.get('ref')) _p.set('ref', _q.get('ref'));
+    if (_q.get('wl'))  _p.set('wl',  _q.get('wl'));
+    const r = await fetch('/api/setup-fee/current' + (_p.toString() ? '?' + _p.toString() : ''));
     const d = await r.json();
     if (d.offerPrice !== undefined) document.getElementById('planOfferPrice').textContent = d.offerPrice;
     if (d.actualPrice) document.getElementById('planCutPrice').textContent = '₹' + d.actualPrice;
@@ -315,13 +321,19 @@ async function doRegister(){
   btn.disabled = true;
   btn.textContent = '⏳ Register ho raha hai...';
   try{
-    const r = await fetch('/api/shop/register', {
+    // ZAROORI: ?wl= yahan bhi bhejo. Iske bina server ko pata hi nahi
+    // chalta ki ye partner ki shop hai — shop platform ki ban jaati thi
+    // aur setup fee galat Razorpay account me chali jaati thi.
+    const _wl = new URLSearchParams(location.search).get('wl') || '';
+    const r = await fetch('/api/shop/register' + (_wl ? '?wl=' + encodeURIComponent(_wl) : ''), {
       method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
     });
     const d = await r.json();
     if(!d.success) throw new Error(d.error || 'Registration fail hui');
     // Seedha setup fee page — shopId path mein
-    location.href = '/setup-payment/' + d.shopId;
+    // ?wl= aage bhi le jao — payment page par partner ki branding/price
+    // sahi dikhe (subdomain wale case me ye apne aap bana rehta hai).
+    location.href = '/setup-payment/' + d.shopId + (_wl ? '?wl=' + encodeURIComponent(_wl) : '');
   }catch(e){
     showErr(e.message);
     btn.disabled = false;
