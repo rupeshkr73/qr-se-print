@@ -288,15 +288,253 @@ if (PRIMARY_HOST) {
   });
 }
 
+// ═══════════════════════════════════════════════
+// ANTI-ABUSE / SECURITY LAYER
+// Maqsad: koi bot Demo Creation ya Upload endpoint ko loop me maar ke
+// Cloudinary uploads aur Render bandwidth na jala sake.
+// Sabse zaroori rule: ye saare checks EXPENSIVE kaam (PDF processing,
+// Cloudinary call) se PEHLE chalte hain — baad me nahi.
+//
+// Genuine customer kabhi block nahi hona chahiye. Isliye:
+//   - limits udaar (generous) hain aur env se badli ja sakti hain
+//   - IP akela pehchaan nahi maana jaata (mobile network ek IP share karta hai)
+//   - block hamesha TEMPORARY hai, permanent ban kabhi nahi
+// ═══════════════════════════════════════════════
+const SEC = {
+  demoIpMax:      parseInt(process.env.DEMO_RATE_LIMIT      || '3', 10),
+  demoWindowMin:  parseInt(process.env.DEMO_RATE_WINDOW     || '15', 10),
+  uploadsPerDemo: parseInt(process.env.MAX_UPLOADS_PER_DEMO || '10', 10),
+  uploadsPerMin:  parseInt(process.env.MAX_UPLOADS_PER_MINUTE || '12', 10),
+  burstMin:       parseInt(process.env.MIN_UPLOAD_GAP_MS    || '1500', 10),
+  burstStrikes:   parseInt(process.env.BURST_STRIKES        || '5', 10),
+  blockMin:       parseInt(process.env.ABUSE_BLOCK_DURATION || '15', 10),
+  cldMaxRetries:  parseInt(process.env.MAX_CLOUDINARY_RETRIES || '3', 10),
+  globalPerMin:   parseInt(process.env.GLOBAL_UPLOADS_PER_MINUTE || '120', 10),
+  turnstileSecret: process.env.TURNSTILE_SECRET_KEY || '',
+  turnstileSiteKey: process.env.TURNSTILE_SITE_KEY || ''
+};
+
+function clientIp(req) {
+  return (req.headers['x-forwarded-for'] || '').split(',')[0].trim()
+      || req.socket.remoteAddress || 'unknown';
+}
+
+// ── SECURITY EVENT LOG ────────────────────────────────────────────
+// DB me likhte hain taaki superadmin dekh sake, par best-effort:
+// log fail ho to request kabhi fail nahi hoti.
+async function logSecurityEvent(ev) {
+  const line = `SECURITY EVENT | ${ev.action} | ip=${ev.ip || '-'} | demo=${ev.shopId || '-'}`
+             + ` | ${ev.endpoint || '-'} | reason=${ev.reason || '-'}`
+             + (ev.uploadCount != null ? ` | uploads=${ev.uploadCount}` : '');
+  console.warn(line);
+  try {
+    await pool.query(
+      `INSERT INTO security_events (ip, shop_id, endpoint, method, user_agent, action, reason, upload_count, file_size)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+      [String(ev.ip || '').slice(0,60), String(ev.shopId || '').slice(0,50),
+       String(ev.endpoint || '').slice(0,120), String(ev.method || '').slice(0,10),
+       String(ev.userAgent || '').slice(0,250), String(ev.action || '').slice(0,40),
+       String(ev.reason || '').slice(0,200),
+       Number.isFinite(ev.uploadCount) ? ev.uploadCount : null,
+       Number.isFinite(ev.fileSize) ? ev.fileSize : null]);
+  } catch (e) {
+    console.warn('security log write skipped:', e.message);
+  }
+}
+
+// ── IN-MEMORY COUNTERS ────────────────────────────────────────────
+// Render par ek hi instance chalta hai, isliye in-memory kaafi hai aur
+// har request par DB hit nahi hoti. Multi-instance par shift karo to
+// inhe Redis/Upstash me le jaana — logic wahi rahega.
+const demoIpHits   = new Map();   // ip        -> {count, resetAt}
+const uploadHits   = new Map();   // shopId    -> {count, resetAt, last, strikes}
+const abuseBlocks  = new Map();   // key       -> unblockAt (epoch ms)
+let   globalWindow = { count: 0, resetAt: Date.now() + 60000, tripped: false };
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, v] of demoIpHits)  if (now > v.resetAt) demoIpHits.delete(k);
+  for (const [k, v] of uploadHits)  if (now > v.resetAt + 3600000) uploadHits.delete(k);
+  for (const [k, t] of abuseBlocks) if (now > t) abuseBlocks.delete(k);
+}, 5 * 60 * 1000).unref();
+
+/** Temporary block — escalating, kabhi permanent nahi. */
+function blockFor(key, minutes, reason) {
+  const until = Date.now() + minutes * 60 * 1000;
+  const prev = abuseBlocks.get(key) || 0;
+  abuseBlocks.set(key, Math.max(prev, until));
+  console.warn(`SECURITY BLOCK | ${key} | ${minutes} min | ${reason}`);
+}
+function isBlocked(key) {
+  const until = abuseBlocks.get(key);
+  if (!until) return 0;
+  if (Date.now() > until) { abuseBlocks.delete(key); return 0; }
+  return Math.ceil((until - Date.now()) / 60000);   // minutes remaining
+}
+
+/** Demo creation: ek IP se DEMO_RATE_LIMIT per DEMO_RATE_WINDOW minutes. */
+function demoRateLimit(req, res, next) {
+  const ip = clientIp(req);
+  const mins = isBlocked('ip:' + ip);
+  if (mins) {
+    logSecurityEvent({ ip, endpoint: req.path, method: req.method, action: 'DEMO_REQUEST',
+                       reason: 'TEMP_BLOCKED', userAgent: req.headers['user-agent'] });
+    return res.status(429).json({ error: `Too many requests. Please try again in ${mins} minute(s).` });
+  }
+  const now = Date.now();
+  let e = demoIpHits.get(ip);
+  if (!e || now > e.resetAt) { e = { count: 0, resetAt: now + SEC.demoWindowMin * 60000 }; demoIpHits.set(ip, e); }
+  e.count++;
+  if (e.count > SEC.demoIpMax) {
+    // Baar-baar limit todne par thoda lamba temporary block
+    if (e.count > SEC.demoIpMax * 3) blockFor('ip:' + ip, SEC.blockMin, 'repeated demo spam');
+    logSecurityEvent({ ip, endpoint: req.path, method: req.method, action: 'DEMO_REQUEST',
+                       reason: 'IP_RATE_LIMIT', uploadCount: e.count,
+                       userAgent: req.headers['user-agent'] });
+    return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+  }
+  next();
+}
+
+/** Cloudflare Turnstile — sirf tab enforce hota hai jab secret set ho. */
+async function verifyTurnstile(token, ip) {
+  if (!SEC.turnstileSecret) return { ok: true, skipped: true };   // configure nahi hai
+  if (!token) return { ok: false, reason: 'missing token' };
+  try {
+    const body = new URLSearchParams({ secret: SEC.turnstileSecret, response: token, remoteip: ip || '' }).toString();
+    const out = await new Promise((resolve, reject) => {
+      const r = https.request({
+        hostname: 'challenges.cloudflare.com', path: '/turnstile/v0/siteverify', method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) }
+      }, (resp) => {
+        let d = ''; resp.on('data', c => d += c);
+        resp.on('end', () => { try { resolve(JSON.parse(d)); } catch (e) { reject(e); } });
+      });
+      r.on('error', reject);
+      r.setTimeout(8000, () => { r.destroy(); reject(new Error('turnstile timeout')); });
+      r.write(body); r.end();
+    });
+    return { ok: !!out.success, reason: (out['error-codes'] || []).join(',') };
+  } catch (e) {
+    // Cloudflare down ho to genuine users ko block mat karo — fail-open,
+    // baaki saari layers (rate limit, quota, burst) waise hi lagi hain.
+    console.warn('Turnstile verify failed (fail-open):', e.message);
+    return { ok: true, degraded: true };
+  }
+}
+
+/**
+ * Upload quota + burst detection, per demo/shop.
+ * Ye CIRCUIT BREAKER hai: trip hote hi PDF processing aur Cloudinary
+ * dono ruk jaate hain.
+ */
+function checkUploadAbuse(shopId, isDemo) {
+  const key = 'shop:' + shopId;
+  const mins = isBlocked(key);
+  if (mins) return { ok: false, reason: 'TEMP_BLOCKED',
+                     error: `Too many uploads. Please try again in ${mins} minute(s).` };
+
+  const now = Date.now();
+  let e = uploadHits.get(shopId);
+  if (!e || now > e.resetAt) e = { count: 0, resetAt: now + 60000, last: 0, strikes: 0, total: e ? e.total : 0 };
+  e.total = (e.total || 0);
+
+  // Burst: lagatar bahut kam gap me uploads
+  if (e.last && (now - e.last) < SEC.burstMin) {
+    e.strikes++;
+    if (e.strikes >= SEC.burstStrikes) {
+      uploadHits.set(shopId, e);
+      blockFor(key, SEC.blockMin, 'upload burst');
+      return { ok: false, reason: 'UPLOAD_BURST',
+               error: 'Uploads are coming in too fast. Please wait a moment and try again.' };
+    }
+  } else if (e.strikes > 0 && (now - e.last) > 10000) {
+    e.strikes--;                       // shaant raha to strike maaf
+  }
+
+  e.count++; e.last = now; e.total++;
+  uploadHits.set(shopId, e);
+
+  if (e.count > SEC.uploadsPerMin) {
+    blockFor(key, SEC.blockMin, 'uploads per minute exceeded');
+    return { ok: false, reason: 'UPLOAD_RATE',
+             error: 'Too many uploads in a short time. Please try again in a few minutes.' };
+  }
+  // Demo par total upload quota bhi (print limit se alag — ye attempts hain)
+  if (isDemo && e.total > SEC.uploadsPerDemo * 3) {
+    blockFor(key, SEC.blockMin, 'demo upload quota exceeded');
+    return { ok: false, reason: 'DEMO_UPLOAD_QUOTA',
+             error: 'Demo upload limit reached. Please upgrade to continue.' };
+  }
+  return { ok: true, count: e.count, total: e.total };
+}
+
+/**
+ * GLOBAL EMERGENCY BRAKE — agar poore server par upload rate achanak
+ * threshold se upar chala jaye (koi loop / bug / attack), naye uploads
+ * temporarily band. Threshold jaan-boojh kar udaar rakha hai taaki
+ * normal busy din par kabhi trip na ho.
+ */
+function globalBrake() {
+  const now = Date.now();
+  if (now > globalWindow.resetAt) {
+    if (globalWindow.tripped) console.warn('GLOBAL BRAKE released');
+    globalWindow = { count: 0, resetAt: now + 60000, tripped: false };
+  }
+  globalWindow.count++;
+  if (globalWindow.count > SEC.globalPerMin) {
+    if (!globalWindow.tripped) {
+      globalWindow.tripped = true;
+      console.error(`GLOBAL BRAKE TRIPPED — ${globalWindow.count} uploads in 1 minute (limit ${SEC.globalPerMin})`);
+      logSecurityEvent({ action: 'GLOBAL_BRAKE', reason: `${globalWindow.count} uploads/min`,
+                         endpoint: 'global', uploadCount: globalWindow.count });
+    }
+    return false;
+  }
+  return true;
+}
+
+// ═══════════════════════════════════════════════
+// UPLOAD GUARDRAILS — sab limits ek jagah, env se configurable
+// ═══════════════════════════════════════════════
+const MAX_UPLOAD_MB        = parseInt(process.env.MAX_UPLOAD_MB || '20', 10);
+const MAX_UPLOAD_BYTES     = MAX_UPLOAD_MB * 1024 * 1024;
+const MAX_PDF_PAGES        = parseInt(process.env.MAX_PDF_PAGES || '20', 10);
+const DUP_UPLOAD_LIMIT     = parseInt(process.env.DUP_UPLOAD_LIMIT || '5', 10);
+const DUP_UPLOAD_WINDOW_MIN= parseInt(process.env.DUP_UPLOAD_WINDOW_MIN || '60', 10);
+// Job kitni der 'printing' me atka rahe uske baad fail + delete
+const STUCK_JOB_TIMEOUT_SEC = parseInt(process.env.STUCK_JOB_TIMEOUT_SEC || '120', 10);
+// 0 = seedha fail (spec ke hisab se). 1 = ek baar dobara try. Slow printer
+// wali shops complain karein to isko 1 kar dena.
+const STUCK_JOB_RETRIES     = parseInt(process.env.STUCK_JOB_RETRIES || '0', 10);
+
+const LIMIT_MSG = {
+  size:  `File too large. Maximum ${MAX_UPLOAD_MB} MB is allowed.`,
+  pages: `Maximum ${MAX_PDF_PAGES} page PDF is allowed.`,
+  dup:   `You cannot upload the same file again and again. Please try after some time.`
+};
+
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 },
+  limits: { fileSize: MAX_UPLOAD_BYTES },
   fileFilter: (req, file, cb) => {
     const allowed = ['.pdf','.jpg','.jpeg','.png','.doc','.docx'];
     const ext = path.extname(file.originalname).toLowerCase();
     allowed.includes(ext) ? cb(null, true) : cb(new Error('File type not allowed'));
   }
 });
+
+// Multer ki limit toote to default Express 500 deta hai — customer ko
+// samajh nahi aata. Saaf message + sahi status code do.
+function handleUploadErrors(err, req, res, next) {
+  if (err && err.code === 'LIMIT_FILE_SIZE') {
+    return res.status(413).json({ error: LIMIT_MSG.size });
+  }
+  if (err && err.message === 'File type not allowed') {
+    return res.status(415).json({ error: 'This file type is not supported. Please upload a PDF, image or Word file.' });
+  }
+  return next(err);
+}
 
 const PRINTER_MODELS = [
   '🔍 Auto Detect (System Installed Printer)',
@@ -396,6 +634,36 @@ async function uploadImageToCloudinary(fileBuffer, mimeType) {
     });
     req.on('error', reject); req.write(postData); req.end();
   });
+}
+
+/**
+ * Cloudinary upload with BOUNDED retry.
+ * Infinite retry loop bilkul nahi: max MAX_CLOUDINARY_RETRIES attempts,
+ * exponential backoff, phir final failure. Ek bug ya network flap ghanton
+ * tak Cloudinary/Render bandwidth nahi jala sakta.
+ */
+async function uploadToCloudinaryWithRetry(fileBuffer, fileType) {
+  const max = Math.max(1, Math.min(5, SEC.cldMaxRetries));
+  let lastErr = null;
+  for (let attempt = 1; attempt <= max; attempt++) {
+    try {
+      return await uploadToCloudinary(fileBuffer, fileType);
+    } catch (err) {
+      lastErr = err;
+      // 4xx = hamari galti (bad signature/file) — retry se theek nahi hoga
+      if (/\b4\d\d\b/.test(err.message || '') || /Invalid|signature/i.test(err.message || '')) {
+        console.warn(`Cloudinary upload attempt ${attempt}: permanent error, not retrying — ${err.message}`);
+        break;
+      }
+      if (attempt < max) {
+        const wait = Math.min(500 * Math.pow(2, attempt - 1), 4000);   // 500ms, 1s, 2s, 4s
+        console.warn(`Cloudinary upload attempt ${attempt}/${max} failed (${err.message}) — retry in ${wait}ms`);
+        await new Promise(r => setTimeout(r, wait));
+      }
+    }
+  }
+  console.error(`Cloudinary upload FAILED after ${max} attempts — giving up`);
+  throw lastErr || new Error('Cloudinary upload failed');
 }
 
 async function uploadToCloudinary(fileBuffer, fileType) {
@@ -595,6 +863,7 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS payment_mode VARCHAR(20) DEFAULT 'both';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_last_seen TIMESTAMP;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_version INT;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_version_label VARCHAR(20);
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS whitelabel_id VARCHAR(50) DEFAULT '';
       ALTER TABLE whitelabels ADD COLUMN IF NOT EXISTS notify_email VARCHAR(160) DEFAULT '';
       -- ── White-label: homepage customization + Cashfree support ──
@@ -628,6 +897,35 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_credited BOOLEAN DEFAULT false;
       CREATE UNIQUE INDEX IF NOT EXISTS idx_shops_agent_code ON shops(agent_code) WHERE agent_code IS NOT NULL;
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS printing_at TIMESTAMP;
+      -- Ek hi file baar-baar upload hone se rokne ke liye. Hash client se
+      -- aata hai (SHA-256). Rolling window ke bahar ke rows apne aap saaf
+      -- ho jaate hain, isliye table chhota rehta hai.
+      CREATE TABLE IF NOT EXISTS upload_fingerprints (
+        shop_id    VARCHAR(50)  NOT NULL,
+        file_hash  VARCHAR(64)  NOT NULL,
+        hits       INTEGER      NOT NULL DEFAULT 1,
+        first_seen TIMESTAMP    NOT NULL DEFAULT NOW(),
+        last_seen  TIMESTAMP    NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (shop_id, file_hash)
+      );
+      CREATE INDEX IF NOT EXISTS idx_upload_fp_last_seen ON upload_fingerprints(last_seen);
+      -- Har block/abuse event ka record. Superadmin isi se dekhta hai ki
+      -- kaun, kab, kyun block hua. 7 din se purane rows apne aap saaf.
+      CREATE TABLE IF NOT EXISTS security_events (
+        id           BIGSERIAL PRIMARY KEY,
+        created_at   TIMESTAMP    NOT NULL DEFAULT NOW(),
+        ip           VARCHAR(60)  DEFAULT '',
+        shop_id      VARCHAR(50)  DEFAULT '',
+        endpoint     VARCHAR(120) DEFAULT '',
+        method       VARCHAR(10)  DEFAULT '',
+        user_agent   VARCHAR(250) DEFAULT '',
+        action       VARCHAR(40)  DEFAULT '',
+        reason       VARCHAR(200) DEFAULT '',
+        upload_count INTEGER,
+        file_size    BIGINT
+      );
+      CREATE INDEX IF NOT EXISTS idx_sec_events_time ON security_events(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_sec_events_ip   ON security_events(ip, created_at DESC);
       ALTER TABLE print_jobs ADD COLUMN IF NOT EXISTS retry_count INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS password_hash VARCHAR(255);
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS payment_gateway VARCHAR(20) DEFAULT '';
@@ -697,6 +995,8 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS adv_resume_active BOOLEAN DEFAULT true;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS adv_4x6_active    BOOLEAN DEFAULT true;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS adv_a3_active     BOOLEAN DEFAULT true;
+      -- Mini Print: ek A4 sheet par 2/4/6/8/9/12/16 pages (kagaz bachta hai)
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS adv_mini_active   BOOLEAN DEFAULT true;
       -- Purane demo accounts ko bhi advanced features de do. Sirf demo par —
       -- paid shops ka paywall bilkul waise ka waisa rehta hai.
       UPDATE shops SET advanced_unlocked = true
@@ -723,6 +1023,17 @@ async function initDB() {
         shop_id VARCHAR(50),
         created_at TIMESTAMP DEFAULT NOW()
       );
+      -- ── Demo approval workflow (Phase 3) ──
+      -- Purane rows ka status 'approved' rahega (DEFAULT), isliye pehle se
+      -- bane demos par koi asar nahi padta.
+      ALTER TABLE demo_registrations ADD COLUMN IF NOT EXISTS name          VARCHAR(120) DEFAULT '';
+      ALTER TABLE demo_registrations ADD COLUMN IF NOT EXISTS email         VARCHAR(160) DEFAULT '';
+      ALTER TABLE demo_registrations ADD COLUMN IF NOT EXISTS shop_name     VARCHAR(200) DEFAULT '';
+      ALTER TABLE demo_registrations ADD COLUMN IF NOT EXISTS address       TEXT         DEFAULT '';
+      ALTER TABLE demo_registrations ADD COLUMN IF NOT EXISTS printer_model VARCHAR(120) DEFAULT '';
+      ALTER TABLE demo_registrations ADD COLUMN IF NOT EXISTS status        VARCHAR(20)  DEFAULT 'approved';
+      ALTER TABLE demo_registrations ADD COLUMN IF NOT EXISTS reviewed_at   TIMESTAMP;
+      CREATE INDEX IF NOT EXISTS idx_demo_reg_status ON demo_registrations(status, created_at DESC);
       CREATE TABLE IF NOT EXISTS demo_machines (
         machine_id VARCHAR(100) PRIMARY KEY,
         shop_id VARCHAR(50),
@@ -873,8 +1184,23 @@ async function initDB() {
       VALUES ('agent_version', '1')
       ON CONFLICT (key) DO NOTHING
     `);
+    // ── Display version label (2.0, 2.1, 2.2 ... 2.10, then 3.0) ──
+    // 'agent_version' ek INTERNAL counter hai jo sirf badhta hai (29, 30, 31...).
+    // Purane agents (v27/v28/v29) isi integer ko compare karke auto-update
+    // karte hain — isliye ise kabhi "2.0" mat banao, warna woh sab agents
+    // hamesha ke liye update lena band kar denge.
+    // Customer ko dikhne wala version yeh label hai.
+    await pool.query(`
+      INSERT INTO system_settings (key, value)
+      VALUES ('agent_version_label', '')
+      ON CONFLICT (key) DO NOTHING
+    `);
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_enabled','1') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_minutes','120') ON CONFLICT DO NOTHING");
+    // Demo me kitne free print milenge (spec: 10)
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_print_limit','10') ON CONFLICT DO NOTHING");
+    // '1' = demo turant ban jaaye (purana behaviour). '0' = superadmin approve kare.
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_auto_approve','0') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('monthly_fee','399') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('advanced_fee','199') ON CONFLICT DO NOTHING");
     // Agent Base Price (0 = abhi tak set nahi — tab tak agent ka floor = public
@@ -1047,7 +1373,8 @@ const ADV_MODULE_COLS = {
   legal:  'adv_legal_active',
   resume: 'adv_resume_active',
   '4x6':  'adv_4x6_active',
-  a3:     'adv_a3_active'
+  a3:     'adv_a3_active',
+  mini:   'adv_mini_active'
 };
 
 app.post('/api/shop/advance-module', verifyToken, async (req, res) => {
@@ -1060,7 +1387,7 @@ app.post('/api/shop/advance-module', verifyToken, async (req, res) => {
     const active = req.body.active === true;
     const r = await pool.query(
       `UPDATE shops SET ${col}=$1 WHERE id=$2
-       RETURNING adv_legal_active, adv_resume_active, adv_4x6_active, adv_a3_active`,
+       RETURNING adv_legal_active, adv_resume_active, adv_4x6_active, adv_a3_active, adv_mini_active`,
       [active, req.shopId]);
     res.json({ success: true, modules: r.rows[0] });
   } catch(err) { res.status(500).json({ error: err.message }); }
@@ -1652,7 +1979,7 @@ app.get('/api/superadmin/demos', verifySuperAdmin, async (req, res) => {
   try {
     const r = await pool.query(
       `SELECT s.id, s.name, s.phone, s.created_at, s.demo_expires_at, s.agent_last_seen,
-              EXTRACT(EPOCH FROM (NOW() - s.agent_last_seen))::int AS agent_seconds_ago, s.agent_version,
+              EXTRACT(EPOCH FROM (NOW() - s.agent_last_seen))::int AS agent_seconds_ago, s.agent_version, s.agent_version_label,
               (SELECT COUNT(*) FROM print_jobs j WHERE j.shop_id = s.id) as total_jobs,
               (SELECT COUNT(*) FROM print_jobs j WHERE j.shop_id = s.id AND j.payment_status='paid') as prints
        FROM shops s WHERE s.demo = true
@@ -1686,11 +2013,92 @@ app.post('/api/superadmin/withdrawals/:id/complete', verifySuperAdmin, async (re
 // (3) ek MACHINE = ek demo permanent (agent MachineGuid bhejta hai).
 async function getDemoConfig() {
   try {
-    const r = await pool.query("SELECT key,value FROM system_settings WHERE key IN ('demo_enabled','demo_minutes')");
+    const r = await pool.query(
+      "SELECT key,value FROM system_settings WHERE key IN ('demo_enabled','demo_minutes','demo_print_limit','demo_auto_approve')");
     const m = Object.fromEntries(r.rows.map(x => [x.key, x.value]));
     const mins = Math.max(15, Math.min(1440, parseInt(m.demo_minutes) || 120)); // 15 min .. 24 hr guard
-    return { enabled: (m.demo_enabled || '1') === '1', minutes: mins };
-  } catch (e) { return { enabled: true, minutes: 120 }; }
+    return {
+      enabled: (m.demo_enabled || '1') === '1',
+      minutes: mins,
+      printLimit: Math.max(1, Math.min(1000, parseInt(m.demo_print_limit) || 10)),
+      autoApprove: (m.demo_auto_approve || '0') === '1'
+    };
+  } catch (e) { return { enabled: true, minutes: 120, printLimit: 10, autoApprove: false }; }
+}
+
+/**
+ * Demo shop banao. Approval ke baad (superadmin) aur legacy auto-approve
+ * dono yahi function use karte hain — do jagah logic duplicate nahi hoti.
+ * Timer YAHIN se shuru hota hai, registration ke waqt se nahi.
+ */
+async function createDemoShop(d) {
+  const cfg = await getDemoConfig();
+  const shopId = 'DEMO_' + crypto.randomBytes(4).toString('hex').toUpperCase();
+  const passwordHash = await hashPassword(d.phone);
+  const shopName = (d.shopName || d.name || 'Demo Shop').slice(0, 180);
+
+  await pool.query(
+    // advanced_unlocked=true — demo me saare advanced features khule rehte
+    // hain. Aadha software dikha kar paise maangna ulta padta hai.
+    `INSERT INTO shops (id, name, phone, email, address, printer_model,
+                        price_bw, price_color, payment_mode, password_hash,
+                        setup_paid, setup_amount, demo, demo_expires_at, advanced_unlocked)
+     VALUES ($1,$2,$3,$4,$5,$6,5,10,'counter_only',$7,true,0,true,
+             NOW() + ($8 || ' minutes')::INTERVAL, true)`,
+    [shopId, shopName + ' (Demo)', d.phone, (d.email || '').slice(0,150),
+     (d.address || '').slice(0,300), (d.printerModel || '').slice(0,100),
+     passwordHash, String(cfg.minutes)]);
+
+  const qrUrl = `${BASE_URL}/print/${shopId}`;
+  const qrCode = await QRCode.toDataURL(qrUrl, { width: 300, margin: 2 });
+  await pool.query('UPDATE shops SET qr_code=$1 WHERE id=$2', [qrCode, shopId]);
+
+  return { shopId, qrUrl, qrCode, minutes: cfg.minutes, printLimit: cfg.printLimit };
+}
+
+/**
+ * Upgrade karne par kaun se plan available hain — server se aate hain,
+ * frontend me hardcode nahi. Demo limit hit hone par yahi dikhaye jaate hain.
+ */
+async function getUpgradePlans() {
+  try {
+    const r = await pool.query(
+      "SELECT key,value FROM system_settings WHERE key IN ('monthly_fee','lifetime_fee')");
+    const m = Object.fromEntries(r.rows.map(x => [x.key, x.value]));
+    const monthly = parseInt(m.monthly_fee) || 399;
+    const lifetime = parseInt(m.lifetime_fee) || 999;
+    return [
+      { id: 'monthly',  name: 'Monthly Plan',  price: monthly,  period: '/month',
+        note: 'Unlimited prints, all advanced features' },
+      { id: 'lifetime', name: 'Lifetime Plan', price: lifetime, period: 'one-time',
+        note: 'Pay once, use forever — no renewal' }
+    ];
+  } catch (e) {
+    return [{ id: 'monthly', name: 'Monthly Plan', price: 399, period: '/month', note: '' }];
+  }
+}
+
+/**
+ * Demo shop ne apni free print limit to nahi cross kar li?
+ * Har paid-print path se pehle call hota hai.
+ */
+async function checkDemoAllowance(shopId) {
+  const r = await pool.query('SELECT demo, demo_expires_at FROM shops WHERE id=$1', [shopId]);
+  if (!r.rows.length || !r.rows[0].demo) return { ok: true, demo: false };
+
+  const cfg = await getDemoConfig();
+  if (isDemoExpired(r.rows[0])) {
+    return { ok: false, demo: true, reason: 'expired', used: null, limit: cfg.printLimit,
+             error: 'Your demo has ended. Please upgrade to continue printing.' };
+  }
+  const c = await pool.query(
+    "SELECT COUNT(*)::int AS n FROM print_jobs WHERE shop_id=$1 AND payment_status='paid'", [shopId]);
+  const used = c.rows[0].n;
+  if (used >= cfg.printLimit) {
+    return { ok: false, demo: true, reason: 'limit', used, limit: cfg.printLimit,
+             error: `Free demo limit reached (${cfg.printLimit} prints). Please upgrade to continue printing.` };
+  }
+  return { ok: true, demo: true, used, limit: cfg.printLimit, remaining: cfg.printLimit - used };
 }
 
 function normPhone(p) {
@@ -1702,10 +2110,242 @@ function isDemoExpired(shop) {
          new Date(shop.demo_expires_at).getTime() < Date.now();
 }
 
+// ═══════════════════════════════════════════════
+// DEMO REQUEST → SUPERADMIN APPROVAL → ACTIVATION
+// Public form ab seedha shop nahi banata. Pehle 'pending' request banti
+// hai; superadmin Accept kare tabhi demo shop create hoti hai aur 2 ghante
+// ka timer shuru hota hai.
+// ═══════════════════════════════════════════════
+app.post('/api/demo/request', demoRateLimit, async (req, res) => {
+  try {
+    const cfg = await getDemoConfig();
+    if (!cfg.enabled) {
+      return res.status(403).json({ error: 'Demo is currently unavailable. Please register directly.' });
+    }
+
+    const b = req.body || {};
+    const name    = String(b.name || '').trim().slice(0, 100);
+    const phone   = normPhone(b.phone);
+    const shopName= String(b.shopName || '').trim().slice(0, 180);
+    const address = String(b.address || '').trim().slice(0, 300);
+    const email   = String(b.email || '').trim().slice(0, 150);
+    const printer = String(b.printerModel || '').trim().slice(0, 100);
+
+    if (!name)      return res.status(400).json({ error: 'Please enter your name' });
+    if (!phone)     return res.status(400).json({ error: 'Please enter a valid 10-digit mobile number' });
+    if (!shopName)  return res.status(400).json({ error: 'Please enter your shop name' });
+    if (!address)   return res.status(400).json({ error: 'Please enter your shop address' });
+    if (!printer)   return res.status(400).json({ error: 'Please select your printer' });
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      return res.status(400).json({ error: 'Please enter a valid email address' });
+    }
+
+    // Bot challenge — sirf tab enforce hota hai jab TURNSTILE_SECRET_KEY set ho.
+    // Set na ho to skip, taaki abhi kuch na toote.
+    const ts = await verifyTurnstile(b.turnstileToken, clientIp(req));
+    if (!ts.ok) {
+      await logSecurityEvent({ ip: clientIp(req), endpoint: '/api/demo/request', method: 'POST',
+        action: 'DEMO_REQUEST', reason: 'CAPTCHA_FAILED:' + (ts.reason || ''),
+        userAgent: req.headers['user-agent'] });
+      return res.status(403).json({ error: 'Verification failed. Please refresh the page and try again.' });
+    }
+
+    // Layer 1: ek phone = ek demo (pending ya approved, dono count hote hain)
+    const dup = await pool.query('SELECT status FROM demo_registrations WHERE phone=$1', [phone]);
+    if (dup.rows.length) {
+      return res.status(400).json({
+        error: dup.rows[0].status === 'pending'
+          ? 'A demo request for this number is already awaiting approval.'
+          : 'A demo has already been taken on this number. Please register to continue.'
+      });
+    }
+    const dupShop = await pool.query('SELECT id FROM shops WHERE phone=$1 AND demo=true', [phone]);
+    if (dupShop.rows.length) {
+      return res.status(400).json({ error: 'A demo has already been taken on this number. Please register to continue.' });
+    }
+
+    // Layer 2: ek IP se max 2 request / din
+    const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim().slice(0, 60);
+    const ipCount = await pool.query(
+      "SELECT COUNT(*)::int AS n FROM demo_registrations WHERE ip=$1 AND created_at > NOW() - INTERVAL '24 hours'", [ip]);
+    if (ipCount.rows[0].n >= 2) {
+      return res.status(429).json({ error: "Today's demo limit reached. Please try tomorrow or register now." });
+    }
+
+    let reg;
+    try {
+      reg = await pool.query(
+        `INSERT INTO demo_registrations (phone, ip, name, email, shop_name, address, printer_model, status)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,'pending') RETURNING id`,
+        [phone, ip, name, email, shopName, address, printer]);
+    } catch (e) {
+      if (e.code === '23505') {   // race: doosri request pehle aa gayi
+        return res.status(400).json({ error: 'A demo request for this number already exists.' });
+      }
+      throw e;
+    }
+
+    // Legacy auto-approve (default OFF) — rollback ke liye rakha hai.
+    if (cfg.autoApprove) {
+      const created = await createDemoShop({ name, phone, shopName, address, email, printerModel: printer });
+      await pool.query(
+        "UPDATE demo_registrations SET shop_id=$1, status='approved', reviewed_at=NOW() WHERE id=$2",
+        [created.shopId, reg.rows[0].id]);
+      console.log(`Demo auto-approved: ${created.shopId} | ${phone} | ip ${ip}`);
+      return res.json({ success: true, approved: true, shopId: created.shopId, password: phone,
+                        qrUrl: created.qrUrl, qrCode: created.qrCode,
+                        expiresInMinutes: created.minutes });
+    }
+
+    console.log(`Demo REQUEST received: #${reg.rows[0].id} | ${name} | ${phone} | ${shopName} | ip ${ip}`);
+    res.json({
+      success: true, approved: false, requestId: reg.rows[0].id,
+      message: 'Your demo request has been submitted. We will activate it shortly and send your Shop ID on WhatsApp.'
+    });
+  } catch(err) {
+    console.error('Demo request error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── SUPERADMIN: security events + live block state ───
+app.get('/api/superadmin/security-events', verifySuperAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(200, Math.max(10, parseInt(req.query.limit, 10) || 50));
+    const r = await pool.query(
+      `SELECT id, created_at, ip, shop_id, endpoint, method, action, reason, upload_count, file_size
+         FROM security_events ORDER BY created_at DESC LIMIT $1`, [limit]);
+
+    const since = new Date(Date.now() - 24 * 3600 * 1000);
+    const stats = await pool.query(
+      `SELECT COUNT(*)::int AS total,
+              COUNT(DISTINCT ip)::int AS ips,
+              COUNT(*) FILTER (WHERE reason LIKE 'IP_RATE_LIMIT%')::int  AS rate_limited,
+              COUNT(*) FILTER (WHERE reason LIKE 'UPLOAD_BURST%')::int   AS bursts,
+              COUNT(*) FILTER (WHERE reason LIKE 'CAPTCHA_FAILED%')::int AS captcha_fails
+         FROM security_events WHERE created_at > $1`, [since]);
+
+    // Abhi kaun block hai (in-memory)
+    const now = Date.now();
+    const active = [];
+    for (const [k, until] of abuseBlocks) {
+      if (until > now) active.push({ key: k, minutesLeft: Math.ceil((until - now) / 60000) });
+    }
+    res.json({
+      events: r.rows,
+      last24h: stats.rows[0],
+      activeBlocks: active,
+      globalBrake: { tripped: globalWindow.tripped, count: globalWindow.count, limit: SEC.globalPerMin },
+      config: {
+        demoIpMax: SEC.demoIpMax, demoWindowMin: SEC.demoWindowMin,
+        uploadsPerMin: SEC.uploadsPerMin, blockMin: SEC.blockMin,
+        turnstile: !!SEC.turnstileSecret
+      }
+    });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Galti se block ho gaya genuine customer — superadmin turant chhoda de
+app.post('/api/superadmin/security-unblock', verifySuperAdmin, async (req, res) => {
+  try {
+    const key = String(req.body.key || '').trim();
+    if (!key) {                       // sab clear
+      const n = abuseBlocks.size;
+      abuseBlocks.clear();
+      console.log(`SECURITY: all ${n} blocks cleared by superadmin`);
+      return res.json({ success: true, cleared: n });
+    }
+    const had = abuseBlocks.delete(key);
+    console.log(`SECURITY: block cleared by superadmin | ${key} | found=${had}`);
+    res.json({ success: true, cleared: had ? 1 : 0 });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Homepage ko Turnstile site key chahiye (public key — secret nahi)
+app.get('/api/security/challenge', (req, res) => {
+  res.json({ enabled: !!SEC.turnstileSecret, siteKey: SEC.turnstileSiteKey || '' });
+});
+
+// ─── SUPERADMIN: pending demo requests ───
+app.get('/api/superadmin/demo-requests', verifySuperAdmin, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `SELECT id, name, phone, email, shop_name, address, printer_model, ip,
+              shop_id, status, created_at, reviewed_at
+         FROM demo_registrations
+        WHERE status = 'pending'
+        ORDER BY created_at DESC LIMIT 200`);
+    res.json(r.rows);
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── SUPERADMIN: Accept ───
+app.post('/api/superadmin/demo-requests/:id/approve', verifySuperAdmin, async (req, res) => {
+  try {
+    const r = await pool.query(
+      "SELECT * FROM demo_registrations WHERE id=$1 AND status='pending'", [req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Pending request not found' });
+    const d = r.rows[0];
+
+    const created = await createDemoShop({
+      name: d.name, phone: d.phone, shopName: d.shop_name,
+      address: d.address, email: d.email, printerModel: d.printer_model
+    });
+
+    await pool.query(
+      "UPDATE demo_registrations SET shop_id=$1, status='approved', reviewed_at=NOW() WHERE id=$2",
+      [created.shopId, d.id]);
+
+    // WhatsApp message — superadmin ek click me bhej de
+    const hours = Math.round(created.minutes / 60);
+    const waText =
+      `Hello ${d.name}, your QR Se Print demo account is activated for ${hours} Hours ` +
+      `with a Limit of ${created.printLimit} Free prints.\n\n` +
+      `Shop ID: ${created.shopId}\n` +
+      `Password: ${d.phone} (your mobile number)\n\n` +
+      `Login: ${BASE_URL}/admin\n` +
+      `Download the Print Agent from your dashboard, install it on your PC and enter this Shop ID.`;
+
+    console.log(`Demo APPROVED: ${created.shopId} | request #${d.id} | ${d.phone}`);
+    res.json({
+      success: true, shopId: created.shopId, password: d.phone,
+      name: d.name, phone: d.phone, shopName: d.shop_name,
+      hours, printLimit: created.printLimit,
+      qrUrl: created.qrUrl,
+      whatsappUrl: `https://wa.me/91${d.phone}?text=` + encodeURIComponent(waText),
+      whatsappText: waText
+    });
+  } catch(err) {
+    console.error('Demo approve error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── SUPERADMIN: Delete (reject) ───
+// Row poori tarah delete hoti hai taaki phone number dobara free ho jaye.
+app.delete('/api/superadmin/demo-requests/:id', verifySuperAdmin, async (req, res) => {
+  try {
+    const r = await pool.query(
+      "DELETE FROM demo_registrations WHERE id=$1 AND status='pending' RETURNING phone, name", [req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Pending request not found' });
+    console.log(`Demo request DELETED: #${req.params.id} | ${r.rows[0].phone}`);
+    res.json({ success: true, deleted: r.rows[0] });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/api/demo/create', async (req, res) => {
   try {
     const cfg = await getDemoConfig();
     if (!cfg.enabled) return res.status(403).json({ error: 'Demo abhi band hai — thodi der baad try karo ya seedha register karo' });
+    // Ab demo superadmin approval se banta hai. Ye purana instant-create
+    // endpoint sirf tab chalega jab demo_auto_approve='1' ho (rollback ke
+    // liye). Warna sab /api/demo/request par jaayenge.
+    if (!cfg.autoApprove) {
+      return res.status(410).json({
+        error: 'Demo now requires approval. Please submit the demo request form.',
+        useEndpoint: '/api/demo/request'
+      });
+    }
 
     const name = String(req.body.name || '').trim().slice(0, 100);
     const phone = normPhone(req.body.phone);
@@ -2070,7 +2710,7 @@ app.get('/api/superadmin/action-center', verifySuperAdmin, async (req, res) => {
     //    Jinhone kabhi install hi nahi kiya wo yahan nahi aate, wo alag
     //    problem hai (onboarding), yahan sirf toota hua setup dikhta hai.
     const agentOffline = await pool.query(`
-      SELECT id, name, phone, agent_last_seen, agent_version,
+      SELECT id, name, phone, agent_last_seen, agent_version, agent_version_label,
              FLOOR(EXTRACT(EPOCH FROM (NOW() - agent_last_seen))/3600)::int AS hours_ago
       FROM shops
       WHERE demo = false AND setup_paid = true AND paused = false
@@ -4419,14 +5059,23 @@ app.get('/api/shop/:shopId/demo-status', async (req, res) => {
     if (!r.rows.length) return res.status(404).json({ error: 'Shop not found' });
     const s = r.rows[0];
     const expired = !!(s.demo && s.demo_expires_at && new Date(s.demo_expires_at).getTime() < Date.now());
-    res.json({ demo: !!s.demo, demo_expires_at: s.demo_expires_at, expired });
+    const out = { demo: !!s.demo, demo_expires_at: s.demo_expires_at, expired };
+    if (s.demo) {
+      const a = await checkDemoAllowance(req.params.shopId);
+      out.printsUsed = a.used;
+      out.printLimit = a.limit;
+      out.printsLeft = a.ok ? a.remaining : 0;
+      out.limitReached = !a.ok && a.reason === 'limit';
+      if (!a.ok) { out.upgradeMessage = a.error; out.plans = await getUpgradePlans(); }
+    }
+    res.json(out);
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/shop/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,shop_notice,advanced_active,shop_logo,adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active FROM shops WHERE id=$1',
+      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,shop_notice,advanced_active,shop_logo,adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,adv_mini_active FROM shops WHERE id=$1',
       [req.params.shopId]
     );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
@@ -4439,6 +5088,7 @@ app.get('/api/shop/:shopId', async (req, res) => {
     shopInfo.advanced_unlocked = advOn;
     // Har module ka effective status = advance ON aur us module ka switch ON.
     // Customer page inhi 4 flags se apna layout banata hai.
+    shopInfo.adv_mini_active   = advOn && shopInfo.adv_mini_active   !== false;
     shopInfo.adv_legal_active  = advOn && shopInfo.adv_legal_active  !== false;
     shopInfo.adv_resume_active = advOn && shopInfo.adv_resume_active !== false;
     shopInfo.adv_4x6_active    = advOn && shopInfo.adv_4x6_active    !== false;
@@ -4635,6 +5285,51 @@ app.put('/api/admin/change-password', verifyToken, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
+// ─── DESKTOP PANEL STATS ─────────────────────────────────────────
+// Web dashboard ye numbers /api/admin/jobs se khud calculate karta hai.
+// Desktop panel ko wahi maths dobara likhne se rokne ke liye server hi
+// ek chhota summary de deta hai — ek query, kuch bytes, koi file nahi.
+app.get('/api/admin/stats', verifyToken, async (req, res) => {
+  try {
+    const q = await pool.query(
+      `SELECT
+         COALESCE(SUM(CASE WHEN DATE(created_at)=CURRENT_DATE THEN copies ELSE 0 END),0)::int  AS today_prints,
+         COALESCE(SUM(CASE WHEN DATE(created_at)=CURRENT_DATE THEN amount ELSE 0 END),0)::int  AS today_earnings,
+         COALESCE(SUM(CASE WHEN DATE(created_at)=CURRENT_DATE - 1 THEN copies ELSE 0 END),0)::int AS prev_prints,
+         COALESCE(SUM(CASE WHEN DATE(created_at)=CURRENT_DATE - 1 THEN amount ELSE 0 END),0)::int AS prev_earnings,
+         COUNT(*)::int                                                                          AS total_orders,
+         COALESCE(SUM(amount),0)::int                                                           AS total_earnings
+       FROM print_jobs
+       WHERE shop_id=$1 AND payment_status='paid'`, [req.shopId]);
+
+    const recent = await pool.query(
+      `SELECT id, status, created_at,
+              EXTRACT(EPOCH FROM (NOW() - created_at))::int AS secs_ago
+         FROM print_jobs WHERE shop_id=$1
+        ORDER BY created_at DESC LIMIT 5`, [req.shopId]);
+
+    const shop = await pool.query(
+      'SELECT paused, supply_warning FROM shops WHERE id=$1', [req.shopId]);
+
+    const ago = (sec) => {
+      if (sec < 60) return 'just now';
+      if (sec < 3600) return Math.floor(sec / 60) + ' mins ago';
+      if (sec < 86400) return Math.floor(sec / 3600) + ' hours ago';
+      return Math.floor(sec / 86400) + ' days ago';
+    };
+
+    const t = q.rows[0];
+    res.json({
+      todayPrints: t.today_prints, todayEarnings: t.today_earnings,
+      prevPrints: t.prev_prints,   prevEarnings: t.prev_earnings,
+      totalOrders: t.total_orders, totalEarnings: t.total_earnings,
+      paused: !!(shop.rows[0] && shop.rows[0].paused),
+      supply_warning: (shop.rows[0] && shop.rows[0].supply_warning) || 'ok',
+      recent: recent.rows.map(r => ({ id: r.id, status: r.status, ago: ago(r.secs_ago) }))
+    });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/admin/jobs', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
@@ -4666,6 +5361,120 @@ function uploadTokenFor(shopId, publicId) {
     .update(`${shopId}|${publicId}`).digest('hex').slice(0, 32);
 }
 
+// ─── UPLOAD VALIDATION HELPERS ──────────────────────────────────────
+// IMPORTANT: ye saare checks Cloudinary upload se PEHLE chalte hain
+// (/api/upload/sign par). Signature na mile to browser Cloudinary ko
+// chhoo bhi nahi sakta — isliye reject hone par 0 bandwidth kharch hoti hai.
+
+function checkSizeLimit(bytes) {
+  const n = Number(bytes);
+  if (!Number.isFinite(n) || n <= 0) return null;      // pata nahi — skip
+  return n > MAX_UPLOAD_BYTES ? LIMIT_MSG.size : null;
+}
+
+function checkPageLimit(pages, fileName) {
+  const n = parseInt(pages, 10);
+  if (!Number.isInteger(n) || n <= 0) return null;     // pata nahi — skip
+  // Page limit sirf multi-page documents par. Ek photo = 1 page, usko
+  // kabhi block nahi karna.
+  if (n > MAX_PDF_PAGES) return LIMIT_MSG.pages;
+  return null;
+}
+
+const SHA256_RE = /^[a-f0-9]{64}$/i;
+
+/**
+ * File sach me wahi hai jo naam keh raha hai? Sirf extension par bharosa
+ * mat karo — attacker .exe ko .pdf naam de sakta hai.
+ * Buffer wahin milta hai jahan file server se guzarti hai (fallback path).
+ */
+function sniffFileType(buffer) {
+  if (!buffer || buffer.length < 4) return null;
+  const b = buffer;
+  if (b[0]===0x25 && b[1]===0x50 && b[2]===0x44 && b[3]===0x46) return 'pdf';   // %PDF
+  if (b[0]===0xFF && b[1]===0xD8 && b[2]===0xFF)                 return 'jpg';
+  if (b[0]===0x89 && b[1]===0x50 && b[2]===0x4E && b[3]===0x47)  return 'png';
+  if (b[0]===0x50 && b[1]===0x4B && (b[2]===0x03||b[2]===0x05))  return 'docx'; // zip = docx
+  if (b[0]===0xD0 && b[1]===0xCF && b[2]===0x11 && b[3]===0xE0)  return 'doc';  // OLE2
+  return null;
+}
+
+/** PDF ke andar asli page count — client ke bheje number par bharosa nahi. */
+function countPdfPages(buffer) {
+  try {
+    const txt = buffer.toString('latin1');
+    let n = (txt.match(/\/Type\s*\/Page[^s]/g) || []).length;
+    if (!n) {
+      const counts = [...txt.matchAll(/\/Count\s+(\d+)/g)].map(m => parseInt(m[1], 10));
+      if (counts.length) n = Math.max(...counts);
+    }
+    return n > 0 ? n : null;    // parse na ho to null — block mat karo
+  } catch (e) { return null; }
+}
+
+/** Extension + magic bytes + (PDF ho to) asli page count. */
+function validateFileBuffer(buffer, originalName) {
+  const ext = (path.extname(originalName || '').replace('.', '') || '').toLowerCase();
+  const sniffed = sniffFileType(buffer);
+  if (!sniffed) {
+    return { ok: false, error: 'This file type is not supported. Please upload a PDF, image or Word file.' };
+  }
+  const family = { jpg:'img', jpeg:'img', png:'img', pdf:'pdf', doc:'doc', docx:'doc' };
+  if (family[ext] && family[sniffed] && family[ext] !== family[sniffed]) {
+    return { ok: false, error: 'The file contents do not match its extension.', mismatch: `${ext}!=${sniffed}` };
+  }
+  if (sniffed === 'pdf') {
+    const pages = countPdfPages(buffer);
+    if (pages && pages > MAX_PDF_PAGES) {
+      return { ok: false, error: LIMIT_MSG.pages, realPages: pages };
+    }
+    return { ok: true, type: sniffed, pages };
+  }
+  return { ok: true, type: sniffed };
+}
+
+/**
+ * Duplicate upload guard. Ek hi shop par ek hi file (same SHA-256)
+ * DUP_UPLOAD_LIMIT baar se zyada DUP_UPLOAD_WINDOW_MIN minute me upload
+ * nahi ho sakti.
+ * @param {boolean} commit  false = sirf check karo (sign par),
+ *                          true  = count badhao (confirm par)
+ */
+async function checkDuplicateUpload(shopId, fileHash, commit) {
+  if (!fileHash || !SHA256_RE.test(String(fileHash))) return null;  // hash nahi — skip
+  const hash = String(fileHash).toLowerCase();
+  try {
+    // Window ke bahar ka record purana maan kar reset kar do
+    const r = await pool.query(
+      `SELECT hits, last_seen,
+              (last_seen < NOW() - ($3 || ' minutes')::interval) AS expired
+         FROM upload_fingerprints WHERE shop_id=$1 AND file_hash=$2`,
+      [shopId, hash, String(DUP_UPLOAD_WINDOW_MIN)]);
+
+    const row = r.rows[0];
+    const current = (!row || row.expired) ? 0 : row.hits;
+
+    if (current >= DUP_UPLOAD_LIMIT) return LIMIT_MSG.dup;
+    if (!commit) return null;
+
+    await pool.query(
+      `INSERT INTO upload_fingerprints (shop_id, file_hash, hits, first_seen, last_seen)
+       VALUES ($1,$2,1,NOW(),NOW())
+       ON CONFLICT (shop_id, file_hash) DO UPDATE
+         SET hits = CASE WHEN upload_fingerprints.last_seen < NOW() - ($3 || ' minutes')::interval
+                         THEN 1 ELSE upload_fingerprints.hits + 1 END,
+             first_seen = CASE WHEN upload_fingerprints.last_seen < NOW() - ($3 || ' minutes')::interval
+                         THEN NOW() ELSE upload_fingerprints.first_seen END,
+             last_seen = NOW()`,
+      [shopId, hash, String(DUP_UPLOAD_WINDOW_MIN)]);
+    return null;
+  } catch (e) {
+    // Guard fail ho to genuine customer ko block MAT karo — sirf log karo.
+    console.warn('Duplicate-check skipped:', e.message);
+    return null;
+  }
+}
+
 app.post('/api/upload/sign', async (req, res) => {
   try {
     const shopId = String(req.body.shopId || '').trim();
@@ -4675,6 +5484,46 @@ app.post('/api/upload/sign', async (req, res) => {
     }
     const s = await pool.query('SELECT id FROM shops WHERE id=$1', [shopId]);
     if (!s.rows.length) return res.status(404).json({ error: 'Shop not found' });
+
+    // ── GLOBAL EMERGENCY BRAKE ──
+    // Poore server par upload rate phat gaya (loop/bug/attack)? Naye
+    // uploads temporarily rok do — Cloudinary ko call hi nahi jaayegi.
+    if (!globalBrake()) {
+      return res.status(503).json({
+        error: 'The service is very busy right now. Please try again in a minute.' });
+    }
+
+    // ── CIRCUIT BREAKER: per-shop burst + quota ──
+    const shopRow0 = await pool.query('SELECT demo FROM shops WHERE id=$1', [shopId]);
+    const abuse = checkUploadAbuse(shopId, !!(shopRow0.rows[0] && shopRow0.rows[0].demo));
+    if (!abuse.ok) {
+      await logSecurityEvent({ ip: clientIp(req), shopId, endpoint: '/api/upload/sign', method: 'POST',
+        action: 'PDF_UPLOAD', reason: abuse.reason, uploadCount: abuse.total,
+        fileSize: Number(req.body.fileSize), userAgent: req.headers['user-agent'] });
+      return res.status(429).json({ error: abuse.error, blocked: true, reason: abuse.reason });
+    }
+
+    // Demo shop limit khatam ho chuki hai to upload shuru hi mat hone do —
+    // customer ko baad me "limit over" dikhane se behtar hai pehle rok dena.
+    const allowDemo = await checkDemoAllowance(shopId);
+    if (!allowDemo.ok) {
+      return res.status(403).json({
+        error: allowDemo.error, demoLimitReached: true,
+        reason: allowDemo.reason, used: allowDemo.used, limit: allowDemo.limit,
+        plans: await getUpgradePlans()
+      });
+    }
+
+    // ── GUARDRAILS: signature dene se PEHLE. Reject hua to browser
+    //    Cloudinary tak pahunchta hi nahi = zero bandwidth waste. ──
+    const sizeErr = checkSizeLimit(req.body.fileSize);
+    if (sizeErr) return res.status(413).json({ error: sizeErr });
+
+    const pageErr = checkPageLimit(req.body.totalPages, req.body.fileName);
+    if (pageErr) return res.status(413).json({ error: pageErr });
+
+    const dupErr = await checkDuplicateUpload(shopId, req.body.fileHash, false);
+    if (dupErr) return res.status(429).json({ error: dupErr });
 
     const timestamp = Math.round(Date.now() / 1000);
     const publicId = 'qrprint_' + uuidv4().substring(0, 8);
@@ -4770,6 +5619,28 @@ app.post('/api/upload/confirm', async (req, res) => {
       console.warn(`Cloudinary verify skip (${e.message}) — URL khud bana liya: ${publicId}`);
     }
 
+    // ── GUARDRAILS (dobara, ab asli data ke saath) ──
+    // Client jhooth bol sakta hai, isliye Cloudinary ka actual bytes count
+    // hi final hai. Limit toot gayi to file waapas delete kar do.
+    const realBytes = cldInfo && Number(cldInfo.bytes);
+    const sizeErr2 = checkSizeLimit(realBytes);
+    if (sizeErr2) {
+      try { await deleteFromCloudinary(publicId); } catch(_) {}
+      console.warn(`Oversized upload rejected + deleted: ${publicId} (${realBytes} bytes)`);
+      return res.status(413).json({ error: sizeErr2 });
+    }
+    const pageErr2 = checkPageLimit(b.totalPages, b.fileName);
+    if (pageErr2) {
+      try { await deleteFromCloudinary(publicId); } catch(_) {}
+      return res.status(413).json({ error: pageErr2 });
+    }
+    // Ab jab upload sach me hua hai, tabhi duplicate counter badhao.
+    const dupErr2 = await checkDuplicateUpload(shopId, b.fileHash, true);
+    if (dupErr2) {
+      try { await deleteFromCloudinary(publicId); } catch(_) {}
+      return res.status(429).json({ error: dupErr2 });
+    }
+
     const jobId = 'JOB_' + uuidv4().substring(0, 10).toUpperCase();
     const fileName = String(b.fileName || 'document.pdf').slice(0, 200);
     const fileType = (path.extname(fileName).replace('.', '').toLowerCase()) || 'pdf';
@@ -4797,7 +5668,7 @@ app.post('/api/upload/confirm', async (req, res) => {
 });
 
 // ── Purana upload (fallback) — direct upload fail ho to isse kaam chalta rahe ──
-app.post('/api/upload', upload.single('file'), async (req, res) => {
+app.post('/api/upload', upload.single('file'), handleUploadErrors, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error:'No file uploaded' });
     const { shopId, copies, colorMode, totalPages } = req.body;
@@ -4807,6 +5678,47 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     if (!shopResult.rows.length) return res.status(404).json({ error:'Shop not found' });
     const shop = shopResult.rows[0];
 
+    // ── GUARDRAILS (fallback path) — Cloudinary upload se PEHLE ──
+    if (!globalBrake()) {
+      return res.status(503).json({ error: 'The service is very busy right now. Please try again in a minute.' });
+    }
+    const abuseFb = checkUploadAbuse(shopId, !!shop.demo);
+    if (!abuseFb.ok) {
+      await logSecurityEvent({ ip: clientIp(req), shopId, endpoint: '/api/upload', method: 'POST',
+        action: 'PDF_UPLOAD', reason: abuseFb.reason, uploadCount: abuseFb.total,
+        fileSize: req.file.size, userAgent: req.headers['user-agent'] });
+      return res.status(429).json({ error: abuseFb.error, blocked: true });
+    }
+    const allowFb = await checkDemoAllowance(shopId);
+    if (!allowFb.ok) {
+      return res.status(403).json({ error: allowFb.error, demoLimitReached: true,
+        reason: allowFb.reason, used: allowFb.used, limit: allowFb.limit,
+        plans: await getUpgradePlans() });
+    }
+
+    // File sach me PDF/image hai? Magic bytes + asli page count check —
+    // yahan file server ke paas hai, isliye client par bharosa zaroori nahi.
+    const fv = validateFileBuffer(req.file.buffer, req.file.originalname);
+    if (!fv.ok) {
+      await logSecurityEvent({ ip: clientIp(req), shopId, endpoint: '/api/upload', method: 'POST',
+        action: 'PDF_UPLOAD', reason: 'FILE_VALIDATION:' + (fv.mismatch || fv.realPages || 'bad'),
+        fileSize: req.file.size, userAgent: req.headers['user-agent'] });
+      return res.status(415).json({ error: fv.error });
+    }
+
+    // multer ne size limit pehle hi laga di, par yahan exact message do.
+    const sizeErr = checkSizeLimit(req.file.size);
+    if (sizeErr) return res.status(413).json({ error: sizeErr });
+
+    const pageErr = checkPageLimit(totalPages, req.file.originalname);
+    if (pageErr) return res.status(413).json({ error: pageErr });
+
+    // Is path par file server ke paas hai — hash yahi bana lo, client par
+    // bharosa karne ki zaroorat nahi.
+    const fileHash = crypto.createHash('sha256').update(req.file.buffer).digest('hex');
+    const dupErr = await checkDuplicateUpload(shopId, fileHash, true);
+    if (dupErr) return res.status(429).json({ error: dupErr });
+
     const jobId = 'JOB_' + uuidv4().substring(0,10).toUpperCase();
     const fileType = path.extname(req.file.originalname).replace('.','').toLowerCase();
     const numCopies = parseInt(copies)||1;
@@ -4815,7 +5727,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     const amount = pricePerPage * numPages * numCopies;
 
     console.log(`Uploading: ${req.file.originalname} (${numPages} pages)`);
-    const cloudResult = await uploadToCloudinary(req.file.buffer, fileType);
+    const cloudResult = await uploadToCloudinaryWithRetry(req.file.buffer, fileType);
     console.log(`Cloudinary: ${cloudResult.url}`);
 
     await pool.query(
@@ -4911,6 +5823,17 @@ app.post('/api/payment/online/create', async (req, res) => {
     if (!isSubscriptionActive(jobCheck.rows[0])) return res.status(403).json({ error: '⏸️ Shop inactive hai — owner ko subscription renew karni hai' });
 
     const job = jobCheck.rows[0];
+
+    // Demo limit — payment SHURU hone se pehle. Webhook par rokna galat
+    // hoga: paisa kat jaata aur print nahi milta.
+    const allowOnline = await checkDemoAllowance(job.shop_id);
+    if (!allowOnline.ok) {
+      return res.status(403).json({
+        error: allowOnline.error, demoLimitReached: true,
+        reason: allowOnline.reason, used: allowOnline.used, limit: allowOnline.limit,
+        plans: await getUpgradePlans()
+      });
+    }
 
     if (job.payment_mode === 'counter_only') {
       return res.status(400).json({ error: 'Yeh shop sirf Counter payment accept karta hai' });
@@ -5232,15 +6155,14 @@ app.post('/api/payment/counter', async (req, res) => {
     if (job.paused) return res.status(403).json({ error: '🏪 Shop abhi band hai — baad mein try karo' });
     if (!isSubscriptionActive(job)) return res.status(403).json({ error: '⏸️ Shop inactive hai — owner ko subscription renew karni hai' });
 
-    // Demo guards: expiry + 10-print cap
-    const shopD = await pool.query('SELECT demo, demo_expires_at FROM shops WHERE id=$1', [job.shop_id]);
-    if (shopD.rows.length && shopD.rows[0].demo) {
-      if (isDemoExpired(shopD.rows[0]))
-        return res.status(403).json({ error: '⏰ Demo khatam — shop register karo!' });
-      const cnt = await pool.query(
-        "SELECT COUNT(*) FROM print_jobs WHERE shop_id=$1 AND payment_status='paid'", [job.shop_id]);
-      if (parseInt(cnt.rows[0].count) >= 10)
-        return res.status(403).json({ error: '🎯 Demo mein max 10 prints — pasand aaya to register karo!' });
+    // Demo guards: expiry + free-print cap (dono ek hi helper se)
+    const allow = await checkDemoAllowance(job.shop_id);
+    if (!allow.ok) {
+      return res.status(403).json({
+        error: allow.error, demoLimitReached: true,
+        reason: allow.reason, used: allow.used, limit: allow.limit,
+        plans: await getUpgradePlans()
+      });
     }
 
     if (job.payment_mode === 'online_only') {
@@ -5299,11 +6221,65 @@ app.post('/api/payment/counter', async (req, res) => {
 // AGENT AUTO-UPDATE — Print Agent khud check karta hai naya version hai ya nahi
 // ═══════════════════════════════════════════════
 
+// ─── VERSION LABEL HELPERS (2.0 → 2.1 → ... → 2.10 → 3.0) ───────────
+// Series rule: minor 0 se 10 tak jaata hai, 2.10 ke baad agla major (3.0).
+// Internal integer counter isse alag hai aur sirf +1 hota rehta hai.
+const VERSION_LABEL_RE = /^\d{1,3}\.\d{1,3}$/;
+
+function parseVersionLabel(label) {
+  // "2.10" → [2, 10].  Galat/khaali input par null.
+  if (typeof label !== 'string') return null;
+  const s = label.trim().replace(/^[vV]\.?/, '');
+  if (!VERSION_LABEL_RE.test(s)) return null;
+  const [maj, min] = s.split('.').map(n => parseInt(n, 10));
+  if (!Number.isInteger(maj) || !Number.isInteger(min)) return null;
+  return [maj, min];
+}
+
+function compareVersionLabels(a, b) {
+  // -1 / 0 / 1. String compare use MAT karo: "2.9" > "2.10" aa jaata hai.
+  const pa = parseVersionLabel(a), pb = parseVersionLabel(b);
+  if (!pa && !pb) return 0;
+  if (!pa) return -1;
+  if (!pb) return 1;
+  if (pa[0] !== pb[0]) return pa[0] < pb[0] ? -1 : 1;
+  if (pa[1] !== pb[1]) return pa[1] < pb[1] ? -1 : 1;
+  return 0;
+}
+
+function nextVersionLabel(current) {
+  // Pehla push hamesha 2.0 hota hai (V29 ke baad naya scheme yahin se shuru).
+  const p = parseVersionLabel(current);
+  if (!p) return '2.0';
+  const [maj, min] = p;
+  return min >= 10 ? `${maj + 1}.0` : `${maj}.${min + 1}`;
+}
+
+async function getAgentVersionInfo() {
+  const r = await pool.query(
+    "SELECT key, value, updated_at FROM system_settings WHERE key IN ('agent_version','agent_version_label')"
+  );
+  const map = {};
+  for (const row of r.rows) map[row.key] = row;
+  const version = map.agent_version ? parseInt(map.agent_version.value, 10) || 1 : 1;
+  const rawLabel = map.agent_version_label ? (map.agent_version_label.value || '') : '';
+  const label = parseVersionLabel(rawLabel) ? rawLabel.trim() : '';
+  const updatedAt = (map.agent_version_label && map.agent_version_label.updated_at)
+    || (map.agent_version && map.agent_version.updated_at) || null;
+  return { version, label, updatedAt, nextLabel: nextVersionLabel(label) };
+}
+
 app.get('/api/agent/version', async (req, res) => {
   try {
-    const r = await pool.query("SELECT value FROM system_settings WHERE key='agent_version'");
-    const version = r.rows.length ? parseInt(r.rows[0].value) : 1;
-    res.json({ version });
+    const info = await getAgentVersionInfo();
+    // `version` purane agents ke liye hai (integer compare) — isko kabhi
+    // hatana mat. `versionLabel` naye agents display ke liye padhte hain.
+    res.json({
+      version: info.version,
+      versionLabel: info.label,
+      // Agar label abhi set nahi hua to agent apna hi label dikhata rahega.
+      displayVersion: info.label || String(info.version)
+    });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -5368,13 +6344,20 @@ app.get('/api/jobs/pending/:shopId', verifyAgent, async (req, res) => {
     // Har agent har 5 second me poll karta hai — ek query kam matlab
     // roz lakhon round-trip kam, aur utna hi bandwidth bacha.
     const _av = parseInt(req.query.v, 10);
+    // Naye agents apna display label bhi bhejte hain (?vl=2.0). Purane
+    // agents yeh nahi bhejte — tab column ko chhed-chhaad se bachao.
+    const _avl = (typeof req.query.vl === 'string' && VERSION_LABEL_RE.test(req.query.vl.trim()))
+      ? req.query.vl.trim() : null;
     const shopRow = await pool.query(
       `UPDATE shops
          SET agent_last_seen = NOW(),
-             agent_version   = COALESCE($2, agent_version)
+             agent_version   = COALESCE($2, agent_version),
+             agent_version_label = COALESCE($3, agent_version_label)
        WHERE id = $1
        RETURNING demo, demo_expires_at`,
-      [req.params.shopId, (Number.isInteger(_av) && _av > 0 && _av < 100000) ? _av : null]);
+      [req.params.shopId,
+       (Number.isInteger(_av) && _av > 0 && _av < 100000) ? _av : null,
+       _avl]);
     if (shopRow.rows.length && shopRow.rows[0].demo) {
       const sh = shopRow.rows[0];
       // Layer 3: ek machine = ek demo PERMANENT. Agent ?m=MachineGuid bhejta
@@ -5417,6 +6400,255 @@ app.get('/api/jobs/pending/:shopId', verifyAgent, async (req, res) => {
       [req.params.shopId]
     );
     res.json({ jobs: r.rows });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ═══════════════════════════════════════════════
+// DIRECT CLOUDINARY DOWNLOAD — Render PDF proxy NAHI hai
+// ═══════════════════════════════════════════════
+// Architecture (pehle se aisa hi hai, ab authorize bhi hota hai):
+//
+//   Customer → Cloudinary        (browser se seedha, /upload/sign)
+//   Render   → sirf metadata     (job id, settings, status)
+//   Agent    → Cloudinary        (PDF seedha, Render se hoke NAHI)
+//
+// PDF bytes kabhi Render se nahi guzarte. Ye endpoint sirf AUTHORIZATION
+// deta hai: agent poochta hai "is job ki file kahan hai?", server job ka
+// maalik/paid/claimed status verify karke URL deta hai. Bytes Cloudinary
+// se seedha shop PC par jaate hain.
+const DOWNLOAD_URL_TTL_SEC = parseInt(process.env.DOWNLOAD_URL_TTL_SEC || '900', 10);
+
+app.get('/api/jobs/:shopId/:jobId/download-url', verifyAgent, async (req, res) => {
+  try {
+    const { shopId, jobId } = req.params;
+    const r = await pool.query(
+      `SELECT j.id, j.shop_id, j.status, j.payment_status, j.file_url, j.file_public_id,
+              j.file_deleted, j.file_type, j.printing_at
+         FROM print_jobs j WHERE j.id=$1`, [jobId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Job not found' });
+    const j = r.rows[0];
+
+    // Doosri shop ka job kabhi mat do
+    if (j.shop_id !== shopId) {
+      await logSecurityEvent({ ip: clientIp(req), shopId, endpoint: '/download-url', method: 'GET',
+        action: 'FILE_ACCESS', reason: 'WRONG_SHOP:' + jobId, userAgent: req.headers['user-agent'] });
+      return res.status(403).json({ error: 'This job does not belong to this shop' });
+    }
+    // Bina payment ke file kabhi nahi
+    if (j.payment_status !== 'paid') {
+      return res.status(403).json({ error: 'Job is not paid yet' });
+    }
+    // Sirf claimed job ('printing') — printed/failed job dobara download na ho
+    if (j.status !== 'printing') {
+      return res.status(409).json({ error: `Job is not claimed (status: ${j.status})`, status: j.status });
+    }
+    if (j.file_deleted || !j.file_url) {
+      return res.status(410).json({ error: 'File has already been deleted' });
+    }
+
+    res.json({
+      jobId: j.id,
+      downloadUrl: j.file_url,          // Cloudinary ka seedha URL
+      fileType: j.file_type || 'pdf',
+      expiresAt: new Date(Date.now() + DOWNLOAD_URL_TTL_SEC * 1000).toISOString()
+    });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ═══════════════════════════════════════════════
+// DEMO → PAID SHOP CONVERSION
+// ═══════════════════════════════════════════════
+// Ye purely BACKEND-controlled hai. Client sirf DEMO_xxx ko SHOP_xxx se
+// badal kar apne aap paid nahi ban sakta — server har cheez verify karta
+// hai aur agent ka token bhi wahi transfer karta hai.
+//
+// Sabse badi security baat: sirf Shop ID kaafi NAHI hai.
+// Shop ID customer ke QR/poster par chhapa hota hai — dusre ki shop ka ID
+// dekh kar koi bhi uski shop apne PC se hijack kar leta. Isliye conversion
+// ke liye us paid shop ka PASSWORD bhi maangte hain (wahi jo shop owner
+// dashboard login me use karta hai).
+
+/** Paid Shop ID + password verify karo — abhi kuch badla nahi jaata. */
+app.post('/api/agent/verify-paid-shop', verifyAgent, async (req, res) => {
+  const ip = clientIp(req);
+  try {
+    const demoShopId = String(req.params.shopId || req.body.demoShopId || '').trim();
+    const paidShopId = String(req.body.paidShopId || '').trim().toUpperCase();
+    const password   = String(req.body.password || '');
+
+    if (!paidShopId) return res.status(400).json({ error: 'Please enter your paid Shop ID' });
+    if (!password)   return res.status(400).json({ error: 'Please enter your shop password' });
+
+    // Brute force guard — Shop ID public hai, password guessing rokna zaroori
+    const blocked = isBlocked('convert:' + ip);
+    if (blocked) {
+      return res.status(429).json({ error: `Too many attempts. Please try again in ${blocked} minute(s).` });
+    }
+
+    const r = await pool.query(
+      `SELECT id, name, phone, demo, demo_expires_at, setup_paid, password_hash,
+              plan_type, paid_until, agent_token
+         FROM shops WHERE id=$1`, [paidShopId]);
+
+    if (!r.rows.length) {
+      _convertFail(ip, paidShopId, 'NOT_FOUND');
+      return res.status(404).json({ error: 'This Shop ID was not found. Please check and try again.' });
+    }
+    const shop = r.rows[0];
+
+    if (!shop.password_hash || !(await verifyPassword(password, shop.password_hash))) {
+      _convertFail(ip, paidShopId, 'BAD_PASSWORD');
+      return res.status(403).json({ error: 'Shop ID or password is incorrect.' });
+    }
+    // Password sahi — attempts reset
+    convertAttempts.delete(ip);
+
+    if (shop.demo) {
+      return res.status(400).json({ error: 'That Shop ID is also a demo account. Enter your paid Shop ID.' });
+    }
+    if (!shop.setup_paid) {
+      return res.status(403).json({ error: 'This shop is not activated yet. Please complete your registration first.' });
+    }
+    if (paidShopId === demoShopId) {
+      return res.status(400).json({ error: 'This is already the shop you are using.' });
+    }
+
+    // Ek short-lived ticket — actual switch isi ke saath hoga, taaki
+    // password dobara na bhejna pade aur switch call ko replay na kiya ja sake.
+    const ticket = jwt.sign(
+      { demoShopId, paidShopId, act: 'demo-convert' }, JWT_SECRET, { expiresIn: '10m' });
+
+    console.log(`Demo conversion verified: ${demoShopId} -> ${paidShopId} | ip ${ip}`);
+    res.json({
+      success: true, ticket,
+      shopId: shop.id, shopName: shop.name,
+      planType: shop.plan_type || 'monthly',
+      alreadyLinked: !!shop.agent_token   // us shop par pehle se koi PC juda hai
+    });
+  } catch(err) {
+    console.error('verify-paid-shop error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Password guessing par escalating temporary block (permanent ban kabhi nahi)
+const convertAttempts = new Map();
+function _convertFail(ip, shopId, reason) {
+  const n = (convertAttempts.get(ip) || 0) + 1;
+  convertAttempts.set(ip, n);
+  if (n >= 5) blockFor('convert:' + ip, SEC.blockMin, 'paid shop conversion brute force');
+  logSecurityEvent({ ip, shopId, endpoint: '/api/agent/verify-paid-shop', method: 'POST',
+                     action: 'DEMO_CONVERT', reason, uploadCount: n });
+}
+
+/** Ticket ke saath actual switch. Agent token demo se paid shop par move hota hai. */
+app.post('/api/agent/convert-to-paid', verifyAgent, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const demoShopId = String(req.params.shopId || '').trim();
+    let payload;
+    try {
+      payload = jwt.verify(String(req.body.ticket || ''), JWT_SECRET);
+    } catch (e) {
+      return res.status(403).json({ error: 'Verification expired. Please verify your Shop ID again.' });
+    }
+    if (payload.act !== 'demo-convert' || payload.demoShopId !== demoShopId) {
+      return res.status(403).json({ error: 'Verification does not match this installation.' });
+    }
+    const paidShopId = payload.paidShopId;
+
+    await client.query('BEGIN');
+
+    const paid = await client.query(
+      'SELECT id, name, demo, setup_paid FROM shops WHERE id=$1 FOR UPDATE', [paidShopId]);
+    if (!paid.rows.length || paid.rows[0].demo || !paid.rows[0].setup_paid) {
+      await client.query('ROLLBACK');
+      return res.status(403).json({ error: 'This shop can no longer be linked. Please contact support.' });
+    }
+
+    // Agent token demo shop se hata kar paid shop par lagao — isi se ye PC
+    // paid shop ka authorized agent ban jaata hai.
+    const sentToken = agentTokenFromReq(req);
+    if (sentToken && /^[A-Za-z0-9_-]{16,64}$/.test(sentToken)) {
+      await client.query('UPDATE shops SET agent_token=$2 WHERE id=$1', [paidShopId, sentToken]);
+      await client.query('UPDATE shops SET agent_token=NULL WHERE id=$1', [demoShopId]);
+    }
+
+    // Demo ko abhi khatam kar do — wo PC ab paid shop chala raha hai
+    await client.query(
+      "UPDATE shops SET demo_expires_at = NOW() WHERE id=$1 AND demo=true", [demoShopId]);
+
+    // Demo ke bache hue queued jobs cancel — warna purane demo jobs
+    // naye paid shop ke printer par nikal sakte hain
+    const cancelled = await client.query(
+      `UPDATE print_jobs SET status='cancelled',
+              failure_reason='Demo converted to paid shop'
+        WHERE shop_id=$1 AND status IN ('queued','printing') RETURNING id, file_public_id`,
+      [demoShopId]);
+
+    await client.query('COMMIT');
+
+    for (const j of cancelled.rows) {
+      if (j.file_public_id) {
+        try { await deleteFromCloudinary(j.file_public_id); } catch(_) {}
+      }
+    }
+
+    console.log(`Demo CONVERTED: ${demoShopId} -> ${paidShopId} | ${cancelled.rows.length} demo job(s) cancelled`);
+    res.json({ success: true, shopId: paidShopId, shopName: paid.rows[0].name });
+  } catch(err) {
+    try { await client.query('ROLLBACK'); } catch(_) {}
+    console.error('convert-to-paid error:', err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ─── DESKTOP PANEL SESSION ───────────────────────────────────────
+// Desktop panel ko shop settings/pricing/payment sab dikhane hain. Wahi
+// business logic dobara likhne ke bajaye, agent apne agent_token ko ek
+// SHORT-LIVED admin session token se exchange karta hai aur wahi existing
+// admin APIs call karta hai jo website ka dashboard call karta hai.
+// Zero duplicate logic, zero naya database.
+app.post('/api/jobs/:shopId/panel-session', verifyAgent, async (req, res) => {
+  try {
+    const shopId = req.params.shopId;
+    const r = await pool.query('SELECT id, name, demo, demo_expires_at FROM shops WHERE id=$1', [shopId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Shop not found' });
+
+    // 2 ghante — panel khula reh sakta hai, par token hamesha ke liye valid nahi.
+    const token = jwt.sign({ shopId, via: 'agent-panel' }, JWT_SECRET, { expiresIn: '2h' });
+    res.json({
+      token,
+      expiresInSec: 7200,
+      shopId,
+      shopName: r.rows[0].name,
+      // shop_type backend se aata hai — client sirf DEMO_ prefix dekh kar
+      // decide na kare (spec: backend is the source of truth)
+      shopType: r.rows[0].demo ? 'demo' : 'paid',
+      demoExpiresAt: r.rows[0].demo_expires_at
+    });
+  } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// Agent bolta hai "download ho gaya" — sirf metadata, koi file nahi.
+// Isse admin panel me pata chalta hai ki file shop PC tak pahunchi ya nahi.
+app.post('/api/jobs/:shopId/:jobId/downloaded', verifyAgent, async (req, res) => {
+  try {
+    const { shopId, jobId } = req.params;
+    const ok = !!(req.body && req.body.ok);
+    const bytes = parseInt(req.body && req.body.bytes, 10);
+    if (!ok) {
+      await pool.query(
+        `UPDATE print_jobs SET failure_reason=$2 WHERE id=$1 AND shop_id=$3 AND status='printing'`,
+        [jobId, String(req.body.error || 'Download failed').slice(0, 200), shopId]);
+      console.warn(`Job download FAILED: ${jobId} | ${shopId} | ${req.body.error || ''}`);
+    } else {
+      console.log(`Job downloaded by agent: ${jobId} | ${shopId}` +
+                  (Number.isFinite(bytes) ? ` | ${bytes} bytes` : ''));
+    }
+    res.json({ success: true });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -5785,7 +7017,7 @@ app.get('/api/superadmin/shops', verifySuperAdmin, async (req, res) => {
              payment_mode, payment_gateway, setup_paid, setup_amount, created_at,
              demo, plan_type, paid_until, advanced_unlocked, agent_last_seen,
              EXTRACT(EPOCH FROM (NOW() - agent_last_seen))::int AS agent_seconds_ago,
-             agent_version, onboarded_by
+             agent_version, agent_version_label, onboarded_by
       FROM shops ORDER BY created_at DESC
     `);
     res.json({ shops: r.rows });
@@ -6117,32 +7349,73 @@ app.put('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
 });
 
 // ─── Agent Version Management — Super Admin yahan se naya update push karta hai ───
+// Do numbers hain, dono ka kaam alag:
+//   agent_version       (INT)  → INTERNAL trigger. Har push par +1. Purane
+//                                agents (v27/v28/v29) isi ko compare karte
+//                                hain. Ise kabhi "2.0" mat banao.
+//   agent_version_label (TEXT) → Jo sab jagah DIKHTA hai: 2.0, 2.1 ... 2.10, 3.0
 app.get('/api/superadmin/agent-version', verifySuperAdmin, async (req, res) => {
   try {
-    const r = await pool.query("SELECT value, updated_at FROM system_settings WHERE key='agent_version'");
-    const version = r.rows.length ? parseInt(r.rows[0].value) : 1;
-    const updatedAt = r.rows.length ? r.rows[0].updated_at : null;
-    res.json({ version, updatedAt });
+    const info = await getAgentVersionInfo();
+    res.json({
+      version: info.version,          // internal counter (legacy field name)
+      versionLabel: info.label,       // "2.0"
+      displayVersion: info.label || String(info.version),
+      nextLabel: info.nextLabel,      // agla suggested label
+      updatedAt: info.updatedAt
+    });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/api/superadmin/agent-version/bump', verifySuperAdmin, async (req, res) => {
+  const client = await pool.connect();
   try {
-    // Current version uthao aur +1 karo — koi manual number type karne ki zaroorat nahi,
-    // taaki galti se koi purana/galat version number na daal de
-    const r = await pool.query("SELECT value FROM system_settings WHERE key='agent_version'");
-    const currentVersion = r.rows.length ? parseInt(r.rows[0].value) : 1;
-    const newVersion = currentVersion + 1;
+    const info = await getAgentVersionInfo();
 
-    await pool.query(
+    // Label: body se aaya to use karo, warna auto next (2.0 → 2.1 → ... → 2.10 → 3.0)
+    const requested = (req.body && typeof req.body.label === 'string') ? req.body.label.trim() : '';
+    const newLabel = requested || info.nextLabel;
+
+    if (!parseVersionLabel(newLabel)) {
+      return res.status(400).json({ error: 'Version format galat hai. Aise likho: 2.0, 2.1, 2.10, 3.0' });
+    }
+    // Peeche mat jao — warna sab shops "update available" dikhate rahenge
+    // aur kabhi settle nahi honge.
+    if (info.label && compareVersionLabels(newLabel, info.label) <= 0) {
+      return res.status(400).json({
+        error: `Version ${newLabel} current ${info.label} se aage hona chahiye. Suggested: ${info.nextLabel}`
+      });
+    }
+
+    const newVersion = info.version + 1;   // internal counter hamesha +1
+
+    await client.query('BEGIN');
+    await client.query(
       `INSERT INTO system_settings (key, value, updated_at) VALUES ('agent_version', $1, NOW())
        ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
-      [newVersion.toString()]
+      [String(newVersion)]
     );
+    await client.query(
+      `INSERT INTO system_settings (key, value, updated_at) VALUES ('agent_version_label', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
+      [newLabel]
+    );
+    await client.query('COMMIT');
 
-    console.log(`Agent version bumped to v${newVersion} by super admin — sab customers ke PC 1 ghante mein update ho jayenge`);
-    res.json({ success: true, version: newVersion });
-  } catch(err) { res.status(500).json({ error: err.message }); }
+    console.log(`Agent version pushed → v${newLabel} (internal ${newVersion}) by super admin — sab customers ke PC 1 ghante mein update ho jayenge`);
+    res.json({
+      success: true,
+      version: newVersion,
+      versionLabel: newLabel,
+      displayVersion: newLabel,
+      nextLabel: nextVersionLabel(newLabel)
+    });
+  } catch(err) {
+    try { await client.query('ROLLBACK'); } catch(_) {}
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
 });
 
 // ─── Easy Installer (.exe) URL Management — Cloudinary pe hosted ───
@@ -6254,32 +7527,82 @@ async function razorpayOrderStatus(orderId, keyId, keySecret) {
   return resp.json();
 }
 
+// ═══════════════════════════════════════════════
+// STUCK PRINT JOB SWEEPER
+// Job 'printing' me STUCK_JOB_TIMEOUT_SEC (default 120s) se zyada atka
+// raha = shop PC/printer ne respond nahi kiya. Us file ko Cloudinary se
+// delete karke job fail kar do, aur admin panel me saaf reason dikhao.
+// ═══════════════════════════════════════════════
+let sweepRunning = false;
+async function sweepStuckJobs() {
+  if (sweepRunning) return;          // overlap guard
+  sweepRunning = true;
+  try {
+    // Optional retry (STUCK_JOB_RETRIES=1) — default 0 yaani seedha fail.
+    if (STUCK_JOB_RETRIES > 0) {
+      const requeued = await pool.query(
+        `UPDATE print_jobs SET status='queued', printing_at=NULL, retry_count=retry_count+1
+          WHERE status='printing'
+            AND printing_at < NOW() - ($1 || ' seconds')::interval
+            AND retry_count < $2
+          RETURNING id`,
+        [String(STUCK_JOB_TIMEOUT_SEC), STUCK_JOB_RETRIES]);
+      if (requeued.rows.length) {
+        console.log('♻️ Requeued stuck jobs:', requeued.rows.map(r => r.id).join(','));
+      }
+    }
+
+    const failed = await pool.query(
+      `UPDATE print_jobs SET status='failed', failure_reason=$3
+        WHERE status='printing'
+          AND printing_at < NOW() - ($1 || ' seconds')::interval
+          AND retry_count >= $2
+        RETURNING id, shop_id, file_public_id`,
+      [String(STUCK_JOB_TIMEOUT_SEC), STUCK_JOB_RETRIES,
+       `Not printed within ${STUCK_JOB_TIMEOUT_SEC} seconds — file deleted. Please print again.`]);
+
+    for (const fj of failed.rows) {
+      if (fj.file_public_id) {
+        try {
+          await deleteFromCloudinary(fj.file_public_id);
+          await pool.query('UPDATE print_jobs SET file_deleted=true WHERE id=$1', [fj.id]);
+        } catch (e) {
+          // Cloudinary delete fail ho to job phir bhi failed hi rahega —
+          // TTL cleanup baad me file uthha lega.
+          console.warn(`Cloudinary delete failed for ${fj.id}: ${e.message}`);
+        }
+      }
+    }
+    if (failed.rows.length) {
+      console.log(`⏱️ Stuck jobs timed out after ${STUCK_JOB_TIMEOUT_SEC}s (file deleted):`,
+        failed.rows.map(r => r.id).join(','));
+    }
+  } catch (err) {
+    console.error('sweepStuckJobs error:', err.message);
+  } finally {
+    sweepRunning = false;
+  }
+}
+
+// Timeout se aadha interval — taaki detection deri se na ho.
+setInterval(sweepStuckJobs, Math.max(15, Math.floor(STUCK_JOB_TIMEOUT_SEC / 4)) * 1000).unref();
+
 let bgRunning = false;
 async function backgroundMaintenance() {
   if (bgRunning) return; // overlap guard
   bgRunning = true;
   try {
-    // 1) Stuck printing jobs
-    // Max EK requeue. Pehle 2 the — matlab ek job 3 baar tak print ho
-    // sakta tha (report kho jaye to har 10 min me dubara). Duplicate print
-    // ka nuksan missed print se zyada hai.
-    const requeued = await pool.query(
-      `UPDATE print_jobs SET status='queued', printing_at=NULL, retry_count=retry_count+1
-       WHERE status='printing' AND printing_at < NOW() - INTERVAL '10 minutes' AND retry_count < 1
-       RETURNING id`);
-    if (requeued.rows.length) console.log('♻️ Requeued stuck jobs:', requeued.rows.map(r=>r.id).join(','));
-    const failed = await pool.query(
-      `UPDATE print_jobs SET status='failed',
-              failure_reason='Print timeout — shop PC/printer respond nahi kiya'
-       WHERE status='printing' AND printing_at < NOW() - INTERVAL '10 minutes' AND retry_count >= 1
-       RETURNING id, file_public_id`);
-    for (const fj of failed.rows) {
-      if (fj.file_public_id) {
-        await deleteFromCloudinary(fj.file_public_id);
-        await pool.query('UPDATE print_jobs SET file_deleted=true WHERE id=$1', [fj.id]);
-      }
-    }
-    if (failed.rows.length) console.log('❌ Gave up on stuck jobs:', failed.rows.map(r=>r.id).join(','));
+    // 0) Security log retention — 7 din se purane events hata do
+    try {
+      const del = await pool.query(
+        "DELETE FROM security_events WHERE created_at < NOW() - INTERVAL '7 days' RETURNING id");
+      if (del.rows.length) console.log(`Security log cleanup: ${del.rows.length} old rows removed`);
+    } catch (e) { console.warn('security log cleanup skipped:', e.message); }
+
+    // 1) Stuck printing jobs — ab sweepStuckJobs() alag tez loop me chalta
+    //    hai (har 30s), taaki 120 second ki limit sach me 120 second rahe.
+    //    Yahan sirf ek extra safety pass.
+    await sweepStuckJobs();
 
     // 2a) Customer job payments reconcile (shop ki apni keys)
     const pending = await pool.query(
