@@ -410,15 +410,27 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:28px;font-weight:800;">v<span id="agentVersionDisplay">1</span></div>
           <div style="font-size:11px;color:#6b6870;margin-top:4px;" id="agentVersionUpdated"></div>
         </div>
-        <div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;">
-          <div>
-            <label for="agentVersionInput" style="display:block;font-size:11px;color:#6b6870;font-weight:600;text-transform:uppercase;margin-bottom:4px;">New Version</label>
-            <input id="agentVersionInput" type="text" inputmode="decimal" placeholder="2.0" autocomplete="off"
-                   style="width:110px;padding:12px 14px;border:1.5px solid #e5e3e0;border-radius:10px;font-size:16px;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;text-align:center;">
-          </div>
-          <button class="filter-tab" style="padding:14px 24px;background:#1c6fff;color:#fff;border-color:#1c6fff;font-size:13px;" onclick="pushAgentUpdate()">🚀 Naya Update Push Karo</button>
+        <div>
+          <label for="agentVersionInput" style="display:block;font-size:11px;color:#6b6870;font-weight:600;text-transform:uppercase;margin-bottom:4px;">New Version</label>
+          <input id="agentVersionInput" type="text" inputmode="decimal" placeholder="2.0" autocomplete="off"
+                 style="width:110px;padding:12px 14px;border:1.5px solid #e5e3e0;border-radius:10px;font-size:16px;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;text-align:center;">
         </div>
       </div>
+
+      <!-- What's in the Update — yahi text shop owner ko uske panel me
+           download button ke paas "What's in Update" par dikhta hai. -->
+      <div style="background:#f8f7f5;border-radius:14px;padding:16px 20px;margin-bottom:14px;">
+        <label for="agentVersionNotes" style="display:block;font-size:11px;color:#6b6870;font-weight:600;text-transform:uppercase;margin-bottom:6px;">📝 What's in the Update</label>
+        <textarea id="agentVersionNotes" rows="5" maxlength="2000"
+                  placeholder="Is update me kya naya hai — har point nayi line me likho:&#10;&#10;Sync Now button add hua&#10;Connection ka green/red dot&#10;Print speed tez ki gayi"
+                  style="width:100%;padding:12px 14px;border:1.5px solid #e5e3e0;border-radius:10px;font-size:13.5px;font-family:'Inter',sans-serif;line-height:1.65;resize:vertical;box-sizing:border-box;"></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:6px;flex-wrap:wrap;">
+          <span style="font-size:11px;color:#6b6870;">Shop owner ke panel me download button ke paas yahi dikhega. Khali chhoda to wahan button dikhega hi nahi.</span>
+          <span style="font-size:11px;color:#9b9690;font-weight:700;white-space:nowrap;" id="agentNotesCount">0 / 2000</span>
+        </div>
+      </div>
+
+      <button class="filter-tab" style="padding:14px 24px;background:#1c6fff;color:#fff;border-color:#1c6fff;font-size:13px;" onclick="pushAgentUpdate()">🚀 Naya Update Push Karo</button>
       <p style="font-size:11px;color:#6b6870;line-height:1.6;">
         <strong>Pehle yeh karo:</strong> GitHub pe <code>agent-template/print_agent.py</code> file mein naya code daalo aur Render pe deploy karo.<br>
         <strong>Phir:</strong> "Naya Update Push Karo" button dabao — sab customers ke PC apne aap (1 ghante ke andar, jab unka agent check karega) naya code download karke restart ho jayenge. Kisiko call/WhatsApp karne ki zaroorat nahi.<br>
@@ -2831,6 +2843,10 @@ async function loadPanel() {
         versionData.displayVersion || versionData.versionLabel || versionData.version;
       const _viEl = document.getElementById('agentVersionInput');
       if (_viEl && !_viEl.value) _viEl.value = versionData.nextLabel || '2.0';
+      // Abhi jo notes live hain wahi box me bhar do — super admin dekh sake
+      // ki shop owners ko is waqt kya dikh raha hai, aur usi ko edit kar sake.
+      const _nEl = document.getElementById('agentVersionNotes');
+      if (_nEl && !_nEl.value) { _nEl.value = versionData.notes || ''; updateAgentNotesCount(); }
       if (versionData.updatedAt) {
         const d = new Date(versionData.updatedAt);
         document.getElementById('agentVersionUpdated').textContent = 'Last update: ' + d.toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) + ' ' + d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
@@ -2880,12 +2896,26 @@ async function updateInstallerUrl() {
   }
 }
 
+// "What's in the Update" box ka character counter
+function updateAgentNotesCount() {
+  const el = document.getElementById('agentVersionNotes');
+  const out = document.getElementById('agentNotesCount');
+  if (!el || !out) return;
+  out.textContent = (el.value || '').length + ' / 2000';
+}
+document.addEventListener('input', function(e) {
+  if (e.target && e.target.id === 'agentVersionNotes') updateAgentNotesCount();
+});
+
 async function pushAgentUpdate() {
   const msgEl = document.getElementById('agentVersionMsg');
   msgEl.style.display = 'none';
 
   const inputEl = document.getElementById('agentVersionInput');
   const label = (inputEl && inputEl.value || '').trim();
+
+  const notesEl = document.getElementById('agentVersionNotes');
+  const notes = (notesEl && notesEl.value || '').trim();
 
   if (!parseVerLabel(label)) {
     msgEl.textContent = '❌ Version format galat hai. Aise likho: 2.0, 2.1, 2.10, 3.0';
@@ -2902,7 +2932,13 @@ async function pushAgentUpdate() {
     return;
   }
 
-  if (!confirm(`Pakka? Version v${label} push hoga aur sab customers ke Print Agent naya code download karenge. Pehle confirm karo GitHub/Render pe naya agent-template/print_agent.py deploy ho chuka hai.`)) {
+  // Notes khali hain ye confirm me saaf bata do — warna pata hi nahi chalega
+  // ki shop owner ko "What's in Update" dikhega hi nahi.
+  const notesLine = notes
+    ? `\n\n📝 "What's in Update" me ${notes.split('\n').filter(l => l.trim()).length} line jayegi.`
+    : `\n\n⚠️ "What's in the Update" khali hai — shop owner ko koi update note nahi dikhega, aur purana note bhi hat jayega.`;
+
+  if (!confirm(`Pakka? Version v${label} push hoga aur sab customers ke Print Agent naya code download karenge. Pehle confirm karo GitHub/Render pe naya agent-template/print_agent.py deploy ho chuka hai.${notesLine}`)) {
     return;
   }
 
@@ -2910,7 +2946,7 @@ async function pushAgentUpdate() {
     const res = await fetch('/api/superadmin/agent-version/bump', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + authToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ label })
+      body: JSON.stringify({ label, notes })
     });
     const data = await res.json();
     if (data.success) {
