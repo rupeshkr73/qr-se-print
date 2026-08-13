@@ -55,9 +55,9 @@ body{
 
 /* ── SHOP HEADER ───────────────────────────────────────────── */
 .shop-header{
-  display:flex;align-items:center;gap:15px;
+  display:flex;align-items:center;gap:12px;
   background:linear-gradient(145deg,#181822,#101018 60%,#14141e);
-  border-radius:var(--r-lg);padding:18px;margin-bottom:20px;
+  border-radius:var(--r-lg);padding:14px;margin-bottom:16px;
   position:relative;overflow:hidden;
   box-shadow:0 10px 34px rgba(16,16,28,.26);
 }
@@ -66,7 +66,7 @@ body{
   background:radial-gradient(circle,rgba(124,58,237,.24),transparent 70%);pointer-events:none;
 }
 .shop-icon{
-  width:74px;height:74px;flex:0 0 74px;border-radius:19px;background:#fff;
+  width:62px;height:62px;flex:0 0 62px;border-radius:16px;background:#fff;
   display:grid;place-items:center;font-size:32px;overflow:hidden;
   box-shadow:0 6px 18px rgba(0,0,0,.28);
 }
@@ -82,16 +82,19 @@ body{
   display:grid;place-items:center;line-height:1;
 }
 .shop-info p{font-size:12.5px;color:#a8a8bd;margin-top:5px;line-height:1.5}
-.price-badges{display:flex;gap:8px;margin-top:11px;flex-wrap:wrap}
+/* Ek hi line me rakho — flex-wrap nahi. Phone par do line lene se
+   Upload card neeche chala jaata tha aur jagah barbaad hoti thi. */
+.price-badges{display:flex;gap:6px;margin-top:9px;flex-wrap:nowrap}
 .price-badge{
   background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.14);
-  color:#fff;font-size:12.5px;font-weight:700;padding:7px 15px;border-radius:999px;
-  backdrop-filter:blur(4px);
+  color:#fff;font-size:11.5px;font-weight:700;padding:6px 11px;border-radius:999px;
+  backdrop-filter:blur(4px);white-space:nowrap;flex:0 1 auto;
+  overflow:hidden;text-overflow:ellipsis;
 }
 .price-badge.color{background:var(--grad);border-color:transparent;box-shadow:0 4px 14px rgba(236,42,122,.34)}
 
 /* ── STEPS ─────────────────────────────────────────────────── */
-.steps{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px;padding:0 4px}
+.steps{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;padding:0 4px}
 .step{flex:1 1 0;display:flex;flex-direction:column;align-items:center;position:relative;min-width:0}
 .step:not(:last-child)::after{
   content:'';position:absolute;top:23px;left:calc(50% + 26px);right:calc(-50% + 26px);
@@ -514,7 +517,8 @@ body{
 /* ── SMALL PHONES ──────────────────────────────────────────── */
 @media(max-width:400px){
   body{padding:12px 10px 86px}
-  .shop-icon{width:62px;height:62px;flex-basis:62px;font-size:27px}
+  .shop-icon{width:54px;height:54px;flex-basis:54px;font-size:24px}
+  .price-badge{font-size:10.5px;padding:5px 9px}
   .shop-info h2{font-size:18px}
   .upload-zone h3{font-size:25px}
   .step .dot{width:41px;height:41px;font-size:15.5px}
@@ -3243,20 +3247,67 @@ const mini = {
 };
 
 function startMiniFlow(){
-  if(!pages.length){
-    toast('Pehle file upload karo, phir Mini Print chuno');
-    return;
-  }
+  // Mini Print par click karte hi SEEDHA file picker khulta hai.
+  // Pehle "pehle file upload karo" bolta tha — wo ulta tha.
   mini.active = true;
   mini.per = 4;
   mini.border = true;
+
+  let inp = document.getElementById('miniFileInput');
+  if(!inp){
+    inp = document.createElement('input');
+    inp.type = 'file';
+    inp.id = 'miniFileInput';
+    inp.accept = '.pdf,.jpg,.jpeg,.png,application/pdf,image/*';
+    inp.multiple = true;
+    inp.style.display = 'none';
+    inp.addEventListener('change', onMiniFilesChosen);
+    document.body.appendChild(inp);
+  }
+  inp.value = '';
+  inp.click();
+}
+
+async function onMiniFilesChosen(e){
+  const files = Array.from(e.target.files || []);
+  if(!files.length){ mini.active = false; return; }
+
+  // Wahi upload/parse rasta jo normal flow use karta hai — saari
+  // limits (20MB, 20 page, duplicate) apne aap lagti hain.
   hide('secUpload'); hide('secChoice'); hide('secEditor'); hide('secPreviewStep');
   show('secMini');
   setStep(2);
-  renderMiniOptions();
-  document.getElementById('miniBorderBtn').classList.toggle('on', mini.border);
-  buildMiniPreview();
+  const box = document.getElementById('miniPreview');
+  if(box) box.innerHTML = '<div class="mini-loading">File padhi ja rahi hai…</div>';
   window.scrollTo({top:0, behavior:'smooth'});
+
+  try{
+    pages.length = 0;
+    activePageIdx = 0;
+    for(const f of files){
+      // Limits pehle — 20MB / 20 page wali jaanch normal flow jaisi
+      preflightUploadCheck(f, 0);
+      const ext = (f.name.split('.').pop() || '').toLowerCase();
+      if(ext === 'pdf'){
+        await loadPdfAsPages(f);         // wahi function jo normal flow use karta hai
+      }else{
+        addPage([await fileToCanvas(f)], true);
+      }
+    }
+    if(!pages.length){
+      toast('File padhi nahi ja saki', 'err');
+      miniBack();
+      return;
+    }
+    renderMiniOptions();
+    const bb = document.getElementById('miniBorderBtn');
+    if(bb) bb.classList.toggle('on', mini.border);
+    buildMiniPreview();
+  }catch(err){
+    console.error('[mini] file load failed', err);
+    toast((err && err.message) || 'File load nahi hui', 'err');
+    miniBack();
+  }
 }
 
 function renderMiniOptions(){

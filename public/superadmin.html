@@ -383,11 +383,19 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:28px;font-weight:800;">v<span id="agentVersionDisplay">1</span></div>
           <div style="font-size:11px;color:#6b6870;margin-top:4px;" id="agentVersionUpdated"></div>
         </div>
-        <button class="filter-tab" style="padding:14px 24px;background:#1c6fff;color:#fff;border-color:#1c6fff;font-size:13px;" onclick="pushAgentUpdate()">🚀 Naya Update Push Karo</button>
+        <div style="display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;">
+          <div>
+            <label for="agentVersionInput" style="display:block;font-size:11px;color:#6b6870;font-weight:600;text-transform:uppercase;margin-bottom:4px;">New Version</label>
+            <input id="agentVersionInput" type="text" inputmode="decimal" placeholder="2.0" autocomplete="off"
+                   style="width:110px;padding:12px 14px;border:1.5px solid #e5e3e0;border-radius:10px;font-size:16px;font-weight:800;font-family:'Plus Jakarta Sans',sans-serif;text-align:center;">
+          </div>
+          <button class="filter-tab" style="padding:14px 24px;background:#1c6fff;color:#fff;border-color:#1c6fff;font-size:13px;" onclick="pushAgentUpdate()">🚀 Naya Update Push Karo</button>
+        </div>
       </div>
       <p style="font-size:11px;color:#6b6870;line-height:1.6;">
         <strong>Pehle yeh karo:</strong> GitHub pe <code>agent-template/print_agent.py</code> file mein naya code daalo aur Render pe deploy karo.<br>
-        <strong>Phir:</strong> "Naya Update Push Karo" button dabao — sab customers ke PC apne aap (1 ghante ke andar, jab unka agent check karega) naya code download karke restart ho jayenge. Kisiko call/WhatsApp karne ki zaroorat nahi.
+        <strong>Phir:</strong> "Naya Update Push Karo" button dabao — sab customers ke PC apne aap (1 ghante ke andar, jab unka agent check karega) naya code download karke restart ho jayenge. Kisiko call/WhatsApp karne ki zaroorat nahi.<br>
+        <strong>Version series:</strong> 2.0 → 2.1 → 2.2 … 2.10, uske baad 3.0 → 3.1 … Box mein agla version apne aap bhar jaata hai; chaaho to badal sakte ho. Peeche wala version daalne par server reject kar dega.
       </p>
       <div id="agentVersionMsg" style="font-size:12px;margin-top:8px;display:none;"></div>
     </div>
@@ -743,6 +751,33 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         .demo-preset:hover{background:#7c3aed;color:#fff;}</style>
         <p style="font-size:11px;color:#6b6870;margin-top:8px;">Min 15 min, max 1440 min (24 hr). <b>Sirf nayi demos par lagega</b> — pehle ki active demos apni original time se hi expire hongi.</p>
       </div>
+    </div>
+
+    <!-- SECURITY MONITOR -->
+    <div class="card" style="margin-bottom:20px;">
+      <h2><span>🛡️ Security Monitor <span id="secBrakeBadge" style="display:none;background:#ff2e63;color:#fff;border-radius:999px;padding:2px 9px;font-size:11px;margin-left:6px;">BRAKE ON</span></span></h2>
+      <div id="secStats" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;"></div>
+      <div id="secBlocks" style="margin-top:12px;"></div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
+        <button onclick="loadSecurity()" style="background:#fff;border:1.5px solid #d9caf9;color:#7c3aed;border-radius:10px;padding:9px 16px;font-size:12px;font-weight:700;cursor:pointer;">🔄 Refresh</button>
+        <button onclick="unblockAll()" style="background:#fff;border:1.5px solid #ff2e63;color:#ff2e63;border-radius:10px;padding:9px 16px;font-size:12px;font-weight:700;cursor:pointer;">🔓 Clear All Blocks</button>
+      </div>
+      <div style="margin-top:14px;font-size:12px;font-weight:700;">Recent security events</div>
+      <div id="secEvents" style="margin-top:8px;max-height:340px;overflow-y:auto;">Loading...</div>
+      <p style="font-size:11px;color:#6b6870;margin-top:10px;">
+        Saare block <b>temporary</b> hain — permanent ban kabhi nahi hota. Koi genuine customer galti se atak jaye to
+        "Clear All Blocks" dabao, wo turant chalu ho jayega. Logs 7 din baad apne aap saaf ho jaate hain.
+      </p>
+    </div>
+
+    <!-- PENDING DEMO REQUESTS -->
+    <div class="card" style="margin-bottom:20px;">
+      <h2><span>📥 Pending Demo Requests <span id="demoReqCount" style="display:none;background:#ff2e63;color:#fff;border-radius:999px;padding:2px 9px;font-size:12px;margin-left:6px;">0</span></span></h2>
+      <p style="font-size:11px;color:#6b6870;margin:6px 0 0;">
+        Homepage form se aayi requests. <b>Accept</b> karte hi demo shop ban jaati hai aur timer shuru hota hai —
+        phir WhatsApp button se Shop ID bhej do. <b>Delete</b> karne par request hat jaati hai aur wo number dobara demo le sakta hai.
+      </p>
+      <div id="demoReqList" style="margin-top:12px;">Loading...</div>
     </div>
 
     <!-- DEMO ACCOUNTS -->
@@ -1261,6 +1296,195 @@ async function notifyShop(shopId) {
   } catch(e) { alert('❌ ' + e.message); }
 }
 
+// ═══ SECURITY MONITOR ═══
+function _secTile(label, value, color){
+  return '<div style="flex:1;min-width:120px;background:#f8f7f5;border-radius:12px;padding:12px 14px;">'
+    + '<div style="font-size:11px;color:#6b6870;font-weight:700;text-transform:uppercase;">'+label+'</div>'
+    + '<div style="font-family:\'Plus Jakarta Sans\',sans-serif;font-size:22px;font-weight:800;color:'+(color||'#111')+';">'+value+'</div>'
+    + '</div>';
+}
+
+async function loadSecurity(){
+  const statsEl = document.getElementById('secStats');
+  const blocksEl = document.getElementById('secBlocks');
+  const evEl = document.getElementById('secEvents');
+  if(!evEl) return;
+  try{
+    const r = await fetch('/api/superadmin/security-events?limit=50', { headers:{ 'Authorization':'Bearer '+authToken } });
+    if(!r.ok) throw new Error('Load failed');
+    const d = await r.json();
+    const st = d.last24h || {};
+
+    statsEl.innerHTML =
+        _secTile('Events 24h', st.total||0)
+      + _secTile('Unique IPs', st.ips||0)
+      + _secTile('Rate limited', st.rate_limited||0, (st.rate_limited>0?'#f59e0b':'#111'))
+      + _secTile('Bursts blocked', st.bursts||0, (st.bursts>0?'#ff2e63':'#111'))
+      + _secTile('Bot challenge', d.config && d.config.turnstile ? 'ON' : 'OFF',
+                 d.config && d.config.turnstile ? '#16a34a' : '#9ca3af');
+
+    const brake = document.getElementById('secBrakeBadge');
+    if(brake) brake.style.display = (d.globalBrake && d.globalBrake.tripped) ? 'inline-block' : 'none';
+
+    const blocks = d.activeBlocks || [];
+    blocksEl.innerHTML = blocks.length
+      ? '<div style="font-size:12px;font-weight:700;margin-bottom:6px;">Currently blocked ('+blocks.length+')</div>'
+        + blocks.map(function(b){
+            return '<div style="display:inline-flex;align-items:center;gap:8px;background:#fef2f2;border:1.5px solid #fecaca;'
+              + 'border-radius:10px;padding:6px 12px;margin:0 6px 6px 0;font-size:12px;">'
+              + '<code>'+sanitize(b.key)+'</code><span style="color:#6b6870;">'+b.minutesLeft+' min left</span>'
+              + '<button onclick="unblockKey(\''+b.key.replace(/'/g,"")+'\')" style="background:none;border:none;color:#ff2e63;'
+              + 'font-weight:800;cursor:pointer;font-size:12px;">unblock</button></div>';
+          }).join('')
+      : '<div style="font-size:12px;color:#16a34a;font-weight:700;">✅ No active blocks</div>';
+
+    const ev = d.events || [];
+    evEl.innerHTML = ev.length
+      ? ev.map(function(e){
+          const t = new Date(e.created_at).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+          return '<div style="border-bottom:1px solid #f0eeec;padding:8px 0;font-size:12px;">'
+            + '<span style="color:#9ca3af;">'+t+'</span> &nbsp;'
+            + '<b style="color:#ff2e63;">'+sanitize(e.reason||'-')+'</b> &nbsp;'
+            + '<span style="color:#6b6870;">'+sanitize(e.action||'')+'</span><br>'
+            + '<span style="color:#6b6870;">IP '+sanitize(e.ip||'-')
+            + (e.shop_id ? ' &nbsp;|&nbsp; '+sanitize(e.shop_id) : '')
+            + (e.upload_count!=null ? ' &nbsp;|&nbsp; uploads '+e.upload_count : '')
+            + ' &nbsp;|&nbsp; '+sanitize(e.endpoint||'-')+'</span></div>';
+        }).join('')
+      : '<div style="padding:14px;text-align:center;color:#16a34a;font-size:13px;">✅ No security events — sab normal</div>';
+  }catch(e){
+    evEl.innerHTML = '<div style="padding:14px;color:#ff2e63;font-size:13px;">Could not load: '+sanitize(e.message)+'</div>';
+  }
+}
+
+async function unblockKey(key){
+  try{
+    const r = await fetch('/api/superadmin/security-unblock', {
+      method:'POST', headers:{ 'Authorization':'Bearer '+authToken, 'Content-Type':'application/json' },
+      body: JSON.stringify({ key }) });
+    const d = await r.json();
+    if(!r.ok || !d.success) throw new Error(d.error||'Failed');
+    loadSecurity();
+  }catch(e){ alert('❌ '+e.message); }
+}
+
+async function unblockAll(){
+  if(!confirm('Clear ALL temporary blocks?\n\nSab blocked IP/shop turant chalu ho jayenge.')) return;
+  try{
+    const r = await fetch('/api/superadmin/security-unblock', {
+      method:'POST', headers:{ 'Authorization':'Bearer '+authToken, 'Content-Type':'application/json' },
+      body: JSON.stringify({}) });
+    const d = await r.json();
+    if(!r.ok || !d.success) throw new Error(d.error||'Failed');
+    alert('✅ '+d.cleared+' block(s) cleared');
+    loadSecurity();
+  }catch(e){ alert('❌ '+e.message); }
+}
+
+// ═══ PENDING DEMO REQUESTS ═══
+async function loadDemoRequests(){
+  const box = document.getElementById('demoReqList');
+  const badge = document.getElementById('demoReqCount');
+  if(!box) return;
+  try{
+    const r = await fetch('/api/superadmin/demo-requests', { headers:{ 'Authorization':'Bearer '+authToken } });
+    if(!r.ok) throw new Error('Load failed');
+    const rows = await r.json();
+    if(badge){
+      badge.textContent = rows.length;
+      badge.style.display = rows.length ? 'inline-block' : 'none';
+    }
+    if(!rows.length){
+      box.innerHTML = '<div style="padding:18px;text-align:center;color:#6b6870;font-size:13px;">No pending requests \u2705</div>';
+      return;
+    }
+    box.innerHTML = rows.map(function(d){
+      const when = new Date(d.created_at).toLocaleString('en-IN',
+        { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
+      return '<div id="dreq'+d.id+'" style="border:1.5px solid #e5e3e0;border-radius:14px;padding:14px;margin-bottom:10px;background:#fff;">'
+        + '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start;">'
+        +   '<div style="min-width:220px;">'
+        +     '<div style="font-weight:800;font-size:15px;">'+sanitize(d.shop_name||'-')+'</div>'
+        +     '<div style="font-size:12px;color:#6b6870;margin-top:3px;">\uD83D\uDC64 '+sanitize(d.name||'-')
+        +       ' &nbsp;|&nbsp; \uD83D\uDCF1 '+sanitize(d.phone||'-')+'</div>'
+        +     '<div style="font-size:12px;color:#6b6870;margin-top:2px;">\u2709\uFE0F '+sanitize(d.email||'-')+'</div>'
+        +     '<div style="font-size:12px;color:#6b6870;margin-top:2px;">\uD83D\uDCCD '+sanitize(d.address||'-')+'</div>'
+        +     '<div style="font-size:12px;color:#6b6870;margin-top:2px;">\uD83D\uDDA8\uFE0F '+sanitize(d.printer_model||'-')+'</div>'
+        +     '<div style="font-size:11px;color:#9ca3af;margin-top:6px;">'+when+' &nbsp;|&nbsp; IP '+sanitize(d.ip||'-')+'</div>'
+        +   '</div>'
+        +   '<div style="display:flex;gap:8px;align-items:flex-start;">'
+        +     '<button onclick="approveDemoRequest('+d.id+')" style="background:#16a34a;color:#fff;border:none;border-radius:10px;padding:10px 18px;font-size:13px;font-weight:800;cursor:pointer;">\u2705 Accept</button>'
+        +     '<button onclick="deleteDemoRequest('+d.id+')" style="background:#fff;color:#ff2e63;border:1.5px solid #ff2e63;border-radius:10px;padding:10px 18px;font-size:13px;font-weight:800;cursor:pointer;">\uD83D\uDDD1\uFE0F Delete</button>'
+        +   '</div>'
+        + '</div>'
+        + '<div id="dreqOut'+d.id+'" style="display:none;margin-top:12px;padding-top:12px;border-top:1.5px dashed #d9caf9;"></div>'
+        + '</div>';
+    }).join('');
+  }catch(e){
+    box.innerHTML = '<div style="padding:14px;color:#ff2e63;font-size:13px;">Could not load requests: '+sanitize(e.message)+'</div>';
+  }
+}
+
+function _dreqBump(delta){
+  const badge = document.getElementById('demoReqCount');
+  if(!badge) return;
+  const n = Math.max(0, (parseInt(badge.textContent,10)||0) + delta);
+  badge.textContent = n;
+  badge.style.display = n ? 'inline-block' : 'none';
+}
+
+async function approveDemoRequest(id){
+  const card = document.getElementById('dreq'+id);
+  const btns = card ? card.querySelectorAll('button') : [];
+  btns.forEach(function(b){ b.disabled = true; });
+  try{
+    const r = await fetch('/api/superadmin/demo-requests/'+id+'/approve', {
+      method:'POST', headers:{ 'Authorization':'Bearer '+authToken } });
+    const d = await r.json();
+    if(!r.ok || !d.success) throw new Error(d.error || 'Approve failed');
+    const out = document.getElementById('dreqOut'+id);
+    out.style.display = 'block';
+    out.innerHTML =
+        '<div style="font-weight:800;color:#16a34a;margin-bottom:8px;">\u2705 Demo activated</div>'
+      + '<div style="font-size:13px;line-height:1.8;">'
+      +   'Shop ID: <code style="background:#f3f4f6;padding:2px 8px;border-radius:6px;font-weight:800;">'+sanitize(d.shopId)+'</code><br>'
+      +   'Password: <code style="background:#f3f4f6;padding:2px 8px;border-radius:6px;">'+sanitize(d.password)+'</code> (mobile number)<br>'
+      +   'Valid: <b>'+d.hours+' hours</b> &nbsp;|&nbsp; Free prints: <b>'+d.printLimit+'</b>'
+      + '</div>'
+      + '<a href="'+d.whatsappUrl+'" target="_blank" rel="noopener" '
+      +   'style="display:inline-block;margin-top:12px;background:#25D366;color:#fff;text-decoration:none;'
+      +   'border-radius:12px;padding:13px 24px;font-size:14px;font-weight:800;">'
+      +   '\uD83D\uDCAC Send Shop ID on WhatsApp \u2192</a>'
+      + '<div style="font-size:11px;color:#6b6870;margin-top:8px;">'
+      +   'Message: "Your demo account is activated for '+d.hours+' Hours with a Limit of '+d.printLimit+' Free prints"</div>';
+    btns.forEach(function(b){ b.style.display = 'none'; });
+    _dreqBump(-1);
+    loadDemos();
+  }catch(e){
+    alert('\u274C '+e.message);
+    btns.forEach(function(b){ b.disabled = false; });
+  }
+}
+
+async function deleteDemoRequest(id){
+  if(!confirm('Delete this demo request?\n\nDemo activate nahi hoga. Ye number dobara demo request kar sakega.')) return;
+  const card = document.getElementById('dreq'+id);
+  const btns = card ? card.querySelectorAll('button') : [];
+  btns.forEach(function(b){ b.disabled = true; });
+  try{
+    const r = await fetch('/api/superadmin/demo-requests/'+id, {
+      method:'DELETE', headers:{ 'Authorization':'Bearer '+authToken } });
+    const d = await r.json();
+    if(!r.ok || !d.success) throw new Error(d.error || 'Delete failed');
+    if(card) card.remove();
+    _dreqBump(-1);
+    if(!document.querySelectorAll('[id^=dreq]').length) loadDemoRequests();
+  }catch(e){
+    alert('\u274C '+e.message);
+    btns.forEach(function(b){ b.disabled = false; });
+  }
+}
+
 async function loadDemos(){
   try{
     const res = await fetch('/api/superadmin/demos', { headers:{'Authorization':'Bearer '+authToken} });
@@ -1283,7 +1507,7 @@ async function loadDemos(){
         <div style="display:flex;justify-content:space-between;align-items:start;flex-wrap:wrap;gap:8px;">
           <div>
             <div style="font-weight:800;font-size:14px;">${(d.agent_seconds_ago !== undefined && d.agent_seconds_ago !== null ? d.agent_seconds_ago < 120 : (d.agent_last_seen && (Date.now()-new Date(d.agent_last_seen).getTime())<120000)) ? '🟢' : '🔴'} ${sanitize(d.name||'-')} <span style="font-family:monospace;font-size:11px;color:#6b6870;">${d.id}</span></div>
-            <div style="font-size:12px;color:#6b6870;margin-top:3px;">📱 ${sanitize(d.phone||'-')} &nbsp;|&nbsp; 🖨️ ${d.prints} paid prints (${d.total_jobs} total jobs) &nbsp;${agentVerBadge(d.agent_version, d.agent_last_seen)}</div>
+            <div style="font-size:12px;color:#6b6870;margin-top:3px;">📱 ${sanitize(d.phone||'-')} &nbsp;|&nbsp; 🖨️ ${d.prints} paid prints (${d.total_jobs} total jobs) &nbsp;${agentVerBadge(d.agent_version, d.agent_last_seen, d.agent_version_label)}</div>
             <div style="font-size:11px;color:#9a9aa0;margin-top:3px;">Shuru: ${createdStr} &nbsp;|&nbsp; ${statusHtml}</div>
           </div>
           <button onclick="openPrinterPanel('${d.id}','${sanitize(d.name||'')}')" style="background:#0f766e;color:#fff;border:none;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🖨️ Printer</button>
@@ -2299,10 +2523,37 @@ async function toggleAgentBlock(shopId, blocked) {
 }
 
 // ═══ AGENT VERSION BADGE ═══
-let _latestAgentVersion = null;
-function agentVerBadge(v, lastSeen) {
+let _latestAgentVersion = null;      // internal integer counter
+let _latestAgentLabel   = null;      // display label e.g. "2.0"
+
+// "2.10" → [2,10]. String compare NEVER use karo: "2.9" > "2.10" aa jaata hai.
+function parseVerLabel(label) {
+  if (typeof label !== 'string') return null;
+  const s = label.trim().replace(/^[vV]\.?/, '');
+  if (!/^\d{1,3}\.\d{1,3}$/.test(s)) return null;
+  const p = s.split('.').map(n => parseInt(n, 10));
+  return (Number.isInteger(p[0]) && Number.isInteger(p[1])) ? p : null;
+}
+function cmpVerLabel(a, b) {
+  const pa = parseVerLabel(a), pb = parseVerLabel(b);
+  if (!pa || !pb) return 0;
+  if (pa[0] !== pb[0]) return pa[0] < pb[0] ? -1 : 1;
+  if (pa[1] !== pb[1]) return pa[1] < pb[1] ? -1 : 1;
+  return 0;
+}
+
+function agentVerBadge(v, lastSeen, label) {
   const ver = parseInt(v, 10);
   const everSeen = !!lastSeen;
+  // Naye agents "2.0" jaisa label bhejte hain — wahi dikhao. Purane agents
+  // sirf integer bhejte hain, unke liye purana behaviour chalta rahe.
+  const myLabel = parseVerLabel(label) ? label.trim() : null;
+  if (myLabel) {
+    const behind = _latestAgentLabel && cmpVerLabel(myLabel, _latestAgentLabel) < 0;
+    return behind
+      ? `<span style="display:inline-block;font-size:10px;font-weight:800;background:#fef3c7;color:#92400e;border-radius:6px;padding:2px 7px;" title="Purana version — latest v${_latestAgentLabel} hai. Agent 1 ghante me khud update ho jayega.">v${myLabel} ⬆</span>`
+      : `<span style="display:inline-block;font-size:10px;font-weight:800;background:#dcfce7;color:#166534;border-radius:6px;padding:2px 7px;" title="Latest version chal raha hai">v${myLabel} ✓</span>`;
+  }
   if (!ver) {
     return everSeen
       ? `<span style="display:inline-block;font-size:10px;font-weight:800;background:#f3f4f6;color:#6b7280;border-radius:6px;padding:2px 7px;" title="Purana agent — version report nahi karta. Update hone par dikhne lagega.">v ?</span>`
@@ -2480,6 +2731,8 @@ async function loadPanel() {
   loadBroadcast();
   loadWithdrawals();
   loadDemos();
+  loadDemoRequests();
+  loadSecurity();
   loadAgents();
   loadAnalytics();
   loadWhitelabels();
@@ -2546,7 +2799,11 @@ async function loadPanel() {
     if (versionRes.ok) {
       const versionData = await versionRes.json();
       _latestAgentVersion = parseInt(versionData.version, 10) || null;
-      document.getElementById('agentVersionDisplay').textContent = versionData.version;
+      _latestAgentLabel   = versionData.versionLabel || null;
+      document.getElementById('agentVersionDisplay').textContent =
+        versionData.displayVersion || versionData.versionLabel || versionData.version;
+      const _viEl = document.getElementById('agentVersionInput');
+      if (_viEl && !_viEl.value) _viEl.value = versionData.nextLabel || '2.0';
       if (versionData.updatedAt) {
         const d = new Date(versionData.updatedAt);
         document.getElementById('agentVersionUpdated').textContent = 'Last update: ' + d.toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' }) + ' ' + d.toLocaleTimeString('en-IN', { hour:'2-digit', minute:'2-digit' });
@@ -2600,19 +2857,41 @@ async function pushAgentUpdate() {
   const msgEl = document.getElementById('agentVersionMsg');
   msgEl.style.display = 'none';
 
-  if (!confirm('Pakka? Yeh sab customers ke Print Agent ko naya code download karne ke liye trigger karega. Pehle confirm karo GitHub/Render pe naya agent-template/print_agent.py deploy ho chuka hai.')) {
+  const inputEl = document.getElementById('agentVersionInput');
+  const label = (inputEl && inputEl.value || '').trim();
+
+  if (!parseVerLabel(label)) {
+    msgEl.textContent = '❌ Version format galat hai. Aise likho: 2.0, 2.1, 2.10, 3.0';
+    msgEl.style.color = '#ff2e63';
+    msgEl.style.display = 'block';
+    if (inputEl) inputEl.focus();
+    return;
+  }
+  if (_latestAgentLabel && cmpVerLabel(label, _latestAgentLabel) <= 0) {
+    msgEl.textContent = `❌ v${label} current v${_latestAgentLabel} se aage hona chahiye.`;
+    msgEl.style.color = '#ff2e63';
+    msgEl.style.display = 'block';
+    if (inputEl) inputEl.focus();
+    return;
+  }
+
+  if (!confirm(`Pakka? Version v${label} push hoga aur sab customers ke Print Agent naya code download karenge. Pehle confirm karo GitHub/Render pe naya agent-template/print_agent.py deploy ho chuka hai.`)) {
     return;
   }
 
   try {
     const res = await fetch('/api/superadmin/agent-version/bump', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + authToken }
+      headers: { 'Authorization': 'Bearer ' + authToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ label })
     });
     const data = await res.json();
     if (data.success) {
-      document.getElementById('agentVersionDisplay').textContent = data.version;
-      msgEl.textContent = `✅ Version v${data.version} push ho gaya! Sab customers ke PC 1 ghante ke andar auto-update ho jayenge.`;
+      _latestAgentVersion = parseInt(data.version, 10) || _latestAgentVersion;
+      _latestAgentLabel   = data.versionLabel || label;
+      document.getElementById('agentVersionDisplay').textContent = data.displayVersion || data.versionLabel;
+      if (inputEl) inputEl.value = data.nextLabel || '';
+      msgEl.textContent = `✅ Version v${data.versionLabel} push ho gaya! Sab customers ke PC 1 ghante ke andar auto-update ho jayenge.`;
       msgEl.style.color = '#00c853';
       msgEl.style.display = 'block';
     } else {
@@ -3139,6 +3418,8 @@ async function deletePendingShop(shopId, name){
       // shop delete hone ke baad bhi card screen par bacha rehta hai
       // aur lagta hai ki delete hua hi nahi.
       try { if (typeof loadDemos === 'function') loadDemos(); } catch(e){}
+      try { if (typeof loadDemoRequests === 'function') loadDemoRequests(); } catch(e){}
+      try { if (typeof loadSecurity === 'function') loadSecurity(); } catch(e){}
     } else {
       alert('❌ ' + (data.error || 'Delete fail hua'));
     }

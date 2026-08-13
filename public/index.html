@@ -2512,13 +2512,20 @@ html.legal-open,body.legal-open{overflow:hidden}
 
 <div class="dm-overlay" id="demoModal">
   <div class="dm-box">
-    <h3 data-cfg="demo01">🎯 2 Ghante Free Demo</h3>
-    <div data-cfg="demo02" class="dm-sub">Naam + mobile — turant Demo Shop ID milega, koi payment nahi</div>
+    <h3>🎯 2 Hour Free Demo</h3>
+    <div class="dm-sub">Fill in your shop details — we activate your demo and send the Shop ID on WhatsApp</div>
     <div class="dm-err" id="dmErr"></div>
     <div id="dmForm">
-      <input id="dmName" placeholder="Aapka naam / shop ka naam">
-      <input id="dmPhone" type="tel" maxlength="10" placeholder="Mobile number (10 digit)">
-      <button data-cfg="demo03" class="dm-btn" id="dmGo" onclick="createDemo()">Demo Shuru Karo ›</button>
+      <input id="dmName" autocomplete="name" placeholder="Your name">
+      <input id="dmPhone" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="Mobile number (10 digit)">
+      <input id="dmShop" autocomplete="organization" placeholder="Shop name">
+      <input id="dmAddress" autocomplete="street-address" placeholder="Shop address">
+      <input id="dmEmail" type="email" autocomplete="email" placeholder="Email address">
+      <select id="dmPrinter" style="width:100%;">
+        <option value="">Select your printer</option>
+      </select>
+      <div id="dmTurnstile" style="margin:10px 0;display:none;"></div>
+      <button class="dm-btn" id="dmGo" onclick="createDemo()">Request Free Demo ›</button>
     </div>
     <div class="dm-result" id="dmResult"></div>
     <button data-cfg="demo04" class="dm-close" onclick="closeDemoModal()">Band karo</button>
@@ -3707,44 +3714,122 @@ function initFestivalOffer(enabled, name, endAt) {
   const timer = setInterval(tick, 1000);
 }
 
-function openDemoModal(){ document.getElementById('demoModal').classList.add('open'); }
+function openDemoModal(){ document.getElementById('demoModal').classList.add('open'); loadDemoPrinters(); loadChallenge(); }
 function closeDemoModal(){ document.getElementById('demoModal').classList.remove('open'); }
+// ── BOT CHALLENGE (Cloudflare Turnstile) ──
+// Server batata hai enabled hai ya nahi. TURNSTILE_SECRET_KEY set na ho to
+// widget dikhta hi nahi aur form pehle jaisa hi chalta hai.
+let _tsWidgetId = null, _tsReady = false;
+async function loadChallenge(){
+  if(_tsReady) return;
+  _tsReady = true;
+  try{
+    const r = await fetch('/api/security/challenge');
+    const d = await r.json();
+    if(!d.enabled || !d.siteKey) return;
+    const box = document.getElementById('dmTurnstile');
+    if(!box) return;
+    box.style.display = 'block';
+    const render = function(){
+      if(!(window.turnstile && box)) return;
+      _tsWidgetId = window.turnstile.render(box, { sitekey: d.siteKey, theme: 'light' });
+    };
+    if(window.turnstile){ render(); return; }
+    const sc = document.createElement('script');
+    sc.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
+    sc.async = true; sc.defer = true;
+    sc.onload = render;
+    document.head.appendChild(sc);
+  }catch(e){ /* challenge na chale to form normal chalta rahe */ }
+}
+function challengeToken(){
+  try{
+    if(window.turnstile && _tsWidgetId !== null) return window.turnstile.getResponse(_tsWidgetId) || '';
+  }catch(e){}
+  return '';
+}
+function resetChallenge(){
+  try{ if(window.turnstile && _tsWidgetId !== null) window.turnstile.reset(_tsWidgetId); }catch(e){}
+}
+
+let _dmPrintersLoaded = false;
+async function loadDemoPrinters(){
+  if(_dmPrintersLoaded) return;
+  const sel = document.getElementById('dmPrinter');
+  if(!sel) return;
+  try{
+    const r = await fetch('/api/printer-models');
+    const d = await r.json();
+    if(Array.isArray(d.models)){
+      d.models.forEach(function(m){
+        const o = document.createElement('option');
+        o.value = m; o.textContent = m; sel.appendChild(o);
+      });
+    }
+  }catch(e){ /* list na mile to bhi form kaam kare */ }
+  const other = document.createElement('option');
+  other.value = 'Other'; other.textContent = 'Other / Not listed';
+  sel.appendChild(other);
+  _dmPrintersLoaded = true;
+}
+
 async function createDemo(){
   const err = document.getElementById('dmErr');
   err.style.display = 'none';
-  const name = document.getElementById('dmName').value.trim();
-  const phone = document.getElementById('dmPhone').value.trim();
-  if(!name){ err.textContent='Naam daalo'; err.style.display='block'; return; }
-  if(!/^\d{10}$/.test(phone)){ err.textContent='Sahi 10-digit mobile daalo'; err.style.display='block'; return; }
+  const val = function(id){ const e=document.getElementById(id); return e ? (e.value||'').trim() : ''; };
+  const name = val('dmName'), phone = val('dmPhone'), shopName = val('dmShop');
+  const address = val('dmAddress'), email = val('dmEmail'), printerModel = val('dmPrinter');
+
+  const fail = function(msg, id){
+    err.textContent = msg; err.style.display = 'block';
+    const el = id && document.getElementById(id); if(el) el.focus();
+    return false;
+  };
+  if(!name)                   return fail('Please enter your name','dmName');
+  if(!/^\d{10}$/.test(phone)) return fail('Please enter a valid 10-digit mobile number','dmPhone');
+  if(!shopName)               return fail('Please enter your shop name','dmShop');
+  if(!address)                return fail('Please enter your shop address','dmAddress');
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return fail('Please enter a valid email address','dmEmail');
+  if(!printerModel)           return fail('Please select your printer','dmPrinter');
+
   const btn = document.getElementById('dmGo');
-  btn.disabled = true; btn.textContent = '⏳ Ban raha hai...';
+  btn.disabled = true; btn.textContent = '\u23F3 Submitting...';
   try{
-    const r = await fetch('/api/demo/create', {
+    const r = await fetch('/api/demo/request', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ name, phone })
+      body: JSON.stringify({ name, phone, shopName, address, email, printerModel,
+                             turnstileToken: challengeToken() })
     });
     const d = await r.json();
-    if(!d.success) throw new Error(d.error||'Demo create fail');
+    if(!r.ok || !d.success) throw new Error(d.error || 'Could not submit your request');
+
     document.getElementById('dmForm').style.display = 'none';
     const res = document.getElementById('dmResult');
-    res.innerHTML = '✅ <b>Demo ready — 2 ghante ka time shuru!</b><br>' +
-      '🆔 Shop ID: <code>' + d.shopId + '</code><br>' +
-      '🔑 Password: <code>' + d.password + '</code> (aapka mobile)<br><br>' +
-      '<b>Ab kya karo:</b><br>' +
-      '1️⃣ <a href="/admin" target="_blank" style="color:#7c3aed;font-weight:700;">Shop Login</a> karke Print Agent (.exe) download karo<br>' +
-      '2️⃣ PC par install karke yehi Shop ID daalo<br>' +
-      '3️⃣ Apne phone se QR scan karke test print bhejo!<br>' +
-      '<span style="font-size:11px;color:#666;">⏰ 2 ghante baad demo expire — pasand aaye to register karna</span>' +
-      '<div class="gv-mini-label">🎬 Setup Kaise Karein — Dekh Lo</div>' +
-      '<div class="gv-mini-frame"><div class="gv-mini-inner">' +
-        '<iframe id="gvMiniFrameDemo" src="https://www.youtube-nocookie.com/embed/qOPE-90Um8g?autoplay=1&mute=1&loop=1&playlist=qOPE-90Um8g&controls=1&rel=0&modestbranding=1&playsinline=1" title="How to Setup" allow="accelerate=1;autoplay;encrypted-media;picture-in-picture" allowfullscreen loading="lazy"></iframe>' +
-        '<button type="button" class="gv-mini-sound" onclick="document.getElementById(\'gvMiniFrameDemo\').src=\'https://www.youtube-nocookie.com/embed/qOPE-90Um8g?autoplay=1&mute=0&loop=1&playlist=qOPE-90Um8g&controls=1&rel=0&modestbranding=1&playsinline=1\';this.style.display=\'none\';">🔊 Sound On</button>' +
-      '</div></div>';
+
+    if(d.approved){
+      res.innerHTML = '\u2705 <b>Demo ready \u2014 your 2 hours start now!</b><br>' +
+        '\uD83C\uDD94 Shop ID: <code>' + d.shopId + '</code><br>' +
+        '\uD83D\uDD11 Password: <code>' + d.password + '</code> (your mobile number)<br><br>' +
+        '<b>Next steps:</b><br>' +
+        '1\uFE0F\u20E3 <a href="/admin" target="_blank" style="color:#7c3aed;font-weight:700;">Shop Login</a> and download the Print Agent (.exe)<br>' +
+        '2\uFE0F\u20E3 Install it on your PC and enter this Shop ID<br>' +
+        '3\uFE0F\u20E3 Scan the QR from your phone and send a test print!';
+    } else {
+      res.innerHTML = '\u2705 <b>Request submitted!</b><br><br>' +
+        'Your demo request is with our team. Once approved you will get your ' +
+        '<b>Shop ID and password on WhatsApp</b> at <code>' + phone + '</code>.<br><br>' +
+        '<div style="font-size:13px;line-height:1.7;text-align:left;">' +
+        '\u23F1\uFE0F Usually activated within a few minutes during working hours.<br>' +
+        '\uD83C\uDF81 Your demo runs for <b>2 hours</b> with <b>10 free prints</b>.<br>' +
+        '\uD83D\uDCF1 Keep WhatsApp open on <code>' + phone + '</code>.' +
+        '</div>';
+    }
     res.style.display = 'block';
   }catch(e){
-    err.textContent = '❌ ' + e.message;
+    err.textContent = e.message;
     err.style.display = 'block';
-    btn.disabled = false; btn.textContent = 'Demo Shuru Karo ›';
+    resetChallenge();
+    btn.disabled = false; btn.textContent = 'Request Free Demo \u203A';
   }
 }
 </script>
