@@ -504,6 +504,10 @@ const DUP_UPLOAD_LIMIT     = parseInt(process.env.DUP_UPLOAD_LIMIT || '5', 10);
 const DUP_UPLOAD_WINDOW_MIN= parseInt(process.env.DUP_UPLOAD_WINDOW_MIN || '60', 10);
 // Job kitni der 'printing' me atka rahe uske baad fail + delete
 const STUCK_JOB_TIMEOUT_SEC = parseInt(process.env.STUCK_JOB_TIMEOUT_SEC || '120', 10);
+// Job 'printing' me itne second se zyada atka to agent ko DOBARA de do.
+// Sweeper 120s par delete karta hai — 45s rakhne se beech me 2-3 baar
+// dobara dene ka mauka mil jaata hai.
+const ORPHAN_RECLAIM_SEC    = parseInt(process.env.ORPHAN_RECLAIM_SEC || '45', 10);
 // 0 = seedha fail (spec ke hisab se). 1 = ek baar dobara try. Slow printer
 // wali shops complain karein to isko 1 kar dena.
 const STUCK_JOB_RETRIES     = parseInt(process.env.STUCK_JOB_RETRIES || '0', 10);
@@ -5192,7 +5196,7 @@ app.get('/api/admin/profile', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
       `SELECT id,name,address,phone,demo,plan_type,paid_until,advanced_unlocked,advanced_active,
-              adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,shop_notice,shop_logo,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
+              adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,adv_mini_active,shop_notice,shop_logo,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
               email,payment_gateway,razorpay_key_id,cashfree_app_id,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
               CASE WHEN cashfree_secret_key != '' THEN true ELSE false END as has_cashfree_secret
@@ -6434,7 +6438,21 @@ app.get('/api/jobs/pending/:shopId', verifyAgent, async (req, res) => {
        FROM shops s
        WHERE j.id IN (
          SELECT j2.id FROM print_jobs j2 JOIN shops s2 ON j2.shop_id=s2.id
-         WHERE j2.shop_id=$1 AND j2.status='queued' AND j2.payment_status='paid' AND s2.setup_paid=true
+         WHERE j2.shop_id=$1 AND j2.payment_status='paid' AND s2.setup_paid=true
+           AND (
+                j2.status='queued'
+                -- ORPHAN RECOVERY:
+                -- Job 'printing' me hai par kaafi der se koi halchal nahi.
+                -- Aisa tab hota hai jab claim to ho gaya par response agent
+                -- tak pahuncha hi nahi (idle ke baad socket mar jaana,
+                -- timeout, ya agent restart). Pehle aisa job kabhi dobara
+                -- nahi milta tha aur 120s baad file delete ho jaati thi —
+                -- customer ka paisa lag jaata, print kabhi nahi nikalta.
+                -- Ek shop par ek hi agent hota hai, isliye dobara dena safe
+                -- hai; agent apni taraf se duplicate print rok leta hai.
+                OR (j2.status='printing'
+                    AND j2.printing_at < NOW() - ($2 || ' seconds')::interval)
+               )
          ORDER BY j2.created_at ASC LIMIT 5
          FOR UPDATE OF j2 SKIP LOCKED
        ) AND s.id=j.shop_id
@@ -6442,8 +6460,12 @@ app.get('/api/jobs/pending/:shopId', verifyAgent, async (req, res) => {
                  j.total_pages,j.selected_pages,j.amount,j.payment_method,j.created_at,j.duplex,
                  j.paper_size,j.orientation,
                  s.printer_name_bw,s.printer_name_color,s.printer_name_4x6,s.printer_name_a3,s.duplex_mode`,
-      [req.params.shopId]
+      [req.params.shopId, String(ORPHAN_RECLAIM_SEC)]
     );
+    if (r.rows.length) {
+      const re = r.rows.filter(j => j.printing_at);
+      if (re.length) console.log(`♻️ Re-delivering ${re.length} orphaned job(s) to ${req.params.shopId}`);
+    }
     res.json({ jobs: r.rows });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });

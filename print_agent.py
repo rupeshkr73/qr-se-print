@@ -13,6 +13,8 @@ import subprocess
 import threading
 import shutil
 import secrets
+import re
+import json
 from datetime import datetime
 from pathlib import Path
 
@@ -42,15 +44,24 @@ UNCONFIGURED_MARKER = "AAPKA" + "_SHOP_ID"
 SHOP_ID_TEMPLATE   = "AAPKA_SHOP_ID"
 SERVER_URL         = "https://qrseprint.in"
 CHECK_INTERVAL     = 5          # Job aane par / turant baad — itni jaldi check
-IDLE_INTERVAL_1    = 12         # 2 minute khaali gaye to itna
-IDLE_INTERVAL_2    = 25         # 10 minute khaali gaye to itna
-IDLE_INTERVAL_3    = 45         # 60 minute khaali gaye to itna (raat/band dukaan)
+IDLE_INTERVAL_1    = 10         # Khaali hone par bhi sirf 10s (v2.0)
+# v2.0 se ye do use nahi hote — file ab Render se nahi guzarti, isliye
+# dheere check karke bandwidth bachane ki zaroorat khatam. Purane build
+# se compatibility ke liye naam rakhe hain.
+IDLE_INTERVAL_2    = 10
+IDLE_INTERVAL_3    = 10
 # Dukaan din bhar me sirf kuch der busy rehti hai. Har 5 second poll karne se
 # roz lakhon request jaati hain aur server ka bandwidth khatam ho jaata hai.
 # Isliye khaali waqt me dheere check karo — par job aate hi turant 5s par
 # wapas aa jao, taaki print me deri na ho.
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 29           # Integer version number — server ke agent_version se compare hota hai
+VERSION            = 30           # INTERNAL counter — server ke agent_version se compare hota hai.
+                                  # Ye sirf badhta hai (29 → 30 → 31...). Isko kabhi
+                                  # "2.0" mat banao: purane v27/v28/v29 agents integer
+                                  # compare karte hain, warna woh update lena band kar denge.
+VERSION_LABEL      = "2.0"        # Jo sab jagah DIKHTA hai: 2.0 → 2.1 ... 2.10 → 3.0
+REMOTE_VERSION_LABEL = None       # Server ka latest label — update check par bhar jaata hai
+REMOTE_VERSION_INT = 0            # Server ka internal build number (integer compare ke liye)
 SUPPORT_WA         = "918404832414"  # Admin WhatsApp (shop-login Support jaisa) — Contact Admin isi par khulega
 
 # Log/temp files hamesha user-writable folder (%APPDATA%) mein rakhte hain —
@@ -168,7 +179,12 @@ agent_state = {
     "status": "Starting...",
     "printer": "Unknown",
     "tray_icon": None,
-    "running": True
+    "running": True,
+    # "online" | "connecting" | "offline" — tray aur desktop panel dono
+    # isi se apna status dot dikhate hain.
+    "connection": "connecting",
+    # Reconnect to Server button set karta hai; print_loop ise consume karta hai.
+    "reconnect_requested": False,
 }
 
 def log(msg, level="INFO"):
@@ -190,6 +206,50 @@ def is_running_as_exe():
     .exe mode mein sab dependencies already bundled hoti hain.
     """
     return getattr(sys, 'frozen', False)
+
+# ─── SAFE CHILD PROCESS ENVIRONMENT (PyInstaller onefile fix) ─────────
+# PyInstaller ka --onefile bootloader apne aap ko batane ke liye kuch env
+# variables set karta hai (_MEIPASS2 / _PYI_APPLICATION_HOME_DIR). Agar hum
+# subprocess.Popen se naya .exe launch karein to ye variables CHILD ko
+# inherit ho jaate hain. Tab naya .exe sochta hai "main already unpacked
+# hoon" aur apna alag temp folder extract NAHI karta — wahi purana
+# _MEIxxxxxx use karta hai. Purana process exit hote hi uska bootloader
+# us folder ko DELETE kar deta hai, aur naya process beech import mein hi
+# mar jaata hai:
+#     [Errno 2] No such file or directory: ...\Temp\_MEIxxxxx\base_library.zip
+# Isliye har child launch se pehle ye variables hata do.
+# Version label format check: "2.0", "2.10", "3.1" — teen digit tak allowed.
+_VERSION_LABEL_RE = re.compile(r'^\d{1,3}\.\d{1,3}$')
+
+_PYI_BOOTLOADER_VARS = (
+    '_MEIPASS2',
+    '_PYI_APPLICATION_HOME_DIR',
+    '_PYI_ARCHIVE_FILE',
+    '_PYI_PARENT_PROCESS_LEVEL',
+    '_PYI_SPLASH_IPC',
+)
+
+def _child_env():
+    """A clean copy of the environment, safe to hand to a new .exe/process."""
+    env = os.environ.copy()
+    for var in _PYI_BOOTLOADER_VARS:
+        env.pop(var, None)
+    return env
+
+def _spawn_detached(args, cwd=None):
+    """
+    Launch a fully independent process that survives this one exiting.
+    Uses a sanitised environment so a PyInstaller onefile child always
+    extracts its own temp folder.
+    """
+    kwargs = {'env': _child_env(), 'close_fds': True}
+    if cwd:
+        kwargs['cwd'] = cwd
+    if os.name == 'nt':
+        # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP — parent ke marne par
+        # child bhi na mare, aur Ctrl+C signals share na hon.
+        kwargs['creationflags'] = 0x00000008 | 0x00000200
+    return subprocess.Popen(args, **kwargs)
 
 def _powershell_input(prompt, title="QR Se Print"):
     """
@@ -575,7 +635,7 @@ def show_banner():
     # main() ki PEHLI line hai — matlab exe har launch pe turant FATAL
     # CRASH ho jaata tha (log mein "'NoneType' object has no attribute
     # 'write'" dikhta hai). log() already guarded hai, isliye usi se bhejo.
-    log(f"QR Se Print - Local Agent v{VERSION} | Tray + Auto-Update + Fit-A4")
+    log(f"QR Se Print - Local Agent v{VERSION_LABEL} | Tray + Auto-Update + Fit-A4")
 
 def check_printer():
     """
@@ -633,6 +693,85 @@ def report_printers_to_server():
         log(f"📋 Printer list sent to server: {printers}")
     except Exception as e:
         log(f"⚠️  Printer list report fail: {e}", "WARN")
+
+# ═══════════════════════════════════════════════
+# IDEMPOTENCY — ek job kabhi do baar print na ho
+# ═══════════════════════════════════════════════
+# Server 'printing' claim karke duplicate rokta hai, par agent ke restart /
+# stuck-job requeue ke baad wahi job dobara aa sakta hai. Ye local record
+# usko bhi rok deta hai. Disk par isliye taaki restart ke baad bhi yaad rahe.
+_PROCESSED_PATH = os.path.join(_APPDATA_DIR, "processed_jobs.json")
+_processed_jobs = {}
+
+def _load_processed():
+    global _processed_jobs
+    try:
+        with open(_PROCESSED_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        cutoff = time.time() - 7 * 24 * 3600          # 7 din se purane bhool jao
+        _processed_jobs = {k: v for k, v in data.items() if isinstance(v, (int, float)) and v > cutoff}
+    except Exception:
+        _processed_jobs = {}
+
+def _save_processed():
+    # Atomic write — beech me power chali jaye to file corrupt na ho
+    try:
+        tmp = _PROCESSED_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(_processed_jobs, f)
+        os.replace(tmp, _PROCESSED_PATH)
+    except Exception as e:
+        log(f"Could not save processed-job list: {e}", "WARN")
+
+_inflight_jobs = set()          # abhi is waqt print ho rahe job IDs
+
+def already_processed(job_id):
+    return job_id in _processed_jobs
+
+def mark_processed(job_id):
+    _processed_jobs[job_id] = time.time()
+    if len(_processed_jobs) > 500:                    # sabse purane hata do
+        for k in sorted(_processed_jobs, key=_processed_jobs.get)[:200]:
+            _processed_jobs.pop(k, None)
+    _save_processed()
+
+def get_download_url(job_id, fallback_url):
+    """
+    Server se is job ka authorized download URL maango.
+    Server sirf URL deta hai — PDF uske through NAHI jaati; agent Cloudinary
+    se seedha download karta hai.
+    Purana server ye endpoint nahi jaanta, to job me aaya file_url use karo.
+    """
+    try:
+        resp = requests.get(
+            f"{SERVER_URL}/api/jobs/{SHOP_ID}/{job_id}/download-url",
+            headers=auth_headers(), timeout=15)
+        if resp.status_code == 200:
+            data = resp.json()
+            if data.get("downloadUrl"):
+                return data["downloadUrl"], None
+        elif resp.status_code in (403, 409, 410):
+            # Job ab printable nahi (dusri shop ka / paid nahi / file delete)
+            try:
+                msg = resp.json().get("error", "not available")
+            except Exception:
+                msg = "not available"
+            return None, msg
+        elif resp.status_code == 404:
+            log("Server does not support authorized download yet — using job URL", "WARN")
+    except Exception as e:
+        log(f"Download-url lookup failed ({e}) — using job URL", "WARN")
+    return fallback_url, None
+
+def report_download(job_id, ok, bytes_count=None, err=None):
+    """Sirf status message — koi file wapas server ko nahi jaati."""
+    try:
+        requests.post(
+            f"{SERVER_URL}/api/jobs/{SHOP_ID}/{job_id}/downloaded",
+            headers=auth_headers(), timeout=10,
+            json={"ok": bool(ok), "bytes": bytes_count, "error": (str(err)[:180] if err else "")})
+    except Exception:
+        pass          # best-effort, print kabhi na ruke
 
 def download_file(url, ext):
     """Download the file from Cloudinary"""
@@ -1211,15 +1350,56 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
             except:
                 pass
 
+_http = None
+
+def http():
+    """
+    Ek hi Session, jisme chhoti network dikkat par apne aap retry hota hai.
+    Connection reuse hota hai, isliye idle ke baad wala pehla request
+    fail hone ka chance bahut kam ho jaata hai.
+    """
+    global _http
+    if _http is not None:
+        return _http
+    sess = requests.Session()
+    try:
+        from requests.adapters import HTTPAdapter
+        try:
+            from urllib3.util.retry import Retry
+        except Exception:
+            from requests.packages.urllib3.util.retry import Retry
+        retry = Retry(
+            total=2, connect=2, read=2, backoff_factor=0.6,
+            status_forcelist=(502, 503, 504),
+            allowed_methods=frozenset(["GET", "POST"])
+        )
+        ad = HTTPAdapter(max_retries=retry, pool_connections=4, pool_maxsize=8)
+        sess.mount("https://", ad)
+        sess.mount("http://", ad)
+    except Exception as e:
+        log(f"HTTP retry setup skipped: {e}", "WARN")
+    _http = sess
+    return _http
+
+def reset_http():
+    """Reconnect par purana session poori tarah phenk do — naye socket banenge."""
+    global _http
+    try:
+        if _http is not None:
+            _http.close()
+    except Exception:
+        pass
+    _http = None
+
 def get_pending_jobs():
     global _demo_expired_shown
     try:
         url = f"{SERVER_URL}/api/jobs/pending/{SHOP_ID}"
         if MACHINE_ID:
-            url += f"?m={MACHINE_ID}&v={VERSION}"
+            url += f"?m={MACHINE_ID}&v={VERSION}&vl={VERSION_LABEL}"
         else:
-            url += f"?v={VERSION}"
-        resp = requests.get(url, headers=auth_headers(), timeout=15)
+            url += f"?v={VERSION}&vl={VERSION_LABEL}"
+        resp = http().get(url, headers=auth_headers(), timeout=20)
         if resp.status_code == 403:
             log("❌ Agent token rejected by the server. Open the shop dashboard "
                 "and use 'Re-link agent' to reset it.", "ERROR")
@@ -1444,6 +1624,12 @@ def _report_with_retry(url, payload, job_id, what):
     return False
 
 def mark_complete(job_id):
+    # Pehle local record, phir server report. Agar report ke beech me
+    # agent crash ho jaye to bhi ye job dobara print nahi hoga.
+    try:
+        mark_processed(job_id)
+    except Exception as e:
+        log(f"Could not record processed job: {e}", "WARN")
     log(f"✅ Job {job_id} complete! Reporting to the server...")
     _report_with_retry(f"{SERVER_URL}/api/jobs/complete/{job_id}", {}, job_id, "Complete")
 
@@ -1590,7 +1776,42 @@ def ask_approval(job):
         return True
 
 def process_job(job):
+    """
+    In-flight guard ke saath wrapper. Asli kaam _process_job_inner karta hai.
+    finally me cleanup — chahe print safal ho, fail ho, ya exception aaye —
+    job ID kabhi "abhi chal raha hai" list me atki nahi rahegi.
+    """
+    job_id = job.get("id", "unknown")
+    try:
+        return _process_job_inner(job)
+    except Exception as e:
+        log(f"❌ Job {job_id} crashed: {e}", "ERROR")
+        try:
+            mark_failed(job_id, str(e)[:180])
+        except Exception:
+            pass
+    finally:
+        _inflight_jobs.discard(job_id)
+
+
+def _process_job_inner(job):
     job_id  = job.get("id", "unknown")
+    # DUPLICATE PRINT GUARD — server ne claim to kar liya hai, par agent
+    # restart ya stuck-job requeue ke baad wahi job dobara aa sakta hai.
+    # Customer ka paisa ek print ka hai, do nahi.
+    if already_processed(job_id):
+        log(f"⏭️  Job {job_id} already printed earlier — skipping (duplicate)")
+        try:
+            mark_complete(job_id)
+        except Exception:
+            pass
+        return
+    # Server ne isi job ko dobara bhej diya jabki ye abhi print ho raha hai
+    # (bada PDF 45s se zyada le raha ho). Chhod do — do baar nahi nikalna.
+    if job_id in _inflight_jobs:
+        log(f"⏭️  Job {job_id} abhi print ho raha hai — dobara nahi lenge")
+        return
+    _inflight_jobs.add(job_id)
     url     = job.get("file_url")
     copies  = job.get("copies", 1)
     color   = job.get("color_mode", "bw")
@@ -1650,6 +1871,15 @@ def process_job(job):
     if target_printer:
         log(f"   🎯 Target Printer ({color.upper()}): {target_printer}")
 
+    # Server se authorized download URL lo. Server sirf URL deta hai —
+    # PDF Cloudinary se SEEDHA is PC par aati hai, Render se hoke nahi.
+    signed_url, blocked = get_download_url(job_id, url)
+    if blocked:
+        log(f"❌ Server refused this job: {blocked}", "ERROR")
+        mark_failed(job_id, blocked)
+        return
+    url = signed_url or url
+
     if not url:
         log("❌ No file URL!", "ERROR")
         mark_failed(job_id, "No URL")
@@ -1657,8 +1887,10 @@ def process_job(job):
 
     filepath = download_file(url, ext)
     if not filepath:
+        report_download(job_id, False, err="download failed")
         mark_failed(job_id, "Download failed")
         return
+    report_download(job_id, True, os.path.getsize(filepath))
 
     file_size = os.path.getsize(filepath)
     if file_size < 100:
@@ -1746,19 +1978,131 @@ def check_dependencies():
         except:
             log("⚠️  pystray could not be installed — tray mode will not work, using console mode", "WARN")
 
+# ─── DESKTOP CONTROL PANEL (optional UI layer) ──────────────────────
+# Panel na khule to bhi agent poori tarah kaam karta hai — printing, tray,
+# auto-update sab pehle jaisa. Isliye import failure yahan swallow karte hain.
+PANEL = None
+try:
+    import agent_panel as PANEL
+    PANEL.bind(sys.modules[__name__])
+except Exception as _panel_err:
+    PANEL = None
+
+def switch_shop_id_live(new_shop_id):
+    """
+    Shop ID ko CHALTE-CHALTE badlo — process restart ke bina.
+
+    Restart kyun nahi: purana restart flow hi wo _MEI crash deta tha
+    (Phase 0). Conversion ke waqt customer ko wo crash dikhana sabse
+    kharab experience hoga. SHOP_ID module-level variable hai, isliye
+    globals() se update karte hain aur config file atomically likhte hain.
+    """
+    global SHOP_ID
+    old = SHOP_ID
+
+    # IMPORTANT: server par conversion ho chuki hai — agent token already
+    # paid shop par move ho gaya hai. Ab agar hum yahan ruk gaye to PC purane
+    # demo ID par atka rahega aur printing band ho jaayegi.
+    # Isliye: MEMORY me switch pehle karo (printing turant chal jaaye),
+    # file write baad me — file fail ho to sirf "restart ke baad yaad nahi
+    # rahega" wali problem hoti hai, printing nahi rukti.
+    SHOP_ID = new_shop_id
+
+    saved = False
+    try:
+        # Atomic write — beech me power gayi to config corrupt na ho
+        tmp = SHOP_CONFIG_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(new_shop_id)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, SHOP_CONFIG_FILE)
+        saved = True
+    except Exception as e:
+        log(f"Shop ID switched in memory but could not be saved to disk: {e}", "ERROR")
+        log(f"   After a restart this PC may ask for the Shop ID again — enter: {new_shop_id}", "WARN")
+    # Purane demo ke processed-job records ab bekaar hain
+    try:
+        _processed_jobs.clear()
+        _save_processed()
+    except Exception:
+        pass
+
+    agent_state["connection"] = "connecting"
+    agent_state["reconnect_requested"] = True      # turant naye shop se poll karo
+    log(f"✅ Shop switched: {old} → {new_shop_id}" + ("" if saved else " (not saved to disk)"))
+    try:
+        report_printers_to_server()
+    except Exception:
+        pass
+    update_tray_status("Running — waiting for jobs")
+    return True if saved else "memory-only"
+
+
+def is_demo_shop():
+    """
+    Demo hai ya paid — SERVER batata hai, Shop ID ke text se guess nahi karte
+    (spec: backend is the source of truth). Server na mile to False —
+    galti se paid shop ko demo dikhane se behtar hai kuch na dikhana.
+    """
+    try:
+        if PANEL is not None:
+            return PANEL.shop_type() == "demo"
+    except Exception:
+        pass
+    return False
+
+
+def open_upgrade_panel(icon=None, item=None):
+    """Tray ka '⚡ Change Demo ID to Paid Shop'."""
+    if PANEL is None:
+        _msgbox("Please open Settings to upgrade your demo to a paid shop.", "QR Se Print")
+        return
+    try:
+        PANEL.open_panel(page="upgrade")
+    except Exception as e:
+        log(f"Upgrade panel failed: {e}", "ERROR")
+
+
+def open_panel(icon=None, item=None):
+    """Tray ka '⚙ Settings' — desktop panel kholo."""
+    if PANEL is None:
+        _msgbox("The desktop panel is not available in this build.\n\n"
+                "Your Print Agent is running normally and printing is unaffected.",
+                "QR Se Print")
+        return
+    try:
+        PANEL.open_panel()
+    except Exception as e:
+        log(f"Panel open failed: {e} — agent continues normally", "ERROR")
+
 # ─── AUTO-UPDATE: Server se check karo naya version hai ya nahi ──────
 def get_remote_version():
     """Fetch the latest agent version number from the server"""
     try:
         resp = requests.get(f"{SERVER_URL}/api/agent/version", timeout=15)
         resp.raise_for_status()
-        v = resp.json().get("version")
+        data = resp.json()
+        v = data.get("version")
+        # Naya server display label bhi bhejta hai ("2.1"). Purana server nahi
+        # bhejta — tab None rehne do aur apna hi label dikhate raho.
+        global REMOTE_VERSION_LABEL, REMOTE_VERSION_INT
+        try:
+            REMOTE_VERSION_INT = int(v) if v is not None else 0
+        except Exception:
+            REMOTE_VERSION_INT = 0
+        lbl = data.get("versionLabel") or data.get("displayVersion")
+        REMOTE_VERSION_LABEL = lbl if (isinstance(lbl, str) and _VERSION_LABEL_RE.match(lbl.strip())) else None
         # Server string bhej de ("7") to int(6) se compare TypeError deta —
         # update silently kabhi trigger nahi hota. Int coerce karo.
         return int(v) if v is not None else None
     except Exception as e:
         log(f"⚠️  Version check failed: {e}", "WARN")
         return None
+
+def remote_label_or(fallback_int):
+    """Server ka label dikhao; na mile to internal number hi dikha do."""
+    return REMOTE_VERSION_LABEL or f"{fallback_int}"
 
 def download_latest_agent():
     """Download the new print_agent.py code from the server"""
@@ -1810,7 +2154,8 @@ def apply_update_and_restart(new_code=None):
         if not os.path.exists(pythonw_exe):
             pythonw_exe = python_exe  # fallback agar pythonw nahi mila
 
-        subprocess.Popen([pythonw_exe, current_file], cwd=os.path.dirname(current_file))
+        _spawn_detached([pythonw_exe, current_file], cwd=os.path.dirname(current_file))
+        time.sleep(2.0)   # naye process ko start hone ka time do
 
         # Tray icon band karke is purane process ko exit karo
         if agent_state["tray_icon"]:
@@ -1856,7 +2201,9 @@ def download_installer(progress_cb=None):
 
 def run_installer_and_exit(installer_path):
     log("🔄 Installing silent update...")
-    subprocess.Popen([installer_path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"])
+    # Installer khud naya agent .exe launch karta hai — agar env saaf na ho
+    # to wo bhi _MEIPASS2 inherit kar lega (installer ke through chain hoke).
+    _spawn_detached([installer_path, "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"])
     time.sleep(2)
     if agent_state["tray_icon"]:
         agent_state["tray_icon"].stop()
@@ -1909,12 +2256,13 @@ def _manual_update_headless():
                     "QR Se Print — Update", 0x30)
             return
         if remote <= VERSION:
-            _msgbox(f"You have the latest version.\n\nInstalled: v{VERSION}",
+            _msgbox(f"You have the latest version.\n\nInstalled: v{VERSION_LABEL}",
                     "QR Se Print — Update")
             return
 
-        log(f"🔄 New version available: v{VERSION} → v{remote} (headless update)")
-        _msgbox(f"New version found: v{VERSION} -> v{remote}\n\n"
+        _rl = remote_label_or(remote)
+        log(f"🔄 New version available: v{VERSION_LABEL} → v{_rl} (headless update)")
+        _msgbox(f"New version found: v{VERSION_LABEL} -> v{_rl}\n\n"
                 f"Downloading now. The agent will restart by itself.\n"
                 f"This can take a few minutes on a slow connection.",
                 "QR Se Print — Update")
@@ -1950,7 +2298,7 @@ def _manual_update_ui():
         title = tk.Label(frame, text="🔍 Checking for updates...",
                          font=('Segoe UI', 12, 'bold'), bg='white')
         title.pack(pady=(22, 4))
-        sub = tk.Label(frame, text=f"Currently installed: v{VERSION}",
+        sub = tk.Label(frame, text=f"Currently installed: v{VERSION_LABEL}",
                        font=('Segoe UI', 10), bg='white', fg='#666')
         sub.pack()
         bar = ttk.Progressbar(frame, length=300, mode='determinate')
@@ -1969,13 +2317,13 @@ def _manual_update_ui():
             return
         if remote <= VERSION:
             title.config(text="✅ You have the latest version")
-            sub.config(text=f"Installed v{VERSION} = Server v{remote}")
+            sub.config(text=f"Installed v{VERSION_LABEL} = Server v{remote_label_or(remote)}")
             close_btn.pack(pady=14)
             root.mainloop()
             return
 
         # 2) Naya version mila — download with %
-        title.config(text=f"🔄 New version available: v{VERSION} → v{remote}")
+        title.config(text=f"🔄 New version available: v{VERSION_LABEL} → v{remote_label_or(remote)}")
         sub.config(text="Downloading...")
         bar.pack(pady=(14, 4))
         pct_lbl.pack()
@@ -2034,8 +2382,9 @@ def update_checker_loop():
         try:
             remote_version = get_remote_version()
             if remote_version is not None and remote_version > VERSION:
-                log(f"🔄 New version available: v{remote_version} (currently running v{VERSION})")
-                update_tray_status(f"Updating to v{remote_version}...")
+                _rl = remote_label_or(remote_version)
+                log(f"🔄 New version available: v{_rl} (currently running v{VERSION_LABEL})")
+                update_tray_status(f"Updating to v{_rl}...")
 
                 if is_running_as_exe():
                     # .exe mode — seedha naya installer download/run karo
@@ -2060,6 +2409,95 @@ def update_tray_status(status_text):
             agent_state["tray_icon"].title = f"QR Se Print — {status_text}"
         except Exception:
             pass
+
+# Print loop ko turant jagane ke liye. Pehle har 1 second par flag check
+# hota tha, matlab Reconnect dabane ke baad bhi 1 second tak ruk sakta tha.
+# Event se ye 0 millisecond ho jaata hai.
+_wake_event = threading.Event()
+
+def wake_print_loop():
+    """Print loop ko abhi jaga do — sleep beech me hi tod do."""
+    _wake_event.set()
+
+def _interruptible_sleep(seconds):
+    """
+    Sona, par Reconnect ya Exit par TURANT uthna.
+    Event.wait() us hi pal wapas aa jaata hai jab koi wake_print_loop()
+    kare — koi polling, koi deri nahi.
+    """
+    if seconds <= 0:
+        return
+    if _wake_event.wait(timeout=seconds):
+        _wake_event.clear()
+
+def reconnect_to_server(icon=None, item=None):
+    """
+    'Reconnect to Server' — tray se ya desktop panel se.
+    Software band karke dobara kholne ki zaroorat nahi: yeh printer dobara
+    detect karta hai, server se turant check karta hai aur status reset
+    kar deta hai.
+    """
+    log("🔌 Reconnect to Server pressed")
+    reset_http()          # purane mare hue socket phenk do
+    agent_state["connection"] = "connecting"
+    update_tray_status("Reconnecting...")
+    agent_state["reconnect_requested"] = True
+    wake_print_loop()     # print loop abhi jaage — sleep khatam hone ka intezaar nahi
+
+    # Printer dobara detect karo — kai baar printer offline hone ke baad
+    # default printer badal jaata hai ya handle stale ho jaata hai.
+    try:
+        ok, printer_name = check_printer()
+        if ok and printer_name:
+            agent_state["printer"] = printer_name
+            log(f"🖨️  Printer re-detected: {printer_name}")
+        else:
+            log("⚠️  No printer found during reconnect", "WARN")
+    except Exception as e:
+        log(f"Printer re-detect skipped: {e}", "WARN")
+
+    # Server ko current printer list dobara bhejo (best-effort)
+    try:
+        report_printers_to_server()
+    except Exception as e:
+        log(f"Printer report skipped: {e}", "WARN")
+
+    # TURANT check — user ko poll ka intezaar na karna pade. Halka
+    # read-only endpoint hai, koi job claim nahi hoti.
+    connected = ping_server()
+    if connected:
+        agent_state["connection"] = "online"
+        update_tray_status("Running — waiting for jobs")
+        log("✅ Reconnected — server se jud gaya")
+        tray_notify("Connected", "Server se jud gaya — pending print ab nikal jayenge")
+    else:
+        agent_state["connection"] = "offline"
+        update_tray_status("Offline — click Reconnect to Server")
+        log("❌ Reconnect fail — server tak nahi pahunche", "WARN")
+        tray_notify("Not connected", "Internet check karke dobara Reconnect dabao")
+    return connected
+
+def ping_server(timeout=8):
+    """
+    Server pahunch me hai ya nahi — bas itna. Read-only endpoint, isliye
+    koi print job claim nahi hoti (get_pending_jobs yahan use MAT karo,
+    warna job claim ho jayegi par print nahi hogi).
+    """
+    try:
+        r = http().get(f"{SERVER_URL}/api/agent/version", timeout=timeout)
+        return r.status_code == 200
+    except Exception as e:
+        log(f"Server ping failed: {e}", "WARN")
+        return False
+
+def tray_notify(title, msg):
+    """Windows ka chhota notification — best effort."""
+    try:
+        icon = agent_state.get("tray_icon")
+        if icon and hasattr(icon, "notify"):
+            icon.notify(msg, f"QR Se Print — {title}")
+    except Exception:
+        pass
 
 def create_tray_icon_image():
     """Draw a small printer-like icon (using Pillow)"""
@@ -2129,13 +2567,18 @@ def change_shop_id(icon=None, item=None):
         # ke exit ho jayega aur Shop ID popup kabhi nahi khulega
         _release_mutex()
         if is_running_as_exe():
-            subprocess.Popen([sys.executable])
+            _spawn_detached([sys.executable])
         else:
             python_exe = sys.executable
             pythonw_exe = python_exe.replace('python.exe', 'pythonw.exe')
             if not os.path.exists(pythonw_exe):
                 pythonw_exe = python_exe
-            subprocess.Popen([pythonw_exe, os.path.abspath(__file__)])
+            _spawn_detached([pythonw_exe, os.path.abspath(__file__)],
+                            cwd=os.path.dirname(os.path.abspath(__file__)))
+        # Naye process ko apna temp folder extract karne ka time do. Iske
+        # bina purana bootloader apna _MEIxxxxxx folder delete kar sakta hai
+        # jabki naya process abhi imports hi kar raha hota hai.
+        time.sleep(2.0)
     except Exception as e:
         log(f"Restart error: {e}", "ERROR")
 
@@ -2147,6 +2590,14 @@ def quit_agent(icon=None, item=None):
     """Shut the agent down gracefully when 'Exit' is clicked in the tray"""
     log("👋 Exit pressed from the tray — shutting the agent down...")
     agent_state["running"] = False
+    wake_print_loop()     # sleep me atka loop turant khatam ho
+    # Panel window band karo — warna main thread ka webview loop chalta
+    # reh jaata hai aur process poori tarah band nahi hota.
+    try:
+        if PANEL is not None:
+            PANEL.shutdown()
+    except Exception:
+        pass
     if agent_state["tray_icon"]:
         agent_state["tray_icon"].stop()
     os._exit(0)
@@ -2160,8 +2611,11 @@ def run_tray_icon():
         import pystray
         from pystray import MenuItem as Item
 
+        _CONN_DOT = {"online": "🟢", "connecting": "🟡", "offline": "🔴"}
+
         def status_label(item):
-            return f"Status: {agent_state['status']}"
+            dot = _CONN_DOT.get(agent_state.get("connection", "connecting"), "🟡")
+            return f"{dot} Status: {agent_state['status']}"
 
         def shop_label(item):
             return f"Shop: {SHOP_ID}"
@@ -2170,7 +2624,7 @@ def run_tray_icon():
             return f"Printer: {agent_state['printer']}"
 
         def version_label(item):
-            return f"Version: v{VERSION}"
+            return f"Version: v{VERSION_LABEL}"
 
         menu = pystray.Menu(
             Item(status_label, None, enabled=False),
@@ -2178,6 +2632,13 @@ def run_tray_icon():
             Item(printer_label, None, enabled=False),
             Item(version_label, None, enabled=False),
             pystray.Menu.SEPARATOR,
+            # DEMO-ONLY: conversion ke turant baad ye apne aap gayab ho
+            # jaata hai — pystray har baar menu render karte waqt visible()
+            # dobara call karta hai. Reinstall ki zaroorat nahi.
+            Item("⚡ Change Demo ID to Paid Shop", open_upgrade_panel,
+                 visible=lambda item: is_demo_shop()),
+            Item("⚙ Settings", open_panel, default=True),
+            Item("🔌 Reconnect to Server", reconnect_to_server),
             Item(lambda item: f"🔔 Counter Approval: {'ON' if approval_enabled() else 'OFF'}", toggle_approval),
             Item("📋 View Logs", open_logs),
             Item("💬 Contact Admin", contact_admin),
@@ -2189,7 +2650,57 @@ def run_tray_icon():
         icon_image = create_tray_icon_image()
         icon = pystray.Icon("qr_se_print", icon_image, "QR Se Print — Starting...", menu)
         agent_state["tray_icon"] = icon
-        icon.run()
+
+        # ══════════════════════════════════════════════════════
+        # THREAD BAANT
+        #
+        # Windows par pywebview KEVAL main thread par window bana sakta
+        # hai. Background thread se ye error aata hai:
+        #     "pywebview must be run on a main thread"
+        # Udhar pystray ka icon.run() bhi main thread chahta hai.
+        #
+        # Isliye:
+        #   MAIN thread       -> panel (pywebview)
+        #   Background thread -> tray  (icon.run_detached())
+        #
+        # Panel available na ho to sab kuch pehle jaisa: tray main
+        # thread par, printing bilkul waise hi chalti rahegi.
+        # ══════════════════════════════════════════════════════
+        use_panel = False
+        if PANEL is not None:
+            try:
+                use_panel = PANEL.panel_available()
+            except Exception as e:
+                log(f"Panel check failed: {e}", "WARN")
+                use_panel = False
+
+        if not use_panel:
+            icon.run()               # purana behaviour — tray only
+            return
+
+        try:
+            icon.run_detached()      # tray background thread me
+        except Exception as e:
+            # Kuch systems par run_detached support nahi hota — tab panel
+            # chhod do, printing zaroori hai.
+            log(f"Tray detached mode unavailable ({e}) — tray-only mode", "WARN")
+            icon.run()
+            return
+
+        # Main thread ab panel ko de do. Shop ID verify ho chuka hai,
+        # isliye panel seedha khulega (spec).
+        ok = PANEL.start_ui_loop(show_now=True)
+        if not ok:
+            log("Panel could not start — continuing in tray-only mode", "WARN")
+
+        # Yahan tabhi pahunchte hain jab panel ka loop khatam ho gaya ho,
+        # ya shuru hi na hua ho. Dono me tray aur print thread abhi chal
+        # rahe hain — agar yahan se return kar diya to process mar jayega
+        # aur PRINTING BAND ho jayegi. Isliye zinda raho.
+        # Sirf Exit (quit_agent) hi process band karta hai — wo running=False
+        # karke os._exit(0) call karta hai.
+        while agent_state.get("running", True):
+            time.sleep(1)
     except ImportError:
         log("⚠️  pystray/Pillow not available — tray mode disabled, running in normal console mode", "WARN")
         log("    To install: pip install pystray Pillow", "WARN")
@@ -2199,7 +2710,7 @@ def run_tray_icon():
 # ─── MAIN PRINT LOOP (background thread mein chalta hai jab tray active ho) ──
 def print_loop():
     log("=" * 50)
-    log(f"Checking print jobs every {CHECK_INTERVAL}s (when idle: {IDLE_INTERVAL_1}s/{IDLE_INTERVAL_2}s/{IDLE_INTERVAL_3}s — back to {CHECK_INTERVAL}s as soon as a job arrives)")
+    log(f"Checking print jobs every {CHECK_INTERVAL}s (idle: {IDLE_INTERVAL_1}s) — v2.0 me file Cloudinary se seedha aati hai, isliye tez check safe hai")
     log("=" * 50)
     update_tray_status("Running — waiting for jobs")
 
@@ -2211,14 +2722,32 @@ def print_loop():
 
     while agent_state["running"]:
         try:
+            # Manual "Reconnect to Server" — turant fast mode par wapas aao
+            if agent_state.get("reconnect_requested"):
+                agent_state["reconnect_requested"] = False
+                errors = 0
+                idle_since = time.time()
+                cur_interval = CHECK_INTERVAL
+                log("🔌 Reconnect requested — checking the server now...")
+
             jobs = get_pending_jobs()
             check_count += 1
+
+            # Server ne jawab de diya = connection theek hai. Chahe jobs
+            # mile ya nahi, error state yahin clear kar do.
+            # (Purana bug: status sirf 'if jobs' ke andar reset hota tha,
+            #  isliye ek network blip ke baad tray hamesha ke liye
+            #  "Error — retrying" par atak jaata tha.)
+            if errors:
+                log("✅ Connection restored — back to normal")
+            errors = 0
+            agent_state["connection"] = "online"
+
             if jobs:
                 log(f"📬 {len(jobs)} new job(s)!")
                 update_tray_status(f"Printing {len(jobs)} job(s)...")
                 for job in jobs:
                     process_job(job)
-                errors = 0
                 update_tray_status("Running — waiting for jobs")
                 # Job aaya = dukaan busy hai. Turant tez check par wapas.
                 idle_since = time.time()
@@ -2226,40 +2755,56 @@ def print_loop():
                     cur_interval = CHECK_INTERVAL
                     log(f"⚡ Fast mode — har {CHECK_INTERVAL}s check")
             else:
+                # v2.0: sirf do speed — 5s (abhi job aaya tha) aur 10s (khaali).
+                # Pehle 45s tak chala jaata tha, jisse job aane ke baad
+                # print me 45 second tak ki deri ho sakti thi.
                 idle_sec = time.time() - idle_since
-                if idle_sec > 3600:
-                    new_interval = IDLE_INTERVAL_3
-                elif idle_sec > 600:
-                    new_interval = IDLE_INTERVAL_2
-                elif idle_sec > 120:
-                    new_interval = IDLE_INTERVAL_1
-                else:
-                    new_interval = CHECK_INTERVAL
+                new_interval = CHECK_INTERVAL if idle_sec <= 120 else IDLE_INTERVAL_1
                 if new_interval != cur_interval:
                     cur_interval = new_interval
-                    log(f"💤 Idle — checking every {cur_interval}s now (to save bandwidth)")
+                    log(f"💤 Idle — ab har {cur_interval}s check")
                 elapsed_min += cur_interval / 60.0
                 if check_count % 60 == 0:
                     log(f"👀 Waiting... ({int(elapsed_min)} min)")
-            time.sleep(cur_interval)
+                # Poll safal = sab theek. Tray par jo bhi purana text bacha
+                # ho (Error / Offline / Reconnecting), use hata do.
+                # BUG THA: pehle sirf "Error"/"Offline" par reset hota tha,
+                # isliye "Reconnecting..." hamesha ke liye atak jaata tha.
+                if agent_state.get("status", "") != "Running — waiting for jobs":
+                    update_tray_status("Running — waiting for jobs")
+
+            # Sleep chhote tukdon mein — taaki Reconnect click karte hi
+            # agent 60s tak so na jaaye.
+            _interruptible_sleep(cur_interval)
         except KeyboardInterrupt:
             log("\n👋 Shutting down...")
             break
         except Exception as e:
             errors += 1
             log(f"❌ Error: {e}", "ERROR")
-            update_tray_status("Error — retrying")
-            if errors > 10:
-                time.sleep(60)
-                errors = 0
+            if errors == 3:
+                # Teen baar fail = socket sach me mar chuka hai. Naya session
+                # banao taaki user ko khud Reconnect na dabana pade.
+                log("🔄 Connection reset kar rahe hain (auto)")
+                reset_http()
+            if errors >= 3:
+                agent_state["connection"] = "offline"
+                update_tray_status("Offline — click Reconnect to Server")
             else:
-                time.sleep(CHECK_INTERVAL)
+                agent_state["connection"] = "connecting"
+                update_tray_status("Reconnecting...")
+            # Capped exponential backoff: 5s, 10s, 20s, 40s ... max 60s.
+            # Pehle 10 errors ke baad seedha 60s ho jaata tha aur counter
+            # reset ho jaata tha, jisse offline detection bhi reset ho jaati.
+            backoff = min(CHECK_INTERVAL * (2 ** min(errors - 1, 5)), 60)
+            _interruptible_sleep(backoff)
 
 def main():
     show_banner()
     check_dependencies()
 
-    log(f"🚀 Agent start | Shop: {SHOP_ID} | Version: v{VERSION}")
+    _load_processed()
+    log(f"🚀 Agent start | Shop: {SHOP_ID} | Version: v{VERSION_LABEL} (build {VERSION})")
     log(f"🌐 Server: {SERVER_URL}")
 
     # PC restart pe agent khud tray mein start ho — HKCU Run registry
