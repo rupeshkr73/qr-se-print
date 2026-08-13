@@ -3388,11 +3388,22 @@ function composePageCanvas(page, dpi){
     const c = document.createElement('canvas');
     c.width = A4_W; c.height = A4_H;
     const x = c.getContext('2d');
+    // Chhoti cell me downscale hota hai — smoothing ke bina text dhundhla
+    // dikhta hai. Wahi setting jo asli print (buildPageCanvas) use karta hai.
+    x.imageSmoothingEnabled = true;
+    x.imageSmoothingQuality = 'high';
     x.fillStyle = '#fff'; x.fillRect(0, 0, A4_W, A4_H);
     const sx = A4_W / A4_DISPLAY_W, sy = A4_H / A4_DISPLAY_H;
     (page.items || []).forEach(function(it){
-      if(!it.canvas) return;
-      x.drawImage(it.canvas, it.x * sx, it.y * sy, it.w * sx, it.h * sy);
+      // Item par 'canvas' naam ki property hoti hi nahi. Shape hai:
+      // originalCanvas -> sourceCanvas (crop) -> workingCanvas (bright/contrast).
+      // Pehle yahan it.canvas check tha, jo hamesha undefined hota tha —
+      // isliye HAR item skip ho jaata tha aur mini print ka preview khali
+      // safed dabbon jaisa dikhta tha. Wahi canvas lete hain jo asli print
+      // leta hai, aur peeche fallback bhi rakha hai.
+      const cv = it.workingCanvas || it.sourceCanvas || it.originalCanvas;
+      if(!cv) return;
+      x.drawImage(cv, it.x * sx, it.y * sy, it.w * sx, it.h * sy);
     });
     return c;
   }catch(e){

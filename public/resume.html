@@ -4,43 +4,70 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>QR Se Resume Banao</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --bg:#f0f4ff;--white:#fff;--border:#dde4f0;
-  --text:#0d1b2a;--muted:#6b7a99;
-  --primary:#2563eb;--primary-d:#1d4ed8;--primary-l:#eff4ff;
+  /* Palette customer.html se — variable ke naam wahi purane rakhe hain,
+     sirf values badli hain, taaki poora page ek hi jagah se match ho jaye
+     aur baaki CSS ko haath na lagana pade. */
+  --bg:#f4f4f8;--white:#fff;--border:#e8e6f0;
+  --text:#15151f;--ink-2:#3d3d4e;--muted:#7a7a8c;
+  --primary:#7c3aed;--primary-d:#6d28d9;--primary-l:#ede9fe;
+  --pink:#ec2a7a;--pink-2:#d81b60;
+  --grad:linear-gradient(135deg,#7c3aed,#ec2a7a);
   --green:#16a34a;--green-l:#f0fdf4;
-  --amber:#d97706;--amber-l:#fffbeb;
-  --r:12px;--rl:18px;
+  --amber:#f59e0b;--amber-l:#fffbeb;
+  --r:16px;--rl:22px;
+  --shadow:0 1px 2px rgba(20,20,40,.04),0 8px 28px rgba(20,20,40,.07);
+  --shadow-sm:0 1px 2px rgba(20,20,40,.04),0 3px 10px rgba(20,20,40,.05);
 }
-body{font-family:'Inter',sans-serif;background:var(--bg);min-height:100vh;padding-bottom:80px}
-.wrap{max-width:480px;margin:0 auto;padding:14px 14px 20px}
+body{font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  background:var(--bg);color:var(--text);min-height:100vh;
+  font-size:14.5px;line-height:1.55;-webkit-font-smoothing:antialiased;padding-bottom:80px}
+.wrap{max-width:520px;margin:0 auto;padding:14px 12px 20px}
 
-/* Header */
-.hdr{background:linear-gradient(135deg,#1e3a8a,#2563eb,#7c3aed);border-radius:var(--rl);padding:16px 18px;margin-bottom:14px;display:flex;gap:12px;align-items:center}
-.h-ic{width:44px;height:44px;background:rgba(255,255,255,.2);border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
-.h-t{font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;font-weight:800;color:#fff}
-.h-s{color:rgba(255,255,255,.55);font-size:11px;margin-top:2px}
+/* Header — customer page ka dark shop card */
+.hdr{display:flex;align-items:center;gap:12px;
+  background:linear-gradient(145deg,#181822,#101018 60%,#14141e);
+  border-radius:var(--rl);padding:14px;margin-bottom:16px;
+  position:relative;overflow:hidden;box-shadow:0 10px 34px rgba(16,16,28,.26)}
+.hdr::after{content:'';position:absolute;top:-40px;right:-30px;width:150px;height:150px;
+  background:radial-gradient(circle,rgba(124,58,237,.24),transparent 70%);pointer-events:none}
+.h-ic{width:62px;height:62px;flex:0 0 62px;border-radius:16px;background:#fff;
+  display:grid;place-items:center;font-size:30px;overflow:hidden;
+  box-shadow:0 6px 18px rgba(0,0,0,.28)}
+.hdr>div:last-child{min-width:0;flex:1 1 auto;position:relative;z-index:1}
+.h-t{font-family:'Plus Jakarta Sans',sans-serif;font-size:19px;font-weight:700;color:#fff;
+  letter-spacing:-.3px;line-height:1.2}
+.h-s{color:rgba(255,255,255,.62);font-size:11.5px;margin-top:3px}
 
-/* Steps */
-.steps{display:flex;margin-bottom:14px;position:relative}
-.steps::before{content:'';position:absolute;top:12px;left:12px;right:12px;height:2px;background:var(--border)}
-.step{flex:1;text-align:center;position:relative;z-index:1}
-.dot{width:24px;height:24px;border-radius:50%;background:var(--border);color:var(--muted);font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 4px;transition:all .3s}
-.step.active .dot{background:var(--primary);color:#fff}
-.step.done .dot{background:var(--green);color:#fff}
-.step-lbl{font-size:9px;color:var(--muted);font-weight:600}
-.step.active .step-lbl{color:var(--primary);font-weight:700}
+/* Steps — customer page ke bade dots, gradient active + violet done */
+.steps{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;padding:0 4px}
+.step{flex:1 1 0;display:flex;flex-direction:column;align-items:center;position:relative;min-width:0}
+.step:not(:last-child)::after{content:'';position:absolute;top:23px;
+  left:calc(50% + 26px);right:calc(-50% + 26px);height:2.5px;background:var(--border);border-radius:2px}
+.step.done:not(:last-child)::after{background:var(--primary)}
+.dot{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:16px;
+  background:#e9e7f2;color:#9997ab;transition:.25s;position:relative;z-index:1}
+.step.active .dot{background:var(--grad);color:#fff;
+  box-shadow:0 0 0 5px rgba(124,58,237,.15),0 6px 18px rgba(124,58,237,.34)}
+/* Done step par number ki jagah ✓ — customer page bilkul aisa hi dikhta hai.
+   CSS se kiya hai taaki JS ka step logic waise ka waisa rahe. */
+.step.done .dot{background:var(--primary);color:#fff;font-size:0}
+.step.done .dot::after{content:'✓';font-size:19px;line-height:1}
+.step-lbl{font-size:12.5px;font-weight:700;color:var(--muted);margin-top:9px;text-align:center}
+.step.active .step-lbl{color:var(--primary)}
+.step.done .step-lbl{color:var(--ink-2)}
 
 .sec{display:none}.sec.on{display:block}
 
 /* Card */
-.card{background:var(--white);border-radius:var(--rl);padding:16px;margin-bottom:12px;border:1px solid var(--border)}
+.card{background:var(--white);border-radius:var(--rl);padding:16px 15px;margin-bottom:12px;border:1px solid var(--border);box-shadow:var(--shadow-sm)}
 .card h3{font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;font-weight:800;color:var(--text);margin-bottom:2px}
 .card-sub{font-size:11px;color:var(--muted);margin-bottom:14px}
 
@@ -52,7 +79,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);min-height:100vh;paddin
 .fg{margin-bottom:12px}
 .fl{font-size:12px;font-weight:600;color:var(--text);margin-bottom:5px;display:flex;align-items:center;gap:4px}
 .req{color:#ef4444;font-size:11px}
-.fi{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:9px;font-family:'Inter',sans-serif;font-size:13px;color:var(--text);outline:none;transition:border .2s;background:var(--white)}
+.fi{width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:9px;font-family:'Plus Jakarta Sans',sans-serif;font-size:13px;color:var(--text);outline:none;transition:border .2s;background:var(--white)}
 .fi:focus{border-color:var(--primary)}
 .fi::placeholder{color:#c0c8dc}
 textarea.fi{resize:vertical;min-height:65px}
@@ -61,20 +88,20 @@ textarea.fi{resize:vertical;min-height:65px}
 
 /* Template Grid */
 .tpl-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-.tpl-card{border-radius:12px;cursor:pointer;border:2px solid var(--border);transition:all .2s;overflow:hidden;background:var(--white);position:relative;-webkit-tap-highlight-color:rgba(37,99,235,.2);touch-action:manipulation;user-select:none}
-.tpl-card:hover{border-color:#93c5fd;transform:translateY(-1px)}
-.tpl-card.sel{border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.tpl-card{border-radius:14px;cursor:pointer;border:2px solid var(--border);transition:all .2s;overflow:hidden;background:var(--white);position:relative;-webkit-tap-highlight-color:rgba(124,58,237,.2);touch-action:manipulation;user-select:none}
+.tpl-card:hover{border-color:#c4b5fd;transform:translateY(-1px)}
+.tpl-card.sel{border-color:var(--primary);box-shadow:0 0 0 3px rgba(124,58,237,.14)}
 .tpl-card.sel::after{content:'✓';position:absolute;top:6px;right:6px;width:18px;height:18px;background:var(--primary);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700}
 .tpl-prev{height:140px;overflow:hidden;position:relative}
 .tpl-name{font-size:11px;font-weight:700;padding:6px 8px 1px;color:var(--text)}
 .tpl-badge{font-size:9px;color:var(--muted);padding:0 8px 6px}
 
 /* Education block */
-.edu-block{background:#f8faff;border-radius:9px;padding:12px;margin-bottom:9px;border:1px solid var(--border)}
+.edu-block{background:#faf9fc;border-radius:9px;padding:12px;margin-bottom:9px;border:1px solid var(--border)}
 .edu-title{font-size:11px;font-weight:700;color:var(--primary);margin-bottom:9px}
-.extra-item{background:#f8faff;border:1px solid var(--border);border-radius:9px;padding:11px;margin-bottom:7px;position:relative}
+.extra-item{background:#faf9fc;border:1px solid var(--border);border-radius:9px;padding:11px;margin-bottom:7px;position:relative}
 .rm-btn{position:absolute;top:7px;right:7px;background:#fee2e2;border:none;color:#dc2626;border-radius:5px;width:22px;height:22px;cursor:pointer;font-size:11px;font-weight:700}
-.add-btn{width:100%;padding:9px;border-radius:9px;border:1.5px dashed var(--primary);background:var(--primary-l);color:var(--primary);font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;margin-top:4px}
+.add-btn{width:100%;padding:9px;border-radius:9px;border:1.5px dashed var(--primary);background:var(--primary-l);color:var(--primary);font-family:'Plus Jakarta Sans',sans-serif;font-size:12px;font-weight:600;cursor:pointer;margin-top:4px}
 
 /* Stream chips */
 .chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
@@ -82,14 +109,14 @@ textarea.fi{resize:vertical;min-height:65px}
 .chip:hover,.chip.on{background:var(--primary);color:#fff;border-color:var(--primary)}
 
 /* Photo */
-.photo-zone{border:2px dashed var(--border);border-radius:12px;padding:16px;text-align:center;cursor:pointer;background:#fafbff;position:relative}
+.photo-zone{border:2px dashed var(--border);border-radius:12px;padding:16px;text-align:center;cursor:pointer;background:#faf9fc;position:relative}
 .photo-zone:hover{border-color:var(--primary);background:var(--primary-l)}
 .photo-zone input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
 .photo-prev{width:64px;height:80px;border-radius:7px;object-fit:cover;margin:0 auto 7px;display:none;border:2px solid var(--primary)}
 
 /* Buttons */
-.btn{width:100%;padding:12px;border-radius:11px;border:none;cursor:pointer;font-family:'Inter',sans-serif;font-weight:700;font-size:14px;transition:.2s;display:flex;align-items:center;justify-content:center;gap:7px}
-.btn-p{background:linear-gradient(135deg,var(--primary),#7c3aed);color:#fff;margin-bottom:8px}
+.btn{width:100%;padding:12px;border-radius:11px;border:none;cursor:pointer;font-family:'Plus Jakarta Sans',sans-serif;font-weight:700;font-size:14px;transition:.2s;display:flex;align-items:center;justify-content:center;gap:7px}
+.btn-p{background:var(--grad);color:#fff;margin-bottom:8px;box-shadow:0 6px 18px rgba(124,58,237,.3)}
 .btn-p:hover{opacity:.92;transform:translateY(-1px)}
 .btn-b{background:var(--bg);color:var(--muted);font-size:12px;padding:10px}
 .btn-s{background:var(--primary-l);color:var(--primary);margin-bottom:8px}
@@ -98,13 +125,13 @@ textarea.fi{resize:vertical;min-height:65px}
 .prev-wrap{background:var(--white);border-radius:var(--rl);overflow:hidden;border:1px solid var(--border);margin-bottom:12px}
 .prev-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
 .prev-hdr h3{font-size:13px;font-weight:700}
-.prev-body{background:#f0f4ff;min-height:320px;display:flex;align-items:center;justify-content:center;padding:10px}
+.prev-body{background:var(--bg);min-height:320px;display:flex;align-items:center;justify-content:center;padding:10px}
 #cvs{max-width:100%;display:block;border-radius:3px;box-shadow:0 2px 12px rgba(0,0,0,.1)}
 
 /* Color opts */
 .color-opts{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .co{background:var(--white);border-radius:12px;padding:13px;cursor:pointer;border:2px solid var(--border);text-align:center;transition:.2s}
-.co:hover{border-color:#93c5fd}
+.co:hover{border-color:#c4b5fd}
 .co.sel{border-color:var(--primary);background:var(--primary-l)}
 .co-icon{font-size:24px;margin-bottom:5px}
 .co-name{font-size:12px;font-weight:700;margin-bottom:2px}
@@ -112,7 +139,7 @@ textarea.fi{resize:vertical;min-height:65px}
 .co-sub{font-size:9px;color:var(--muted);margin-top:2px}
 
 /* Price card */
-.price-card{background:#0d1b2a;border-radius:var(--rl);padding:18px;color:#fff;margin-bottom:12px}
+.price-card{background:linear-gradient(145deg,#181822,#101018 60%,#14141e);border-radius:var(--rl);padding:18px;color:#fff;margin-bottom:12px;box-shadow:0 10px 34px rgba(16,16,28,.26)}
 .price-card h3{font-family:'Plus Jakarta Sans',sans-serif;font-size:15px;margin-bottom:10px}
 .pl{display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.45);margin-bottom:6px}
 .pl.total{color:#fff;font-weight:700;font-size:18px;padding-top:8px;border-top:1px solid rgba(255,255,255,.1);margin-top:6px}
@@ -136,16 +163,16 @@ textarea.fi{resize:vertical;min-height:65px}
 .s-box.online h4{color:var(--green)}
 .s-box.counter h4{color:var(--amber)}
 .s-box p{font-size:11px;color:#555;line-height:1.6}
-.amt-box{background:#0d1b2a;border-radius:11px;padding:11px 14px;display:flex;justify-content:space-between;align-items:center;color:#fff}
+.amt-box{background:#15151f;border-radius:11px;padding:11px 14px;display:flex;justify-content:space-between;align-items:center;color:#fff}
 .amt-box span{font-size:11px;color:rgba(255,255,255,.45)}
 .amt-box strong{font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:800;color:#4ade80}
 
 /* Toast */
-.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(80px);background:#0d1b2a;color:#fff;padding:10px 20px;border-radius:10px;font-size:12px;font-weight:600;z-index:300;transition:.3s cubic-bezier(.175,.885,.32,1.275);max-width:90vw;text-align:center}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(80px);background:#15151f;color:#fff;padding:10px 20px;border-radius:10px;font-size:12px;font-weight:600;z-index:300;transition:.3s cubic-bezier(.175,.885,.32,1.275);max-width:90vw;text-align:center}
 .toast.show{transform:translateX(-50%) translateY(0)}
 
 /* Loading */
-.loading{display:none;position:fixed;inset:0;background:rgba(13,27,42,.75);z-index:400;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+.loading{display:none;position:fixed;inset:0;background:rgba(21,21,31,.78);z-index:400;align-items:center;justify-content:center;flex-direction:column;gap:12px}
 .loading.show{display:flex}
 .spin{width:42px;height:42px;border:4px solid rgba(255,255,255,.2);border-top-color:var(--primary);border-radius:50%;animation:spin .8s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -337,10 +364,10 @@ textarea.fi{resize:vertical;min-height:65px}
 
   <!-- Sticky bottom button -->
   <div style="position:sticky;bottom:14px;z-index:50;margin-top:10px">
-    <button class="btn btn-p" onclick="goForm()" id="tplBtn" style="box-shadow:0 4px 20px rgba(37,99,235,.4)">
+    <button class="btn btn-p" onclick="goForm()" id="tplBtn">
       ✅ Aage Badhein → <span id="tplSelName" style="font-size:11px;opacity:.8;font-weight:400"></span>
     </button>
-    <button class="btn" onclick="demoPrintCheck()" style="width:100%;margin-top:8px;background:#fff;border:2px dashed #2563eb;color:#2563eb;font-weight:800;">🖨️ Demo Print Check</button>
+    <button class="btn" onclick="demoPrintCheck()" style="width:100%;margin-top:8px;background:#fff;border:2px dashed var(--primary);color:var(--primary);font-weight:800;">🖨️ Demo Print Check</button>
   </div>
 </div>
 </div>
@@ -584,7 +611,7 @@ textarea.fi{resize:vertical;min-height:65px}
     <div style="position:relative;margin-bottom:12px">
       <input type="file" id="photoInDirect" accept="image/*" onchange="handleDirect(this)"
         style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;z-index:2">
-      <div id="photoZoneBox" style="border:2px dashed var(--border);border-radius:13px;padding:22px 14px;text-align:center;background:#fafbff;cursor:pointer">
+      <div id="photoZoneBox" style="border:2px dashed var(--border);border-radius:13px;padding:22px 14px;text-align:center;background:#faf9fc;cursor:pointer">
         <div style="font-size:30px;margin-bottom:6px">🪪</div>
         <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px">Passport Photo Upload Karein</div>
         <div style="font-size:11px;color:var(--muted)">JPG / PNG — 35×45mm size best</div>
@@ -592,7 +619,7 @@ textarea.fi{resize:vertical;min-height:65px}
     </div>
 
     <!-- Processing -->
-    <div id="photoProcessing" style="display:none;text-align:center;padding:12px;background:#f0f4ff;border-radius:11px;margin-bottom:10px">
+    <div id="photoProcessing" style="display:none;text-align:center;padding:12px;background:var(--primary-l);border-radius:11px;margin-bottom:10px">
       <div class="spin" style="width:28px;height:28px;border-width:3px;margin:0 auto 7px"></div>
       <div style="font-size:12px;font-weight:600;color:var(--primary)" id="procTxt">Photo process ho raha hai...</div>
     </div>
@@ -612,7 +639,7 @@ textarea.fi{resize:vertical;min-height:65px}
     <!-- Hidden canvas -->
     <canvas id="photoCanvas" style="display:none"></canvas>
     <div style="height:10px"></div>
-    <div style="background:#f8faff;border-radius:10px;padding:13px;border:1px solid var(--border);margin-bottom:12px">
+    <div style="background:#faf9fc;border-radius:10px;padding:13px;border:1px solid var(--border);margin-bottom:12px">
       <div style="font-size:12px;font-weight:700;color:var(--primary);margin-bottom:10px">✍️ Declaration Details</div>
       <div class="fg">
         <div class="fl">📅 Date</div>
@@ -1488,91 +1515,125 @@ async function buildT2(doc,d){
   doc.text('Developed by Rupesh Kumar Mahato | QR Se Resume Banao',W/2,H-2.5,{align:'center'});
 }
 
-// ── TEMPLATE 3: Modern Sidebar (Resume_2.docx style) ─────────────────────────
+// ── TEMPLATE 3: Modern Two Column ────────────────────────────────────────────
+// Ye apne thumbnail jaisa banta hai: upar dark header band, neeche 40/60
+// do column. Pehle ye T6 (Photo Sidebar) ki tarah left photo-sidebar
+// banata tha, isliye dono template ek jaise dikhte the — customer ne
+// yahi report kiya tha. Ab dono alag hain.
 async function buildT3(doc,d){
-  const W=210,H=297,SW=65,MX=70;
-  doc.setFillColor(30,58,95);doc.rect(0,0,SW,H,'F');
-  if(d.photo){try{doc.addImage(d.photo,'JPEG',7,10,50,62);doc.setDrawColor(255,255,255);doc.setLineWidth(.5);doc.rect(7,10,50,62);}catch{}}
-  else{doc.setFillColor(50,80,120);doc.rect(7,10,50,62,'F');}
+  const W=210,H=297,HDR=34,CW=80,RX=CW+7;
 
-  doc.setTextColor(255,255,255);doc.setFontSize(9);doc.setFont('helvetica','bold');
-  const nn=doc.splitTextToSize(d.name,54);doc.text(nn,SW/2,80,{align:'center'});
-  let sy=80+nn.length*5.5;
-  doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(147,197,253);
-  if(d.jobtitle){doc.text(d.jobtitle,SW/2,sy,{align:'center'});sy+=5;}
-  doc.setDrawColor(80,110,150);doc.setLineWidth(.3);doc.line(6,sy,SW-4,sy);sy+=5;
-
-  function ss(title,lines){
-    doc.setTextColor(147,197,253);doc.setFontSize(6.5);doc.setFont('helvetica','bold');
-    doc.text(title.toUpperCase(),6,sy);sy+=4;
-    doc.setTextColor(210,225,245);doc.setFontSize(7.5);doc.setFont('helvetica','normal');
-    for(const l of lines){if(!l)continue;const ls=doc.splitTextToSize(l,58);doc.text(ls,6,sy);sy+=ls.length*4.2;}
-    sy+=3;
+  // ── Header band ──
+  doc.setFillColor(30,58,95);doc.rect(0,0,W,HDR,'F');
+  const hasPhoto=!!d.photo;
+  const tw0=hasPhoto?W-58:W-24;
+  doc.setTextColor(255,255,255);doc.setFontSize(16);doc.setFont('helvetica','bold');
+  const nm=doc.splitTextToSize(String(d.name||'').toUpperCase(),tw0);
+  let hy=12.5;
+  doc.text(nm[0]||'',12,hy);
+  if(nm[1]){hy+=6.2;doc.text(nm[1],12,hy);}
+  if(d.jobtitle){
+    hy+=6;doc.setFontSize(9.5);doc.setFont('helvetica','normal');
+    doc.setTextColor(147,197,253);doc.text(d.jobtitle,12,hy,{maxWidth:tw0});
+  }
+  hy+=5.2;
+  doc.setFontSize(7.8);doc.setTextColor(205,220,240);
+  const cline=[d.phone,d.phone2,d.email].filter(Boolean).join('   |   ');
+  if(cline)doc.text(cline,12,hy,{maxWidth:tw0});
+  // Photo optional hai. Thumbnail me nahi hai, par customer ne upload kiya
+  // ho to use chupchaap phenkna theek nahi — header ke daayin rakh dete hain.
+  // Layout isse hilta nahi, aur T6 se alag bhi dikhta hai.
+  if(hasPhoto){
+    try{
+      doc.addImage(d.photo,'JPEG',W-42,5,30,24);
+      doc.setDrawColor(255,255,255);doc.setLineWidth(.6);doc.rect(W-42,5,30,24);
+    }catch{}
   }
 
-  ss('CONTACT',[d.phone?'📞 '+d.phone:'',d.phone2?'📞 '+d.phone2:'',d.email||'',d.addr||''].filter(Boolean));
-  if(d.skills) ss('SKILLS',d.skills.split(',').map(s=>'• '+s.trim()).slice(0,8));
-  ss('PERSONAL',[
-    d.father?"F/O: "+d.father:'',d.dob?'DOB: '+d.dob:'',
+  // ── Left column (halka tint) ──
+  doc.setFillColor(240,244,255);doc.rect(0,HDR,CW,H-HDR,'F');
+  doc.setDrawColor(226,232,240);doc.setLineWidth(.5);doc.line(CW,HDR,CW,H);
+
+  let sy=HDR+12;
+  function ls(title,lines){
+    lines=(lines||[]).filter(Boolean);
+    if(!lines.length)return;
+    doc.setTextColor(30,58,95);doc.setFontSize(8.5);doc.setFont('helvetica','bold');
+    doc.text(String(title).toUpperCase(),9,sy);
+    doc.setDrawColor(150,170,205);doc.setLineWidth(.3);doc.line(9,sy+1.7,CW-9,sy+1.7);
+    sy+=6;
+    doc.setTextColor(55,65,81);doc.setFontSize(8);doc.setFont('helvetica','normal');
+    for(const l of lines){
+      const t=doc.splitTextToSize(String(l),CW-18);
+      doc.text(t,9,sy);sy+=t.length*4.3;
+    }
+    sy+=5.5;
+  }
+
+  if(d.skills)ls('Skills',d.skills.split(',').map(s=>s.trim()).filter(Boolean).slice(0,10).map(s=>'• '+s));
+  ls('Contact',[d.phone?'Ph: '+d.phone:'',d.phone2?'Alt: '+d.phone2:'',d.email||'',d.addr||'']);
+  ls('Personal',[
+    d.father?'F/O: '+d.father:'',d.dob?'DOB: '+d.dob:'',
     d.gender?'Gender: '+d.gender:'',d.marital?'Marital: '+d.marital:'',
-    'Nat: '+(d.nat||'Indian'),'Lang: '+(d.lang||'Hindi')
-  ].filter(Boolean));
+    'Nationality: '+(d.nat||'Indian'),'Languages: '+(d.lang||'Hindi')
+  ]);
+  if(d.hobbies)ls('Interests',d.hobbies.split(',').map(s=>s.trim()).filter(Boolean).slice(0,6).map(s=>'• '+s));
 
-  // Main content
-  let my=14;
-  doc.setFillColor(37,99,235);doc.rect(MX,0,W-MX,10,'F');
-  doc.setTextColor(255,255,255);doc.setFontSize(9);doc.setFont('helvetica','bold');doc.text('RESUME',MX+3,7);
-
-  function ms(title,y){
-    doc.setFontSize(9);doc.setFont('helvetica','bold');doc.setTextColor(30,58,95);
-    doc.text(title,MX+2,y);doc.setDrawColor(37,99,235);doc.setLineWidth(.4);
-    doc.line(MX+2,y+1.5,W-8,y+1.5);return y+7;
+  // ── Right column ──
+  let my=HDR+12;
+  const tx=RX,tw=W-RX-12;
+  function rs(title){
+    doc.setTextColor(30,58,95);doc.setFontSize(10);doc.setFont('helvetica','bold');
+    doc.text(title,tx,my);
+    doc.setDrawColor(37,99,235);doc.setLineWidth(.5);doc.line(tx,my+1.8,W-12,my+1.8);
+    my+=7;
   }
-
-  if(d.obj){my=ms('Professional Summary',my);doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(40,40,40);my=wt(doc,d.obj,MX+2,my,W-MX-12,4.3)+3;}
-  my=ms('Educational Qualification',my);
-  // Education table (simplified for sidebar layout)
-  const rows=eduRows(d);
-  const tx=MX+2,tw=W-MX-12;
-  doc.setFillColor(30,58,95);doc.rect(tx,my,tw,6,'F');
-  doc.setTextColor(255,255,255);doc.setFontSize(6);doc.setFont('helvetica','bold');
-  doc.text('Examination',tx+1,my+4);doc.text('Board',tx+38,my+4);doc.text('Year',tx+72,my+4);doc.text('Div',tx+84,my+4);doc.text('%',tx+97,my+4);
-  my+=6;
-  rows.forEach((r,i)=>{
-    if(i%2===0){doc.setFillColor(239,246,255);}else{doc.setFillColor(255,255,255);}
-    doc.rect(tx,my,tw,6.5,'F');
-    doc.setTextColor(30,30,30);doc.setFontSize(7);doc.setFont('helvetica','normal');
-    doc.text(r.name||'',tx+1,my+4.5,{maxWidth:35});doc.text(r.board||'',tx+38,my+4.5,{maxWidth:32});
-    doc.text(r.year||'',tx+72,my+4.5);doc.text(r.div||'',tx+84,my+4.5);doc.text(r.pct||'',tx+97,my+4.5);
-    my+=6.5;
-  });
-  my+=3;
-
-  // Technical / Extra Qualification — separate section
-  if(techRows(d).length){
-    my=ms('Technical / Extra Qualification',my);
-    const trows=techRows(d);
+  // Education/Technical table — right column ki chaudai ke hisaab se
+  function table(rows){
+    if(!rows.length)return;
     doc.setFillColor(30,58,95);doc.rect(tx,my,tw,6,'F');
     doc.setTextColor(255,255,255);doc.setFontSize(6);doc.setFont('helvetica','bold');
-    doc.text('Examination',tx+1,my+4);doc.text('Board',tx+38,my+4);doc.text('Year',tx+72,my+4);doc.text('Div',tx+84,my+4);doc.text('%',tx+97,my+4);
+    doc.text('Examination',tx+1.5,my+4);doc.text('Board',tx+36,my+4);
+    doc.text('Year',tx+65,my+4);doc.text('Div',tx+79,my+4);doc.text('%',tx+92,my+4);
     my+=6;
-    trows.forEach((r,i)=>{
-      if(i%2===0){doc.setFillColor(239,246,255);}else{doc.setFillColor(255,255,255);}
+    rows.forEach((r,i)=>{
+      doc.setFillColor(i%2===0?239:255,i%2===0?246:255,i%2===0?255:255);
       doc.rect(tx,my,tw,6.5,'F');
       doc.setTextColor(30,30,30);doc.setFontSize(7);doc.setFont('helvetica','normal');
-      doc.text(r.name||'',tx+1,my+4.5,{maxWidth:35});doc.text(r.board||'',tx+38,my+4.5,{maxWidth:32});
-      doc.text(r.year||'',tx+72,my+4.5);doc.text(r.div||'',tx+84,my+4.5);doc.text(r.pct||'',tx+97,my+4.5);
+      doc.text(r.name||'',tx+1.5,my+4.5,{maxWidth:33});
+      doc.text(r.board||'',tx+36,my+4.5,{maxWidth:27});
+      doc.text(r.year||'',tx+65,my+4.5);doc.text(r.div||'',tx+79,my+4.5);doc.text(r.pct||'',tx+92,my+4.5);
       my+=6.5;
     });
+    my+=7;   // agla heading table se sat na jaye
+  }
+
+  if(d.obj){
+    rs('Career Objective');
+    doc.setFontSize(8.3);doc.setFont('helvetica','normal');doc.setTextColor(40,40,40);
+    my=wt(doc,d.obj,tx,my,tw,4.3)+4;
+  }
+  rs('Educational Qualification');table(eduRows(d));
+  if(techRows(d).length){rs('Technical / Extra Qualification');table(techRows(d));}
+  if(d.expList&&d.expList.length){
+    rs('Experience');
+    doc.setFontSize(8.3);doc.setFont('helvetica','normal');doc.setTextColor(40,40,40);
+    for(const l of d.expList){my=wt(doc,'• '+l,tx+2,my,tw-4,4.3)+1;}
     my+=3;
   }
-  if(d.expList && d.expList.length){my=ms('Experience / Education',my);doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(40,40,40);for(const l of d.expList){my=wt(doc,'• '+l,MX+4,my,W-MX-14,4.3)+1;}my+=2;}
-  if(d.certList && d.certList.length){my=ms('Certifications / Awards',my);doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(40,40,40);d.certList.forEach((c,ci)=>{my=wt(doc,(ci+1)+'. '+c,MX+4,my,W-MX-14,4.3)+1;});my+=2;}
-  if(d.hobbies){my=ms('Interests & Strengths',my);doc.setFontSize(8);doc.setFont('helvetica','normal');doc.setTextColor(40,40,40);my=wt(doc,d.hobbies,MX+2,my,W-MX-12,4.3)+3;}
-  my=ms('Declaration',my);
+  if(d.certList&&d.certList.length){
+    rs('Certifications / Awards');
+    doc.setFontSize(8.3);doc.setFont('helvetica','normal');doc.setTextColor(40,40,40);
+    d.certList.forEach((c,ci)=>{my=wt(doc,(ci+1)+'. '+c,tx+2,my,tw-4,4.3)+1;});
+    my+=3;
+  }
+  rs('Declaration');
   doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(40,40,40);
-  my=wt(doc,'I hereby declare that all the information, facts and details furnished above are true, complete and correct to the best of my knowledge and belief. In case any information is found to be false or incorrect at any stage, I shall be liable for appropriate action and my candidature or appointment is liable to be cancelled or terminated without prior notice.',MX+2,my,W-MX-12,4.2)+5;
-  doc.text('Date: '+(d.decdate||'___________'),MX+2,my);doc.text('Place: '+(d.place||''),MX+50,my);doc.text('Sign: '+(d.sign||d.name),W-8,my,{align:'right'});
+  my=wt(doc,'I hereby declare that all the information, facts and details furnished above are true, complete and correct to the best of my knowledge and belief. In case any information is found to be false or incorrect at any stage, I shall be liable for appropriate action and my candidature or appointment is liable to be cancelled or terminated without prior notice.',tx,my,tw,4.2)+6;
+  doc.setFontSize(7.5);
+  doc.text('Date: '+(d.decdate||'___________'),tx,my);
+  doc.text('Place: '+(d.place||''),tx+46,my);
+  doc.text('Sign: '+(d.sign||d.name||''),W-12,my,{align:'right'});
 }
 
 // ── TEMPLATE 4: CV Style with border ─────────────────────────────────────────
@@ -1828,7 +1889,7 @@ async function payOnline(){
         const vd=await vr.json();hideLoad();
         if(vd.success)showSuccess('online',jid,od.amount/100);
         else toast('❌ Verification failed');
-      },theme:{color:'#2563eb'}}).open();
+      },theme:{color:'#7c3aed'}}).open();
   }catch(e){hideLoad();toast('❌ '+e.message);}
 }
 
