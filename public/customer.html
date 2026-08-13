@@ -3970,12 +3970,17 @@ function showSuccess(method, amount) {
     document.getElementById('collectMsg').textContent = 'Payment verify ho gayi. Printer se aapka document print ho raha hai. Thodi der mein print nikal aayega!';
     document.getElementById('amountLabel').textContent = 'Paid Online';
   } else {
+    // Counter order me print TURANT shuru nahi hota — pehle shop owner ko
+    // apne PC par order accept karna hota hai. Isliye yahan "print ho raha
+    // hai" likhna galat tha (online payment wala message tha). Ab customer
+    // ko asli baat batate hain: 120 second me accept na hua to server file
+    // delete kar deta hai (STUCK_JOB_TIMEOUT_SEC=120, sweeper isi par chalta hai).
     icon.className = 'sicon counter';
-    icon.textContent = '🖨️';
-    document.getElementById('successTitle').textContent = 'Print Shuru!';
+    icon.textContent = '💵';
+    document.getElementById('successTitle').textContent = 'Order Bhej Diya!';
     collectBox.className = 'collect-box counter';
     document.getElementById('collectTitle').textContent = '💵 Counter Pe Jao!';
-    document.getElementById('collectMsg').textContent = 'Aapka document print ho raha hai. Counter pe jaake yeh amount pay karein aur apna print collect karein!';
+    document.getElementById('collectMsg').textContent = 'Shop Owner ne agar Pay at Counter order accept nahi kiya to 120 second me file server se automatic delete ho jayegi aur print nahi niklega.';
     document.getElementById('amountLabel').textContent = 'Counter Pe Dena Hai';
   }
 }
