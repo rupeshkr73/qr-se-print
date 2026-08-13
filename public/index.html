@@ -2512,7 +2512,7 @@ html.legal-open,body.legal-open{overflow:hidden}
 
 <div class="dm-overlay" id="demoModal">
   <div class="dm-box">
-    <h3>🎯 2 Hour Free Demo</h3>
+    <h3>🎯 24 Hour Free Demo</h3>
     <div class="dm-sub">Fill in your shop details — we activate your demo and send the Shop ID on WhatsApp</div>
     <div class="dm-err" id="dmErr"></div>
     <div id="dmForm">
@@ -3807,7 +3807,7 @@ async function createDemo(){
     const res = document.getElementById('dmResult');
 
     if(d.approved){
-      res.innerHTML = '\u2705 <b>Demo ready \u2014 your 2 hours start now!</b><br>' +
+      res.innerHTML = '\u2705 <b>Demo ready \u2014 your 24 hours start now!</b><br>' +
         '\uD83C\uDD94 Shop ID: <code>' + d.shopId + '</code><br>' +
         '\uD83D\uDD11 Password: <code>' + d.password + '</code> (your mobile number)<br><br>' +
         '<b>Next steps:</b><br>' +
@@ -3820,7 +3820,7 @@ async function createDemo(){
         '<b>Shop ID and password on WhatsApp</b> at <code>' + phone + '</code>.<br><br>' +
         '<div style="font-size:13px;line-height:1.7;text-align:left;">' +
         '\u23F1\uFE0F Usually activated within a few minutes during working hours.<br>' +
-        '\uD83C\uDF81 Your demo runs for <b>2 hours</b> with <b>10 free prints</b>.<br>' +
+        '\uD83C\uDF81 Your demo runs for <b>24 hours</b> with <b>10 free prints</b>.<br>' +
         '\uD83D\uDCF1 Keep WhatsApp open on <code>' + phone + '</code>.' +
         '</div>';
     }

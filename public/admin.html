@@ -557,7 +557,11 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       <div style="background:linear-gradient(135deg,#ff3b6b 0%,#c81e4a 100%);padding:22px 18px;text-align:center;color:#fff;">
         <div style="font-size:36px;line-height:1;">⏳</div>
         <h2 style="font-family:'Syne',sans-serif;font-size:20px;margin:8px 0 10px;color:#fff;">Aapka Demo Chal Raha Hai</h2>
-        <div id="demoCountdown" style="display:inline-block;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);border-radius:999px;padding:8px 18px;font-weight:800;font-size:15px;letter-spacing:.3px;">—</div>
+        <!-- HH:MM:SS countdown — har second tick karta hai.
+             font-variant-numeric: tabular-nums se digits ki chaudai fix rehti
+             hai, warna har second par pill hilta hua dikhta hai. -->
+        <div id="demoCountdown" style="display:inline-block;background:rgba(255,255,255,.18);border:1.5px solid rgba(255,255,255,.35);border-radius:999px;padding:9px 22px;font-weight:800;font-size:26px;letter-spacing:1.5px;font-variant-numeric:tabular-nums;font-feature-settings:'tnum';">--:--:--</div>
+        <div id="demoTimeLabel" style="font-size:11.5px;opacity:.92;margin-top:7px;letter-spacing:.3px;">Demo khatam hone me bacha time</div>
         <p style="font-size:12.5px;opacity:.95;margin:12px 0 0;line-height:1.6;">Demo khatam hote hi print nikalna band ho jayega.<br>Abhi plan lo — dukaan kabhi nahi rukegi.</p>
       </div>
       <div style="padding:18px;">
@@ -2523,7 +2527,7 @@ function agentShareWA() {
     `Dukaan me QR chipkao — customer apne phone se scan karke file bhejta hai, payment karta hai, ` +
     `aur print aapke printer se KHUD nikal jata hai.\n\n` +
     `✅ 0% commission — paisa seedha aapke account me\n✅ Unlimited print\n✅ Na WhatsApp pe file mangna, na pendrive ka virus\n\n` +
-    `💰 Setup: ₹${price} (one-time, lifetime)\n🎯 2 ghante FREE demo — bina payment ke\n\n` +
+    `💰 Setup: ₹${price} (one-time, lifetime)\n🎯 24 ghante FREE demo — bina payment ke\n\n` +
     `👉 ${_ag.link}`;
   window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank', 'noopener');
 }
@@ -2664,7 +2668,8 @@ function initDemoUpgrade(shop) {
   if (!isDemo) return;
   _demoExpiryTs = shop.demo_expires_at ? new Date(shop.demo_expires_at).getTime() : null;
   renderDemoCountdown();
-  _demoTimer = setInterval(renderDemoCountdown, 30000);
+  // Har SECOND tick — pehle 30 second ka tha, isliye timer ruka hua lagta tha
+  _demoTimer = setInterval(renderDemoCountdown, 1000);
   fetch('/api/setup-fee/current').then(r => r.json()).then(d => {
     const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
     if (d.monthlyFee) { setTxt('duMonthly', d.monthlyFee); setTxt('agduMonthly', d.monthlyFee); }
@@ -2673,14 +2678,37 @@ function initDemoUpgrade(shop) {
     if (cut && d.actualPrice && Number(d.actualPrice) > Number(d.offerPrice)) cut.textContent = '₹' + d.actualPrice;
   }).catch(() => {});
 }
+/* Demo countdown — HH:MM:SS, har second.
+   Demo 24 ghante ka hai to ghante 00-23 me rehte hain. Agar superadmin
+   isse zyada set kar de to ghante 24 se upar chale jayenge (padding wahi
+   rahegi) — ye theek hai, galat time dikhane se behtar hai. */
 function renderDemoCountdown() {
   const el = document.getElementById('demoCountdown');
   if (!el) return;
-  if (!_demoExpiryTs) { el.textContent = 'Demo account'; return; }
-  const left = _demoExpiryTs - Date.now();
-  if (left <= 0) { el.textContent = '⚠️ Demo khatam ho chuka hai'; return; }
-  const h = Math.floor(left / 3600000), m = Math.floor((left % 3600000) / 60000);
-  el.textContent = h > 0 ? `Khatam hone me ${h} ghante ${m} min` : `Khatam hone me ${m} minute`;
+  const lbl = document.getElementById('demoTimeLabel');
+
+  if (!_demoExpiryTs) {
+    el.textContent = '--:--:--';
+    if (lbl) lbl.textContent = 'Demo account';
+    return;
+  }
+
+  let left = _demoExpiryTs - Date.now();
+  if (left <= 0) {
+    el.textContent = '00:00:00';
+    if (lbl) lbl.textContent = '⚠️ Demo khatam ho chuka hai';
+    // Khatam hone ke baad har second chalte rehne ka koi matlab nahi
+    if (_demoTimer) { clearInterval(_demoTimer); _demoTimer = null; }
+    return;
+  }
+
+  const total = Math.floor(left / 1000);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const pad = n => String(n).padStart(2, '0');
+  el.textContent = `${pad(h)}:${pad(m)}:${pad(s)}`;
+  if (lbl) lbl.textContent = 'Demo khatam hone me bacha time';
 }
 /* ── Partner Program (White Label) ─────────────────────────
    Har hafte ek naya window. Timer ek fixed din se 7-7 din ke
