@@ -101,8 +101,57 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
 .shop-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .badge{flex:none;font-size:10.5px;font-weight:800;border-radius:999px;padding:4px 10px;white-space:nowrap}
 
-/* ── Login ── */
-#login{max-width:400px;margin:60px auto;padding:0 18px}
+/* ══════════════════════════════════════════════════════════════
+   Login screen — V2.0 look (soft grey canvas, white card, blue/violet).
+   Sab kuch #login ke andar scoped hai; panel ke .card/.btn/input/.msg
+   bilkul waise ke waise rehte hain.
+
+   ZAROORI: JS $('login').style.display ko 'block'/'none' set karta hai
+   (boot() aur logout() me). Isliye centring #login par NAHI ho sakti —
+   inline display:block usse tod deta. Centring andar wale
+   .wl-login-wrap par hai, jo har display value me chalti hai.
+   ══════════════════════════════════════════════════════════════ */
+#login{position:fixed;inset:0;z-index:500;background:#f5f6f8;overflow-y:auto;
+  max-width:none;margin:0;padding:0}
+#login .wl-login-wrap{min-height:100%;display:flex;align-items:center;
+  justify-content:center;padding:24px}
+#login::before,#login::after{content:'';position:fixed;border-radius:50%;
+  pointer-events:none;filter:blur(64px);opacity:.55}
+#login::before{width:340px;height:340px;background:#dbeafe;top:-96px;left:-96px}
+#login::after{width:320px;height:320px;background:#ede9fe;bottom:-96px;right:-96px}
+
+#login .wl-login-card{position:relative;width:100%;max-width:420px;text-align:center;
+  background:#fff;border:1px solid #eceef2;border-radius:20px;margin:0;
+  box-shadow:0 1px 2px rgba(16,24,40,.04),0 12px 32px rgba(16,24,40,.08);
+  padding:34px 28px 28px}
+#login .wl-logo{position:absolute;top:-26px;left:50%;translate:-50% 0;
+  width:52px;height:52px;background:linear-gradient(135deg,#8b5cf6,#6366f1);
+  border-radius:16px;display:flex;align-items:center;justify-content:center;
+  font-size:24px;box-shadow:0 8px 22px rgba(99,102,241,.35)}
+#login .wl-login-card h2{font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;
+  font-size:23px;letter-spacing:-.5px;color:#101828;justify-content:center;margin:16px 0 5px}
+#login .wl-sub{font-size:13px;color:#667085;margin-bottom:22px}
+#login input{padding:12px 14px;border:1px solid #e4e7ec;border-radius:10px;
+  font-size:14.5px;background:#fff;color:#101828;text-align:center;margin-bottom:12px;
+  transition:border-color .15s,box-shadow .15s}
+#login input::placeholder{color:#98a2b3;font-weight:400}
+#login input:focus{outline:none;border-color:#2563eb;background:#fff;
+  box-shadow:0 0 0 4px rgba(37,99,235,.12)}
+#login #lgId{font-weight:700}
+/* .msg ka display:none base me hai — JS show() use dikhata hai, isliye
+   yahan display ko chhua NAHI gaya. */
+#login .msg.err{background:#fef3f2;border:1px solid #fecdca;color:#b42318;border-radius:10px}
+#login .wl-login-btn{width:100%;background:#2563eb;color:#fff;border:none;border-radius:10px;
+  padding:13px;font-weight:700;font-size:15px;cursor:pointer;margin-top:4px;
+  box-shadow:0 6px 16px rgba(37,99,235,.28);transition:.15s}
+#login .wl-login-btn:hover{background:#1d4ed8;transform:translateY(-1px)}
+#login .wl-login-btn:focus-visible{outline:3px solid #101828;outline-offset:2px}
+#login .hint{font-size:12.5px;color:#667085;margin-top:14px}
+#login .hint a{color:#2563eb;font-weight:600;text-decoration:none}
+#login .wl-home{display:flex;align-items:center;justify-content:center;gap:7px;margin-top:16px;
+  padding:11px;border:1px solid #e4e7ec;border-radius:10px;color:#344054;font-size:13.5px;
+  font-weight:600;text-decoration:none;transition:background .15s,border-color .15s}
+#login .wl-home:hover{background:#f9fafb;border-color:#d0d5dd}
 #panel{display:none}
 .hp-btn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin:6px 0 14px;}
 .hp-btn-item{display:flex;align-items:center;gap:6px;background:#f7f7fb;border:1px solid #e6e6ef;
@@ -114,16 +163,18 @@ input:focus,textarea:focus{outline:none;border-color:var(--pink);box-shadow:0 0 
 
 <!-- ═══ LOGIN ═══ -->
 <div id="login">
-  <div class="card" style="text-align:center;">
-    <div style="font-size:40px;">🏷️</div>
-    <h2 style="justify-content:center;font-size:19px;margin:6px 0 4px;">Partner Login</h2>
-    <p style="font-size:12.5px;color:var(--muted);margin-bottom:16px;">White Label partner dashboard</p>
-    <div class="msg err" id="loginErr"></div>
-    <input id="lgId" placeholder="Partner ID (WL_XXXXXXXX)" style="text-align:center;font-weight:700;">
-    <input id="lgPass" type="password" placeholder="Password" style="text-align:center;">
-    <button class="btn pink" onclick="doLogin()">Login</button>
-    <p class="hint">Not a partner yet? <a href="/whitelabel" style="color:var(--pink);font-weight:700;text-decoration:none;">Register here ›</a></p>
-    <a href="/" style="display:flex;align-items:center;justify-content:center;gap:7px;margin-top:16px;padding:12px;border:1.5px solid var(--line);border-radius:12px;color:#4a4f58;font-size:13.5px;font-weight:700;text-decoration:none;transition:background .18s ease,border-color .18s ease;" onmouseover="this.style.background='#faf9f7';this.style.borderColor='#d9d2c8';" onmouseout="this.style.background='';this.style.borderColor='';">🏠 Home Page</a>
+  <div class="wl-login-wrap">
+    <div class="card wl-login-card">
+      <span class="wl-logo">🏷️</span>
+      <h2>Partner Login</h2>
+      <p class="wl-sub">White Label partner dashboard</p>
+      <div class="msg err" id="loginErr"></div>
+      <input id="lgId" placeholder="Partner ID (WL_XXXXXXXX)">
+      <input id="lgPass" type="password" placeholder="Password">
+      <button class="btn wl-login-btn" onclick="doLogin()">Login</button>
+      <p class="hint">Not a partner yet? <a href="/whitelabel">Register here ›</a></p>
+      <a href="/" class="wl-home">🏠 Home Page</a>
+    </div>
   </div>
 </div>
 
