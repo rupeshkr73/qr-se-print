@@ -303,6 +303,13 @@ if (PRIMARY_HOST) {
 const SEC = {
   demoIpMax:      parseInt(process.env.DEMO_RATE_LIMIT      || '3', 10),
   demoWindowMin:  parseInt(process.env.DEMO_RATE_WINDOW     || '15', 10),
+  // Ek IP se 24 ghante me kitne demo. Mobile users aksar carrier NAT ke
+  // peeche hote hain (ek hi public IP, hazaron log) — wahan ye limit sabko
+  // rok deti hai. Isliye ab env se badla ja sakta hai, code chhede bina.
+  demoDailyPerIp: parseInt(process.env.DEMO_DAILY_PER_IP    || '2', 10),
+  // Itni hits (safal + fail) ke baad hi spam maan kar temporary block.
+  // Honest user 3-4 baar retry karta hai — ye usse bahut upar hai.
+  demoAbuseHits:  parseInt(process.env.DEMO_ABUSE_HITS      || '40', 10),
   uploadsPerDemo: parseInt(process.env.MAX_UPLOADS_PER_DEMO || '10', 10),
   uploadsPerMin:  parseInt(process.env.MAX_UPLOADS_PER_MINUTE || '12', 10),
   burstMin:       parseInt(process.env.MIN_UPLOAD_GAP_MS    || '1500', 10),
@@ -383,16 +390,45 @@ function demoRateLimit(req, res, next) {
   }
   const now = Date.now();
   let e = demoIpHits.get(ip);
-  if (!e || now > e.resetAt) { e = { count: 0, resetAt: now + SEC.demoWindowMin * 60000 }; demoIpHits.set(ip, e); }
-  e.count++;
-  if (e.count > SEC.demoIpMax) {
-    // Baar-baar limit todne par thoda lamba temporary block
-    if (e.count > SEC.demoIpMax * 3) blockFor('ip:' + ip, SEC.blockMin, 'repeated demo spam');
+  if (!e || now > e.resetAt) {
+    e = { count: 0, hits: 0, resetAt: now + SEC.demoWindowMin * 60000 };
+    demoIpHits.set(ip, e);
+  }
+
+  // ── Sirf bhaari spam par hi temporary block ──
+  // Pehle yahan count (safal + fail sab) ke hisaab se block lagta tha, aur
+  // block lagne ke baad bhi count badhta rehta tha — matlab user jitni baar
+  // retry karta, block utna hi lamba hota jaata. Ab total hits ki alag ginti
+  // hai aur limit itni upar hai ki honest user (3-4 retry) kabhi na chhue.
+  e.hits++;
+  if (e.hits > SEC.demoAbuseHits) {
+    blockFor('ip:' + ip, SEC.blockMin, 'demo endpoint spam');
     logSecurityEvent({ ip, endpoint: req.path, method: req.method, action: 'DEMO_REQUEST',
-                       reason: 'IP_RATE_LIMIT', uploadCount: e.count,
+                       reason: 'ABUSE_HITS', uploadCount: e.hits,
                        userAgent: req.headers['user-agent'] });
     return res.status(429).json({ error: 'Too many requests. Please try again later.' });
   }
+
+  // ── Asli limit: kitne demo BANE, koshishein nahi ──
+  // Ye sabse bada bug tha. Ginti har POST par badhti thi — chahe request
+  // validation me fail ho, phone pehle se registered ho, ya captcha fail ho.
+  // Matlab form 3 baar galat bharne wala aadmi 15 minute ke liye block ho
+  // jaata tha, bina ek bhi demo bane. Ab ginti tabhi badhti hai jab demo
+  // sach me ban jaye — handler success par req.countDemoRequest() bulata hai.
+  if (e.count >= SEC.demoIpMax) {
+    const wait = Math.max(1, Math.ceil((e.resetAt - now) / 60000));
+    logSecurityEvent({ ip, endpoint: req.path, method: req.method, action: 'DEMO_REQUEST',
+                       reason: 'IP_RATE_LIMIT', uploadCount: e.count,
+                       userAgent: req.headers['user-agent'] });
+    return res.status(429).json({
+      error: `Is network se ${SEC.demoIpMax} demo ho chuke hain. ${wait} minute baad try karo, ya seedha register kar lo.`
+    });
+  }
+
+  req.countDemoRequest = function () {
+    const cur = demoIpHits.get(ip);
+    if (cur) cur.count++;
+  };
   next();
 }
 
@@ -1200,7 +1236,12 @@ async function initDB() {
       ON CONFLICT (key) DO NOTHING
     `);
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_enabled','1') ON CONFLICT DO NOTHING");
-    await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_minutes','120') ON CONFLICT DO NOTHING");
+    // Demo ki umar — 1440 minute = 24 ghante.
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_minutes','1440') ON CONFLICT DO NOTHING");
+    // Purane DB me ye 120 (2 ghante) pada hai. Sirf tab badlo jab abhi bhi
+    // wahi purana default ho — agar superadmin ne jaan-bujh ke koi aur value
+    // set ki hai to usse chhedna galat hoga.
+    await pool.query("UPDATE system_settings SET value='1440' WHERE key='demo_minutes' AND value='120'");
     // Demo me kitne free print milenge (spec: 10)
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_print_limit','10') ON CONFLICT DO NOTHING");
     // '1' = demo turant ban jaaye (purana behaviour). '0' = superadmin approve kare.
@@ -2012,7 +2053,7 @@ app.post('/api/superadmin/withdrawals/:id/complete', verifySuperAdmin, async (re
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
-// ══════════════════ FREE DEMO (2 ghante) ══════════════════
+// ══════════════════ FREE DEMO (24 ghante, 10 print) ══════════════════
 // Anti-abuse: (1) ek phone = ek demo PERMANENT, (2) ek IP = 2/din,
 // (3) ek MACHINE = ek demo permanent (agent MachineGuid bhejta hai).
 async function getDemoConfig() {
@@ -2020,14 +2061,14 @@ async function getDemoConfig() {
     const r = await pool.query(
       "SELECT key,value FROM system_settings WHERE key IN ('demo_enabled','demo_minutes','demo_print_limit','demo_auto_approve')");
     const m = Object.fromEntries(r.rows.map(x => [x.key, x.value]));
-    const mins = Math.max(15, Math.min(1440, parseInt(m.demo_minutes) || 120)); // 15 min .. 24 hr guard
+    const mins = Math.max(15, Math.min(1440, parseInt(m.demo_minutes) || 1440)); // 15 min .. 24 hr guard
     return {
       enabled: (m.demo_enabled || '1') === '1',
       minutes: mins,
       printLimit: Math.max(1, Math.min(1000, parseInt(m.demo_print_limit) || 10)),
       autoApprove: (m.demo_auto_approve || '0') === '1'
     };
-  } catch (e) { return { enabled: true, minutes: 120, printLimit: 10, autoApprove: false }; }
+  } catch (e) { return { enabled: true, minutes: 1440, printLimit: 10, autoApprove: false }; }
 }
 
 /**
@@ -2117,7 +2158,7 @@ function isDemoExpired(shop) {
 // ═══════════════════════════════════════════════
 // DEMO REQUEST → SUPERADMIN APPROVAL → ACTIVATION
 // Public form ab seedha shop nahi banata. Pehle 'pending' request banti
-// hai; superadmin Accept kare tabhi demo shop create hoti hai aur 2 ghante
+// hai; superadmin Accept kare tabhi demo shop create hoti hai aur 24 ghante
 // ka timer shuru hota hai.
 // ═══════════════════════════════════════════════
 app.post('/api/demo/request', demoRateLimit, async (req, res) => {
@@ -2168,11 +2209,13 @@ app.post('/api/demo/request', demoRateLimit, async (req, res) => {
       return res.status(400).json({ error: 'A demo has already been taken on this number. Please register to continue.' });
     }
 
-    // Layer 2: ek IP se max 2 request / din
+    // Layer 2: ek IP se max DEMO_DAILY_PER_IP request / din (default 2).
+    // Ye sirf BANE hue demo ginta hai (DB rows), koshishein nahi — isliye
+    // form galat bharne se ye limit nahi katti.
     const ip = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim().slice(0, 60);
     const ipCount = await pool.query(
       "SELECT COUNT(*)::int AS n FROM demo_registrations WHERE ip=$1 AND created_at > NOW() - INTERVAL '24 hours'", [ip]);
-    if (ipCount.rows[0].n >= 2) {
+    if (ipCount.rows[0].n >= SEC.demoDailyPerIp) {
       return res.status(429).json({ error: "Today's demo limit reached. Please try tomorrow or register now." });
     }
 
@@ -2188,6 +2231,10 @@ app.post('/api/demo/request', demoRateLimit, async (req, res) => {
       }
       throw e;
     }
+
+    // Demo sach me ban gaya — AB IP ki ginti badhao. Isse upar wale saare
+    // rejections (validation, duplicate phone, captcha) quota nahi khaate.
+    if (typeof req.countDemoRequest === 'function') req.countDemoRequest();
 
     // Legacy auto-approve (default OFF) — rollback ke liye rakha hai.
     if (cfg.autoApprove) {
@@ -5195,7 +5242,9 @@ app.get('/api/shop/:shopId/stats', async (req, res) => {
 app.get('/api/admin/profile', verifyToken, async (req, res) => {
   try {
     const r = await pool.query(
-      `SELECT id,name,address,phone,demo,plan_type,paid_until,advanced_unlocked,advanced_active,
+      // demo_expires_at pehle yahan tha hi nahi — isliye panel ka demo
+      // countdown hamesha khali rehta tha (shop.demo_expires_at undefined).
+      `SELECT id,name,address,phone,demo,demo_expires_at,plan_type,paid_until,advanced_unlocked,advanced_active,
               adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,adv_mini_active,shop_notice,shop_logo,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
               email,payment_gateway,razorpay_key_id,cashfree_app_id,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
