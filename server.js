@@ -6306,16 +6306,19 @@ function nextVersionLabel(current) {
 
 async function getAgentVersionInfo() {
   const r = await pool.query(
-    "SELECT key, value, updated_at FROM system_settings WHERE key IN ('agent_version','agent_version_label')"
+    "SELECT key, value, updated_at FROM system_settings WHERE key IN ('agent_version','agent_version_label','agent_version_notes')"
   );
   const map = {};
   for (const row of r.rows) map[row.key] = row;
   const version = map.agent_version ? parseInt(map.agent_version.value, 10) || 1 : 1;
   const rawLabel = map.agent_version_label ? (map.agent_version_label.value || '') : '';
   const label = parseVersionLabel(rawLabel) ? rawLabel.trim() : '';
+  // "What's in the Update" — super admin push ke waqt likhta hai, shop owner
+  // ko download button ke paas dikhta hai. Khali ho sakta hai (optional).
+  const notes = map.agent_version_notes ? String(map.agent_version_notes.value || '').trim() : '';
   const updatedAt = (map.agent_version_label && map.agent_version_label.updated_at)
     || (map.agent_version && map.agent_version.updated_at) || null;
-  return { version, label, updatedAt, nextLabel: nextVersionLabel(label) };
+  return { version, label, notes, updatedAt, nextLabel: nextVersionLabel(label) };
 }
 
 app.get('/api/agent/version', async (req, res) => {
@@ -6327,7 +6330,11 @@ app.get('/api/agent/version', async (req, res) => {
       version: info.version,
       versionLabel: info.label,
       // Agar label abhi set nahi hua to agent apna hi label dikhata rahega.
-      displayVersion: info.label || String(info.version)
+      displayVersion: info.label || String(info.version),
+      // Shop owner ke panel me "What's in Update" isi se dikhta hai.
+      // Purane agents is field ko ignore kar denge — kuch toota nahi.
+      notes: info.notes,
+      notesUpdatedAt: info.updatedAt
     });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
@@ -7429,6 +7436,7 @@ app.get('/api/superadmin/agent-version', verifySuperAdmin, async (req, res) => {
       versionLabel: info.label,       // "2.0"
       displayVersion: info.label || String(info.version),
       nextLabel: info.nextLabel,      // agla suggested label
+      notes: info.notes,              // "What's in the Update" box ka current text
       updatedAt: info.updatedAt
     });
   } catch(err) { res.status(500).json({ error: err.message }); }
@@ -7442,6 +7450,13 @@ app.post('/api/superadmin/agent-version/bump', verifySuperAdmin, async (req, res
     // Label: body se aaya to use karo, warna auto next (2.0 → 2.1 → ... → 2.10 → 3.0)
     const requested = (req.body && typeof req.body.label === 'string') ? req.body.label.trim() : '';
     const newLabel = requested || info.nextLabel;
+
+    // "What's in the Update" — optional. Khali chhoda to shop owner ke panel
+    // me "What's in Update" button dikhega hi nahi (khali popup se accha hai).
+    // 2000 char cap taaki koi galti se poora changelog paste na kar de.
+    const newNotes = (req.body && typeof req.body.notes === 'string')
+      ? req.body.notes.trim().slice(0, 2000)
+      : '';
 
     if (!parseVersionLabel(newLabel)) {
       return res.status(400).json({ error: 'Version format galat hai. Aise likho: 2.0, 2.1, 2.10, 3.0' });
@@ -7467,6 +7482,14 @@ app.post('/api/superadmin/agent-version/bump', verifySuperAdmin, async (req, res
        ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
       [newLabel]
     );
+    // Notes hamesha likho — khali bhejne par purane version ke notes hat jaate
+    // hain. Warna naya version push karne par shop owner ko pichhle update ka
+    // text dikhta rehta, jo galat hai.
+    await client.query(
+      `INSERT INTO system_settings (key, value, updated_at) VALUES ('agent_version_notes', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value=$1, updated_at=NOW()`,
+      [newNotes]
+    );
     await client.query('COMMIT');
 
     console.log(`Agent version pushed → v${newLabel} (internal ${newVersion}) by super admin — sab customers ke PC 1 ghante mein update ho jayenge`);
@@ -7475,6 +7498,7 @@ app.post('/api/superadmin/agent-version/bump', verifySuperAdmin, async (req, res
       version: newVersion,
       versionLabel: newLabel,
       displayVersion: newLabel,
+      notes: newNotes,
       nextLabel: nextVersionLabel(newLabel)
     });
   } catch(err) {
