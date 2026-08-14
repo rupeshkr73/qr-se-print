@@ -512,6 +512,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <button class="nav-it" data-nav="partner" id="navPartner" onclick="navTo('partner',this)"><span class="ico">🤝</span> Partner Program<span class="new-dot"><i>✦</i>NEW</span></button>
     <button class="nav-it" data-nav="review" onclick="navTo('review',this)"><span class="ico">⭐</span> Review Dijiye</button>
     <button class="nav-it" data-nav="support" id="navSupport" onclick="navTo('support',this)"><span class="ico">💬</span> Support</button>
+    <button class="nav-it" data-nav="account" onclick="navTo('account',this)" style="margin-top:auto;color:#b45309;"><span class="ico">🗑️</span> Delete Account</button>
     <div class="side-foot"><select data-i18n-select aria-label="Language" style="width:100%;margin-bottom:8px;padding:9px 11px;border-radius:11px;border:1.5px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;"></select>
     <button class="side-lg" onclick="logout()"><span>🚪</span> Logout</button></div>
   </aside>
@@ -1348,6 +1349,57 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     </div>
     </div><!-- /payment -->
 
+    <!-- ══ DELETE ACCOUNT ══ -->
+    <div data-sect="account">
+      <div class="card" style="border:1.5px solid #bfdbfe;background:#f0f7ff;">
+        <h3 style="margin-bottom:6px;">📥 Download Your Data</h3>
+        <p style="font-size:13px;color:#475569;line-height:1.7;margin-bottom:14px;">
+          Aapke account ka <b>poora data</b> ek file me — shop details, registration,
+          saare print orders, earnings, reviews, withdrawals aur activity logs.
+          Account delete karne se pehle ye zaroor download kar lijiye.
+        </p>
+        <button id="dlDataBtn" onclick="downloadMyData()"
+          style="width:100%;background:#2563eb;color:#fff;border:none;border-radius:12px;
+                 padding:15px;font-weight:800;font-size:15px;cursor:pointer;">
+          📥 Download My Data
+        </button>
+        <div id="dlDataMsg" style="display:none;font-size:12.5px;margin-top:10px;"></div>
+      </div>
+
+      <div class="card" style="border:1.5px solid #fecaca;background:#fff5f5;">
+        <h3 style="margin-bottom:6px;color:#b91c1c;">🗑️ Delete Account Permanently</h3>
+        <p style="font-size:13px;color:#475569;line-height:1.7;margin-bottom:12px;">
+          Ye kaam <b>wapas nahi hota</b>. Delete karte hi hamesha ke liye mit jayega:
+        </p>
+        <ul style="font-size:13px;color:#475569;line-height:1.9;margin:0 0 14px 18px;">
+          <li>Aapki shop aur Shop ID</li>
+          <li>Saare print orders aur unka hisaab</li>
+          <li>Cloudinary par padi baaki files</li>
+          <li>Reviews, withdrawals, commission record</li>
+          <li>QR code kaam karna band kar dega</li>
+        </ul>
+        <div style="background:#fff;border:1.5px solid #fecaca;border-radius:12px;padding:13px;margin-bottom:14px;">
+          <div style="font-size:12.5px;font-weight:800;color:#b91c1c;margin-bottom:8px;">
+            Confirm karne ke liye niche <code style="background:#fee2e2;padding:2px 8px;border-radius:5px;">DELETE</code> likhiye
+          </div>
+          <input id="delConfirmInput" type="text" placeholder="DELETE" autocomplete="off" spellcheck="false"
+            oninput="onDelInput()"
+            style="width:100%;padding:13px;border:1.5px solid #fecaca;border-radius:10px;
+                   font-size:15px;font-weight:800;letter-spacing:2px;text-align:center;outline:none;">
+        </div>
+        <button id="delAccBtn" onclick="deleteMyAccount()" disabled
+          style="width:100%;background:#dc2626;color:#fff;border:none;border-radius:12px;
+                 padding:15px;font-weight:800;font-size:15px;cursor:not-allowed;opacity:.45;">
+          🗑️ Delete My Account Permanently
+        </button>
+        <div id="delAccMsg" style="display:none;font-size:12.5px;margin-top:10px;"></div>
+        <p style="font-size:11.5px;color:#94a3b8;margin-top:12px;text-align:center;line-height:1.6;">
+          Sirf kuch settings badalni hain? <a href="#" onclick="navTo('settings',null);return false;"
+            style="color:#2563eb;font-weight:700;">Settings</a> me jaiye.
+        </p>
+      </div>
+    </div>
+
     <div data-sect="support">
     <div class="card" style="overflow:hidden;padding:0;">
       <div style="background:linear-gradient(135deg,#25D366 0%,#128C7E 100%);padding:28px 22px;text-align:center;color:#fff;position:relative;">
@@ -1646,7 +1698,7 @@ async function loadBreakdown(){
 }
 
 // ===== SIDEBAR NAV =====
-const PAGE_TITLES={partner:'Partner Program', review:'Review Dijiye', overview:'Overview',refer:'Refer & Earn',qr:'QR & Downloads',orders:'Orders',settings:'Settings',agent:'Agent Dashboard'};
+const PAGE_TITLES={account:'Delete Account', partner:'Partner Program', review:'Review Dijiye', overview:'Overview',refer:'Refer & Earn',qr:'QR & Downloads',orders:'Orders',settings:'Settings',agent:'Agent Dashboard'};
 /* ── Review Dijiye ─────────────────────────────────────────
    Shop apna review bhejta hai. Seedha live nahi hota — pehle
    superadmin approve karta hai. Ek shop ka ek hi review rehta hai:
@@ -1750,6 +1802,91 @@ async function submitReview(){
   }finally{
     btn.disabled = false;
     btn.textContent = old;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════
+// ACCOUNT — DATA DOWNLOAD & DELETE
+// ══════════════════════════════════════════════════════════════
+function _accMsg(id, text, ok){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.textContent = text;
+  el.style.color = ok ? '#15803d' : '#b91c1c';
+  el.style.display = 'block';
+}
+
+async function downloadMyData(){
+  const btn = document.getElementById('dlDataBtn');
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ File ban rahi hai…';
+  try{
+    const r = await fetch('/api/admin/export-data', {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if(!r.ok){
+      let msg = 'Download nahi ho paya';
+      try{ msg = (await r.json()).error || msg; }catch(e){}
+      throw new Error(msg);
+    }
+    // Blob se save — taaki naam sahi rahe aur token URL me na jaye
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'QRSePrint-' + (currentShop && currentShop.id ? currentShop.id : 'data')
+               + '-' + new Date().toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+    _accMsg('dlDataMsg', '✅ Download ho gaya — file aapke Downloads folder me hai', true);
+  }catch(e){
+    _accMsg('dlDataMsg', '❌ ' + e.message, false);
+  }finally{
+    btn.disabled = false; btn.textContent = old;
+  }
+}
+
+function onDelInput(){
+  const v = (document.getElementById('delConfirmInput').value || '').trim().toUpperCase();
+  const btn = document.getElementById('delAccBtn');
+  const ok = (v === 'DELETE');
+  btn.disabled = !ok;
+  btn.style.opacity = ok ? '1' : '.45';
+  btn.style.cursor = ok ? 'pointer' : 'not-allowed';
+}
+
+async function deleteMyAccount(){
+  const v = (document.getElementById('delConfirmInput').value || '').trim().toUpperCase();
+  if(v !== 'DELETE'){ _accMsg('delAccMsg', 'Pehle DELETE likhiye', false); return; }
+
+  // Do baar poochho — ye wapas nahi hota
+  if(!confirm('Account HAMESHA ke liye delete ho jayega.\n\nSaare orders, earnings aur aapka QR code — sab mit jayega. Ye wapas nahi aayega.\n\nAage badhein?')) return;
+  if(!confirm('Aakhri baar puchh rahe hain.\n\nData download kar liya hai?\n\nOK dabate hi account delete ho jayega.')) return;
+
+  const btn = document.getElementById('delAccBtn');
+  btn.disabled = true; btn.textContent = '⏳ Delete ho raha hai…';
+  try{
+    const r = await fetch('/api/admin/delete-account', {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + authToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirm: 'DELETE' })
+    });
+    const d = await r.json();
+    if(!r.ok || !d.success) throw new Error(d.error || 'Delete nahi ho paya');
+
+    document.body.innerHTML =
+      '<div style="max-width:420px;margin:90px auto;padding:30px;text-align:center;'
+      + 'font-family:\'Plus Jakarta Sans\',sans-serif;">'
+      + '<div style="font-size:52px;margin-bottom:16px;">👋</div>'
+      + '<h2 style="font-size:21px;margin-bottom:10px;">Account delete ho gaya</h2>'
+      + '<p style="color:#64748b;font-size:14px;line-height:1.7;">'
+      + 'Aapka data server se hata diya gaya hai.<br>QR Se Print use karne ke liye shukriya.</p>'
+      + '<a href="/" style="display:inline-block;margin-top:20px;background:#7c3aed;color:#fff;'
+      + 'text-decoration:none;border-radius:12px;padding:13px 26px;font-weight:800;">Home</a></div>';
+    try{ localStorage.removeItem('qrprint_token'); }catch(e){}
+  }catch(e){
+    _accMsg('delAccMsg', '❌ ' + e.message, false);
+    btn.disabled = false; btn.textContent = '🗑️ Delete My Account Permanently';
   }
 }
 
@@ -2666,7 +2803,14 @@ function initDemoUpgrade(shop) {
   card.style.display = isDemo ? 'block' : 'none';
   if (_demoTimer) { clearInterval(_demoTimer); _demoTimer = null; }
   if (!isDemo) return;
-  _demoExpiryTs = shop.demo_expires_at ? new Date(shop.demo_expires_at).getTime() : null;
+  // Server ne bata diya kitne second bache hain — client apni ghadi se
+  // hisaab NA lagaye. Pehle demo_expires_at parse hota tha, jisse phone ka
+  // timezone galat hone par countdown 5.5 ghante kam dikhta tha.
+  if (shop.demo_seconds_left != null) {
+    _demoExpiryTs = Date.now() + (parseInt(shop.demo_seconds_left, 10) || 0) * 1000;
+  } else {
+    _demoExpiryTs = shop.demo_expires_at ? new Date(shop.demo_expires_at).getTime() : null;
+  }
   renderDemoCountdown();
   // Har SECOND tick — pehle 30 second ka tha, isliye timer ruka hua lagta tha
   _demoTimer = setInterval(renderDemoCountdown, 1000);
