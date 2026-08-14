@@ -10,6 +10,20 @@ const { Pool, types: pgTypes } = require('pg');
 // aur print ke baad error aane laga. Yahan parser lagakar NUMERIC ko wapas
 // number bana dete hain, taaki baaki poora code pehle jaisa hi chale.
 pgTypes.setTypeParser(1700, (v) => (v === null ? null : parseFloat(v)));   // NUMERIC / DECIMAL
+
+// ⚠️ ZAROORI: demo ka time se pehle khatam ho jaana — asli wajah yahi thi.
+//
+// Hamare saare TIMESTAMP columns "without time zone" hain aur database ka
+// timezone UTC hai. Par node-postgres aise column ko SERVER PROCESS ke
+// local timezone me padhta hai. Agar Render/PC ka TZ IST ho, to
+// "2026-08-15 07:50" ko wo IST maan leta hai = 02:20 UTC — yaani asli
+// waqt se 5.5 GHANTE PEHLE. Demo, agent online/offline, stuck job — sab
+// isi se galat ho jaate hain.
+//
+// Yahan parser lagakar bata dete hain ki ye value UTC hai. DB ka timezone
+// UTC hi hai, isliye ye 100% sahi hai — aur server ka TZ kuch bhi ho,
+// hisaab kabhi nahi bigdega.
+pgTypes.setTypeParser(1114, (v) => (v === null ? null : new Date(v + 'Z')));   // TIMESTAMP without tz
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 const QRCode = require('qrcode');
@@ -5151,11 +5165,18 @@ app.post('/api/shop/set-password', async (req, res) => {
 // Demo status — agent 30 min me ek baar poochta hai (halka payload)
 app.get('/api/shop/:shopId/demo-status', async (req, res) => {
   try {
-    const r = await pool.query('SELECT demo, demo_expires_at FROM shops WHERE id=$1', [req.params.shopId]);
+    // secondsLeft SERVER se bhejte hain (SQL me gina hua). Client ko date
+    // parse karni hi nahi padti, isliye uske PC/phone ka timezone galat ho
+    // to bhi countdown sahi rehta hai.
+    const r = await pool.query(
+      `SELECT demo, demo_expires_at,
+              GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (demo_expires_at - NOW()))))::bigint AS secs_left
+         FROM shops WHERE id=$1`, [req.params.shopId]);
     if (!r.rows.length) return res.status(404).json({ error: 'Shop not found' });
     const s = r.rows[0];
-    const expired = !!(s.demo && s.demo_expires_at && new Date(s.demo_expires_at).getTime() < Date.now());
-    const out = { demo: !!s.demo, demo_expires_at: s.demo_expires_at, expired };
+    const secsLeft = s.secs_left == null ? null : parseInt(s.secs_left, 10);
+    const expired = !!(s.demo && s.demo_expires_at && secsLeft !== null && secsLeft <= 0);
+    const out = { demo: !!s.demo, demo_expires_at: s.demo_expires_at, expired, secondsLeft: secsLeft };
     if (s.demo) {
       const a = await checkDemoAllowance(req.params.shopId);
       out.printsUsed = a.used;
@@ -5244,7 +5265,9 @@ app.get('/api/admin/profile', verifyToken, async (req, res) => {
     const r = await pool.query(
       // demo_expires_at pehle yahan tha hi nahi — isliye panel ka demo
       // countdown hamesha khali rehta tha (shop.demo_expires_at undefined).
-      `SELECT id,name,address,phone,demo,demo_expires_at,plan_type,paid_until,advanced_unlocked,advanced_active,
+      `SELECT id,name,address,phone,demo,demo_expires_at,
+              GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (demo_expires_at - NOW()))))::bigint AS demo_seconds_left,
+              plan_type,paid_until,advanced_unlocked,advanced_active,
               adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,adv_mini_active,shop_notice,shop_logo,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
               email,payment_gateway,razorpay_key_id,cashfree_app_id,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
@@ -5283,8 +5306,35 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
       finalEmail = e;
     }
 
+    // ── PARTIAL UPDATE SUPPORT ──
+    // Website poora settings object bhejti hai, par desktop panel sirf
+    // wahi field bhejta hai jo badla ho (jaise sirf printer ya sirf price).
+    // Pehle payment_mode na aane par ye 'both' maan leta tha aur phir
+    // "Online payment ke liye keys zaroori hain" error de deta tha — jabki
+    // keys pehle se save thi. Us se bhi bura: payment ke 5 field COALESCE
+    // ke bina UPDATE ho rahe the, yaani sirf printer save karne par
+    // Razorpay ki keys MIT jaati thi.
+    const curQ = await pool.query(
+      `SELECT payment_mode, payment_gateway, razorpay_key_id, razorpay_key_secret,
+              cashfree_app_id, cashfree_secret_key
+         FROM shops WHERE id=$1`, [req.shopId]);
+    const cur = curQ.rows[0] || {};
+
+    // Request payment settings ko chhu bhi rahi hai ya nahi?
+    const touchingPayment =
+      payment_mode !== undefined || payment_gateway !== undefined ||
+      razorpay_key_id !== undefined || razorpay_key_secret !== undefined ||
+      cashfree_app_id !== undefined || cashfree_secret_key !== undefined;
+
     const validPaymentModes = ['both', 'counter_only', 'online_only'];
-    const finalPaymentMode = validPaymentModes.includes(payment_mode) ? payment_mode : 'both';
+    const finalPaymentMode = validPaymentModes.includes(payment_mode)
+      ? payment_mode
+      : (cur.payment_mode || 'both');          // bheji nahi = purani hi rahe
+
+    // Jo field bheji hi nahi, uske liye purani value chalegi
+    const finalGatewayIn = payment_gateway !== undefined ? payment_gateway : (cur.payment_gateway || '');
+    const finalRzpId     = razorpay_key_id  !== undefined ? razorpay_key_id  : (cur.razorpay_key_id || '');
+    const finalCfId      = cashfree_app_id  !== undefined ? cashfree_app_id  : (cur.cashfree_app_id || '');
 
     const needsGateway = finalPaymentMode === 'both' || finalPaymentMode === 'online_only';
 
@@ -5299,15 +5349,21 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
       }
     }
 
-    if (needsGateway) {
-      const validRazorpay = payment_gateway === 'razorpay' && razorpay_key_id && finalRzpSecret;
-      const validCashfree = payment_gateway === 'cashfree' && cashfree_app_id && finalCfSecret;
+    // Secret bheja hi nahi = purana rakho (panel sirf printer bhejta hai)
+    if (razorpay_key_secret === undefined) finalRzpSecret = cur.razorpay_key_secret || '';
+    if (cashfree_secret_key === undefined) finalCfSecret = cur.cashfree_secret_key || '';
+
+    // Gateway ki jaanch SIRF tab jab request payment settings badal rahi ho.
+    // Sirf printer/price save karne par ye jaanch chalni hi nahi chahiye.
+    if (touchingPayment && needsGateway) {
+      const validRazorpay = finalGatewayIn === 'razorpay' && finalRzpId && finalRzpSecret;
+      const validCashfree = finalGatewayIn === 'cashfree' && finalCfId && finalCfSecret;
       if (!validRazorpay && !validCashfree) {
         return res.status(400).json({ error: 'Online payment ke liye Razorpay ya Cashfree ki details zaroori hain' });
       }
     }
 
-    const finalGateway = needsGateway ? payment_gateway : '';
+    const finalGateway = needsGateway ? finalGatewayIn : '';
 
     await pool.query(
       `UPDATE shops SET 
@@ -5328,7 +5384,7 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
         printer_name_color=COALESCE($15,printer_name_color)
       WHERE id=$16`,
       [name, address, phone, printer_model, price_bw, price_color, finalPaymentMode,
-       finalGateway, razorpay_key_id||'', finalRzpSecret||'', cashfree_app_id||'', finalCfSecret||'',
+       finalGateway, finalRzpId||'', finalRzpSecret||'', finalCfId||'', finalCfSecret||'',
        finalEmail === undefined ? null : finalEmail,
        printer_name_bw, printer_name_color,
        req.shopId]
@@ -5426,6 +5482,125 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
       recent: recent.rows.map(r => ({ id: r.id, status: r.status, ago: ago(r.secs_ago) }))
     });
   } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ═══════════════════════════════════════════════
+// ACCOUNT — DATA DOWNLOAD & DELETE
+// ═══════════════════════════════════════════════
+
+/** Shop ka saara data ek JSON file me — shop khud download kar sakta hai. */
+app.get('/api/admin/export-data', verifyToken, async (req, res) => {
+  try {
+    const id = req.shopId;
+    const q = async (sql, p = [id]) => {
+      try { return (await pool.query(sql, p)).rows; }
+      catch (e) { return [{ _error: e.message }]; }   // ek table fail ho to baaki na ruke
+    };
+
+    const shopRows = await q('SELECT * FROM shops WHERE id=$1');
+    const shop = shopRows[0] || {};
+    // Secrets kabhi file me nahi jaate
+    for (const k of Object.keys(shop)) {
+      const lk = k.toLowerCase();
+      if (lk.endsWith('_secret') || lk.endsWith('secret_key') ||
+          lk.endsWith('password_hash') || lk.endsWith('_token')) delete shop[k];
+    }
+
+    const data = {
+      exportedAt: new Date().toISOString(),
+      shopId: id,
+      note: 'QR Se Print — aapke account ka poora data. Ise sambhal kar rakhein.',
+      shop,
+      registration: await q('SELECT * FROM demo_registrations WHERE shop_id=$1'),
+      printJobs:    await q(`SELECT id, file_name, file_type, total_pages, copies, color_mode,
+                                    duplex, paper_size, amount, payment_status, payment_mode,
+                                    status, failure_reason, created_at, printed_at
+                               FROM print_jobs WHERE shop_id=$1 ORDER BY created_at DESC`),
+      reviews:      await q('SELECT * FROM reviews WHERE shop_id=$1 ORDER BY created_at DESC'),
+      withdrawals:  await q('SELECT * FROM withdrawals WHERE shop_id=$1 ORDER BY created_at DESC'),
+      commissions:  await q('SELECT * FROM agent_commissions WHERE shop_id=$1 ORDER BY created_at DESC'),
+      activityLogs: await q(`SELECT created_at, endpoint, method, action, reason, ip
+                               FROM security_events WHERE shop_id=$1
+                              ORDER BY created_at DESC LIMIT 2000`),
+      machines:     await q('SELECT * FROM demo_machines WHERE shop_id=$1')
+    };
+
+    const jobs = Array.isArray(data.printJobs) ? data.printJobs : [];
+    data.summary = {
+      totalPrintJobs: jobs.length,
+      totalEarned: jobs.filter(j => j.payment_status === 'paid')
+                       .reduce((a, j) => a + (Number(j.amount) || 0), 0),
+      accountCreated: shop.created_at || null
+    };
+
+    const stamp = new Date().toISOString().slice(0, 10);
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition',
+      `attachment; filename="QRSePrint-${id}-${stamp}.json"`);
+    res.send(JSON.stringify(data, null, 2));
+    console.log(`Data export: ${id} (${jobs.length} jobs)`);
+  } catch (err) {
+    console.error('export-data error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Account HAMESHA ke liye delete. Wapas nahi aayega.
+ * Sab kuch ek transaction me — beech me fail ho to kuch bhi delete nahi hota.
+ */
+app.delete('/api/admin/delete-account', verifyToken, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const id = req.shopId;
+
+    // "DELETE" likhna zaroori — galti se click hone par kuch na ho
+    if (String((req.body && req.body.confirm) || '').trim().toUpperCase() !== 'DELETE') {
+      return res.status(400).json({ error: 'Confirm karne ke liye DELETE likhna zaroori hai' });
+    }
+
+    const shopRow = await client.query('SELECT id, name, phone FROM shops WHERE id=$1', [id]);
+    if (!shopRow.rows.length) return res.status(404).json({ error: 'Shop not found' });
+    const shop = shopRow.rows[0];
+
+    // Cloudinary ki bachi hui files pehle hata do — DB se row jaane ke baad
+    // in tak pahunchne ka koi rasta nahi bachega.
+    const files = await client.query(
+      `SELECT file_public_id FROM print_jobs
+        WHERE shop_id=$1 AND file_public_id IS NOT NULL AND file_deleted=false`, [id]);
+
+    await client.query('BEGIN');
+    const counts = {};
+    for (const tbl of ['print_jobs', 'reviews', 'withdrawals', 'agent_commissions',
+                       'security_events', 'upload_fingerprints', 'demo_machines']) {
+      const r = await client.query(`DELETE FROM ${tbl} WHERE shop_id=$1`, [id]);
+      counts[tbl] = r.rowCount;
+    }
+    // Registration row rakhte hain par shop se link tod dete hain, taaki
+    // wo phone number dobara demo le sake.
+    await client.query(
+      "UPDATE demo_registrations SET shop_id=NULL WHERE shop_id=$1", [id]);
+    const sh = await client.query('DELETE FROM shops WHERE id=$1', [id]);
+    counts.shops = sh.rowCount;
+    await client.query('COMMIT');
+
+    // DB saaf hone ke baad hi files hatao
+    let filesDeleted = 0;
+    for (const f of files.rows) {
+      try { await deleteFromCloudinary(f.file_public_id); filesDeleted++; } catch (_) {}
+    }
+
+    console.log(`ACCOUNT DELETED: ${id} (${shop.name}, ${shop.phone}) | ` +
+      Object.entries(counts).map(([k, v]) => `${k}:${v}`).join(' ') +
+      ` | cloudinary:${filesDeleted}`);
+    res.json({ success: true, deleted: counts, filesDeleted });
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    console.error('delete-account error:', err.message);
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
 });
 
 app.get('/api/admin/jobs', verifyToken, async (req, res) => {
