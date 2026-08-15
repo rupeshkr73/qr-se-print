@@ -55,11 +55,11 @@ IDLE_INTERVAL_3    = 10
 # Isliye khaali waqt me dheere check karo — par job aate hi turant 5s par
 # wapas aa jao, taaki print me deri na ho.
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 30           # INTERNAL counter — server ke agent_version se compare hota hai.
+VERSION            = 31           # INTERNAL counter — server ke agent_version se compare hota hai.
                                   # Ye sirf badhta hai (29 → 30 → 31...). Isko kabhi
                                   # "2.0" mat banao: purane v27/v28/v29 agents integer
                                   # compare karte hain, warna woh update lena band kar denge.
-VERSION_LABEL      = "2.0"        # Jo sab jagah DIKHTA hai: 2.0 → 2.1 ... 2.10 → 3.0
+VERSION_LABEL      = "2.1"        # Jo sab jagah DIKHTA hai: 2.0 → 2.1 ... 2.10 → 3.0
 REMOTE_VERSION_LABEL = None       # Server ka latest label — update check par bhar jaata hai
 REMOTE_VERSION_INT = 0            # Server ka internal build number (integer compare ke liye)
 SUPPORT_WA         = "918404832414"  # Admin WhatsApp (shop-login Support jaisa) — Contact Admin isi par khulega
@@ -103,6 +103,14 @@ SHOP_CONFIG_FILE   = os.path.join(_APPDATA_DIR, "shop_config.txt")
 APPROVAL_CONFIG    = os.path.join(_APPDATA_DIR, "approval_mode.txt")
 AGENT_TOKEN_FILE   = os.path.join(_APPDATA_DIR, "agent_token.txt")
 
+
+def _machine_name():
+    """PC ka naam — sirf dikhane ke liye ("kis computer par juda hai")."""
+    try:
+        import socket
+        return (os.environ.get("COMPUTERNAME") or socket.gethostname() or "")[:100]
+    except Exception:
+        return ""
 
 def load_or_create_agent_token():
     """
@@ -284,13 +292,42 @@ def _shop_id_without_tkinter():
         if not value:
             break
         try:
-            r = requests.get(f"{SERVER_URL}/api/shop/{value}", timeout=30)
+            # CLAIM — ek Shop ID sirf EK PC par chal sakti hai.
+            # Pehle sirf /api/shop/<id> se check hota tha, jo public hai aur
+            # PC ka koi hisaab nahi rakhta — isliye koi bhi QR poster se
+            # Shop ID padh kar apne PC me daal deta aur "verified" ho jaata.
+            r = requests.post(
+                f"{SERVER_URL}/api/agent/claim/{value}",
+                headers=auth_headers(), timeout=30,
+                json={"machine": _machine_name()})
+
             if r.status_code == 404:
                 _msgbox("This Shop ID was not found on the server. Please check it.",
                         "QR Se Print", 0x10)
                 continue
-        except Exception:
-            pass          # server sleeping / offline — accept the ID anyway
+
+            if r.status_code == 409:
+                # Kisi doosre PC par pehle se juda hua hai
+                try:
+                    msg = r.json().get("error", "")
+                except Exception:
+                    msg = ""
+                _msgbox(msg or
+                        "This Shop ID is already in use on another computer.\n\n"
+                        "Shop Login → Settings → \"Disconnect Computer\" se purana PC "
+                        "hata kar dobara try karein.",
+                        "QR Se Print", 0x10)
+                continue
+
+            if r.status_code == 400:
+                # Purana agent / token missing — batao par rukо mat
+                log("Claim rejected (old agent build?)", "WARN")
+
+        except Exception as e:
+            # Server so raha hai ya net nahi hai — ID accept kar lo, warna
+            # user phansa reh jayega. Job polling waise bhi token check
+            # karti hai, isliye chori phir bhi nahi ho sakti.
+            log(f"Shop ID claim check skipped: {e}", "WARN")
         return value
     try:
         return input("Enter your Shop ID: ").strip().upper()
