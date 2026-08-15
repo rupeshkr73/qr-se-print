@@ -1011,6 +1011,9 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_bw_duplex INTEGER DEFAULT 0;
       -- Agent ka apna secret. NULL = purana agent (chalta rahega).
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_token VARCHAR(64);
+      -- Kaunse PC par juda hai (sirf dikhane ke liye — asli lock agent_token hai)
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_machine VARCHAR(120);
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_bound_at TIMESTAMP;
       -- ── Decimal price support (₹2.50 / ₹1.50 jaise rate) ──
       -- INTEGER me 2.5 nahi ban sakta, isliye NUMERIC(10,2) kar rahe hain.
       ALTER TABLE shops ALTER COLUMN price_bw            TYPE NUMERIC(10,2);
@@ -2039,6 +2042,7 @@ app.get('/api/superadmin/demos', verifySuperAdmin, async (req, res) => {
     const r = await pool.query(
       `SELECT s.id, s.name, s.phone, s.created_at, s.demo_expires_at, s.agent_last_seen,
               EXTRACT(EPOCH FROM (NOW() - s.agent_last_seen))::int AS agent_seconds_ago, s.agent_version, s.agent_version_label,
+             s.agent_machine, (s.agent_token IS NOT NULL) AS agent_bound,
               (SELECT COUNT(*) FROM print_jobs j WHERE j.shop_id = s.id) as total_jobs,
               (SELECT COUNT(*) FROM print_jobs j WHERE j.shop_id = s.id AND j.payment_status='paid') as prints
        FROM shops s WHERE s.demo = true
@@ -2776,6 +2780,7 @@ app.get('/api/superadmin/action-center', verifySuperAdmin, async (req, res) => {
     //    problem hai (onboarding), yahan sirf toota hua setup dikhta hai.
     const agentOffline = await pool.query(`
       SELECT id, name, phone, agent_last_seen, agent_version, agent_version_label,
+             agent_machine, (agent_token IS NOT NULL) AS agent_bound,
              FLOOR(EXTRACT(EPOCH FROM (NOW() - agent_last_seen))/3600)::int AS hours_ago
       FROM shops
       WHERE demo = false AND setup_paid = true AND paused = false
@@ -5245,8 +5250,18 @@ app.post('/api/jobs/:jobId/feedback', async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
-app.get('/api/shop/:shopId/stats', async (req, res) => {
+// ⚠️ SECURITY: ye endpoint pehle BINA LOGIN ke khula tha.
+// Shop ID QR poster par chhapa hota hai, isliye koi bhi kisi bhi shop ki
+// total earnings, aaj ki kamai aur order count dekh sakta tha — competitor
+// roz dukaan ki kamai track kar sakta tha.
+// Ab login zaroori hai AUR sirf apni hi shop ka data milta hai.
+app.get('/api/shop/:shopId/stats', verifyToken, async (req, res) => {
   try {
+    // Doosri shop ka ID daal kar uska data nahi le sakte (IDOR guard).
+    // Token me jo shop hai, sirf usi ka hisaab milega.
+    if (req.params.shopId !== req.shopId) {
+      return res.status(403).json({ error: 'Ye shop aapki nahi hai' });
+    }
     const today = new Date().toISOString().split('T')[0];
     const r = await pool.query(`
       SELECT COUNT(*) as total_orders,
@@ -5265,7 +5280,8 @@ app.get('/api/admin/profile', verifyToken, async (req, res) => {
     const r = await pool.query(
       // demo_expires_at pehle yahan tha hi nahi — isliye panel ka demo
       // countdown hamesha khali rehta tha (shop.demo_expires_at undefined).
-      `SELECT id,name,address,phone,demo,demo_expires_at,
+      `SELECT id,name,address,phone,demo,demo_expires_at,agent_machine,agent_bound_at,
+              (agent_token IS NOT NULL) AS agent_bound,
               GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (demo_expires_at - NOW()))))::bigint AS demo_seconds_left,
               plan_type,paid_until,advanced_unlocked,advanced_active,
               adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,adv_mini_active,shop_notice,shop_logo,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
@@ -6903,6 +6919,98 @@ app.post('/api/agent/convert-to-paid', verifyAgent, async (req, res) => {
   }
 });
 
+// ═══════════════════════════════════════════════
+// SHOP ID CLAIM — ek Shop ID sirf EK PC par
+// ═══════════════════════════════════════════════
+// Pehle agent Shop ID verify karne ke liye /api/shop/:id call karta tha.
+// Wo PUBLIC endpoint hai (customer bhi use karta hai) — use pata hi nahi
+// hota ki kaunsa PC hai. Isliye koi bhi QR poster se Shop ID padh kar
+// apne PC me daal deta aur "verified" ho jaata.
+//
+// Job polling to pehle se protected thi (galat token = 403), par user ko
+// wo error baad me ajeeb tarike se dikhta tha. Ab shuru me hi saaf mana
+// kar dete hain.
+app.post('/api/agent/claim/:shopId', async (req, res) => {
+  try {
+    const shopId = String(req.params.shopId || '').trim().toUpperCase();
+    const sent = agentTokenFromReq(req);
+    const machine = String((req.body && req.body.machine) || '').slice(0, 100);
+
+    const r = await pool.query(
+      'SELECT id, name, agent_token, agent_machine, agent_bound_at, demo, setup_paid FROM shops WHERE id=$1',
+      [shopId]);
+    if (!r.rows.length) {
+      return res.status(404).json({ error: 'This Shop ID was not found on the server. Please check it.' });
+    }
+    const shop = r.rows[0];
+
+    if (!sent || !/^[A-Za-z0-9_-]{16,64}$/.test(sent)) {
+      return res.status(400).json({ error: 'Agent purana hai — naya print agent install karo' });
+    }
+
+    // Pehle se isi PC par juda hai — dobara install/kholne par sab theek
+    if (shop.agent_token && shop.agent_token === sent) {
+      await pool.query(
+        'UPDATE shops SET agent_machine=COALESCE(NULLIF($2,\'\'), agent_machine) WHERE id=$1',
+        [shopId, machine]);
+      return res.json({ success: true, shopId: shop.id, shopName: shop.name, rebound: false });
+    }
+
+    // Kisi DOOSRE PC par juda hua hai — mana kar do
+    if (shop.agent_token && shop.agent_token !== sent) {
+      await logSecurityEvent({
+        ip: clientIp(req), shopId, endpoint: '/api/agent/claim', method: 'POST',
+        action: 'SHOP_CLAIM', reason: 'ALREADY_BOUND',
+        userAgent: req.headers['user-agent']
+      });
+      const on = shop.agent_machine ? ` (${shop.agent_machine})` : '';
+      return res.status(409).json({
+        error: `This Shop ID is already in use on another computer${on}. `
+             + `Shop Login → Settings → "Disconnect Computer" se purana PC hata kar dobara try karein.`,
+        code: 'ALREADY_BOUND',
+        boundMachine: shop.agent_machine || null,
+        boundAt: shop.agent_bound_at || null
+      });
+    }
+
+    // Khaali hai — ye PC bind ho jaye
+    await pool.query(
+      'UPDATE shops SET agent_token=$2, agent_machine=$3, agent_bound_at=NOW() WHERE id=$1 AND agent_token IS NULL',
+      [shopId, sent, machine || null]);
+    console.log(`Agent bound: ${shopId} -> ${machine || 'unknown PC'}`);
+    res.json({ success: true, shopId: shop.id, shopName: shop.name, rebound: true });
+  } catch (err) {
+    console.error('agent claim error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Superadmin kisi bhi shop ka PC hata sakta hai — shop owner ka computer
+// achanak kharab ho jaye to wo aapko call karke turant naya PC laga sake.
+// Demo aur paid dono par chalta hai.
+app.post('/api/superadmin/shop/:shopId/agent-disconnect', verifySuperAdmin, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `UPDATE shops SET agent_token=NULL, agent_machine=NULL, agent_bound_at=NULL
+        WHERE id=$1 RETURNING id, name, agent_machine`, [req.params.shopId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Shop not found' });
+    console.log(`Agent disconnected by SUPERADMIN: ${req.params.shopId} (${r.rows[0].name})`);
+    res.json({ success: true, shopId: r.rows[0].id, wasOn: r.rows[0].agent_machine || null });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Shop owner apna PC hata sakta hai (naya computer, Windows reinstall)
+app.post('/api/admin/agent/disconnect', verifyToken, async (req, res) => {
+  try {
+    const r = await pool.query(
+      `UPDATE shops SET agent_token=NULL, agent_machine=NULL, agent_bound_at=NULL
+        WHERE id=$1 RETURNING id, agent_machine`, [req.shopId]);
+    if (!r.rows.length) return res.status(404).json({ error: 'Shop not found' });
+    console.log(`Agent disconnected by shop owner: ${req.shopId}`);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ─── DESKTOP PANEL SESSION ───────────────────────────────────────
 // Desktop panel ko shop settings/pricing/payment sab dikhane hain. Wahi
 // business logic dobara likhne ke bajaye, agent apne agent_token ko ek
@@ -7315,7 +7423,8 @@ app.get('/api/superadmin/shops', verifySuperAdmin, async (req, res) => {
              payment_mode, payment_gateway, setup_paid, setup_amount, created_at,
              demo, plan_type, paid_until, advanced_unlocked, agent_last_seen,
              EXTRACT(EPOCH FROM (NOW() - agent_last_seen))::int AS agent_seconds_ago,
-             agent_version, agent_version_label, onboarded_by
+             agent_version, agent_version_label, onboarded_by,
+             agent_machine, (agent_token IS NOT NULL) AS agent_bound
       FROM shops ORDER BY created_at DESC
     `);
     res.json({ shops: r.rows });
