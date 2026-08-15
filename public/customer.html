@@ -1106,10 +1106,17 @@ async function handleFileUpload(input) {
   // abhi tak "display:none" hota hai jab clientWidth/clientHeight measure
   // hoga (jo 0 milta hai display:none par)
   const isFirstUpload = !document.getElementById('secUpload').classList.contains('hidden');
-  // Pehli baar simple PDF aayi ho to seedha editor mat kholo — pehle poocho
-  // ki edit karna bhi hai ya nahi. Zyadatar log kuch badalte hi nahi, aur
-  // editor se guzarne par file dobara banti hai (badi + dhundhli).
-  const askFirst = isFirstUpload && !!ORIGINAL_PDF;
+  // Pehli baar kuch bhi aaye — PDF ho ya PHOTO — seedha editor mat kholo.
+  // Pehle "Sab theek hai / Edit karna hai" poocho. Zyadatar log kuch
+  // badalte hi nahi, aur editor se guzarne par file dobara banti hai
+  // (badi + dhundhli).
+  //
+  // PEHLE ye sirf `!!ORIGINAL_PDF` par tha, yaani sirf PDF ke liye.
+  // Image upload karne par choice screen aata hi nahi tha aur editor
+  // seedha khul jaata tha. Photo waise bhi createItemFromCanvas() me
+  // apne aap A4 par center-fit ho jaati hai, isliye ab dono ka flow
+  // bilkul ek jaisa hai.
+  const askFirst = isFirstUpload;
   if (isFirstUpload) {
     hide('secUpload');
     show('secEditor');            // canvas measure hone ke liye zaroori
@@ -4029,5 +4036,6 @@ function showSuccess(method, amount) {
 </script>
 
 <script src="/i18n.js" defer></script>
+  <script src="/i18n-extra.js" defer></script>
 </body>
 </html>

@@ -385,11 +385,14 @@ nav .logo span{color:#ff2e63 !important}
   border-radius:20px !important;font-weight:700 !important;transition:.15s}
 .nav-link:hover{background:#111 !important;color:#fff !important}
 .hero h1,.card h2,.card h3{font-family:'Plus Jakarta Sans',sans-serif !important;letter-spacing:-.6px;color:#111}
-.card,.login-card{border:1.5px solid #ecedf2 !important;border-radius:20px !important;
+/* ── PURANE !important overrides ──
+   .card / .stat wale rules hata diye gaye — ab naya redesign block
+   (#qsp-admin-redesign) inhe handle karta hai. !important ki wajah se
+   naya design lag hi nahi pata tha. .login-card abhi bhi yahin se aata
+   hai kyunki redesign use cover nahi karta. */
+.login-card{border:1.5px solid #ecedf2 !important;border-radius:20px !important;
   box-shadow:0 8px 30px rgba(17,17,17,.06) !important;background:#fff !important}
-.stat{border:1.5px solid #ecedf2 !important;border-radius:16px !important;background:#fff !important;
-  box-shadow:0 4px 14px rgba(17,17,17,.05) !important}
-.stat-val{font-family:'Plus Jakarta Sans',sans-serif !important;color:#111 !important}
+.stat-val{font-family:'Plus Jakarta Sans',sans-serif !important}
 .stat:first-child .stat-val{background:linear-gradient(transparent 62%,#ffd22e 62%);display:inline-block;padding:0 4px}
 .btn-primary,.btn-save,.rzp-open-btn{background:#ff2e63 !important;border-radius:14px !important;
   font-family:'Plus Jakarta Sans',sans-serif !important;font-weight:800 !important;
@@ -447,6 +450,246 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
   .app-content{padding:18px 16px 50px}
 }
 </style>
+
+<style id="qsp-admin-redesign">
+/* ═══════════════════════════════════════════════════════════════════
+   SHOP DASHBOARD REDESIGN — 2026
+
+   Sidebar deep-indigo rehta hai (brand identity), par content area
+   saaf aur halka ho gaya hai. Poore panel ke saare tab ek hi
+   .card / .stat / .nav-it classes use karte hain — isliye yahan ek
+   jagah badalne se har tab ek saath badal jaata hai.
+   ═══════════════════════════════════════════════════════════════════ */
+
+#adminPanel{
+  --bg:#f6f7fb; --surface:#fff; --ink:#12131a; --ink2:#3f4150;
+  --muted:#8b8e9e; --line:#e9eaf0; --soft:#f8f9fc;
+  --brand:#7c3aed; --brand2:#e0489f;
+  --radius:16px;
+  --shadow:0 1px 2px rgba(18,19,26,.04), 0 8px 24px rgba(18,19,26,.05);
+  --shadow-lg:0 14px 36px rgba(18,19,26,.11);
+}
+#adminPanel, #adminPanel .app-shell{background:var(--bg)}
+
+/* ───────── SIDEBAR ───────── */
+#adminPanel .side{
+  width:262px;padding:18px 14px;
+  background:linear-gradient(180deg,#1e1330 0%,#2a1c4d 55%,#241a44 100%);
+  overflow-y:auto;overscroll-behavior:contain;
+}
+#adminPanel .side::-webkit-scrollbar{width:6px}
+#adminPanel .side::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:10px}
+#adminPanel .side-brand{
+  font-size:16.5px;letter-spacing:-.3px;padding:2px 6px 15px;align-items:center;
+}
+#adminPanel .side-brand .bm{
+  width:38px;height:38px;border-radius:12px;
+  background:linear-gradient(135deg,var(--brand),var(--brand2));
+  box-shadow:0 6px 18px rgba(124,58,237,.42);font-size:17px;
+}
+#adminPanel .side-brand small{
+  display:block;font-size:10.5px;font-weight:700;color:rgba(255,255,255,.5);margin-top:2px;
+}
+/* Shop switcher — mockup jaisa card */
+#adminPanel .side-shop{
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.10);
+  border-radius:13px;padding:11px 13px;margin:0 2px 14px;
+  font-size:10.5px;color:rgba(255,255,255,.55);
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+#adminPanel .side-shop b{color:#fff;font-size:13px;margin-top:2px;letter-spacing:-.2px}
+#adminPanel .side-shop::after{content:'⌄';font-size:16px;opacity:.55;line-height:1}
+
+#adminPanel .nav-it{
+  gap:11px;padding:10.5px 13px;border-radius:11px;margin-bottom:2px;
+  font-size:13.5px;font-weight:600;color:rgba(255,255,255,.74);
+}
+#adminPanel .nav-it:hover{background:rgba(255,255,255,.09);color:#fff}
+#adminPanel .nav-it.active{
+  background:linear-gradient(135deg,var(--brand),var(--brand2));
+  color:#fff;font-weight:700;box-shadow:0 8px 22px rgba(124,58,237,.42);
+}
+#adminPanel .nav-it .ico{font-size:15.5px;width:22px}
+/* Delete Account — alag dikhna chahiye */
+#adminPanel .nav-it[data-nav="account"]{color:#ff8a9b}
+#adminPanel .nav-it[data-nav="account"]:hover{background:rgba(255,80,100,.14);color:#ffb3c1}
+
+/* "Need Help?" card — mockup me sidebar ke neeche hai */
+#adminPanel .side-help{
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.10);
+  border-radius:14px;padding:13px;margin:12px 2px 0;text-align:center;
+}
+#adminPanel .side-help b{display:block;color:#fff;font-size:13px;font-weight:800;margin-bottom:3px}
+#adminPanel .side-help p{font-size:10.5px;color:rgba(255,255,255,.55);line-height:1.55;margin-bottom:9px}
+#adminPanel .side-help a{
+  display:block;background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;
+  border-radius:10px;padding:9px;font-size:12px;font-weight:800;text-decoration:none;
+}
+#adminPanel .side-foot{border-top:1px solid rgba(255,255,255,.1);padding-top:11px}
+#adminPanel .side-lg{border-radius:11px;font-size:13.5px;padding:11px 13px}
+
+/* ───────── TOPBAR ───────── */
+#adminPanel .app-topbar{
+  background:rgba(255,255,255,.92);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);padding:12px 26px;gap:14px;
+}
+#adminPanel .page-title{font-size:20px;letter-spacing:-.5px;color:var(--ink);margin-right:0;line-height:1.2}
+#adminPanel .page-crumb{
+  font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px;
+  display:flex;align-items:center;gap:6px;
+}
+#adminPanel .page-crumb i{font-style:normal;opacity:.5}
+#adminPanel .top-spacer{flex:1}
+/* Agent online/offline pill */
+#adminPanel .agent-pill{
+  display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;
+  font-size:12.5px;font-weight:700;border:1px solid transparent;white-space:nowrap;
+}
+#adminPanel .agent-pill.on {background:#ecfdf5;color:#047857;border-color:#a7f3d0}
+#adminPanel .agent-pill.off{background:#fef2f2;color:#b91c1c;border-color:#fecaca}
+#adminPanel .agent-pill .led{
+  width:8px;height:8px;border-radius:50%;background:currentColor;
+  box-shadow:0 0 0 3px rgba(4,120,87,.16);
+}
+#adminPanel .top-btn{
+  position:relative;width:38px;height:38px;border-radius:11px;border:1px solid var(--line);
+  background:#fff;cursor:pointer;font-size:15px;display:flex;align-items:center;
+  justify-content:center;flex:none;transition:.15s;
+}
+#adminPanel .top-btn:hover{background:var(--soft)}
+#adminPanel .app-content{padding:22px 26px 70px;max-width:1180px}
+
+/* ───────── CARDS ───────── */
+#adminPanel .card{
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 22px;
+}
+#adminPanel .card h2{
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:16px;
+  color:var(--ink);letter-spacing:-.3px;margin-bottom:14px;
+}
+
+/* ───────── STAT CARDS (Overview) ───────── */
+#adminPanel .stats{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:13px;margin-bottom:18px;
+}
+@media(min-width:900px){#adminPanel .stats{grid-template-columns:repeat(4,1fr);gap:13px}}
+#adminPanel .stat{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:17px 18px;text-align:left;
+  display:flex;flex-direction:column;gap:2px;position:relative;
+  transition:transform .18s ease,box-shadow .18s ease;
+}
+#adminPanel .stat:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+#adminPanel .stat::before{
+  content:attr(data-ico);
+  width:42px;height:42px;border-radius:13px;margin-bottom:11px;
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  background:var(--si-bg,#f3f0ff);
+}
+#adminPanel .stat-lbl{
+  order:3;font-size:11px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.5px;
+}
+#adminPanel .stat-val{
+  order:2;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;
+  font-size:26px;color:var(--ink);line-height:1.1;letter-spacing:-.7px;
+  font-variant-numeric:tabular-nums;
+}
+/* chhota "+40% vs yesterday" note */
+#adminPanel .stat-trend{
+  order:4;font-size:10.5px;font-weight:700;margin-top:6px;
+  display:flex;align-items:center;gap:4px;
+}
+#adminPanel .stat-trend.up  {color:#047857}
+#adminPanel .stat-trend.down{color:#b91c1c}
+#adminPanel .stat-trend.flat{color:var(--muted)}
+
+/* ───────── DOWNLOAD ROWS (QR & Downloads) ───────── */
+#adminPanel .dl-row{
+  display:flex;align-items:center;gap:15px;flex-wrap:wrap;
+  border:1px solid var(--line);border-radius:15px;
+  padding:15px 17px;margin-bottom:11px;background:var(--surface);
+  transition:transform .16s ease, box-shadow .16s ease;
+}
+#adminPanel .dl-row:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+#adminPanel .dl-ico{
+  width:46px;height:46px;border-radius:13px;flex:none;
+  display:flex;align-items:center;justify-content:center;font-size:21px;color:#fff;
+}
+#adminPanel .dl-txt{flex:1;min-width:170px}
+#adminPanel .dl-txt b{
+  display:block;font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;
+  font-size:15px;letter-spacing:-.2px;margin-bottom:2px;
+}
+#adminPanel .dl-txt span{font-size:12px;color:var(--muted);line-height:1.5}
+#adminPanel .dl-meta{
+  font-size:11px;color:var(--muted);font-weight:700;
+  display:flex;align-items:center;gap:8px;white-space:nowrap;
+}
+#adminPanel .dl-btn{
+  border:none;border-radius:11px;padding:11px 18px;font-size:13px;font-weight:800;
+  cursor:pointer;font-family:'Inter',sans-serif;white-space:nowrap;
+  display:inline-flex;align-items:center;gap:7px;transition:.15s;
+}
+#adminPanel .dl-btn:hover{filter:brightness(.95);transform:translateY(-1px)}
+/* har row ka apna rang — mockup jaisa */
+#adminPanel .dl-row.hot   {border-color:#fecdd3;background:linear-gradient(135deg,#fff1f2,#fff)}
+#adminPanel .dl-row.hot   .dl-ico{background:linear-gradient(135deg,#ff2e63,#e0489f)}
+#adminPanel .dl-row.hot   .dl-btn{background:#ff2e63;color:#fff}
+#adminPanel .dl-row.good  {border-color:#bbf7d0;background:linear-gradient(135deg,#f0fdf4,#fff)}
+#adminPanel .dl-row.good  .dl-ico{background:linear-gradient(135deg,#16a34a,#0f9d70)}
+#adminPanel .dl-row.good  .dl-btn{background:#fff;color:#047857;border:1px solid #bbf7d0}
+#adminPanel .dl-row.info  {border-color:#bfdbfe;background:linear-gradient(135deg,#eff6ff,#fff)}
+#adminPanel .dl-row.info  .dl-ico{background:linear-gradient(135deg,#2563eb,#0ea5e9)}
+#adminPanel .dl-row.info  .dl-btn{background:#fff;color:#1d4ed8;border:1px solid #bfdbfe}
+#adminPanel .dl-row.plum  {border-color:#ddd6fe;background:linear-gradient(135deg,#faf5ff,#fff)}
+#adminPanel .dl-row.plum  .dl-ico{background:linear-gradient(135deg,#7c3aed,#a855f7)}
+#adminPanel .dl-row.plum  .dl-btn{background:#fff;color:#6d28d9;border:1px solid #ddd6fe}
+
+/* ───────── QR CARD ───────── */
+#adminPanel .qr-hero{
+  display:grid;grid-template-columns:1fr auto;gap:22px;align-items:center;
+}
+@media(max-width:820px){#adminPanel .qr-hero{grid-template-columns:1fr}}
+#adminPanel .qr-frame{
+  border:2px solid #ede9fe;border-radius:18px;padding:14px;background:#fff;
+  text-align:center;box-shadow:0 10px 30px rgba(124,58,237,.10);
+}
+#adminPanel .qr-frame img{width:190px;height:190px;display:block;margin:0 auto 12px;border-radius:8px}
+#adminPanel .qr-chip{
+  display:inline-flex;flex-direction:column;gap:2px;background:var(--soft);
+  border:1px solid var(--line);border-radius:12px;padding:10px 14px;
+}
+#adminPanel .qr-chip small{font-size:10px;font-weight:800;color:var(--brand);text-transform:uppercase;letter-spacing:.6px}
+#adminPanel .qr-chip b{font-size:14px;color:var(--ink);letter-spacing:-.2px}
+#adminPanel .share-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+#adminPanel .share-btn{
+  background:#fff;border:1px solid var(--line);border-radius:13px;padding:13px 6px;
+  text-align:center;cursor:pointer;font-family:'Inter',sans-serif;transition:.15s;
+}
+#adminPanel .share-btn:hover{border-color:var(--brand);background:#faf5ff;transform:translateY(-2px)}
+#adminPanel .share-btn div{font-size:19px;margin-bottom:5px}
+#adminPanel .share-btn span{font-size:10.5px;font-weight:700;color:var(--ink2)}
+
+/* ───────── FORM CONTROLS ───────── */
+#adminPanel input:focus,#adminPanel select:focus,#adminPanel textarea:focus{
+  outline:none;border-color:var(--brand) !important;
+  box-shadow:0 0 0 3px rgba(124,58,237,.10);
+}
+
+@media(max-width:899px){
+  #adminPanel .app-content{padding:16px 14px 60px}
+  #adminPanel .app-topbar{padding:11px 14px;gap:10px}
+  #adminPanel .page-title{font-size:17px}
+  #adminPanel .card{padding:16px 15px;border-radius:14px}
+  #adminPanel .stat{padding:14px}
+  #adminPanel .stat-val{font-size:22px}
+  #adminPanel .agent-pill span.txt{display:none}
+  #adminPanel .share-grid{grid-template-columns:repeat(2,1fr)}
+}
+</style>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 </head>
 <body>
@@ -499,10 +742,10 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 <div class="app-shell">
   <div class="side-overlay" id="sideOverlay" onclick="closeSide()"></div>
   <aside class="side" id="sideNav">
-    <div class="side-brand"><span class="bm">🖨️</span> <span id="sideBrandName">QR Se Print</span></div>
-    <div class="side-shop">Shop<b id="adminShopName">Shop Dashboard</b></div>
+    <div class="side-brand"><span class="bm">🖨️</span> <span><span id="sideBrandName">QR Se Print</span><small>Shop Panel</small></span></div>
+    <div class="side-shop"><span>Shop<b id="adminShopName">Shop Dashboard</b></span></div>
     <button class="nav-it active" data-nav="overview" onclick="navTo('overview',this)"><span class="ico">📊</span> Overview</button>
-    <button class="nav-it" data-nav="refer" onclick="navTo('refer',this)"><span class="ico">🎁</span> Refer &amp; Earn</button>
+<!-- Refer & Earn poori tarah hata diya gaya — ab sirf Agent program hai (flat ₹100). -->
     <button class="nav-it" data-nav="qr" onclick="navTo('qr',this)"><span class="ico">📱</span> QR &amp; Downloads</button>
     <button class="nav-it" data-nav="orders" onclick="navTo('orders',this)"><span class="ico">📋</span> Orders</button>
     <button class="nav-it" data-nav="agent" id="navAgent" style="display:none;" onclick="navTo('agent',this)"><span class="ico">💼</span> <span id="navAgentLabel">Become Agent</span><span class="new-dot"><i>✨</i>NEW</span></button>
@@ -513,18 +756,27 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
     <button class="nav-it" data-nav="review" onclick="navTo('review',this)"><span class="ico">⭐</span> Review Dijiye</button>
     <button class="nav-it" data-nav="support" id="navSupport" onclick="navTo('support',this)"><span class="ico">💬</span> Support</button>
     <button class="nav-it" data-nav="account" onclick="navTo('account',this)" style="margin-top:auto;color:#b45309;"><span class="ico">🗑️</span> Delete Account</button>
+    <!-- Need Help card — mockup me sidebar ke neeche hai -->
+    <div class="side-help">
+      <b>Need Help?</b>
+      <p>Guide dekho ya support se baat karo</p>
+      <a href="#" onclick="navTo('support',document.querySelector('[data-nav=support]'));return false;">🎧 Go to Support</a>
+    </div>
     <div class="side-foot"><select data-i18n-select aria-label="Language" style="width:100%;margin-bottom:8px;padding:9px 11px;border-radius:11px;border:1.5px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;font-size:12.5px;font-weight:700;cursor:pointer;"></select>
     <button class="side-lg" onclick="logout()"><span>🚪</span> Logout</button></div>
   </aside>
   <div class="app-main">
     <div class="app-topbar">
       <button class="hamburger" onclick="openSide()">☰</button>
-      <div class="page-title" id="pageTitle">Overview</div>
-      <div id="agentStatusChip" style="display:inline-flex;align-items:center;gap:7px;
-           padding:7px 14px;border-radius:20px;font-size:12px;font-weight:700;font-family:'Inter',sans-serif;
-           background:#f4f5f8;color:#6b7280;border:1.5px solid #e3e5ec">
-        ⏳ Agent status...
+      <div>
+        <div class="page-title" id="pageTitle">Overview</div>
+        <div class="page-crumb" id="pageCrumb">Home <i>›</i> <span>Overview</span></div>
       </div>
+      <div class="top-spacer"></div>
+      <div id="agentStatusChip" class="agent-pill off">
+        <span class="led"></span><span class="txt">Agent status…</span>
+      </div>
+      <button class="top-btn" onclick="navTo('support',document.querySelector('[data-nav=support]'))" title="Support">❓</button>
     </div>
     <div class="app-content"><div id="sectionHost">
 
@@ -648,11 +900,26 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
       </div>
     </div>
 
+    <!-- data-ico + --si-bg = colored icon circle. stat-trend JS bharta hai. -->
     <div class="stats">
-      <div class="stat"><div class="stat-lbl">Aaj Prints</div><div class="stat-val orange" id="todayPrints">0</div></div>
-      <div class="stat"><div class="stat-lbl">Aaj Kamai</div><div class="stat-val green" id="todayEarn">₹0</div></div>
-      <div class="stat"><div class="stat-lbl">Total Orders</div><div class="stat-val" id="totalOrders">0</div></div>
-      <div class="stat"><div class="stat-lbl">💰 Overall Total Kamai</div><div class="stat-val green" id="totalEarn">₹0</div></div>
+      <div class="stat" data-ico="🖨️" style="--si-bg:#f3f0ff;">
+        <div class="stat-lbl">Aaj Prints</div>
+        <div class="stat-val orange" id="todayPrints">0</div>
+        <div class="stat-trend flat" id="trendPrints"></div>
+      </div>
+      <div class="stat" data-ico="₹" style="--si-bg:#ecfdf5;">
+        <div class="stat-lbl">Aaj Kamai</div>
+        <div class="stat-val green" id="todayEarn">₹0</div>
+        <div class="stat-trend flat" id="trendEarn"></div>
+      </div>
+      <div class="stat" data-ico="🛍️" style="--si-bg:#eff6ff;">
+        <div class="stat-lbl">Total Orders</div>
+        <div class="stat-val" id="totalOrders">0</div>
+      </div>
+      <div class="stat" data-ico="💰" style="--si-bg:#fffbeb;">
+        <div class="stat-lbl">Overall Total Kamai</div>
+        <div class="stat-val green" id="totalEarn">₹0</div>
+      </div>
     </div>
 
     <!-- CUSTOMER NOTICE -->
@@ -700,89 +967,99 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 
     </div><!-- /overview -->
 
-    <div data-sect="refer">
-    <!-- REFER AND EARN -->
-    <style>
-      /* Theme overlay text ko dark force karta hai — refer card purple hai
-         to uske andar sab white chahiye. Scoped !important se override. */
-      #referCard { background:linear-gradient(135deg,#7c3aed,#e0489f) !important; }
-      #referCard, #referCard h2, #referCard p, #referCard b, #referCard div,
-      #referCard span { color:#ffffff !important; }
-      #referCard input#refLink { color:#333333 !important; background:#fff !important; }
-      #referCard button { color:#7c3aed !important; background:#fff !important; }
-    </style>
-    <div class="card" id="referCard" style="background:linear-gradient(135deg,#7c3aed,#e0489f) !important;color:#fff;border:none !important;">
-      <h2 style="color:#fff !important;">🎁 Refer & Earn</h2>
-      <p style="font-size:13px;opacity:.92;margin:6px 0 14px;">Kisi cyber cafe owner ko refer karo — uski setup fee pay hone par aapko <b>₹50</b> milega!</p>
-      <div id="referLocked" style="display:none;background:rgba(255,255,255,.15);border-radius:12px;padding:14px;font-size:13px;">
-        🔒 Refer karne ke liye pehle aapki khud ki setup fee complete honi chahiye.
-      </div>
-      <div id="referActive" style="display:none;">
-        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
-          <div style="flex:1;min-width:130px;background:rgba(255,255,255,.15);border-radius:12px;padding:12px;">
-            <div style="font-size:11px;opacity:.85;">Total Kamaya</div>
-            <div style="font-size:24px;font-weight:800;color:#fff !important;" id="refEarnings">₹0</div>
-          </div>
-          <div style="flex:1;min-width:130px;background:rgba(255,255,255,.15);border-radius:12px;padding:12px;">
-            <div style="font-size:11px;opacity:.85;">Withdrawal Available</div>
-            <div style="font-size:24px;font-weight:800;color:#fff !important;" id="refAvailable">₹0</div>
-          </div>
-        </div>
-        <div style="font-size:11px;opacity:.85;margin-bottom:5px;">Aapka Referral Link:</div>
-        <div style="display:flex;gap:8px;margin-bottom:14px;">
-          <input id="refLink" readonly style="flex:1;padding:11px;border:none;border-radius:10px;font-size:12px;color:#333;background:#fff;">
-          <button onclick="copyRefLink()" style="background:#fff;color:#7c3aed;border:none;border-radius:10px;padding:0 16px;font-weight:700;cursor:pointer;">Copy</button>
-        </div>
-        <button onclick="openWithdraw()" id="withdrawBtn" style="width:100%;background:#fff;color:#7c3aed;border:none;border-radius:12px;padding:13px;font-weight:800;font-size:15px;cursor:pointer;margin-bottom:14px;">💸 Withdraw Karo (₹500+ pe)</button>
-        <div style="font-size:12px;font-weight:700;opacity:.9;margin-bottom:8px;color:#fff !important;">👥 Aapke Referrals</div>
-        <div id="refList" style="display:flex;flex-direction:column;gap:6px;"></div>
-        <div id="wdHistory" style="margin-top:14px;"></div>
-      </div>
-    </div>
-    </div><!-- /refer -->
+    <!-- Refer & Earn section hata diya gaya (ab sirf Agent program) -->
 
     <div data-sect="qr">
-    <div class="card qr-section">
-      <h2>📱 QR Code & Downloads</h2>
-      <img id="adminQrImg" src="">
-      <br>
-      <button onclick="downloadQrOnly()" style="background:none;border:1.5px solid #e2ddd6;border-radius:10px;padding:7px 14px;font-size:11px;font-weight:700;color:#111111;cursor:pointer;margin:10px 0;font-family:'Inter',sans-serif;">
-        🖼️ Sirf QR Code Download Karo
-      </button>
-      <p style="font-size:11px;color:#6b6870;margin-top:4px;word-break:break-all;" id="adminQrUrl"></p>
 
-      <button class="btn-save" style="background:linear-gradient(135deg,#00c853,#009624);margin-top:16px;" onclick="downloadEasyInstaller()">
-        ⬇️ Download Latest Software Version <span id="latestVerBtn">—</span>
-      </button>
-      <!-- Sirf tab dikhta hai jab super admin ne update notes likhe hon -->
-      <button id="wiuBtn2" onclick="openWhatsNew()" style="display:none;width:100%;background:#fff;border:2px solid #86efac;color:#166534;border-radius:12px;padding:12px;font-weight:800;font-size:13.5px;cursor:pointer;margin-top:8px;font-family:'Inter',sans-serif;">📝 What's in Update</button>
-      <p style="font-size:11px;color:#6b6870;margin-top:6px;text-align:center;">Recommended — Python ya SumatraPDF alag se install karne ki zaroorat nahi, sab bundled hai</p>
-
-      <button onclick="downloadReadme()" style="width:100%;background:#0ea5e9;color:#fff;border:none;border-radius:12px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;margin-top:10px;font-family:'Inter',sans-serif;">
-        📖 Setup Guide (README) Download Karo
-      </button>
-      <button onclick="downloadPoster()" style="width:100%;background:none;border:2px solid #7c3aed;color:#7c3aed;border-radius:12px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;margin-top:10px;font-family:'Inter',sans-serif;">
-        🖼️ Shop Poster Download Karo (QR laga hua)
-      </button>
-      <p style="font-size:10px;color:#9b9690;margin-top:4px;text-align:center;">A4 poster — aapka QR code isme already laga hoga, print karke shop mein lagao</p>
-    </div>
-
+    <!-- ══ QR CARD ══ -->
     <div class="card">
-      <h2>🎨 Apni Shop Ka Logo</h2>
-      <p style="font-size:12px;color:#6b6870;margin-top:-4px;">Customer jab QR scan karega, aapka logo dikhega (nahi lagaya to default 🖨️ icon)</p>
-      <div style="display:flex;align-items:center;gap:14px;margin-top:12px;flex-wrap:wrap;">
-        <div id="shopLogoPreview" style="width:56px;height:56px;border-radius:14px;background:#ff4d1c;display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;flex-shrink:0;">🖨️</div>
-        <div style="flex:1;min-width:160px;">
-          <input type="file" id="shopLogoFile" accept="image/png" style="font-size:12px;width:100%;">
+      <div class="qr-hero">
+        <div>
+          <h2 style="margin-bottom:6px;">
+            <span style="display:inline-flex;align-items:center;gap:9px;">
+              <span style="width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#7c3aed,#e0489f);display:inline-flex;align-items:center;justify-content:center;font-size:17px;">📱</span>
+              Aapki Shop Ka QR Code
+            </span>
+          </h2>
+          <p style="font-size:12.5px;color:#8b8e9e;line-height:1.65;margin-bottom:15px;">
+            Ye QR customer ko dikhao. Wo scan karke apni file upload karega aur print nikal jayega.
+          </p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+            <div class="qr-chip"><small>Shop Name</small><b id="qrShopName">—</b></div>
+            <div class="qr-chip"><small>Shop ID</small><b id="qrShopId">—</b></div>
+          </div>
+
+          <div style="font-size:11px;font-weight:800;color:#8b8e9e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;">Share karo</div>
+          <div class="share-grid" style="margin-bottom:14px;">
+            <button class="share-btn" onclick="qrCopyLink()"><div>🔗</div><span>Copy Link</span></button>
+            <button class="share-btn" onclick="qrShareWhatsApp()"><div>💬</div><span>WhatsApp</span></button>
+            <button class="share-btn" onclick="qrShareNative()"><div>📤</div><span>Share</span></button>
+            <button class="share-btn" onclick="downloadPoster()"><div>🖨️</div><span>Print</span></button>
+          </div>
+
+          <div style="font-size:11px;font-weight:800;color:#8b8e9e;text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px;">Direct Link</div>
+          <div style="display:flex;gap:8px;">
+            <input id="adminQrUrl" readonly
+              style="flex:1;min-width:0;padding:11px 13px;border:1px solid #e9eaf0;border-radius:11px;font-size:12.5px;background:#f8f9fc;color:#3f4150;box-sizing:border-box;">
+            <button onclick="qrCopyLink()"
+              style="background:#12131a;color:#fff;border:none;border-radius:11px;padding:0 17px;font-size:12.5px;font-weight:800;cursor:pointer;white-space:nowrap;">📋 Copy</button>
+          </div>
+        </div>
+
+        <div class="qr-frame">
+          <img id="adminQrImg" src="" alt="Shop QR code">
+          <button onclick="downloadQrOnly()"
+            style="width:100%;background:linear-gradient(135deg,#7c3aed,#e0489f);color:#fff;border:none;border-radius:11px;padding:11px;font-size:12.5px;font-weight:800;cursor:pointer;">
+            ⬇️ Download QR Code
+          </button>
         </div>
       </div>
-      <div style="display:flex;gap:8px;margin-top:12px;">
-        <button onclick="uploadShopLogo()" style="flex:1;background:#ff4d1c;color:#fff;border:none;border-radius:12px;padding:12px;font-weight:800;font-size:14px;cursor:pointer;">⬆️ Logo Upload Karo</button>
-        <button onclick="removeShopLogo()" style="background:#f4f5f8;color:#6b6870;border:none;border-radius:12px;padding:12px 16px;font-weight:700;font-size:13px;cursor:pointer;">🗑️ Hatao</button>
-      </div>
-      <p style="font-size:10.5px;color:#9b9690;margin-top:8px;">⚠️ <b>Sirf PNG (transparent background)</b>, <b>50 KB tak</b>. Square (1:1) logo best. JPG ya bhaari file nahi chalegi.</p>
-      <div id="shopLogoMsg" style="font-size:12px;margin-top:6px;text-align:center;"></div>
     </div>
+
+    <!-- ══ DOWNLOAD ROWS ══ -->
+    <div class="dl-row hot">
+      <div class="dl-ico">⬇️</div>
+      <div class="dl-txt">
+        <b>Latest Software Download Karo <span id="latestVerBtn">—</span></b>
+        <span>Naye features aur bug fixes — hamesha latest version chalao</span>
+      </div>
+      <div class="dl-meta"><span id="dlVerMeta">EXE</span></div>
+      <button class="dl-btn" onclick="downloadEasyInstaller()">⬇️ Download Now</button>
+    </div>
+
+    <div class="dl-row good" id="wiuRow2" style="display:none;">
+      <div class="dl-ico">📝</div>
+      <div class="dl-txt">
+        <b>What's in Update</b>
+        <span>Naye version me kya-kya aaya hai, dekh lo</span>
+      </div>
+      <button class="dl-btn" id="wiuBtn2" onclick="openWhatsNew()">View Updates ›</button>
+    </div>
+
+    <div class="dl-row info">
+      <div class="dl-ico">📖</div>
+      <div class="dl-txt">
+        <b>Setup Guide (README)</b>
+        <span>Step-by-step — software setup aur use karne ka poora tarika</span>
+      </div>
+      <div class="dl-meta">PDF</div>
+      <button class="dl-btn" onclick="downloadReadme()">⬇️ Download Guide</button>
+    </div>
+
+    <div class="dl-row plum">
+      <div class="dl-ico">🖼️</div>
+      <div class="dl-txt">
+        <b>Shop Poster (QR laga hua)</b>
+        <span>A4 poster — print karke shop me laga do, customer khud scan kar lega</span>
+      </div>
+      <div class="dl-meta">PDF · A4</div>
+      <button class="dl-btn" onclick="downloadPoster()">⬇️ Download Poster</button>
+    </div>
+
+    <!-- ══ "Apni Shop Ka Logo" upload card hata diya gaya ══
+         QR & Downloads tab sirf QR + downloads ke liye hai. Logo wali
+         setting yahan se hata di gayi hai (server ka /api/shop/upload-logo
+         endpoint waise ka waisa hai — purana data nahi tootega). -->
 
     <div class="card">
       <h2>📌 Zaroori Instructions</h2>
@@ -842,11 +1119,11 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 
       <div id="agJoin" class="card" style="display:none;text-align:center;">
         <div style="font-size:38px;">💼</div>
-        <h2 style="font-family:'Syne',sans-serif;font-size:20px;margin:8px 0 8px;">Agent bano — har shop par ₹200</h2>
+        <h2 style="font-family:'Syne',sans-serif;font-size:20px;margin:8px 0 8px;">Agent bano — har shop par ₹100</h2>
         <p style="font-size:13px;color:#6b6870;line-height:1.7;max-width:420px;margin:0 auto 14px;">
           <b style="color:#111114;">Earn lifetime by becoming an agent in QR Se Print.</b><br>
-          Aas-paas ke cyber cafe walo ko QR Se Print dilwao. Har paid shop par <b>₹200 commission</b>,
-          plus apna price badhao to <b>extra margin bhi aapka</b>. Har 10 shop par ₹300 bonus.
+          Aas-paas ke cyber cafe walo ko QR Se Print dilwao. Har paid shop par
+          <b>flat ₹100 commission</b> — seedha aapke UPI par.
         </p>
         <div id="agJoinErr" style="display:none;background:#fee2e2;border:1.5px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px;font-size:12.5px;margin-bottom:12px;"></div>
         <button id="agJoinBtn" onclick="agentJoin()" style="background:#ff2e63;color:#fff;border:none;border-radius:13px;padding:14px 26px;font-weight:800;font-size:15px;cursor:pointer;box-shadow:0 12px 28px rgba(255,46,99,.32);">Agent ban jao</button>
@@ -885,7 +1162,8 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
             </div>
           </div>
           <p style="font-size:11.5px;color:#9b9690;margin-top:12px;line-height:1.6;">
-            Har paid shop par ₹200 + aapka margin. Har 10 shop par ₹300 bonus.
+            Har paid shop par <b style="color:#166534;">flat ₹100</b> commission. Bas itna hi —
+            na koi extra margin, na koi condition.
           </p>
 
           <div style="border-top:1.5px dashed #e2ddd6;margin:14px 0 12px;"></div>
@@ -907,28 +1185,23 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           <button onclick="agentSaveUpi()" style="width:100%;background:#16a34a;color:#fff;border:none;border-radius:11px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;">💾 UPI Save Karo</button>
         </div>
 
+        <!-- ══ "Shop Registration Price" card hata diya gaya ══
+             Agent ab apna price set nahi kar sakta. Sabko wahi price
+             milta hai jo admin ne set kiya hai, aur agent ko har paid
+             shop par flat ₹100 milta hai. -->
         <div class="card">
           <h2 style="font-family:'Syne',sans-serif;font-size:17px;margin-bottom:6px;">🏷️ Shop Registration Price</h2>
-          <p style="font-size:12.5px;color:#6b6870;line-height:1.7;margin-bottom:12px;">
-            Agent ka base price <b>₹<span id="agBase">—</span></b> hai (ye normal homepage price se alag ho sakta hai).
-            Aap isse <b>upar</b> koi bhi price rakh sakte ho (max ₹<span id="agMax">2999</span>) —
-            jo extra hoga wo <b>poora aapka margin</b>. Isse neeche nahi ja sakte.
+          <p style="font-size:12.5px;color:#6b6870;line-height:1.7;margin-bottom:4px;">
+            Shop ka price <b>₹<span id="agBase">—</span></b> hai — ye sabke liye ek hi rehta hai.
+            Aapko har paid shop par <b style="color:#166534;">flat ₹100</b> commission milta hai.
           </p>
-          <div id="agPriceOk" style="display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534;border-radius:10px;padding:10px;font-size:12.5px;font-weight:700;margin-bottom:10px;"></div>
-          <div id="agPriceErr" style="display:none;background:#fee2e2;border:1.5px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px;font-size:12.5px;margin-bottom:10px;"></div>
-          <div style="display:flex;gap:9px;align-items:center;margin-bottom:10px;">
-            <span style="font-size:19px;font-weight:800;">₹</span>
-            <input id="agPrice" type="number" oninput="agentMargin()" inputmode="numeric" style="flex:1;padding:12px;border:1.5px solid #e2ddd6;border-radius:11px;font-size:16px;font-weight:800;box-sizing:border-box;">
-          </div>
-          <div id="agMarginNote" style="font-size:12.5px;font-weight:700;color:#166534;margin-bottom:10px;"></div>
-          <button onclick="agentSavePrice()" style="width:100%;background:#111114;color:#fff;border:none;border-radius:11px;padding:13px;font-weight:800;font-size:14px;cursor:pointer;">Price Save Karo</button>
         </div>
 
         <div class="card">
           <h2 style="font-family:'Syne',sans-serif;font-size:17px;margin-bottom:6px;">🔗 Mera Link</h2>
           <p style="font-size:12.5px;color:#6b6870;line-height:1.7;margin-bottom:10px;">
-            Is link se jo bhi register karega, use <b>aapka price</b> dikhega aur wo shop
-            aapki list me aa jayegi.
+            Is link se jo bhi register karega wo shop <b>aapki list</b> me aa jayegi,
+            aur paid hote hi aapko <b>₹100</b> mil jayega.
           </p>
           <div style="display:flex;gap:8px;margin-bottom:10px;">
             <input id="agLink" readonly style="flex:1;padding:11px;border:1.5px solid #e2ddd6;border-radius:11px;font-size:12.5px;background:#f7f7f9;box-sizing:border-box;">
@@ -1718,7 +1991,7 @@ async function loadBreakdown(){
 }
 
 // ===== SIDEBAR NAV =====
-const PAGE_TITLES={account:'Delete Account', partner:'Partner Program', review:'Review Dijiye', overview:'Overview',refer:'Refer & Earn',qr:'QR & Downloads',orders:'Orders',settings:'Settings',agent:'Agent Dashboard'};
+const PAGE_TITLES={account:'Delete Account', partner:'Partner Program', review:'Review Dijiye', overview:'Overview',qr:'QR & Downloads',orders:'Orders',settings:'Settings',agent:'Agent Dashboard'};
 /* ── Review Dijiye ─────────────────────────────────────────
    Shop apna review bhejta hai. Seedha live nahi hota — pehle
    superadmin approve karta hai. Ek shop ka ek hi review rehta hai:
@@ -1960,7 +2233,10 @@ async function disconnectComputer(){
 function navTo(sect,btn){
   document.querySelectorAll('[data-sect]').forEach(el=>el.classList.toggle('show',el.getAttribute('data-sect')===sect));
   document.querySelectorAll('.nav-it[data-nav]').forEach(n=>n.classList.toggle('active',n.getAttribute('data-nav')===sect));
-  document.getElementById('pageTitle').textContent=PAGE_TITLES[sect]||'';
+  const _nm = PAGE_TITLES[sect]||'';
+  document.getElementById('pageTitle').textContent=_nm;
+  const _cr = document.getElementById('pageCrumb');
+  if(_cr) _cr.innerHTML = 'Home <i>›</i> <span>' + sanitizeTxt(_nm) + '</span>';
   closeSide(); window.scrollTo(0,0);
   // Review tab khulte hi apna bheja hua review aur uski halat le aao
   if(sect==='review' && typeof loadMyReview==='function') loadMyReview();
@@ -1984,19 +2260,15 @@ function startAgentStatusPolling() {
     try {
       const r = await fetch(`/api/shop/${currentShop.id}/agent-status`);
       const d = await r.json();
-      if (d.online) {
-        chip.style.background = '#e9fbf0';
-        chip.style.borderColor = '#b7ecc9';
-        chip.style.color = '#0d8a3f';
-        chip.innerHTML = '🟢 Print Agent Online — sab ready';
-      } else {
-        chip.style.background = '#fff1f1';
-        chip.style.borderColor = '#ffc9c9';
-        chip.style.color = '#c22222';
-        chip.innerHTML = d.seconds_ago === null
-          ? '🔴 Agent kabhi connect nahi hua — shop PC par Print Agent chalu karo'
-          : '🔴 Agent Offline — shop PC check karo (prints nahi niklenge)';
-      }
+      // Ab .agent-pill class se style aata hai — inline colors ki zaroorat nahi
+      const txt = d.online
+        ? 'Print Agent Online — sab ready'
+        : (d.seconds_ago === null
+            ? 'Agent kabhi connect nahi hua — shop PC par Print Agent chalu karo'
+            : 'Agent Offline — shop PC check karo (prints nahi niklenge)');
+      chip.className = 'agent-pill ' + (d.online ? 'on' : 'off');
+      chip.innerHTML = '<span class="led"></span><span class="txt"></span>';
+      chip.querySelector('.txt').textContent = txt;   // XSS-safe
     } catch(e) { /* agla poll */ }
   };
   check();
@@ -2133,7 +2405,12 @@ async function loadAdminPanel() {
     }
 
     document.getElementById('adminQrImg').src = shop.qr_code;
-    document.getElementById('adminQrUrl').textContent = location.origin + '/print/' + shop.id;
+    // adminQrUrl ab <input> hai (pehle <p> tha) — isliye .value
+    const _qrUrl = location.origin + '/print/' + shop.id;
+    const _u = document.getElementById('adminQrUrl');
+    if (_u) { if ('value' in _u) _u.value = _qrUrl; else _u.textContent = _qrUrl; }
+    const _n = document.getElementById('qrShopName'); if (_n) _n.textContent = shop.name || '—';
+    const _i = document.getElementById('qrShopId');   if (_i) _i.textContent = shop.id || '—';
 
     await loadPrinterModelsAdmin(shop.printer_model);
     await loadColorPrinterDropdowns(shop.printer_name_bw, shop.printer_name_color, shop.printer_name_4x6, shop.printer_name_a3);
@@ -2149,8 +2426,7 @@ async function loadAdminPanel() {
     toggleDuplexPrices();
     currentShopId = shop.id;
     loadStats(shop.id);
-    loadJobs();
-    loadReferral(shop.id);
+    loadJobs();    // loadReferral hata diya gaya
     loadBreakdown();
     loadAgentVersion();
     renderSubscription(shop);
@@ -2290,55 +2566,10 @@ function toast(msg){
   clearTimeout(t._h); t._h=setTimeout(()=>t.style.opacity='0',2600);
 }
 let currentShopId = '';
-async function loadReferral(shopId) {
-  currentShopId = shopId;
-  try {
-    const res = await fetch('/api/shop/referral', { headers: { 'Authorization': 'Bearer ' + authToken } });
-    const d = await res.json();
-    if (!d.canRefer) {
-      document.getElementById('referLocked').style.display = 'block';
-      document.getElementById('referActive').style.display = 'none';
-      return;
-    }
-    document.getElementById('referLocked').style.display = 'none';
-    document.getElementById('referActive').style.display = 'block';
-    document.getElementById('refEarnings').textContent = '₹' + d.earnings;
-    document.getElementById('refAvailable').textContent = '₹' + d.available;
-    document.getElementById('refLink').value = location.origin + '/register?ref=' + shopId;
+// Refer & Earn hata diya gaya — ye stub sirf isliye hai ki purana
+// koi call bacha ho to page crash na ho.
+async function loadReferral(){ /* removed */ }
 
-    const wb = document.getElementById('withdrawBtn');
-    wb.disabled = d.available < 500;
-    wb.style.opacity = d.available < 500 ? '.55' : '1';
-
-    // Referred shops list
-    const list = document.getElementById('refList');
-    if (!d.referred.length) {
-      list.innerHTML = '<div style="font-size:12px;opacity:.75;">Abhi koi referral nahi. Link share karo!</div>';
-    } else {
-      list.innerHTML = d.referred.map(r => {
-        const paid = r.status === 'paid';
-        return `<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.13);border-radius:10px;padding:9px 12px;">
-          <div><div style="font-size:13px;font-weight:700;">${esc(r.name||'—')}</div><div style="font-size:11px;opacity:.8;">${esc(r.phone||'')}</div></div>
-          <span style="font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;background:${paid?'#16a34a':'rgba(255,255,255,.25)'};">${paid?'✅ Paid +₹50':'⏳ Pending'}</span>
-        </div>`;
-      }).join('');
-    }
-
-    // Withdrawal history
-    const wh = document.getElementById('wdHistory');
-    if (d.withdrawals.length) {
-      wh.innerHTML = '<div style="font-size:12px;font-weight:700;opacity:.9;margin-bottom:6px;">💸 Withdrawal History</div>' +
-        d.withdrawals.map(w => {
-          const done = w.status === 'done';
-          const dt = done && w.completed_at ? new Date(w.completed_at).toLocaleString('en-IN') : '';
-          return `<div style="background:rgba(255,255,255,.13);border-radius:10px;padding:9px 12px;margin-bottom:5px;font-size:12px;">
-            <div style="display:flex;justify-content:space-between;"><b>₹${w.amount}</b>
-            <span>${done?'✅ Done':'⏳ Pending'}</span></div>
-            ${done?`<div style="font-size:11px;opacity:.8;margin-top:3px;">${dt}</div>`:''}</div>`;
-        }).join('');
-    } else { wh.innerHTML = ''; }
-  } catch(e) { console.error('referral load', e); }
-}
 function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 async function loadAdminBroadcast() {
@@ -2355,23 +2586,8 @@ async function loadAdminBroadcast() {
     }
   } catch(e) {}
 }
-function copyRefLink(){
-  const inp = document.getElementById('refLink');
-  navigator.clipboard.writeText(inp.value).then(()=>toast('📋 Referral link copied!'));
-}
-async function openWithdraw(){
-  const upi = prompt('Apni UPI ID daalo (jaise name@paytm):');
-  if (upi === null) return;
-  try {
-    const res = await fetch('/api/shop/withdraw', {
-      method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},
-      body: JSON.stringify({ upi_id: upi })
-    });
-    const d = await res.json();
-    if (d.success) { toast('✅ Withdrawal request bhej di! Approve hone par paisa aayega.'); loadReferral(currentShopId); }
-    else toast('❌ ' + (d.error||'Fail'));
-  } catch(e){ toast('❌ '+e.message); }
-}
+// copyRefLink / openWithdraw hata diye gaye (Refer & Earn ke saath).
+// Agent ka apna withdraw agentWithdraw() me hai.
 
 function toggleDuplexPrices(){
   const on = !!document.getElementById('setDuplexMode').value;
@@ -2649,12 +2865,12 @@ async function loadAgent() {
     document.getElementById('agTotal').textContent = d.earnings || 0;
     document.getElementById('agPaidShops').textContent = d.stats.paid || 0;
     document.getElementById('agPending').textContent   = d.stats.pending || 0;
-    document.getElementById('agBase').textContent  = d.base_price;
-    document.getElementById('agMax').textContent   = d.max_price;
+    // agMax / agPrice ab page par hain hi nahi (agent apna price set nahi
+    // kar sakta) — isliye optional chaining se set karte hain.
+    const _set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    _set('agBase', d.base_price);
     document.getElementById('agUpi').value   = d.upi || '';
-    document.getElementById('agPrice').value = d.price || d.base_price;
     document.getElementById('agLink').value  = d.link || '';
-    agentMargin();
     renderAgentPayouts();
     loadAgentShops();
     loadAgentHistory();
@@ -2673,15 +2889,9 @@ function renderAgentPayouts() {
   </div>`;
 }
 
-function agentMargin() {
-  const el = document.getElementById('agMarginNote');
-  if (!el || !_ag) return;
-  const p = parseInt(document.getElementById('agPrice').value, 10) || 0;
-  const m = p - _ag.base_price;
-  el.textContent = m > 0
-    ? `Har shop par aapko: ₹${_ag.commission_per_shop} + ₹${m} margin = ₹${_ag.commission_per_shop + m}`
-    : `Har shop par aapko: ₹${_ag.commission_per_shop}`;
-}
+// Margin ka concept khatam — commission ab flat hai. Stub isliye rakha
+// hai ki koi purana onclick/oninput bacha ho to error na aaye.
+function agentMargin() { /* removed — flat commission */ }
 async function agentJoin() {
   const b = document.getElementById('agJoinBtn');
   b.disabled = true; b.textContent = 'Ban raha hai…';
@@ -2705,20 +2915,8 @@ async function agentSaveUpi() {
     _agShow('agUpiOk', '✅ UPI save ho gaya — ' + d.upi_id);
   } catch(e) { _agShow('agUpiErr', '❌ ' + e.message); }
 }
-async function agentSavePrice() {
-  _agShow('agPriceErr',''); _agShow('agPriceOk','');
-  try {
-    const r = await fetch('/api/agent/price', {
-      method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},
-      body: JSON.stringify({ price: parseInt(document.getElementById('agPrice').value, 10) })
-    });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || 'fail');
-    _ag.price = d.price;
-    _agShow('agPriceOk', `✅ Price ₹${d.price} set — aapka margin ₹${d.markup} per shop`);
-    agentMargin();
-  } catch(e) { _agShow('agPriceErr', '❌ ' + e.message); }
-}
+// agentSavePrice hata diya gaya — agent apna price set nahi kar sakta.
+async function agentSavePrice() { /* removed — flat commission */ }
 function agentCopyLink() {
   const el = document.getElementById('agLink');
   el.select();
@@ -3206,9 +3404,45 @@ async function loadAgentVersion(){
     _wiuVerLabel = d.displayVersion || d.versionLabel || String(d.version || '');
     const w1 = document.getElementById('wiuBtn1');
     if(w1) w1.style.display = _wiuNotes ? 'inline-flex' : 'none';
-    const w2 = document.getElementById('wiuBtn2');
-    if(w2) w2.style.display = _wiuNotes ? 'block' : 'none';
+    // ab poori row show/hide hoti hai (button ke bajaye)
+    const w2 = document.getElementById('wiuRow2');
+    if(w2) w2.style.display = _wiuNotes ? 'flex' : 'none';
   }catch(e){}
+}
+
+/* ═══ QR SHARE — Copy / WhatsApp / native Share ═══ */
+function _qrLink(){
+  const el = document.getElementById('adminQrUrl');
+  return (el && (el.value || el.textContent) || '').trim();
+}
+function qrCopyLink(){
+  const link = _qrLink();
+  if (!link) return;
+  const done = () => toast('📋 Link copy ho gaya!');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(link).then(done).catch(_qrCopyFallback);
+  } else _qrCopyFallback();
+  function _qrCopyFallback(){
+    const el = document.getElementById('adminQrUrl');
+    if (el && el.select) { el.select(); try { document.execCommand('copy'); done(); } catch(e){} }
+  }
+}
+function qrShareWhatsApp(){
+  const link = _qrLink();
+  if (!link) return;
+  const name = (document.getElementById('qrShopName')||{}).textContent || 'hamari shop';
+  const msg = `${name} me print nikalna hai? Ye link kholo, file bhejo, print ready:\n${link}`;
+  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank', 'noopener');
+}
+function qrShareNative(){
+  const link = _qrLink();
+  if (!link) return;
+  if (navigator.share) {
+    navigator.share({ title: 'QR Se Print', text: 'Yahan se print nikalo', url: link })
+      .catch(() => {});
+  } else {
+    qrCopyLink();   // share support nahi hai to copy hi kar do
+  }
 }
 
 function openWhatsNew(){
@@ -3249,37 +3483,12 @@ function initShopLogo(shop) {
     p.style.background = '#fff';
   }
 }
-async function uploadShopLogo() {
-  const f = document.getElementById('shopLogoFile').files[0];
-  const msg = document.getElementById('shopLogoMsg');
-  if (!f) { msg.style.color='#dc2626'; msg.textContent='Pehle file chuno'; return; }
-  // Client pre-check — server bhi check karta hai, par yahan turant bata do
-  if (f.type !== 'image/png') { msg.style.color='#dc2626'; msg.textContent='❌ Sirf PNG file chalegi (transparent background wali)'; return; }
-  if (f.size > 50 * 1024) { msg.style.color='#dc2626'; msg.textContent='❌ Logo 50 KB se chhota ho (abhi '+Math.round(f.size/1024)+' KB hai)'; return; }
-  const fd = new FormData(); fd.append('logo', f);
-  msg.style.color='#6b6870'; msg.textContent='⏳ Upload ho raha hai...';
-  try {
-    const r = await fetch('/api/shop/upload-logo', { method:'POST', headers:{'Authorization':'Bearer '+authToken}, body: fd });
-    const d = await r.json();
-    if (d.success) {
-      const p = document.getElementById('shopLogoPreview');
-      p.innerHTML = '<img src="'+d.logoUrl+'" style="width:100%;height:100%;object-fit:cover;">'; p.style.background='#fff';
-      msg.style.color='#16a34a'; msg.textContent='✅ Logo lag gaya! Customer ko ab ye dikhega';
-    } else { msg.style.color='#dc2626'; msg.textContent='❌ '+(d.error||'Fail'); }
-  } catch(e) { msg.style.color='#dc2626'; msg.textContent='❌ '+e.message; }
-}
-async function removeShopLogo() {
-  const msg = document.getElementById('shopLogoMsg');
-  try {
-    const r = await fetch('/api/shop/remove-logo', { method:'POST', headers:{'Authorization':'Bearer '+authToken} });
-    const d = await r.json();
-    if (d.success) {
-      const p = document.getElementById('shopLogoPreview');
-      p.innerHTML = '🖨️'; p.style.background='#ff4d1c';
-      msg.style.color='#16a34a'; msg.textContent='✅ Logo hata diya — ab default icon dikhega';
-    }
-  } catch(e) { msg.style.color='#dc2626'; msg.textContent='❌ '+e.message; }
-}
+// uploadShopLogo / removeShopLogo hata diye gaye — QR & Downloads tab se
+// logo wali setting nikal di gayi hai. Stub isliye ki koi purana
+// reference bacha ho to page crash na ho.
+async function uploadShopLogo() { /* removed */ }
+async function removeShopLogo() { /* removed */ }
+
 
 function downloadReadme(){
   const sid = (window.__shopId || document.getElementById('spShopId')?.value || '').toUpperCase();
@@ -3330,7 +3539,24 @@ async function loadStats(shopId) {
     document.getElementById('todayEarn').textContent = '₹' + (stats.today_earnings || 0);
     document.getElementById('totalOrders').textContent = stats.total_orders || 0;
     document.getElementById('totalEarn').textContent = '₹' + (stats.total_earnings || 0);
+    // "vs kal" trend — sirf tab dikhao jab kal ka koi data ho
+    setTrend('trendPrints', stats.today_prints, stats.prev_prints);
+    setTrend('trendEarn',   stats.today_earnings, stats.prev_earnings);
   } catch(e) {}
+}
+
+/* "↗ +40% vs kal" wala chhota note.
+   Kal 0 tha to percentage ka matlab nahi banta — tab sirf "naya" dikhate hain. */
+function setTrend(id, today, prev) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const t = Number(today) || 0, p = Number(prev) || 0;
+  if (!t && !p) { el.textContent = ''; el.className = 'stat-trend flat'; return; }
+  if (!p) { el.textContent = '✨ aaj shuru'; el.className = 'stat-trend up'; return; }
+  const pct = Math.round(((t - p) / p) * 100);
+  if (pct === 0) { el.textContent = '→ kal jitna hi'; el.className = 'stat-trend flat'; return; }
+  el.textContent = (pct > 0 ? '↗ +' : '↘ ') + pct + '% vs kal';
+  el.className = 'stat-trend ' + (pct > 0 ? 'up' : 'down');
 }
 
 async function loadJobs() {
@@ -3573,5 +3799,6 @@ function logout() {
 }
 </script>
 <script src="/i18n.js" defer></script>
+  <script src="/i18n-extra.js" defer></script>
 </body>
 </html>

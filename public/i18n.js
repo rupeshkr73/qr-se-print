@@ -42,6 +42,53 @@ window.QSP_EN_DICT = { "Order Bhej Diya!": "Order Sent!", "Shop Owner ne agar Pa
     return false;
   }
 
+  // ── NUMBER-AWARE LOOKUP ──
+  // Bahut si strings runtime par banti hain, jaise
+  //   "✅ 3 files load ho gayi!"  ya  "⏳ Page 2 / 7 load ho raha hai..."
+  // Inka exact match dictionary me kabhi nahi milega kyunki number har
+  // baar badal jaata hai — isiliye English chun-ne par bhi ye Hinglish
+  // hi dikhti thi. Ab hum key ko "number hata kar" bhi index karte hain:
+  //   "✅ %d files load ho gayi!"  <-- aisi key dictionary me daalo
+  // aur runtime string ke numbers wapas usi kram me bhar dete hain.
+  var numIndex = null;
+  function normNum(s) { return s.replace(/\d+(?:[.,]\d+)?/g, '%d'); }
+  function countSlots(s) { return (s.match(/%d/g) || []).length; }
+
+  function buildNumIndex() {
+    numIndex = {};
+    for (var k in dict) {
+      if (!dict.hasOwnProperty(k)) continue;
+      if (k.indexOf('%d') === -1) continue;
+      // DONO taraf normalize karte hain — key aur uski English value.
+      // Zaroori isliye:
+      //   key   = "kam se kam ₹500 chahiye (abhi ₹%d)"
+      //   value = "A minimum of ₹500 is required (currently ₹%d)"
+      // Runtime string me DO number aate hain (500 aur 250). Agar sirf
+      // key normalize karein to value me ek hi %d bachta hai aur dono
+      // number ki jagah pehla hi bhar jaata hai (250 gayab ho jaata).
+      // Dono normalize karne se slot aur number ek-dusre se mil jaate hain.
+      var nk = normNum(k), nv = normNum(dict[k]);
+      // Slot count barabar ho tabhi template safe hai — warna seedhi
+      // value hi de do (aadha-adhoora number bharna galat hoga).
+      numIndex[nk] = (countSlots(nk) === countSlots(nv)) ? nv : dict[k];
+    }
+  }
+  function lookup(key) {
+    var hit = dict[key];
+    if (hit) return hit;
+    if (numIndex === null) buildNumIndex();
+    var norm = normNum(key);
+    if (norm === key) return null;              // koi number hi nahi tha
+    var tpl = numIndex[norm];
+    if (!tpl) return null;
+    // Template ke %d me original numbers usi kram me wapas bhar do
+    var nums = key.match(/\d+(?:[.,]\d+)?/g) || [];
+    var i = 0;
+    return tpl.replace(/%d/g, function (whole) {
+      return (i < nums.length) ? nums[i++] : whole;
+    });
+  }
+
   function translateText(node) {
     if (skip(node)) return;
     var raw = origText.get(node);
@@ -52,7 +99,7 @@ window.QSP_EN_DICT = { "Order Bhej Diya!": "Order Sent!", "Shop Owner ne agar Pa
     }
     var key = raw.trim();
     if (!key) return;
-    var hit = dict[key];
+    var hit = lookup(key);
     if (hit) {
       node.nodeValue = raw.replace(key, hit);   // aage-peeche ka space waisa hi
     } else if (node.nodeValue !== raw) {
@@ -69,9 +116,10 @@ window.QSP_EN_DICT = { "Order Bhej Diya!": "Order Sent!", "Shop Owner ne agar Pa
       if (cur === null) continue;
       if (!store) { store = {}; origAttr.set(el, store); }
       if (store[a] === undefined) store[a] = cur;
+      /* attr bhi ussi number-aware lookup se guzarta hai */
       var key = (store[a] || '').trim();
       if (!key) continue;
-      el.setAttribute(a, dict[key] || store[a]);
+      el.setAttribute(a, lookup(key) || store[a]);
     }
   }
 
@@ -135,6 +183,7 @@ window.QSP_EN_DICT = { "Order Bhej Diya!": "Order Sent!", "Shop Owner ne agar Pa
     saveLang(l);
     d.documentElement.setAttribute('lang', l === 'hin' ? 'hi' : 'en');
     dict = (l === 'en') ? EN : {};    // <-- server call nahi, bundled dict
+    numIndex = null;                  // dict badla -> number-index dobara banega
     applyAll();
     startObserver();
     var sels = d.querySelectorAll('select[data-i18n-select], #langSel, .qsp-lang-sel');
@@ -187,12 +236,31 @@ window.QSP_EN_DICT = { "Order Bhej Diya!": "Order Sent!", "Shop Owner ne agar Pa
   else init();
 
   // Bahar se access + naye page ki dict add karne ke liye
+  // t() — alert()/confirm()/prompt() aur server ke error message ke liye.
+  // DOM me jo text jaata hai wo MutationObserver khud pakad leta hai, par
+  // alert() DOM nahi hai — isliye wahan string ko HAATH se translate karna
+  // padta hai:  alert(QSPi18n.t(d.error))
+  function t(s) {
+    if (!s) return s;
+    var str = String(s);
+    return lookup(str.trim()) || str;
+  }
+
   w.QSPi18n = {
     setLang: setLang,
     getLang: function () { return lang; },
     langs: LANGS,
     refresh: applyAll,
-    addDict: function (obj) { if (obj) { for (var k in obj) if (obj.hasOwnProperty(k)) EN[k] = obj[k]; if (lang === 'en') { dict = EN; applyAll(); } } }
+    t: t,
+    addDict: function (obj) {
+      if (obj) {
+        for (var k in obj) if (obj.hasOwnProperty(k)) EN[k] = obj[k];
+        numIndex = null;
+        if (lang === 'en') { dict = EN; applyAll(); }
+      }
+    }
   };
+  // Chhota global alias — purane code me bhi aasaani se lag jaye
+  w.T = t;
   w.setLang = setLang;      // purane onchange="setLang(this.value)" ke liye
 })(window, document);

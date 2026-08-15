@@ -129,23 +129,22 @@ nav .logo span{color:#ff2e63 !important}
   border-radius:20px !important;font-weight:700 !important;transition:.15s}
 .nav-link:hover{background:#111 !important;color:#fff !important}
 .hero h1,.card h2,.card h3{font-family:'Plus Jakarta Sans',sans-serif !important;letter-spacing:-.6px;color:#111}
-.card,.login-card{border:1.5px solid #ecedf2 !important;border-radius:20px !important;
+/* ── PURANE !important overrides ──
+   Ye block naye redesign (#qsp-sa-redesign) se ladta tha. !important
+   ki wajah se naya design lag hi nahi pata tha — isliye jo rules ab
+   redesign block me hain wo yahan se hata diye gaye hain.
+   Sirf wahi bacha hai jo redesign cover nahi karta (login card, buttons). */
+.login-card{border:1.5px solid #ecedf2 !important;border-radius:20px !important;
   box-shadow:0 8px 30px rgba(17,17,17,.06) !important;background:#fff !important}
-.stat{border:1.5px solid #ecedf2 !important;border-radius:16px !important;background:#fff !important;
-  box-shadow:0 4px 14px rgba(17,17,17,.05) !important}
-.stat-val{font-family:'Plus Jakarta Sans',sans-serif !important;color:#111 !important}
-.stat:first-child .stat-val{background:linear-gradient(transparent 62%,#ffd22e 62%);display:inline-block;padding:0 4px}
+.stat-val{font-family:'Plus Jakarta Sans',sans-serif !important}
 .btn-primary,.btn-save,.rzp-open-btn{background:#ff2e63 !important;border-radius:14px !important;
   font-family:'Plus Jakarta Sans',sans-serif !important;font-weight:800 !important;
   box-shadow:0 8px 20px rgba(255,46,99,.3) !important;transition:.15s !important}
 .btn-primary:hover,.btn-save:hover{background:#e01e51 !important;transform:translateY(-1px)}
-input,select,textarea{border:1.5px solid #e3e5ec !important;border-radius:12px !important;
-  font-family:'Inter',sans-serif !important;background:#fff !important}
-input:focus,select:focus,textarea:focus{border-color:#ff2e63 !important;outline:none !important}
-table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
-.status-pill{border-radius:20px !important;font-weight:700 !important}
-.filter-tab{border-radius:20px !important;border:1.5px solid #e3e5ec !important;font-weight:700 !important}
-.filter-tab.active,.gateway-tab.active,.payment-opt.selected{border-color:#ff2e63 !important;
+/* background yahan se hataya — warna topbar/search ka soft bg nahi lag pata */
+input,select,textarea{border:1.5px solid #e3e5ec;border-radius:12px;
+  font-family:'Inter',sans-serif}
+.gateway-tab.active,.payment-opt.selected{border-color:#ff2e63 !important;
   background:#fff5f7 !important;color:#ff2e63 !important}
 ::selection{background:#ffd22e}
 </style>
@@ -307,6 +306,289 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 
 @media(max-width:640px){.an-kpis{grid-template-columns:repeat(2,1fr)}}
 </style>
+
+<style id="qsp-sa-redesign">
+/* ═══════════════════════════════════════════════════════════════════
+   SUPERADMIN REDESIGN — 2026
+   Ye stylesheet SABSE AAKHIR me aati hai, isliye upar wale purane
+   rules ko override kar deti hai.
+
+   Poore panel ke 20+ tab ek hi set of classes use karte hain
+   (.card / .stat / .shop-table / .nav-it / .filter-tab), isliye
+   yahan ek jagah badalne se HAR tab ka look ek saath badal jaata hai —
+   kisi tab ka HTML dobara likhne ki zaroorat nahi padti.
+   ═══════════════════════════════════════════════════════════════════ */
+
+#panel{
+  --bg:#f6f7fb;          /* page background */
+  --surface:#ffffff;     /* card background */
+  --ink:#12131a;         /* heading text  */
+  --ink2:#3f4150;        /* body text     */
+  --muted:#8b8e9e;       /* labels        */
+  --line:#e9eaf0;        /* borders       */
+  --soft:#f8f9fc;        /* zebra / hover */
+  --brand:#ff4d1c;       /* orange accent */
+  --brand2:#ff2e63;      /* pink accent   */
+  --radius:16px;
+  --shadow:0 1px 2px rgba(18,19,26,.04), 0 8px 24px rgba(18,19,26,.05);
+  --shadow-lg:0 12px 34px rgba(18,19,26,.10);
+}
+#panel, #panel .app-shell{background:var(--bg)}
+
+/* ───────────── SIDEBAR — light, calm, scannable ───────────── */
+#panel .side{
+  width:264px;padding:18px 14px;
+  background:var(--surface);
+  border-right:1px solid var(--line);
+  box-shadow:none;
+}
+#panel .side-brand{
+  color:var(--ink);font-size:16.5px;letter-spacing:-.3px;
+  padding:2px 8px 16px;border-bottom:1px solid var(--line);margin-bottom:14px;
+  align-items:center;
+}
+#panel .side-brand .bm{
+  width:38px;height:38px;border-radius:12px;
+  background:linear-gradient(135deg,var(--brand),var(--brand2));
+  box-shadow:0 6px 16px rgba(255,77,28,.30);font-size:17px;
+}
+/* brand ke neeche chhota "Super Admin" — JS se inject hota hai */
+#panel .side-brand small{
+  display:block;font-size:10.5px;font-weight:700;color:var(--muted);
+  letter-spacing:.3px;margin-top:2px;
+}
+#panel .side-role{
+  background:linear-gradient(135deg,#fff7ed,#fff1f2);
+  border:1px solid #ffe4d6;border-radius:13px;
+  padding:11px 13px;margin:0 2px 14px;color:var(--muted);font-size:10.5px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+#panel .side-role b{color:var(--brand);font-size:13px;margin-top:1px}
+#panel .side-role::after{content:'👑';font-size:15px;opacity:.85}
+
+#panel .nav-it{
+  gap:11px;padding:10px 13px;border-radius:11px;margin-bottom:2px;
+  color:var(--ink2);font-size:13.5px;font-weight:600;letter-spacing:-.1px;
+}
+#panel .nav-it:hover{background:var(--soft);color:var(--ink)}
+#panel .nav-it.active{
+  background:linear-gradient(135deg,var(--brand),var(--brand2));
+  color:#fff;box-shadow:0 8px 20px rgba(255,77,28,.28);font-weight:700;
+}
+#panel .nav-it .ico{font-size:15.5px;width:22px;opacity:.95}
+#panel .nav-it.active .ico{opacity:1}
+#panel .side-foot{border-top:1px solid var(--line);padding-top:10px}
+#panel .side-lg{
+  background:#fff1f2;color:#e11d48;border:1px solid #ffe4e6;
+  border-radius:11px;padding:11px 13px;font-size:13.5px;
+}
+#panel .side-lg:hover{background:#ffe4e6}
+
+/* ───────────── TOPBAR — title + breadcrumb + actions ───────────── */
+#panel .app-topbar{
+  background:rgba(255,255,255,.92);backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line);padding:12px 26px;gap:16px;
+}
+#panel .page-title{
+  font-size:20px;letter-spacing:-.5px;color:var(--ink);line-height:1.2;
+}
+/* breadcrumb — JS bharta hai */
+#panel .page-crumb{
+  font-size:11.5px;color:var(--muted);font-weight:600;margin-top:2px;
+  display:flex;align-items:center;gap:6px;
+}
+#panel .page-crumb i{font-style:normal;opacity:.5}
+#panel .topbar-spacer{flex:1}
+#panel .topbar-search{
+  position:relative;flex:0 1 320px;display:flex;align-items:center;
+}
+#panel .topbar-search input{
+  width:100%;padding:9px 13px 9px 34px;border:1px solid var(--line);
+  border-radius:11px;font-size:13px;font-family:'Inter',sans-serif;
+  background:var(--soft);color:var(--ink);outline:none;transition:.15s;
+}
+#panel .topbar-search input:focus{
+  background:#fff;border-color:var(--brand);box-shadow:0 0 0 3px rgba(255,77,28,.10);
+}
+#panel .topbar-search::before{
+  content:'🔍';position:absolute;left:11px;font-size:12.5px;opacity:.5;pointer-events:none;
+}
+#panel .topbar-btn{
+  position:relative;width:38px;height:38px;border-radius:11px;border:1px solid var(--line);
+  background:#fff;cursor:pointer;font-size:15px;display:flex;align-items:center;
+  justify-content:center;transition:.15s;flex:none;
+}
+#panel .topbar-btn:hover{background:var(--soft);border-color:#dcdde6}
+#panel .topbar-btn .dot{
+  position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 5px;
+  border-radius:999px;background:var(--brand2);color:#fff;font-size:10px;
+  font-weight:800;display:flex;align-items:center;justify-content:center;
+  border:2px solid #fff;
+}
+#panel .topbar-logout{
+  display:flex;align-items:center;gap:7px;padding:9px 15px;border-radius:11px;
+  border:1px solid var(--line);background:#fff;color:var(--ink2);
+  font-size:13px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;flex:none;
+}
+#panel .topbar-logout:hover{background:#fff1f2;color:#e11d48;border-color:#ffe4e6}
+
+#panel .app-content{padding:22px 26px 70px;max-width:1320px}
+
+/* ───────────── CARD — sab tabs ka base container ───────────── */
+#panel .card{
+  background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:20px 22px;
+}
+#panel .card h2{
+  font-family:'Plus Jakarta Sans','Poppins',sans-serif;font-weight:800;
+  font-size:16px;color:var(--ink);letter-spacing:-.3px;
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;flex-wrap:wrap;margin-bottom:16px;
+}
+
+/* ───────────── STAT CARDS — colored icon + big number ───────────── */
+#panel .stats{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));
+  gap:13px;margin-bottom:20px;
+}
+#panel .stat{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+  box-shadow:var(--shadow);padding:17px 18px;position:relative;
+  display:flex;flex-direction:column;gap:2px;
+  transition:transform .18s ease, box-shadow .18s ease;
+}
+#panel .stat:hover{transform:translateY(-2px);box-shadow:var(--shadow-lg)}
+/* har stat ke upar ek colored circle — content JS/CSS se aata hai */
+#panel .stat::before{
+  content:attr(data-ico);
+  width:42px;height:42px;border-radius:13px;margin-bottom:11px;
+  display:flex;align-items:center;justify-content:center;font-size:18px;
+  background:var(--si-bg,#eef2ff);
+}
+#panel .stat-lbl{
+  order:3;font-size:11.5px;font-weight:700;color:var(--muted);
+  text-transform:none;letter-spacing:0;
+}
+#panel .stat-val{
+  order:2;font-family:'Plus Jakarta Sans','Poppins',sans-serif;font-weight:800;
+  font-size:26px;color:var(--ink);line-height:1.1;letter-spacing:-.7px;
+  font-variant-numeric:tabular-nums;
+}
+#panel .stat-val.green {color:#0f9d70}
+#panel .stat-val.blue  {color:#2563eb}
+#panel .stat-val.orange{color:#f59e0b}
+
+/* ───────────── FILTER BAR ───────────── */
+#panel .filter-tabs{display:flex;gap:7px;flex-wrap:wrap}
+#panel .filter-tab{
+  padding:8px 15px;border-radius:10px;border:1px solid var(--line);
+  background:#fff;color:var(--ink2);font-size:12.5px;font-weight:700;
+  cursor:pointer;transition:.15s;font-family:'Inter',sans-serif;
+}
+#panel .filter-tab:hover{background:var(--soft);border-color:#dcdde6}
+#panel .filter-tab.active{
+  background:var(--ink);color:#fff;border-color:var(--ink);
+  box-shadow:0 4px 12px rgba(18,19,26,.22);
+}
+
+/* ───────────── TABLE ───────────── */
+#panel .shop-table{
+  width:100%;border-collapse:separate;border-spacing:0;font-size:13px;
+}
+#panel .shop-table thead th{
+  text-align:left;font-size:10.5px;font-weight:800;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.6px;padding:0 14px 11px;
+  border-bottom:1px solid var(--line);white-space:nowrap;background:transparent;
+}
+#panel .shop-table tbody td{
+  padding:14px;border-bottom:1px solid #f2f3f7;vertical-align:middle;color:var(--ink2);
+}
+#panel .shop-table tbody tr{transition:background .12s}
+#panel .shop-table tbody tr:hover{background:var(--soft)}
+#panel .shop-table tbody tr:last-child td{border-bottom:none}
+#panel .shop-name{
+  font-family:'Plus Jakarta Sans','Poppins',sans-serif;font-weight:800;
+  font-size:13.5px;color:var(--ink);letter-spacing:-.2px;
+}
+#panel .shop-id-mono{
+  font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+  font-size:11px;color:var(--muted);margin-top:3px;letter-spacing:-.2px;
+}
+#panel .contact-cell{font-size:12px;color:var(--ink2);line-height:1.75}
+#panel .earnings-cell{
+  font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;
+  color:var(--ink);font-variant-numeric:tabular-nums;
+}
+#panel .status-pill{
+  display:inline-flex;align-items:center;gap:5px;padding:5px 11px;border-radius:999px;
+  font-size:11.5px;font-weight:800;white-space:nowrap;border:1px solid transparent;
+}
+#panel .status-pill.active {background:#ecfdf5;color:#047857;border-color:#a7f3d0}
+#panel .status-pill.pending{background:#fff7ed;color:#c2410c;border-color:#fed7aa}
+
+/* Action buttons — table me bahut saare hain, unhe ek jaisa rakho */
+#panel .shop-table td button{
+  font-family:'Inter',sans-serif;border-radius:9px !important;
+  font-size:11.5px !important;font-weight:700 !important;
+  padding:7px 11px !important;cursor:pointer;transition:.14s;
+  margin:0 5px 5px 0 !important;border:none;
+}
+#panel .shop-table td button:hover{filter:brightness(.94);transform:translateY(-1px)}
+
+/* ───────────── PAGINATION ───────────── */
+#panel .qsp-pager{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  flex-wrap:wrap;padding-top:15px;margin-top:4px;border-top:1px solid var(--line);
+}
+#panel .qsp-pager .info{font-size:12.5px;color:var(--muted);font-weight:600}
+#panel .qsp-pager .pages{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+#panel .qsp-pager button{
+  min-width:34px;height:34px;padding:0 10px;border-radius:9px;
+  border:1px solid var(--line);background:#fff;color:var(--ink2);
+  font-size:12.5px;font-weight:700;cursor:pointer;transition:.14s;
+  font-family:'Inter',sans-serif;
+}
+#panel .qsp-pager button:hover:not(:disabled){background:var(--soft);border-color:#dcdde6}
+#panel .qsp-pager button.on{
+  background:linear-gradient(135deg,var(--brand),var(--brand2));
+  color:#fff;border-color:transparent;box-shadow:0 5px 14px rgba(255,77,28,.28);
+}
+#panel .qsp-pager button:disabled{opacity:.4;cursor:not-allowed}
+#panel .qsp-pager select{
+  height:34px;border-radius:9px;border:1px solid var(--line);background:#fff;
+  padding:0 9px;font-size:12.5px;font-weight:700;color:var(--ink2);
+  font-family:'Inter',sans-serif;cursor:pointer;
+}
+
+/* ───────────── FORM CONTROLS — har tab me consistent ───────────── */
+#panel input[type=text],#panel input[type=number],#panel input[type=password],
+#panel input[type=email],#panel input[type=search],#panel select,#panel textarea{
+  font-family:'Inter',sans-serif;
+}
+#panel input[type=text]:focus,#panel input[type=number]:focus,
+#panel input[type=password]:focus,#panel input[type=email]:focus,
+#panel select:focus,#panel textarea:focus{
+  outline:none;border-color:var(--brand) !important;
+  box-shadow:0 0 0 3px rgba(255,77,28,.10);
+}
+
+/* ───────────── MOBILE ───────────── */
+@media(max-width:899px){
+  #panel .app-content{padding:16px 14px 60px}
+  #panel .topbar-search{display:none}
+  #panel .app-topbar{padding:11px 14px;gap:10px}
+  #panel .page-title{font-size:17px}
+  #panel .stats{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  #panel .stat{padding:14px}
+  #panel .stat-val{font-size:22px}
+  #panel .card{padding:16px 15px;border-radius:14px}
+}
+@media(max-width:520px){
+  #panel .stats{grid-template-columns:1fr 1fr}
+  #panel .topbar-logout span{display:none}
+}
+</style>
 </head>
 <body>
 
@@ -340,14 +622,16 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 <div class="app-shell">
   <div class="side-overlay" id="sideOverlay" onclick="closeSide()"></div>
   <aside class="side" id="sideNav">
-    <div class="side-brand"><span class="bm">🖨️</span> QR Se Print</div>
-    <div class="side-role">Role<b>Super Admin</b></div>
+    <div class="side-brand"><span class="bm">🖨️</span> <span>QR Se Print<small>Super Admin</small></span></div>
+    <div class="side-role"><span>Role<b>Super Admin</b></span></div>
     <button class="nav-it active" data-nav="overview" onclick="navTo('overview',this)"><span class="ico">📊</span> Overview</button>
     <button class="nav-it" data-nav="kaam" onclick="navTo('kaam',this)"><span class="ico">🎯</span> Aaj Ka Kaam</button>
     <button class="nav-it" data-nav="shops"       onclick="navTo('shops',this)"><span class="ico">🏪</span> Shops</button>
     <button class="nav-it" data-nav="shops-lifetime" onclick="navShops('lifetime',this)"><span class="ico">💎</span> Lifetime Shops</button>
     <button class="nav-it" data-nav="shops-monthly"  onclick="navShops('monthly',this)"><span class="ico">📅</span> Monthly Shops</button>
     <button class="nav-it" data-nav="shops-pending"  onclick="navShops('pending',this)"><span class="ico">⏳</span> Pending Payment</button>
+    <button class="nav-it" data-nav="wlshops"     onclick="navTo('wlshops',this)"><span class="ico">🏷️</span> White Label Shops</button>
+    <button class="nav-it" data-nav="payments"    onclick="navTo('payments',this)"><span class="ico">🧾</span> Payments</button>
     <button class="nav-it" data-nav="demos"       onclick="navTo('demos',this)"><span class="ico">🎯</span> Demo Accounts</button>
     <button class="nav-it" data-nav="agents"      onclick="navTo('agents',this)"><span class="ico">💼</span> Agents</button>
     <button class="nav-it" data-nav="analytics"   onclick="navTo('analytics',this)"><span class="ico">📊</span> Analytics</button>
@@ -367,7 +651,20 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
   <div class="app-main">
     <div class="app-topbar">
       <button class="hamburger" onclick="openSide()">☰</button>
-      <div class="page-title" id="pageTitle">Overview</div>
+      <div>
+        <div class="page-title" id="pageTitle">Overview</div>
+        <div class="page-crumb" id="pageCrumb">Home <i>›</i> <span>Overview</span></div>
+      </div>
+      <div class="topbar-spacer"></div>
+      <!-- Global search — kisi bhi tab se shop dhoondh lo -->
+      <div class="topbar-search">
+        <input id="globalSearch" type="search" placeholder="Shop ka naam, ID ya number…"
+               oninput="globalSearchGo(this.value)" autocomplete="off">
+      </div>
+      <button class="topbar-btn" onclick="navTo('kaam',document.querySelector('[data-nav=kaam]'))" title="Aaj ka kaam">
+        🔔<span class="dot" id="topbarBadge" style="display:none;">0</span>
+      </button>
+      <button class="topbar-logout" onclick="logout()">🚪 <span>Logout</span></button>
     </div>
     <div class="app-content"><div id="sectionHost">
 
@@ -473,11 +770,11 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
           <div>
             <label style="font-weight:700;font-size:12px;">📧 Support Email</label>
-            <input type="text" id="hpEmail" placeholder="mahatonetcafe@gmail.com" style="width:100%;padding:10px;border:1.5px solid #e2ddd6;border-radius:10px;">
+            <input type="text" id="hpEmail" placeholder="qrseprint@gmail.com" style="width:100%;padding:10px;border:1.5px solid #e2ddd6;border-radius:10px;">
           </div>
           <div>
             <label style="font-weight:700;font-size:12px;">📞 Support Mobile</label>
-            <input type="text" id="hpPhone" placeholder="9999999999" style="width:100%;padding:10px;border:1.5px solid #e2ddd6;border-radius:10px;">
+            <input type="text" id="hpPhone" placeholder="8404832414" style="width:100%;padding:10px;border:1.5px solid #e2ddd6;border-radius:10px;">
           </div>
         </div>
 
@@ -645,11 +942,13 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:11px;">
           <div>
             <label style="font-size:10.5px;color:#c9ccd6;">Actual Price (₹) <span style="opacity:.7;">— katega hua</span></label>
-            <input type="number" id="wlLicenseActualInput" min="0" placeholder="0 = hide" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid rgba(255,255,255,.25);border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#fff;background:rgba(255,255,255,.06);">
+            <!-- BUG THA: color:#fff par background white — value likhi hoti
+                 thi par dikhti nahi thi. Ab solid white bg + dark text. -->
+            <input type="number" id="wlLicenseActualInput" min="0" placeholder="0 = hide" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid rgba(255,210,46,.4);border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#8a6d00;background:#fff;">
           </div>
           <div>
             <label style="font-size:10.5px;color:#c9ccd6;">License Fee (₹) <span style="opacity:.7;">— yahi dega</span></label>
-            <input type="number" id="wlLicenseFeeInput" min="1" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid rgba(255,210,46,.4);border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#ffd22e;background:rgba(255,255,255,.06);">
+            <input type="number" id="wlLicenseFeeInput" min="1" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid rgba(255,210,46,.4);border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#8a6d00;background:#fff;">
           </div>
         </div>
         <div id="wlLicPreview" style="display:none;align-items:center;gap:10px;background:rgba(0,0,0,.28);border-radius:11px;padding:10px 13px;margin-bottom:11px;">
@@ -660,7 +959,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         </div>
         <div>
           <label style="font-size:10.5px;color:#c9ccd6;">Base Price (₹) — partner isse neeche shop nahi bech sakta</label>
-          <input type="number" id="wlBasePriceInput" min="0" placeholder="0 = Offer Price" style="width:100%;padding:11px 13px;border:1.5px solid rgba(255,210,46,.4);border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#8a6d00;">
+          <input type="number" id="wlBasePriceInput" min="0" placeholder="0 = Offer Price" style="width:100%;padding:11px 13px;border:1.5px solid rgba(255,210,46,.4);border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#8a6d00;background:#fff;">
         </div>
       </div>
 
@@ -673,19 +972,35 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 
     <div data-sect="overview" class="show">
 
+    <!-- data-ico + --si-bg se har card ka colored icon circle banta hai -->
     <div class="stats">
-      <div class="stat"><div class="stat-lbl">Total Shops</div><div class="stat-val" id="totalShops">0</div></div>
-      <div class="stat"><div class="stat-lbl">Active Shops</div><div class="stat-val green" id="activeShops">0</div></div>
-      <div class="stat"><div class="stat-lbl">Demo Shops</div><div class="stat-val blue" id="demoShops">0</div></div>
-      <div class="stat"><div class="stat-lbl">Pending Payment</div><div class="stat-val orange" id="pendingShops">0</div></div>
-      <div class="stat"><div class="stat-lbl">Demo Expired</div><div class="stat-val" id="demoExpired" style="color:#9b9690;">0</div></div>
-      <div class="stat"><div class="stat-lbl">Monthly Shops</div><div class="stat-val" id="monthlyShops" style="color:#7c3aed;">0</div></div>
+      <div class="stat" data-ico="🏪" style="--si-bg:#eef2ff;"><div class="stat-lbl">Total Shops</div><div class="stat-val" id="totalShops">0</div></div>
+      <div class="stat" data-ico="✅" style="--si-bg:#ecfdf5;"><div class="stat-lbl">Active Shops</div><div class="stat-val green" id="activeShops">0</div></div>
+      <div class="stat" data-ico="🎯" style="--si-bg:#eff6ff;"><div class="stat-lbl">Demo Shops</div><div class="stat-val blue" id="demoShops">0</div></div>
+      <div class="stat" data-ico="⏳" style="--si-bg:#fff7ed;"><div class="stat-lbl">Pending Payment</div><div class="stat-val orange" id="pendingShops">0</div></div>
+      <div class="stat" data-ico="❌" style="--si-bg:#fef2f2;"><div class="stat-lbl">Demo Expired</div><div class="stat-val" id="demoExpired" style="color:#9b9690;">0</div></div>
+      <div class="stat" data-ico="📅" style="--si-bg:#faf5ff;"><div class="stat-lbl">Monthly Shops</div><div class="stat-val" id="monthlyShops" style="color:#7c3aed;">0</div></div>
+      <div class="stat" data-ico="🏷️" style="--si-bg:#fffbeb;"><div class="stat-lbl">White Label Shops</div><div class="stat-val" id="wlShopsStat" style="color:#b45309;">0</div></div>
     </div>
 
-      <p style="font-size:11.5px;color:#9b9690;margin:14px 2px 0;line-height:1.6;">
-        Paisa aur traffic ka poora hisaab <b>Analytics</b> me hai. Roz ka kaam
-        <b>Aaj Ka Kaam</b> me. Yahan sirf shops ki ginti.
+    <!-- ══ KAMAI — har source alag ══
+         Pehle sirf setup fee dikhta tha. Advanced unlock aur renewal ka
+         paisa kahin record hi nahi hota tha, isliye kabhi dikhta hi nahi
+         tha. Ab teeno alag-alag dikhte hain. -->
+    <div class="card" style="margin-top:18px;">
+      <h2><span>💰 Kamai (source ke hisaab se)</span>
+        <button onclick="navTo('payments',document.querySelector('[data-nav=payments]'))"
+          style="background:#f3f4f6;color:#4b5563;border:none;border-radius:8px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer;">
+          🧾 Saare payments dekho
+        </button>
+      </h2>
+      <div id="revBoxes" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:11px;"></div>
+      <p style="font-size:11.5px;color:#9b9690;margin:13px 2px 0;line-height:1.6;">
+        <b>Print Volume</b> shop owner ka customer se aaya paisa hai — wo hamari kamai
+        <b>nahi</b> hai, isliye upar wale total me nahi juda.
+        White-label shops ka setup fee bhi partner ka hai, hamara nahi.
       </p>
+    </div>
 
     </div><!-- /overview -->
 
@@ -1094,25 +1409,108 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         </div>
         <div id="monthlySummary" style="display:none;background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:12px;padding:12px 14px;margin-top:10px;"></div>
       </h2>
+      <!-- ══ SEARCH + SORT ══ -->
+      <div style="display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-bottom:13px;">
+        <div style="position:relative;flex:1;min-width:210px;">
+          <input id="shopSearch" type="search" placeholder="Shop ka naam, ID, number ya address…"
+                 oninput="shopPage=1;renderShops()" autocomplete="off"
+                 style="width:100%;padding:10px 13px 10px 34px;border:1px solid #e9eaf0;border-radius:11px;font-size:13px;background:#f8f9fc;">
+          <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:12.5px;opacity:.5;">🔍</span>
+        </div>
+        <select id="shopSort" onchange="shopPage=1;renderShops()"
+          style="height:40px;border-radius:11px;border:1px solid #e9eaf0;background:#fff;padding:0 11px;font-size:12.5px;font-weight:700;color:#3f4150;cursor:pointer;">
+          <option value="new">🕒 Newest First</option>
+          <option value="old">🕐 Oldest First</option>
+          <option value="earn">💰 Earnings (zyada pehle)</option>
+          <option value="name">🔤 Naam (A–Z)</option>
+        </select>
+      </div>
+
+      <!-- ══ EK CLICK ME SAFAI ══ -->
+      <div style="display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px;">
+        <button onclick="bulkDeletePending(this)"
+          style="background:#fff1f2;color:#be123c;border:1px solid #fecdd3;border-radius:10px;padding:9px 14px;font-size:12.5px;font-weight:800;cursor:pointer;">
+          🗑️ Saare Pending Payment delete karo
+        </button>
+        <button onclick="bulkDeleteExpiredDemos(this)"
+          style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;border-radius:10px;padding:9px 14px;font-size:12.5px;font-weight:800;cursor:pointer;">
+          🧹 Saare Expired Demo delete karo
+        </button>
+      </div>
       <div style="overflow-x:auto;">
         <table class="shop-table">
           <thead>
             <tr>
-              <th>Shop Name / ID</th>
+              <th>Shop Details</th>
               <th>Contact</th>
               <th>Printer / Agent</th>
-              <th>Setup Status</th>
-              <th>Print Earnings</th>
+              <th>Status</th>
+              <th>Earnings</th>
               <th>Registered</th>
-              <th>Action</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody id="shopsList"></tbody>
         </table>
       </div>
+      <div class="qsp-pager" id="shopsPager"></div>
     </div>
 
     </div><!-- /shops -->
+
+    <!-- ══ WHITE LABEL SHOPS — alag tab ══
+         Ye shops reseller ki hain. Inka setup fee seedha reseller ke
+         Razorpay me jaata hai, hamare paas nahi. Isliye ye Active/Pending
+         count me aur hamare revenue total me NAHI ginti. -->
+    <div data-sect="wlshops">
+      <div class="card">
+        <h2><span>🏷️ White Label ki Shops</span></h2>
+        <p style="font-size:12px;color:#6b6870;margin-bottom:12px;">
+          Ye shops partner (reseller) ne onboard ki hain. Inka paisa <b>partner ke account</b>
+          me jaata hai — isliye ye aapke Active Shops aur Total Earnings me nahi ginti.
+        </p>
+        <div id="wlShopsSummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;"></div>
+        <div style="overflow-x:auto;">
+          <table class="shop-table">
+            <thead><tr>
+              <th>Shop Name / ID</th><th>Partner (Brand)</th><th>Contact</th>
+              <th>Status</th><th>Registered</th>
+            </tr></thead>
+            <tbody id="wlShopsList"><tr><td colspan="5" style="text-align:center;padding:22px;color:#6b6870;">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /wlshops -->
+
+    <!-- ══ PAYMENTS — har paisa jo hamare account me aaya ══ -->
+    <div data-sect="payments">
+      <div class="card">
+        <h2><span>🧾 Saare Payments</span>
+          <div class="filter-tabs">
+            <div class="filter-tab active" id="payfAll"      onclick="setPayFilter('')">All</div>
+            <div class="filter-tab"        id="payfsetup"    onclick="setPayFilter('setup')">Setup Fee</div>
+            <div class="filter-tab"        id="payfadvanced" onclick="setPayFilter('advanced')">⚡ Advanced</div>
+            <div class="filter-tab"        id="payfrenewal"  onclick="setPayFilter('renewal')">🔄 Renewal</div>
+            <div class="filter-tab"        id="payfwl_license" onclick="setPayFilter('wl_license')">🏷️ WL License</div>
+          </div>
+        </h2>
+        <div style="display:flex;gap:9px;margin-bottom:12px;flex-wrap:wrap;">
+          <input id="paySearch" placeholder="Shop ID, naam ya payment ID se dhoondo…"
+                 oninput="loadPayments()"
+                 style="flex:1;min-width:220px;padding:10px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:13px;">
+        </div>
+        <div id="paySummary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;"></div>
+        <div style="overflow-x:auto;">
+          <table class="shop-table">
+            <thead><tr>
+              <th>Kis cheez ka</th><th>Shop</th><th>Amount</th>
+              <th>Payment ID</th><th>Kab</th>
+            </tr></thead>
+            <tbody id="payList"><tr><td colspan="5" style="text-align:center;padding:22px;color:#6b6870;">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /payments -->
 
     <div data-sect="broadcast"></div>
     <div data-sect="qrtools"></div>
@@ -1127,6 +1525,11 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 let authToken = localStorage.getItem('qrprint_superadmin_token');
 let allShops = [];
 let currentFilter = 'all';
+// ── Shops table: search / sort / pagination ka state ──
+let shopPage = 1;
+let shopPerPage = 10;
+// Earnings async aati hai; sort-by-earnings ke liye yahan cache kar lete hain
+const _shopEarnCache = {};
 
 if (authToken) loadPanel();
 
@@ -2837,6 +3240,25 @@ async function loadPanel() {
     setStat('pendingShops', overview.pending_shops);
     setStat('demoExpired',  overview.demo_expired);
     setStat('monthlyShops', overview.monthly_shops);
+    setStat('wlShopsStat',  overview.whitelabel_shops || 0);
+
+    // Kamai ke boxes — setup + advanced + renewal + license = hamara total
+    const rb = document.getElementById('revBoxes');
+    if (rb) {
+      const setup   = overview.total_setup_revenue || 0;
+      const adv     = overview.advanced_revenue    || 0;
+      const ren     = overview.renewal_revenue     || 0;
+      const lic     = overview.license_revenue     || 0;
+      const ourTot  = setup + adv + ren + lic;
+      const money = n => '₹' + (n||0).toLocaleString('en-IN');
+      rb.innerHTML =
+        tile('💰', money(setup), 'Setup Fee',                        '#ecfdf5', '#047857') +
+        tile('⚡', money(adv),   'Advanced Unlock ('+(overview.advanced_count||0)+')', '#faf5ff', '#7c3aed') +
+        tile('🔄', money(ren),   'Renewal ('+(overview.renewal_count||0)+')',          '#eff6ff', '#1d4ed8') +
+        tile('🏷️', money(lic),   'WL License ('+(overview.license_count||0)+')',       '#fffbeb', '#b45309') +
+        tile('🧮', money(ourTot),'HAMARA TOTAL',                     '#f0fdf4', '#15803d') +
+        tile('🖨️', money(overview.total_print_volume), 'Print Volume (shops ka)', '#f3f4f6', '#6b7280');
+    }
 
     if (feeRes.ok) {
       const feeData = await feeRes.json();
@@ -3115,17 +3537,26 @@ async function updateSetupFee() {
 }
 
 // Sidebar se seedha filtered shops view (alag 'card' feel)
+const SHOP_CRUMB = { all:'Shops', active:'Active Shops', pending:'Pending Payment',
+                     lifetime:'Lifetime Shops', monthly:'Monthly Shops', expired:'Expired Shops' };
+
 function navShops(f, el) {
   // shops section dikhaao, sidebar active state el par
   document.querySelectorAll('[data-sect]').forEach(d => d.classList.remove('show'));
   document.querySelector('[data-sect="shops"]').classList.add('show');
   document.querySelectorAll('.nav-it').forEach(n => n.classList.remove('active'));
   if (el) el.classList.add('active');
+  const name = SHOP_CRUMB[f] || 'Shops';
+  const t = document.getElementById('pageTitle'); if (t) t.textContent = name;
+  const c = document.getElementById('pageCrumb');
+  if (c) c.innerHTML = 'Home <i>›</i> <span>' + name + '</span>';
   setFilter(f);
+  closeSide(); window.scrollTo(0,0);
 }
 
 function setFilter(f) {
   currentFilter = f;
+  shopPage = 1;                     // filter badla to page 1 se shuru
   ['All','Active','Pending','Monthly','Expired'].forEach(x =>
     document.getElementById('filter'+x)?.classList.toggle('active', f === x.toLowerCase()));
   renderShops();
@@ -3143,10 +3574,14 @@ async function renderShops() {
   const _isMonthly = s => (s.plan_type === 'monthly');
   const _isExpired = s => _isMonthly(s) && s.setup_paid && (!s.paid_until || new Date(s.paid_until).getTime() <= _now);
 
-  // Demo shops yahan NAHI — unka apna 'Demo Accounts' section hai.
-  // Agent ne jo shops onboard ki hain wo bhi yahan NAHI — wo 'Agents'
-  // section me apne agent ke neeche dikhti hain (double listing se bachne ke liye).
-  const realShops = allShops.filter(s => !s.demo && !s.onboarded_by);
+  // ── YAHI WO BUG THA ──
+  // Pehle `!s.onboarded_by` bhi filter me tha, yaani AGENT ki onboard ki
+  // hui har shop is list se gayab thi. Isi wajah se agent wali shop ka
+  // payment (jaise SHOP_B39F44B8 / ₹799) superadmin me kabhi dikhta hi
+  // nahi tha, aur Overview "Pending 5" dikhata tha jabki list khali thi.
+  // Ab agent wali shops yahan DIKHTI hain (agent ka naam column me aata
+  // hai), aur sirf WHITE-LABEL ki shops alag tab me jaati hain.
+  const realShops = allShops.filter(s => !s.demo && !s.whitelabel_id);
   let filtered = realShops;
   if (currentFilter === 'active') filtered = realShops.filter(s => s.setup_paid);
   if (currentFilter === 'pending') filtered = realShops.filter(s => !s.setup_paid);
@@ -3154,11 +3589,38 @@ async function renderShops() {
   if (currentFilter === 'monthly') filtered = realShops.filter(_isMonthly);
   if (currentFilter === 'expired') filtered = realShops.filter(_isExpired);
 
+  // ── SEARCH ── naam / ID / phone / address, kahin bhi match ho jaye
+  const _q = ((document.getElementById('shopSearch')||{}).value || '').trim().toLowerCase();
+  if (_q) {
+    filtered = filtered.filter(s =>
+      [s.name, s.id, s.phone, s.address, s.printer_model, s.onboarded_by_name]
+        .some(v => String(v || '').toLowerCase().includes(_q)));
+  }
+
+  // ── SORT ──
+  const _sort = ((document.getElementById('shopSort')||{}).value) || 'new';
+  const _earn = s => (_shopEarnCache[s.id] || 0);
+  filtered = filtered.slice().sort((a, b) => {
+    if (_sort === 'old')  return new Date(a.created_at) - new Date(b.created_at);
+    if (_sort === 'name') return String(a.name||'').localeCompare(String(b.name||''));
+    if (_sort === 'earn') return _earn(b) - _earn(a);
+    return new Date(b.created_at) - new Date(a.created_at);   // new
+  });
+
+  // ── PAGINATION ── 156 shops ek saath render karne se page bhaari hota hai
+  const _total = filtered.length;
+  const _pages = Math.max(1, Math.ceil(_total / shopPerPage));
+  if (shopPage > _pages) shopPage = _pages;
+  const _from = (shopPage - 1) * shopPerPage;
+  const _pageRows = filtered.slice(_from, _from + shopPerPage);
+  renderShopsPager(_total, _pages, _from, _pageRows.length);
+  filtered = _pageRows;
+
   // Monthly summary (MRR estimate) — sirf monthly filter par
   const summaryEl = document.getElementById('monthlySummary');
   if (summaryEl) {
     if (currentFilter === 'monthly' || currentFilter === 'expired') {
-      const monthlies = allShops.filter(s => !s.demo).filter(_isMonthly);
+      const monthlies = allShops.filter(s => !s.demo && !s.whitelabel_id).filter(_isMonthly);
       const activeM = monthlies.filter(s => s.setup_paid && s.paid_until && new Date(s.paid_until).getTime() > _now);
       const expiredM = monthlies.filter(_isExpired);
       const soon = activeM.filter(s => (new Date(s.paid_until).getTime() - _now) < 5*86400000);
@@ -3188,7 +3650,7 @@ async function renderShops() {
         📍 ${sanitize(shop.address || '-')}<br>
         📞 ${sanitize(shop.phone || '-')}
       </td>
-      <td style="font-size:12px;">${sanitize(shop.printer_model || '-')}<br>${agentVerBadge(shop.agent_version, shop.agent_last_seen)}</td>
+      <td style="font-size:12px;">${sanitize(shop.printer_model || '-')}<br>${agentVerBadge(shop.agent_version, shop.agent_last_seen)}${shop.onboarded_by ? `<div style="margin-top:5px;display:inline-block;background:#eef2ff;color:#4338ca;border:1px solid #c7d2fe;border-radius:7px;padding:2px 7px;font-size:10px;font-weight:800;" title="Agent ne onboard ki hai">🤝 ${sanitize(shop.onboarded_by_name || shop.onboarded_by)}</div>` : ''}</td>
       <td><span class="status-pill ${shop.setup_paid ? 'active' : 'pending'}">${shop.setup_paid ? '✅ Active' : '⏳ Pending'}</span>${shop.setup_paid ? `<div style="font-size:11px;color:#00875a;font-weight:700;margin-top:4px">Paid ₹${shop.setup_amount || 0}</div>` : ''}</td>
       <td class="earnings-cell" id="earn-${shop.id}">Loading...</td>
       <td style="font-size:11px;color:#6b6870;">${createdDate}<br><span style="font-family:monospace;color:#9a9aa0;">${createdTime}</span></td>
@@ -3196,18 +3658,67 @@ async function renderShops() {
     `;
     tbody.appendChild(tr);
 
-    // Earnings async load karo
+    // Earnings async load karo (aur sort ke liye cache bhi kar lo)
     fetch(`/api/superadmin/shop/${shop.id}/earnings`, { headers: { 'Authorization': 'Bearer ' + authToken } })
       .then(r => r.json())
       .then(data => {
+        _shopEarnCache[shop.id] = parseInt(data.total_earnings) || 0;
         const cell = document.getElementById(`earn-${shop.id}`);
-        if (cell) cell.textContent = `₹${data.total_earnings} (${data.total_orders} orders)`;
+        if (cell) cell.innerHTML = `₹${data.total_earnings}<div style="font-size:11px;color:#8b8e9e;font-weight:600;margin-top:3px;">${data.total_orders} orders</div>`;
       })
       .catch(() => {});
   }
 
   if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b6870;padding:24px;">Koi shop nahi mila</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#8b8e9e;padding:34px;font-size:13px;">Koi shop nahi mila</td></tr>';
+  }
+}
+
+/* ── Pagination bar ── */
+function renderShopsPager(total, pages, from, shown) {
+  const box = document.getElementById('shopsPager');
+  if (!box) return;
+  if (!total) { box.innerHTML = ''; return; }
+
+  // Page buttons: hamesha pehla/aakhri + current ke aas-paas ke
+  const nums = [];
+  for (let i = 1; i <= pages; i++) {
+    if (i === 1 || i === pages || Math.abs(i - shopPage) <= 1) nums.push(i);
+    else if (nums[nums.length - 1] !== '…') nums.push('…');
+  }
+
+  box.innerHTML =
+    `<div class="info">Showing ${from + 1} to ${from + shown} of ${total} shops</div>
+     <div class="pages">
+       <button onclick="goShopPage(1)" ${shopPage === 1 ? 'disabled' : ''} title="Pehla page">«</button>
+       <button onclick="goShopPage(${shopPage - 1})" ${shopPage === 1 ? 'disabled' : ''}>‹</button>
+       ${nums.map(n => n === '…'
+          ? `<button disabled style="border:none;background:none;">…</button>`
+          : `<button class="${n === shopPage ? 'on' : ''}" onclick="goShopPage(${n})">${n}</button>`).join('')}
+       <button onclick="goShopPage(${shopPage + 1})" ${shopPage === pages ? 'disabled' : ''}>›</button>
+       <button onclick="goShopPage(${pages})" ${shopPage === pages ? 'disabled' : ''} title="Aakhri page">»</button>
+       <select onchange="shopPerPage=parseInt(this.value);shopPage=1;renderShops()">
+         ${[10, 25, 50, 100].map(n => `<option value="${n}" ${n === shopPerPage ? 'selected' : ''}>${n} / page</option>`).join('')}
+       </select>
+     </div>`;
+}
+function goShopPage(p) {
+  shopPage = Math.max(1, p);
+  renderShops();
+  const c = document.querySelector('.app-content');
+  if (c) window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+/* ── Topbar ka global search — kisi bhi tab se seedha Shops par le jaata hai ── */
+function globalSearchGo(v) {
+  const s = document.getElementById('shopSearch');
+  if (s) s.value = v;
+  shopPage = 1;
+  const shopsVisible = document.querySelector('[data-sect="shops"]').classList.contains('show');
+  if (!shopsVisible && String(v).trim()) {
+    navShops('all', document.querySelector('[data-nav="shops"]'));
+  } else {
+    renderShops();
   }
 }
 
@@ -3315,7 +3826,7 @@ async function uploadHpLogo() {
     else alert('❌ '+(d.error||'Fail'));
   } catch(e) { alert('❌ '+e.message); }
 }
-const HP_TEXTS = [{"g": "🔝 Top Bar (Refer & Earn)", "k": [{"k": "referText", "d": "🎁 <b>Refer &amp; Earn</b> — har referral par ₹50", "h": 1}]}, {"g": "🧭 Header Menu", "k": [{"k": "navHome", "d": "Home", "h": 0}, {"k": "navPricing", "d": "Pricing", "h": 0}, {"k": "navGuide", "d": "How to Setup", "h": 0}, {"k": "navFeatures", "d": "Features", "h": 0}, {"k": "navAbout", "d": "About", "h": 0}, {"k": "navContact", "d": "Contact Us", "h": 0}, {"k": "navPartner", "d": "Partner Program", "h": 0}, {"k": "navDisclaimer", "d": "Disclaimer", "h": 0}, {"k": "nav01", "d": "🔑 <span data-cfg=\"navLogin\">Shop Owner Login</span>", "h": 1}, {"k": "navLogin", "d": "Shop Owner Login", "h": 0}]}, {"g": "📱 Mobile Menu", "k": [{"k": "navHomeM", "d": "🏠 Home", "h": 0}, {"k": "navPricingM", "d": "💰 Pricing", "h": 0}, {"k": "navGuideM", "d": "How to Setup", "h": 0}, {"k": "navFeaturesM", "d": "✨ Features", "h": 0}, {"k": "navAboutM", "d": "ℹ️ About", "h": 0}, {"k": "navContactM", "d": "💬 Contact Us", "h": 0}, {"k": "navPartnerM", "d": "Partner Program", "h": 0}, {"k": "navDisclaimerM", "d": "📄 Disclaimer", "h": 0}]}, {"g": "🎯 Hero (sabse upar)", "k": [{"k": "heroTop", "d": "Customer ke phone se", "h": 0}, {"k": "heroTitle", "d": "Print", "h": 0}, {"k": "heroSub", "d": "seedha aapke printer par — <span class=\"mark\">in 1 Scan</span>", "h": 1}, {"k": "heroPara", "d": "Customer apne phone se <b>QR scan</b> karta hai, file bhejta hai, <b>payment karta hai</b> — aur print aapke printer se <b>khud nikal jata hai</b>.<br/> <b style=\"color:#ff2e63;\">Na WhatsApp pe file mangna, na pendrive, na hisaab ki tension.</b>", "h": 1}, {"k": "hero01", "d": "<b data-cfg=\"step1Ico\">📱</b><span data-cfg=\"step1\">QR Scan</span>", "h": 1}, {"k": "step1Ico", "d": "📱", "h": 0}, {"k": "step1", "d": "QR Scan", "h": 0}, {"k": "hero02", "d": "›", "h": 0}, {"k": "hero03", "d": "<b data-cfg=\"step2Ico\">📄</b><span data-cfg=\"step2\">File Upload</span>", "h": 1}, {"k": "step2Ico", "d": "📄", "h": 0}, {"k": "step2", "d": "File Upload", "h": 0}, {"k": "hero04", "d": "›", "h": 0}, {"k": "hero05", "d": "<b data-cfg=\"step3Ico\">💳</b><span data-cfg=\"step3\">Pay</span>", "h": 1}, {"k": "step3Ico", "d": "💳", "h": 0}, {"k": "step3", "d": "Pay", "h": 0}, {"k": "hero06", "d": "›", "h": 0}, {"k": "hero07", "d": "<b data-cfg=\"step4Ico\">🖨️</b><span data-cfg=\"step4\">Auto Print</span>", "h": 1}, {"k": "step4Ico", "d": "🖨️", "h": 0}, {"k": "step4", "d": "Auto Print", "h": 0}, {"k": "hero08", "d": "<span data-cfg=\"ctaPriceBtn\">💰 See Setup Price</span> <span class=\"arr\">↓</span>", "h": 1}, {"k": "ctaPriceBtn", "d": "💰 See Setup Price", "h": 0}, {"k": "pill1", "d": "✅ 0% Commission", "h": 0}, {"k": "pill2", "d": "⚡ Automatic Print", "h": 0}, {"k": "pill3", "d": "💳 Online + Counter Pay", "h": 0}, {"k": "pill4", "d": "🖥️ System Tray Agent", "h": 0}, {"k": "pill5", "d": "🔄 Auto Update", "h": 0}, {"k": "hero09", "d": "⚡ Auto Print", "h": 0}, {"k": "hero10", "d": "<span class=\"ph-dot\"></span><b>QR Se Print</b>", "h": 1}, {"k": "hero11", "d": "<span class=\"st1\">Scanning…</span> <span class=\"st2\">File Sent ✓</span>", "h": 1}, {"k": "hero12", "d": "📄 Notes.pdf", "h": 0}, {"k": "hero13", "d": "🖼️ Photo.jpg", "h": 0}, {"k": "hero14", "d": "💳 Paid ✓", "h": 0}, {"k": "hero15", "d": "<span class=\"pr-led\"></span><small>PRINTING</small>", "h": 1}, {"k": "hero16", "d": "<i>🖨️</i> QR Se Print", "h": 1}]}, {"g": "📊 Stats Banner (Hero ke niche colorful strip)", "k": [{"k": "hstNum1", "d": "1000+", "h": 0}, {"k": "hstLbl1", "d": "Shops Onboarded", "h": 0}, {"k": "hstNum2", "d": "500K+", "h": 0}, {"k": "hstLbl2", "d": "Documents Printed", "h": 0}, {"k": "hstNum3", "d": "98%+", "h": 0}, {"k": "hstLbl3", "d": "Happy Customers", "h": 0}, {"k": "hstMadeIco", "d": "🇮🇳", "h": 0}, {"k": "hstMadeLabel", "d": "Made in", "h": 0}, {"k": "hstMadeLoc", "d": "Jharkhand, India", "h": 0}]}, {"g": "🔧 Baaki", "k": [{"k": "oth01", "d": "<span class=\"rs-left\" data-cfg-html=\"referText\">🎁 <b>Refer &amp; Earn</b> — har referral par ₹50</span> <span class=\"rs-arrow\">›</span>", "h": 1}, {"k": "statShopsLabel", "d": "Shops chala rahi hain", "h": 0}, {"k": "statPrintsLabel", "d": "Prints nikal chuke", "h": 0}, {"k": "statMadeIco", "d": "🇮🇳", "h": 0}, {"k": "statMadeLabel", "d": "Jharkhand me bana", "h": 0}, {"k": "oth02", "d": "₹<span id=\"offerPrice\">499</span><small>/setup</small>", "h": 1}, {"k": "oth03", "d": "🚀 <span data-cfg=\"ctaMain\">Abhi Start Karein</span> <span class=\"arrow\">›</span>", "h": 1}, {"k": "ctaMain", "d": "Abhi Start Karein", "h": 0}, {"k": "oth04", "d": "🔑 <span data-cfg=\"ctaSub\">Shop Login</span>", "h": 1}, {"k": "ctaSub", "d": "Shop Login", "h": 0}]}, {"g": "📌 😤 Abhi Aapki Dukaan Me Kya Hota Hai?", "k": [{"k": "painHeading", "d": "😤 Abhi Aapki Dukaan Me Kya Hota Hai?", "h": 0}, {"k": "painx01", "d": "Har cyber cafe / print shop wale ka roz ka dard", "h": 0}, {"k": "painx02", "d": "<span class=\"wa-bub b1\"><i></i><i></i><i></i></span> <span class=\"wa-bub b2\">📄</span> <span class=\"wa-bub b3\">📄</span> <span class=\"wa-badge\">3</span>", "h": 1}, {"k": "pain1Title", "d": "WhatsApp pe file mangna", "h": 0}, {"k": "pain1Text", "d": "Apna personal number har customer ko dena padta hai. Chat me files kho jaati hain, \"bhaiya wo wali file\" dhundhte raho.", "h": 1}, {"k": "painx03", "d": "🦠", "h": 0}, {"k": "painx04", "d": "⚠️", "h": 0}, {"k": "pain2Title", "d": "Pendrive ka virus", "h": 0}, {"k": "pain2Text", "d": "Customer ka pendrive lagao = virus ka khatra. PC slow, files corrupt, kabhi-kabhi poora system hi baith jata hai.", "h": 1}, {"k": "painx05", "d": "<span class=\"cash-rs\">₹</span><span class=\"cash-qm\">?</span>", "h": 1}, {"k": "pain3Title", "d": "Hisaab ki tension", "h": 0}, {"k": "pain3Text", "d": "Kaun paid kar gaya, kaun baaki hai — copy pe likho, bhool jao, jhagda karo. Mahine ke end me hisaab milta hi nahi.", "h": 1}, {"k": "painx06", "d": "⏰", "h": 0}, {"k": "pain4Title", "d": "Bheed me ek-ek ka wait", "h": 0}, {"k": "pain4Text", "d": "Aap ek customer ka print nikal rahe ho, baaki 5 khade hain. File lo, kholo, print karo — poora din isi me jata hai.", "h": 1}]}, {"g": "📌 ✨ QR Se Print Lagane Ke Baad", "k": [{"k": "solutionHeading", "d": "✨ QR Se Print Lagane Ke Baad", "h": 0}, {"k": "solx01", "d": "Aapka kaam: QR chipkao. Bas.", "h": 0}, {"k": "solx02", "d": "✨", "h": 0}, {"k": "solx03", "d": "1️⃣", "h": 0}, {"k": "sol1", "d": "Shop me QR<br/>chipkao", "h": 1}, {"k": "solx04", "d": "<span class=\"sf s1\"><svg><use href=\"#qrGlyph\"></use></svg></span> <span class=\"sf s2\">📤</span> <span class=\"sf s3\">💳</span> <span class=\"sf-dots\"><i></i><i></i><i></i></span>", "h": 1}, {"k": "solx05", "d": "2️⃣", "h": 0}, {"k": "sol2", "d": "Customer scan,<br/>upload, pay", "h": 1}, {"k": "solx06", "d": "3️⃣", "h": 0}, {"k": "sol3", "d": "Print KHUD<br/>nikal jata hai", "h": 1}, {"k": "solNote", "d": "Aap counter pe baithe raho — file lena, kholna, print dabana — kuch nahi. Payment ka record khud banta hai.", "h": 0}]}, {"g": "📌 🎁 Sirf Print Nahi — Poori Dukaan Ka …", "k": [{"k": "benefitsHeading", "d": "🎁 Sirf Print Nahi — Poori Dukaan Ka System", "h": 0}, {"k": "benx01", "d": "Jo-jo milta hai, sab ek jagah", "h": 0}, {"k": "benx02", "d": "📄", "h": 0}, {"k": "ben1Title", "d": "Multi-file Print", "h": 0}, {"k": "ben1Text", "d": "Customer ek saath 5-10 files bheje (PDF + photo mix) — ek payment, sahi order me print.", "h": 1}, {"k": "benx03", "d": "✂️", "h": 0}, {"k": "ben2Title", "d": "Phone Se Hi Editing", "h": 0}, {"k": "ben2Text", "d": "Customer khud crop, rotate, brightness theek karta hai — aapse \"thoda seedha kar do\" nahi bolega.", "h": 1}, {"k": "benx04", "d": "📷", "h": 0}, {"k": "ben3Title", "d": "4×6 Passport Photos", "h": 0}, {"k": "ben3Text", "d": "Photo bhejo, 4 ya 6 ki sheet khud ban ke photo printer se nikle — cutting lines ke saath.", "h": 1}, {"k": "benx05", "d": "📝", "h": 0}, {"k": "ben4Title", "d": "Resume Maker", "h": 0}, {"k": "ben4Text", "d": "Customer QR se 6 designs me resume banaye aur print kare — aapki extra kamai, zero mehnat.", "h": 1}, {"k": "benx06", "d": "📐", "h": 0}, {"k": "ben5Title", "d": "A3 / A2 / A1 + Duplex", "h": 0}, {"k": "ben5Text", "d": "Bade naksha-banner prints aur dono-side printing — har size ka apna printer, apna rate.", "h": 1}, {"k": "benx07", "d": "💳", "h": 0}, {"k": "ben6Title", "d": "Paisa Seedha Aapke Account", "h": 0}, {"k": "ben6Text", "d": "Online payment (Razorpay/Cashfree) SEEDHA aapko. Hum beech me nahi — <b>0% commission, unlimited prints.</b>", "h": 1}, {"k": "benx08", "d": "🔒", "h": 0}, {"k": "ben7Title", "d": "Customer Ka Bharosa", "h": 0}, {"k": "ben7Text", "d": "File print ke 90 minute baad KHUD delete. Na aapke paas rahegi, na kisi aur ke — privacy pakki.", "h": 1}, {"k": "benx09", "d": "📶", "h": 0}, {"k": "ben8Title", "d": "Net Jaye To Bhi Safe", "h": 0}, {"k": "ben8Text", "d": "Internet band? Jobs queue me. Wapas aate hi sab print. Auto-update bhi khud hota hai.", "h": 1}, {"k": "ftc1", "d": "📄 Multi-file Print", "h": 0}, {"k": "ftc2", "d": "✂️ Phone Se Editing", "h": 0}, {"k": "ftc3", "d": "📷 Passport Photos", "h": 0}, {"k": "ftc4", "d": "📝 Resume Maker", "h": 0}, {"k": "ftc5", "d": "📐 A3 / A2 / A1 + Duplex", "h": 0}, {"k": "ftc6", "d": "💳 Paisa Seedha Aapke Account", "h": 0}, {"k": "ftc7", "d": "🔒 Auto File Delete", "h": 0}, {"k": "ftc8", "d": "📶 Net Jaye To Bhi Safe", "h": 0}, {"k": "ftMore", "d": "Saare features detail me dekho →", "h": 0}]}, {"g": "📌 ⚖️ Pehle vs Ab", "k": [{"k": "compareHeading", "d": "⚖️ Pehle vs Ab", "h": 0}, {"k": "cmp01", "d": "📱 WhatsApp Tareeka", "h": 0}, {"k": "cmp02", "d": "⚡ QR Se Print", "h": 0}, {"k": "cmp03", "d": "<b>File lena</b>", "h": 1}, {"k": "cmp04", "d": "Apna number do, chat dhundo", "h": 0}, {"k": "cmp05", "d": "QR scan — number private", "h": 0}, {"k": "cmp06", "d": "<b>Payment</b>", "h": 1}, {"k": "cmp07", "d": "Yaad rakho kaun baaki hai", "h": 0}, {"k": "cmp08", "d": "Record khud banta hai", "h": 0}, {"k": "cmp09", "d": "<b>Aapka time</b>", "h": 1}, {"k": "cmp10", "d": "Har print me haath lagao", "h": 0}, {"k": "cmp11", "d": "Print khud nikalta hai", "h": 0}, {"k": "cmp12", "d": "<b>Virus risk</b>", "h": 1}, {"k": "cmp13", "d": "Pendrive = khatra", "h": 0}, {"k": "cmp14", "d": "Zero — sab phone se", "h": 0}, {"k": "cmp15", "d": "<b>Photo/Resume</b>", "h": 1}, {"k": "cmp16", "d": "Alag software, alag jhanjhat", "h": 0}, {"k": "cmp17", "d": "Sab isi me built-in", "h": 0}, {"k": "cmp18", "d": "<b>Commission</b>", "h": 1}, {"k": "cmp19", "d": "—", "h": 0}, {"k": "cmp20", "d": "0% — paisa poora aapka", "h": 0}]}, {"g": "📌 🧮 Hisaab Lagao — Kitne Din Me Wasool…", "k": [{"k": "roi01", "d": "🧮 Hisaab Lagao — Kitne Din Me Wasool?", "h": 0}, {"k": "roi02", "d": "<span>Din ke sirf 15 print (kam se kam)</span><span>15 × ₹5 = ₹75/din</span>", "h": 1}, {"k": "roi03", "d": "<span>Mahine ki print kamai</span><span>~₹2,250</span>", "h": 1}, {"k": "roi04", "d": "<span>Software ka kharcha (One-Time)</span><span>₹999 — EK baar</span>", "h": 1}, {"k": "roi05", "d": "<span>Wasool</span><span>2 hafte se pehle ✅</span>", "h": 1}, {"k": "roi06", "d": "* Misaal ke taur par — aapke rates aur prints aapki dukaan par depend karte hain. Upar se time ki bachat aur photo/resume ki extra kamai alag.", "h": 0}, {"k": "roi07", "d": "🙋 Banane Wala Bhi Aap Jaisa Hi Hai", "h": 0}, {"k": "roi08", "d": "Main <b>Rupesh Kumar Mahato</b> — Jharkhand me apna cyber cafe chalata hoon. Ye software maine pehle <b>apni dukaan ke liye</b> banaya tha, kyunki WhatsApp-pendrive wala jhanjhat mujhse bhi nahi jhela ja raha tha.<br/><br/> Jab meri dukaan pe chal gaya, tab doosre shop walon ke liye khola. Isliye isme wahi cheezein hain jo <b>asli dukaan me kaam aati hain</b> — aur koi dikkat aaye to WhatsApp pe main khud jawab deta hoon.", "h": 1}]}, {"g": "📌 💰 Apna Plan Chuno", "k": [{"k": "plan01", "d": "💰 Apna Plan Chuno", "h": 0}, {"k": "plan02", "d": "🎯 Demo", "h": 0}, {"k": "plan03", "d": "₹0", "h": 0}, {"k": "plan04", "d": "Try karke dekho — bina paisa diye", "h": 0}, {"k": "plan05", "d": "Try Now — Free Demo", "h": 0}, {"k": "plan06", "d": "📅 Monthly", "h": 0}, {"k": "plan07", "d": "₹<span id=\"hpMonthly\">399</span> <small>/month</small>", "h": 1}, {"k": "plan08", "d": "Per month renewal — time par pay karo, service chalti rahe", "h": 0}, {"k": "plan09", "d": "Setup Now", "h": 0}, {"k": "plan10", "d": "💎 One-Time", "h": 0}, {"k": "plan11", "d": "<span class=\"cut3\" id=\"hpCut\">₹1999</span>₹<span id=\"hpOnetime\">999</span>", "h": 1}, {"k": "plan12", "d": "Lifetime Access & Update — No renewal", "h": 0}, {"k": "plan13", "d": "Setup Now", "h": 0}, {"k": "plan14", "d": "🚀 Setup Now", "h": 0}, {"k": "plan15", "d": "🎯 Try Now — Demo", "h": 0}]}, {"g": "❓ FAQ Section", "k": [{"k": "faqHeading", "d": "❓ Aksar Puchhe Jaane Wale Sawal", "h": 0}]}, {"g": "🎥 Setup Guide Video (Homepage Par)", "k": [{"k": "guideVideoTitle", "d": "2 Minute Mein Poora Setup Dekh Lo", "h": 0}, {"k": "guideVideoSub", "d": "Browser autoplay policy ki wajah se video muted shuru hoti hai — awaaz on karne ke liye button dabao", "h": 0}, {"k": "guideVideoCaption", "d": "Setup me koi dikkat aaye to Contact Us se seedha humse baat karo", "h": 0}]}, {"g": "🧭 Setup Guide Page (\"How to Setup\" Button)", "k": [{"k": "gd01", "d": "🧭 Setup Guide", "h": 0}, {"k": "gd02", "d": "QR Se Print Kaise Setup Karein", "h": 0}, {"k": "gd03", "d": "⏱️ 5 minute me shuru ho jayega", "h": 0}, {"k": "gd04", "d": "🙋 Koi bhi follow kar sakta hai — technical knowledge zaroori nahi", "h": 0}, {"k": "gd05", "d": "Ye guide aapko <strong>step-by-step</strong> dikhayega ki payment complete karne ke baad Shop ID milne se lekar\n      pehla test print nikalne tak kya-kya karna hai. Har step ko order me follow karo — kahin atko to sabse neeche\n      Support section me contact ka tarika bhi diya hai.", "h": 1}, {"k": "gd06", "d": "<b>Ek line me</b>Login karo → Download tab se QR + Software lo → PC me install karo → Settings me printer select karo → QR scan karke test print nikalo. Bas itna hi hai.", "h": 1}, {"k": "gd07", "d": "Step 1–8", "h": 0}, {"k": "gd08", "d": "🖨️ Print Software Setup Karo", "h": 0}, {"k": "gd09", "d": "Ye 8 steps sabke liye zaroori hain — chahe aap counter par cash lete ho ya online payment.", "h": 0}, {"k": "gd10", "d": "Payment Complete Karo", "h": 0}, {"k": "gd11", "d": "Registration ke baad payment poora hote hi aapko turant ek <b>Shop ID</b> mil jaata hai — yahi aapki dukaan ki pehchan hai, isko sambhal ke rakho.", "h": 1}, {"k": "gd12", "d": "Shop Login Karo", "h": 0}, {"k": "gd13", "d": "Apni Shop ID aur password se <b>Shop Owner Login</b> karo. Login hote hi aap seedha apne Shop Dashboard me pahunch jaoge.", "h": 1}, {"k": "gd14", "d": "Download Tab Kholo", "h": 0}, {"k": "gd15", "d": "Dashboard me Download tab me jaao. Yahan se teen kaam karne hain:", "h": 0}, {"k": "gd16", "d": "🔲 Apna personalized QR Code download karo", "h": 0}, {"k": "gd17", "d": "💻 Print Agent Software download karo", "h": 0}, {"k": "gd18", "d": "📋 Apni Shop ID copy kar lo", "h": 0}, {"k": "gd19", "d": "PC Me Software Install Karo", "h": 0}, {"k": "gd20", "d": "Jo software download kiya, use apne dukaan ke computer me install karo. Install hote waqt <b>Shop ID</b> maangi jaayegi — wahi Shop ID paste kar do jo abhi copy ki thi.", "h": 1}, {"k": "gd21", "d": "System Tray Me Chala Jayega", "h": 0}, {"k": "gd22", "d": "Install hote hi software apne aap minimize hoke <b>System Tray</b> (screen ke bottom-right, ghadi ke paas) me chala jaayega — background me chupchap kaam karta rahega.", "h": 1}, {"k": "gd23", "d": "Dashboard Refresh Karo", "h": 0}, {"k": "gd24", "d": "Browser me apne Shop Dashboard se ek baar <b>Logout karke dobara Login</b> karo — isse dashboard ko pata chal jaata hai ki aapka Print Agent connect ho chuka hai, aur Settings me printer options dikhne lagte hain.", "h": 1}, {"k": "gd25", "d": "Printer Select Karo", "h": 0}, {"k": "gd26", "d": "Settings me jaao — <b>B&amp;W Print</b> ke liye ek printer aur <b>Color Print</b> ke liye ek printer select karo. Agar dukaan me sirf ek hi printer hai, to dono jagah wahi printer select kar do. Phir <b>Save</b> dabao.", "h": 1}, {"k": "gd27", "d": "Test Print Karo", "h": 0}, {"k": "gd28", "d": "Ab apni dukaan ka QR scan karke ek <b>test print</b> nikalo — agar print nikal aaye, matlab sab kuch sahi set ho chuka hai! 🎊", "h": 1}, {"k": "gd29", "d": "Step 1–7 · Optional", "h": 0}, {"k": "gd30", "d": "💳 Online Payment Setup (Razorpay)", "h": 0}, {"k": "gd31", "d": "Agar customer se sirf counter par cash lena hai to ye section skip kar sakte ho. Online payment bhi lena hai to ye extra steps follow karo:", "h": 0}, {"k": "gd32", "d": "Razorpay Account Banao", "h": 0}, {"k": "gd33", "d": "<b>razorpay.com</b> par jaakar apna account banao.", "h": 1}, {"k": "gd34", "d": "Website Me \"qrseprint.in\" Likho", "h": 0}, {"k": "gd35", "d": "Registration ke time jahan business website maangi jaaye, wahaan <b>qrseprint.in</b> daal do — kyunki aapke online orders isi platform ke through aate hain.", "h": 1}, {"k": "gd36", "d": "Unregistered Business Select Karo", "h": 0}, {"k": "gd37", "d": "GST ya current account nahi hai? Koi baat nahi — <b>\"Unregistered Business\"</b> category chuno. Savings account aur PAN card se hi ho jaata hai.", "h": 1}, {"k": "gd38", "d": "Live API Key Generate Karo", "h": 0}, {"k": "gd39", "d": "Account active hone ke baad: <b>Profile → Settings → API Keys</b> me jaakar apni <b>Live Key</b> generate karo.", "h": 1}, {"k": "gd40", "d": "Payment Setup Kholo", "h": 0}, {"k": "gd41", "d": "qrseprint.in par apne Shop Dashboard me login karke <b>Payment Setup</b> me jaao, aur wahan <b>\"Online Payment\"</b> select karo.", "h": 1}, {"k": "gd42", "d": "Keys Paste Karke Save Karo", "h": 0}, {"k": "gd43", "d": "Razorpay se generate ki hui <b>API Key</b> aur <b>Secret Key</b> copy karke yahan paste karo, phir <b>Save</b> karo.", "h": 1}, {"k": "gd44", "d": "Test Karo", "h": 0}, {"k": "gd45", "d": "Ab QR scan karke phone se test print karo aur payment <b>online</b> karke dekho — is baar payment online hoga, aur print seedha automatic nikal jaayega. 🎊", "h": 1}, {"k": "gd46", "d": "FAQ", "h": 0}, {"k": "gd47", "d": "🔒 Customer File Privacy", "h": 0}, {"k": "gd48", "d": "File upload ke baad, file kahaan store hoti hai?", "h": 0}, {"k": "gd49", "d": "Kahin nahi. File server par sirf print hone tak rehti hai — print command chalte hi turant delete command chal jaata hai, aur file <b>permanently</b> mit jaati hai.", "h": 1}, {"k": "gd50", "d": "Agar print cancel kar diya, to kya customer ko dobara upload karna padega?", "h": 0}, {"k": "gd51", "d": "Haan, dobara upload karna padega. Hamari policy hai ki koi file store nahi ki jaati — chahe print ho ya cancel. Ye aap khud verify kar sakte ho: System Tray me QR Se Print icon par right-click karke <b>\"📋 Logs Dekho\"</b> kholo, wahaan har file print ke turant baad delete hoti dikhegi.", "h": 1}, {"k": "gd52", "d": "Kisi bhi sawal ke liye kya karein?", "h": 0}, {"k": "gd53", "d": "Do tarike hain — (1) apne Shop Dashboard ke Support tab me <b>WhatsApp Connect</b> button se seedha message karo, ya (2) System Tray me icon par right-click karke <b>\"💬 Contact Admin\"</b> dabao. Dono se seedha admin tak baat pahunchti hai.", "h": 1}, {"k": "gd54", "d": "Setup me atak gaye?", "h": 0}, {"k": "gd55", "d": "Koi bhi step samajh nahi aaya ho — seedha humse baat kariye, hum madad kar denge.", "h": 0}, {"k": "gd56", "d": "© 2026 QR Se Print (qrseprint.in) · Cyber cafe aur print shop ke liye automatic print software · Made in Jharkhand, India", "h": 1}]}, {"g": "🎁 Features Detail Page (\"See All Features\" Button)", "k": [{"k": "fp01", "d": "🎁 Features", "h": 0}, {"k": "fp02", "d": "Poori Dukaan Ka System", "h": 0}, {"k": "fp03", "d": "<span>Sab kuch ek jagah</span><span>Koi extra software nahi</span>", "h": 1}, {"k": "fp04", "d": "<b>Sab kuch ek hi software me</b>Na alag photo tool, na alag resume software, na alag hisaab ki copy. Ek QR — aur dukaan ka poora kaam.", "h": 1}, {"k": "fp05", "d": "Pricing dekho →", "h": 0}]}, {"g": "✨ About Page (\"About\" Button)", "k": [{"k": "ab01", "d": "🖨️", "h": 0}, {"k": "ab02", "d": "← Back to Home", "h": 0}, {"k": "ab03", "d": "✨ About", "h": 0}, {"k": "ab04", "d": "About QR Se Print", "h": 0}, {"k": "ab05", "d": "<span><b>Smart Printing. Made Simple.</b></span>\n<span>Scan · Upload · Pay · Auto Print</span>", "h": 1}, {"k": "ab06", "d": "<strong>QR Se Print</strong> ek modern Smart Printing Platform hai jo Cyber Cafes, Print Shops, CSC Centers aur Digital Service Businesses ke liye specially design kiya gaya hai. Hamara mission simple hai — printing ko fast, automated aur hassle-free banana.", "h": 1}, {"k": "ab07", "d": "<b>Kaam kaise karta hai</b>Customer ko sirf QR scan karna hai, document upload karna hai, payment complete karni hai — aur print automatically start ho jata hai. Na pendrive ki zarurat, na WhatsApp par file bhejne ka jhanjhat, na manual file handling.", "h": 1}, {"k": "ab08", "d": "Hamara Mission", "h": 0}, {"k": "ab09", "d": "Hum believe karte hain ki technology ka asli purpose logon ka kaam easy banana hai. Isi soch ke saath QR Se Print develop kiya gaya hai, taaki har print shop bina expensive hardware ya complicated setup ke ek modern self-service printing experience de sake.", "h": 0}, {"k": "ab10", "d": "Hamara goal sirf software dena nahi, balki har shop owner ko apna business aur professional, fast aur efficient banane me help karna hai.", "h": 0}, {"k": "ab11", "d": "QR Se Print kya offer karta hai", "h": 0}, {"k": "ab12", "d": "QR based smart printing — Scan → Upload → Pay → Auto Print", "h": 0}, {"k": "ab13", "d": "Har tarah ke printer ka support — WiFi printer ki zarurat nahi", "h": 0}, {"k": "ab14", "d": "Aasan software installation", "h": 0}, {"k": "ab15", "d": "Secure document processing", "h": 0}, {"k": "ab16", "d": "Shop owner dashboard", "h": 0}, {"k": "ab17", "d": "Black & White aur Colour ke liye alag printer selection", "h": 0}, {"k": "ab18", "d": "Order aur income management", "h": 0}, {"k": "ab19", "d": "Fast performance", "h": 0}, {"k": "ab20", "d": "Regular updates aur improvements", "h": 0}, {"k": "ab21", "d": "Kis ke liye hai", "h": 0}, {"k": "ab22", "d": "Cyber Cafes", "h": 0}, {"k": "ab23", "d": "Print & Xerox Shops", "h": 0}, {"k": "ab24", "d": "CSC Centers", "h": 0}, {"k": "ab25", "d": "Digital Service Centers", "h": 0}, {"k": "ab26", "d": "Schools & Colleges", "h": 0}, {"k": "ab27", "d": "Coaching Institutes", "h": 0}, {"k": "ab28", "d": "Libraries aur Offices", "h": 0}, {"k": "ab29", "d": "Small & Medium printing businesses", "h": 0}, {"k": "ab30", "d": "Ye kahan se shuru hua", "h": 0}, {"k": "ab31", "d": "QR Se Print ki kahani kisi office ya startup se nahi, balki ek asli Cyber Cafe se shuru hui.", "h": 0}, {"k": "ab32", "d": "Rupesh Kumar Mahato apna Cyber Cafe chalate hain. Roz customers WhatsApp se file bhejte, ya pendrive lekar aate.", "h": 0}, {"k": "ab33", "d": "Isi problem ko theek karne ke liye QR Se Print banaya — bechne ke liye nahi, apna kaam aasan karne ke liye.", "h": 0}, {"k": "ab34", "d": "Daily use kiya, improve kiya, aur asli feedback ke basis par features add kiye. Jo kaam nahi aaya, hata diya.", "h": 0}, {"k": "ab35", "d": "Jab apni shop me system bharose ka ho gaya, tab laga ki ye doosre Cyber Cafes aur Print Shops ke bhi kaam aayega.", "h": 0}, {"k": "ab36", "d": "Support seedha, bina kisi bicholiye ke", "h": 0}, {"k": "ab37", "d": "Setup ya software use karte waqt koi problem aaye to support kisi third-party team se nahi milta — seedha WhatsApp par personally diya jata hai, taaki har user bina confusion ke QR Se Print ka poora fayda le sake.", "h": 0}, {"k": "ab38", "d": "Hamara Vision", "h": 0}, {"k": "ab39", "d": "Hamara vision hai ki QR Se Print India ka sabse trusted Smart Printing Platform bane — jahan har print shop bina expensive infrastructure ke smart aur automated printing service de sake.", "h": 0}, {"k": "ab40", "d": "Hum lagatar naye features, better security, faster performance aur reliable technology par kaam kar rahe hain, taaki har business confidently digital printing ka future apna sake.", "h": 0}, {"k": "ab41", "d": "<b>QR Se Print</b>Scan. Upload. Pay. Auto Print.<br/>Making printing smarter, faster &amp; simpler.", "h": 1}, {"k": "ab42", "d": "Terms & Conditions", "h": 0}, {"k": "ab43", "d": "Privacy Policy", "h": 0}, {"k": "ab44", "d": "Refund Policy", "h": 0}, {"k": "ab45", "d": "Disclaimer", "h": 0}, {"k": "ab46", "d": "Ek chhoti dukaan, Jharkhand me", "h": 0}, {"k": "ab47", "d": "Roz ka wahi jhanjhat", "h": 0}, {"k": "ab48", "d": "File receive karo, download karo, payment lo, phir manually print do. Peak hours me line lag jaati thi.", "h": 0}, {"k": "ab49", "d": "Pehle sirf apni shop ke liye", "h": 0}, {"k": "ab50", "d": "Mahino asli customers ke saath", "h": 0}, {"k": "ab51", "d": "Phir sabke liye", "h": 0}, {"k": "ab52", "d": "Isliye isme wahi features milte hain jo ek asli print shop ki roz ki zarurat dekh kar bane hain — sirf dikhane ke liye nahi.", "h": 0}, {"k": "ab53", "d": "mujhe niche khicho", "h": 0}]}, {"g": "💬 Contact Page (\"Contact Us\" Button)", "k": [{"k": "cp01", "d": "💬 Contact", "h": 0}, {"k": "cp02", "d": "Baat Karo", "h": 0}, {"k": "cp03", "d": "<span>Support seedha, bina bicholiye</span>", "h": 1}, {"k": "cp04", "d": "Setup me dikkat ho, ya kuch samajh na aaye — seedha message karo. Koi third-party support team nahi hai, jawab khud milta hai.", "h": 1}, {"k": "cp05", "d": "WhatsApp", "h": 0}, {"k": "cp06", "d": "Sabse jaldi jawab yahin milta hai", "h": 0}, {"k": "cp07", "d": "Email", "h": 0}, {"k": "cp08", "d": "Detail wali baat ke liye", "h": 0}, {"k": "cp09", "d": "Phone", "h": 0}, {"k": "cp10", "d": "Kaam ke ghanto me", "h": 0}, {"k": "cp11", "d": "Ya yahin se message bhej do", "h": 0}, {"k": "cp12", "d": "WhatsApp se bhejo", "h": 0}, {"k": "cp13", "d": "Email se bhejo", "h": 0}]}, {"g": "🤝 Partner Program Page (\"Partner\" Button)", "k": [{"k": "pp01", "d": "🤝 Partner Program", "h": 0}, {"k": "pp02", "d": "Saath Milkar Kamao", "h": 0}, {"k": "pp03", "d": "<span>Teen tarike — apni suvidha ka chuno</span>", "h": 1}, {"k": "pp04", "d": "QR Se Print se judne ke teen raaste hain. Kisi me apna brand chalao, kisi me shop jodo, ya sirf baat karke shuru karo.", "h": 1}, {"k": "pp05", "d": "White Label", "h": 0}, {"k": "pp06", "d": "Apne brand ke naam se poora software becho. Apna logo, apna domain, apna Razorpay — setup fee seedha aapke account me. Hum beech me nahi aate.", "h": 0}, {"k": "pp07", "d": "White Label dekho →", "h": 0}, {"k": "pp08", "d": "Agent Program", "h": 0}, {"k": "pp09", "d": "Shops jodo aur har shop par commission kamao. Apna referral code, apna dashboard, kamai ka poora hisaab. Koi investment nahi.", "h": 0}, {"k": "pp10", "d": "Agent Program dekho →", "h": 0}, {"k": "pp11", "d": "Business Inquiry", "h": 0}, {"k": "pp12", "d": "Bulk deal, custom requirement, ya kuch aur soch rahe ho? Seedha baat karo — form bharo, message WhatsApp ya email par pahunch jayega.", "h": 0}, {"k": "pp13", "d": "Baat karo →", "h": 0}]}, {"g": "🤝 Become an Agent Banner (Homepage)", "k": [{"k": "agentBtnTitle", "d": "Become an Agent — Earn Lifetime", "h": 0}, {"k": "agentBtnSub", "d": "Har shop onboard karne par ₹200 commission + apna margin", "h": 0}]}, {"g": "⭐ Reviews Section (Homepage)", "k": [{"k": "rvTitle", "d": "⭐ Shop Owners Kya Kehte Hain", "h": 0}]}, {"g": "🎯 Demo Popup", "k": [{"k": "demo01", "d": "🎯 2 Ghante Free Demo", "h": 0}, {"k": "demo02", "d": "Naam + mobile — turant Demo Shop ID milega, koi payment nahi", "h": 0}, {"k": "demo03", "d": "Demo Shuru Karo ›", "h": 0}, {"k": "demo04", "d": "Band karo", "h": 0}]}, {"g": "💼 Business Inquiry Popup", "k": [{"k": "inq01", "d": "💼 Business Inquiry", "h": 0}, {"k": "inq02", "d": "Form bharo — message seedha humare WhatsApp ya Email par pahunchega", "h": 0}, {"k": "inq03", "d": "💬 WhatsApp Se Bhejo", "h": 0}, {"k": "inq04", "d": "📧 Email Se Bhejo", "h": 0}, {"k": "inq05", "d": "Band karo", "h": 0}]}, {"g": "📜 Terms & Conditions Page", "k": [{"k": "tm01", "d": "🖨️", "h": 0}, {"k": "tm02", "d": "← Back to Home", "h": 0}, {"k": "tm03", "d": "📜 Legal", "h": 0}, {"k": "tm04", "d": "Terms & Conditions", "h": 0}, {"k": "tm05", "d": "<span>Last updated: <b>July 2026</b></span> <span><b>qrseprint.in</b> — QR Se Print software &amp; print-relay agent</span>", "h": 1}, {"k": "tm06", "d": "These Terms govern your use of <strong>QR Se Print</strong> — the automatic print software for cyber cafes and print shops available at <strong>qrseprint.in</strong>, together with the customer QR upload portal, the shop admin panel, and the Windows print-relay agent. By taking a demo on qrseprint.in, registering a shop, or purchasing a plan, you agree to these Terms.", "h": 1}, {"k": "tm07", "d": "<b>Saral bhasha me</b>QR Se Print ek software hai jo aapki dukaan ke printer ko customer ke phone se jodta hai. Ye niyam batate hain ki account, plan, referral aur payment kaise chalte hain, aur kya karna mana hai.", "h": 1}, {"k": "tm08", "d": "What QR Se Print does", "h": 0}, {"k": "tm09", "d": "QR Se Print connects a customer’s mobile phone directly to a shop’s printer. The shop displays its own QR code; the customer scans it, uploads files, pays, and the job prints automatically through the Windows print-relay agent installed at the shop.", "h": 0}, {"k": "tm10", "d": "The Platform includes multi-file printing (several PDFs and photos in one order), on-phone editing such as crop, rotate and brightness, automatic 4×6 passport photo sheets with cutting lines, a built-in resume maker, A3/A2/A1 and duplex support, and an offline queue that releases jobs once the internet returns. Availability of individual features depends on the plan and on the shop’s own hardware.", "h": 0}, {"k": "tm11", "d": "Who can register a shop", "h": 0}, {"k": "tm12", "d": "A shop account on qrseprint.in may be opened by any cyber cafe, stationery shop, print shop, or similar business operated by a person aged 18 or above. You must give accurate details when registering and keep your Shop ID and password confidential. Anything done through your account is treated as done by you.", "h": 0}, {"k": "tm13", "d": "Free demo", "h": 0}, {"k": "tm14", "d": "Every prospective shop gets a free demo on qrseprint.in with no payment and no card details. The demo runs the real software so you can test it with your own printer before deciding. Demo shops may be limited in duration and may be reset or removed at any time.", "h": 0}, {"k": "tm15", "d": "Plans and the print-relay agent", "h": 0}, {"k": "tm16", "d": "Paid plans published on qrseprint.in include a monthly plan and a one-time lifetime plan. On purchase you get a limited, non-transferable licence to install and run the QR Se Print agent at your own shop. You may not:", "h": 0}, {"k": "tm17", "d": "Resell, rent, sub-licence, or redistribute the software or your Shop ID;", "h": 0}, {"k": "tm18", "d": "Share one shop account across separate businesses or premises;", "h": 0}, {"k": "tm19", "d": "Reverse-engineer, decompile, patch, or tamper with the agent or its auto-update mechanism;", "h": 0}, {"k": "tm20", "d": "Run a modified build, or block updates that we publish for security or compatibility.", "h": 0}, {"k": "tm21", "d": "Advance features such as 4×6 photo sheets, A3, duplex and the resume maker may be sold as a separate unlock, at the price shown on qrseprint.in at that time.", "h": 0}, {"k": "tm22", "d": "Money: your customers pay you directly", "h": 0}, {"k": "tm23", "d": "Payments made by your customers for printing go <strong>straight into your own account</strong> through Razorpay or your configured UPI, or are taken as cash at your counter. QR Se Print charges <strong>0% commission</strong> on print revenue and places no limit on the number of prints.", "h": 1}, {"k": "tm24", "d": "The print transaction is between you and your customer. We are not a party to it, do not hold that money, and do not become responsible for it.", "h": 0}, {"k": "tm25", "d": "Shop owner responsibilities", "h": 0}, {"k": "tm26", "d": "Running the shop is entirely yours. You are responsible for:", "h": 0}, {"k": "tm27", "d": "Your printer, computer, drivers, paper, ink or toner, and internet connection;", "h": 0}, {"k": "tm28", "d": "Keeping the QR Se Print agent installed, running, and updated on the shop computer;", "h": 0}, {"k": "tm29", "d": "Your own trade licence, GST and tax compliance, and any local permissions;", "h": 0}, {"k": "tm30", "d": "The rates you charge and honouring jobs your customers have paid for;", "h": 0}, {"k": "tm31", "d": "Serving your customers and resolving their complaints about print work done at your shop.", "h": 0}, {"k": "tm32", "d": "Referral programme and withdrawals", "h": 0}, {"k": "tm33", "d": "Where a referral reward is offered on qrseprint.in, it is credited only for a genuine new shop that completes registration and payment. Self-referrals, duplicate shops, fake registrations, or referrals later refunded or reversed do not qualify, and we may cancel such credits.", "h": 0}, {"k": "tm34", "d": "Withdrawal requests are processed to the details you provide in your admin panel. Please keep those details correct — we are not responsible for money sent to a wrong account number given by you. We may hold or reverse a withdrawal where fraud or abuse is suspected.", "h": 0}, {"k": "tm35", "d": "What you must not print or do", "h": 0}, {"k": "tm36", "d": "The Platform must not be used to:", "h": 0}, {"k": "tm37", "d": "Print or distribute obscene, defamatory, fraudulent, or otherwise unlawful material;", "h": 0}, {"k": "tm38", "d": "Print documents you have no right to copy, including examination papers, currency, identity documents belonging to others, or copyrighted work;", "h": 0}, {"k": "tm39", "d": "Attack, probe, overload, or gain unauthorised access to qrseprint.in or its servers;", "h": 0}, {"k": "tm40", "d": "Upload malware, or use bots or scripts to place fake print jobs;", "h": 0}, {"k": "tm41", "d": "Copy the design, content, or code of qrseprint.in for a competing product.", "h": 0}, {"k": "tm42", "d": "Intellectual property", "h": 0}, {"k": "tm43", "d": "The QR Se Print name, logo, website qrseprint.in, print-relay agent, admin panel, and all its code and content belong to QR Se Print. Your plan gives you the right to use the software, not to own it. Documents uploaded by your customers remain theirs — we claim no rights over them.", "h": 0}, {"k": "tm44", "d": "Suspension and termination", "h": 0}, {"k": "tm45", "d": "You can stop using QR Se Print at any time. We may suspend or close a shop account that breaches these Terms, does not pay for its plan, abuses the referral or withdrawal system, or puts the Platform or other shops at risk. On termination the licence to run the agent ends immediately.", "h": 0}, {"k": "tm46", "d": "Service changes", "h": 0}, {"k": "tm47", "d": "QR Se Print is under active development and features on qrseprint.in may be added, changed, or withdrawn. We may also update these Terms; the date at the top of this page shows when they last changed, and continued use means you accept the updated version.", "h": 0}, {"k": "tm48", "d": "Liability", "h": 0}, {"k": "tm49", "d": "Disclaimer", "h": 0}, {"k": "tm50", "d": "Governing law", "h": 0}, {"k": "tm51", "d": "These Terms are governed by the laws of India, and the courts of Jharkhand, India have exclusive jurisdiction over any dispute relating to QR Se Print or qrseprint.in.", "h": 0}, {"k": "tm52", "d": "Koi sawal hai?", "h": 0}, {"k": "tm53", "d": "QR Se Print ya qrseprint.in ke bare me kuch bhi poochna ho — seedha humse baat kariye.", "h": 0}, {"k": "tm54", "d": "💼 Business Inquiry", "h": 0}, {"k": "tm55", "d": "Privacy Policy", "h": 0}, {"k": "tm56", "d": "Refund Policy", "h": 0}, {"k": "tm57", "d": "Disclaimer", "h": 0}]}, {"g": "🔒 Privacy Policy Page", "k": [{"k": "pv01", "d": "🖨️", "h": 0}, {"k": "pv02", "d": "← Back to Home", "h": 0}, {"k": "pv03", "d": "🔒 Legal", "h": 0}, {"k": "pv04", "d": "Privacy Policy", "h": 0}, {"k": "pv05", "d": "<span>Last updated: <b>July 2026</b></span> <span><b>qrseprint.in</b> — Files delete turant · Shop owner ke apne logs</span>", "h": 1}, {"k": "pv06", "d": "<strong>QR Se Print</strong> is built around a simple promise: a customer’s document should exist only long enough to print, and nothing longer. This policy explains exactly what qrseprint.in collects, how long a print file survives, and what a shop owner can see. We do not sell data to anyone, and we do not keep a library of your customers’ documents.", "h": 1}, {"k": "pv07", "d": "<b>Saral bhasha me</b>Sabse zaroori baat: <b>customer ki file print hote hi turant delete ho jati hai</b> — server par kuch nahi bachta. Shop owner apne admin panel ke logs me dekh sakta hai ki job print hua aur file hat gayi. Card ya UPI PIN hum kabhi store nahi karte, wo Razorpay ke paas jata hai.", "h": 1}, {"k": "pv08", "d": "Print files are deleted immediately after printing", "h": 0}, {"k": "pv09", "d": "<strong>This is the core of how QR Se Print works.</strong> When a customer scans a shop’s QR code on qrseprint.in and uploads a document, that file is held only until the print-relay agent has sent it to the shop’s printer. As soon as the job is printed, <strong>the file is deleted right away</strong> — it is not archived, not backed up, and not kept for later viewing by us or by the shop.", "h": 1}, {"k": "pv10", "d": "A job that is never paid for, or never printed, is cleared automatically as well, so nothing lingers on qrseprint.in indefinitely. Because deletion is immediate, <strong>a printed file cannot be recovered or reprinted from the server</strong> — if a customer needs another copy, they must upload it again. Customers should always keep their own copy of any document they send.", "h": 1}, {"k": "pv11", "d": "What the shop owner can see in their logs", "h": 0}, {"k": "pv12", "d": "Every shop has its own admin panel on qrseprint.in with a print log. That log records <strong>what happened, not the document itself</strong>: job ID and time, number of pages and copies, colour or black-and-white, the amount paid and payment status, and whether the file was printed and cleared.", "h": 1}, {"k": "pv13", "d": "The shop owner can therefore verify their earnings and confirm that each customer file was removed after printing — while the document content itself is already gone. Only that shop can see its own log; one shop can never see another shop’s jobs or customers.", "h": 0}, {"k": "pv14", "d": "Information we collect", "h": 0}, {"k": "pv15", "d": "Beyond the print file itself, qrseprint.in collects only what the service needs to work:", "h": 0}, {"k": "pv16", "d": "<strong>Shop account</strong> — shop name, owner name, mobile number, email, shop area, Shop ID, and password stored in hashed form;", "h": 1}, {"k": "pv17", "d": "<strong>Print job record</strong> — page count, copies, colour setting, paper size, amount, payment status and time;", "h": 1}, {"k": "pv18", "d": "<strong>Customer mobile number</strong>, where entered, so the right job can be identified at the counter;", "h": 1}, {"k": "pv19", "d": "<strong>Payment reference</strong> — transaction ID, amount and success or failure, received from the payment gateway;", "h": 1}, {"k": "pv20", "d": "<strong>Printer list from the shop computer</strong> — the names of installed printers, so you can choose which printer handles which job;", "h": 1}, {"k": "pv21", "d": "<strong>Basic technical logs</strong> — device type, browser, agent version, error messages and timestamps.", "h": 1}, {"k": "pv22", "d": "We do not read, index, or analyse the contents of customer documents, and we never use them for advertising, profiling, or training any model.", "h": 0}, {"k": "pv23", "d": "Payment details are never stored with us", "h": 0}, {"k": "pv24", "d": "Online payments on qrseprint.in are handled by <strong>Razorpay</strong> or the shop’s own UPI. Card numbers, CVV, UPI PIN and net-banking passwords are entered on the payment provider’s own secure screen. <strong>QR Se Print never sees or stores them.</strong> We receive only the transaction ID, amount, and whether it succeeded — which is what releases the print job.", "h": 1}, {"k": "pv25", "d": "Who else sees anything", "h": 0}, {"k": "pv26", "d": "We do not sell or rent personal information. Limited data is shared only where the service requires it:", "h": 0}, {"k": "pv27", "d": "<strong>The shop you sent the job to</strong> — which receives the print job and the counter details needed to hand it over;", "h": 1}, {"k": "pv28", "d": "<strong>Razorpay</strong> — to take and verify payment;", "h": 1}, {"k": "pv29", "d": "<strong>Our hosting and database providers</strong> — to run qrseprint.in;", "h": 1}, {"k": "pv30", "d": "<strong>Authorities</strong> — only where a valid legal requirement applies.", "h": 1}, {"k": "pv31", "d": "Security", "h": 0}, {"k": "pv32", "d": "We use reasonable technical measures to protect qrseprint.in, including encrypted connections, hashed passwords, admin access controls, and shop-level separation so no shop can reach another shop’s data. Immediate deletion of print files is itself a security measure — data that no longer exists cannot leak.", "h": 0}, {"k": "pv33", "d": "No system is perfectly secure, and we cannot promise absolute safety. Shop owners must protect their own Shop ID, password, and the computer running the print-relay agent.", "h": 0}, {"k": "pv34", "d": "Cookies and local storage", "h": 0}, {"k": "pv35", "d": "qrseprint.in uses cookies and browser local storage to keep a shop owner signed in to the admin panel, remember the language chosen on the homepage, and record basic errors so faults can be fixed. These are functional. You can clear or block them in your browser, though the admin panel may then not stay logged in.", "h": 0}, {"k": "pv36", "d": "Your rights", "h": 0}, {"k": "pv37", "d": "You may, subject to Indian law:", "h": 0}, {"k": "pv38", "d": "Ask what personal information we hold about your shop account;", "h": 0}, {"k": "pv39", "d": "Ask us to correct anything wrong;", "h": 0}, {"k": "pv40", "d": "Ask us to delete your shop account and its details, where we are not required to keep them;", "h": 0}, {"k": "pv41", "d": "Ask us to stop sending non-essential messages.", "h": 0}, {"k": "pv42", "d": "Send any such request through the Business Inquiry form on qrseprint.in or the contact details in the footer.", "h": 0}, {"k": "pv43", "d": "Children", "h": 0}, {"k": "pv44", "d": "QR Se Print is meant for shop owners and their walk-in customers. We do not knowingly collect information from children. If you believe a child’s information has reached us, tell us and we will remove it.", "h": 0}, {"k": "pv45", "d": "Changes to this policy", "h": 0}, {"k": "pv46", "d": "If the way qrseprint.in handles data changes, this page is updated and the date at the top changes with it. Anything that materially affects shops will also be shown in the admin panel.", "h": 0}, {"k": "pv47", "d": "Koi sawal hai?", "h": 0}, {"k": "pv48", "d": "QR Se Print ya qrseprint.in ke bare me kuch bhi poochna ho — seedha humse baat kariye.", "h": 0}, {"k": "pv49", "d": "💼 Business Inquiry", "h": 0}, {"k": "pv50", "d": "Terms & Conditions", "h": 0}, {"k": "pv51", "d": "Refund Policy", "h": 0}, {"k": "pv52", "d": "Disclaimer", "h": 0}]}, {"g": "💳 Refund Policy Page", "k": [{"k": "rf01", "d": "🖨️", "h": 0}, {"k": "rf02", "d": "← Back to Home", "h": 0}, {"k": "rf03", "d": "💳 Legal", "h": 0}, {"k": "rf04", "d": "Refund & Cancellation Policy", "h": 0}, {"k": "rf05", "d": "<span>Last updated: <b>July 2026</b></span> <span><b>qrseprint.in</b> — No refund · Setup hum karke denge</span>", "h": 1}, {"k": "rf06", "d": "<strong>QR Se Print does not give refunds.</strong> A free demo of the complete software is available on qrseprint.in before you pay anything, so you can test it with your own printer first. What we do guarantee is that your setup gets finished — if you cannot install it, we will install it for you.", "h": 1}, {"k": "rf07", "d": "<b>Saral bhasha me</b>Paise dene se pehle free demo se poora software try karo. Payment ke baad refund nahi milta. Par install nahi kar pa rahe to tension mat lo — WhatsApp ya AnyDesk se hum khud setup karke denge, jab tak chalu na ho jaye.", "h": 1}, {"k": "rf08", "d": "The policy, in full", "h": 0}, {"k": "rf09", "d": "every payment made for a QR Se Print plan is final and non-refundable.", "h": 0}, {"k": "rf10", "d": "Terms & Conditions", "h": 0}, {"k": "rf11", "d": "Instead of a refund you get the service delivered:", "h": 0}, {"k": "rf12", "d": "monthly plan", "h": 0}, {"k": "rf13", "d": "genuine billing errors", "h": 0}, {"k": "rf14", "d": "not covered by this policy at all", "h": 0}, {"k": "rf15", "d": "Before you pay — use the free demo", "h": 0}, {"k": "rf16", "d": "Take the free demo on qrseprint.in, install the agent on the same computer you will actually use, and print a real job on your own printer. That is the moment to check compatibility — not after payment. If anything does not work during the demo, message us and we will help; there is no cost and no obligation.", "h": 0}, {"k": "rf17", "d": "Koi sawal hai?", "h": 0}, {"k": "rf18", "d": "QR Se Print ya qrseprint.in ke bare me kuch bhi poochna ho — seedha humse baat kariye.", "h": 0}, {"k": "rf19", "d": "💼 Business Inquiry", "h": 0}, {"k": "rf20", "d": "Terms & Conditions", "h": 0}, {"k": "rf21", "d": "Privacy Policy", "h": 0}, {"k": "rf22", "d": "Disclaimer", "h": 0}]}, {"g": "⚖️ Disclaimer Page", "k": [{"k": "dc01", "d": "🖨️", "h": 0}, {"k": "dc02", "d": "← Back to Home", "h": 0}, {"k": "dc03", "d": "⚖️ Legal", "h": 0}, {"k": "dc04", "d": "Disclaimer", "h": 0}, {"k": "dc05", "d": "<span>Last updated: <b>July 2026</b></span> <span><b>qrseprint.in</b> — SaaS software · aapki dukaan aapki</span>", "h": 1}, {"k": "dc06", "d": "<strong>QR Se Print</strong> at <strong>qrseprint.in</strong> is software, not a printing business. We supply the QR upload portal, the job queue, and the Windows print-relay agent that pushes a job to a shop’s printer. Everything physical — the printer, the paper, the ink, the counter, the shop — belongs to the shop owner. The website and the software are provided on an “as is” and “as available” basis, without warranties of any kind.", "h": 1}, {"k": "dc07", "d": "<b>Saral bhasha me</b>QR Se Print sirf software deta hai — printer, paper, ink aur dukaan shop owner ki apni hai. Customer jo file bhejta hai uski zimmedari customer ki. Kamai ke jo example website par dikhte hain wo sirf samajhne ke liye hain, guarantee nahi.", "h": 1}, {"k": "dc08", "d": "We are software, not your print shop", "h": 0}, {"k": "dc09", "d": "qrseprint.in provides a software-as-a-service platform. Each shop using QR Se Print is an independent business. We are not a printing service, a courier, a document bureau, or a party to any transaction between a shop and a walk-in customer. When a customer pays and collects a print, that deal is entirely between that customer and that shop.", "h": 0}, {"k": "dc10", "d": "Your printer, your consumables, your licences", "h": 0}, {"k": "dc11", "d": "Every shop running QR Se Print remains fully responsible for:", "h": 0}, {"k": "dc12", "d": "The printer, computer, drivers and internet line at the shop;", "h": 0}, {"k": "dc13", "d": "Paper, ink, toner, and keeping the machine serviced;", "h": 0}, {"k": "dc14", "d": "Trade licence, GST registration, tax filings, and any local permission needed to run a print shop;", "h": 0}, {"k": "dc15", "d": "The rates displayed to customers and the quality of work handed over the counter.", "h": 0}, {"k": "dc16", "d": "Nothing in QR Se Print creates a partnership, franchise, agency, or employment relationship with any shop.", "h": 0}, {"k": "dc17", "d": "Print quality depends on your machine", "h": 0}, {"k": "dc18", "d": "What comes out of the printer depends on the shop’s own hardware, driver settings, paper and ink — not on qrseprint.in. Colour, sharpness, margins and alignment may differ from the preview on the customer’s phone. Features such as 4×6 passport sheets, A3 and larger sizes, and duplex printing work only if the shop actually has a printer capable of them.", "h": 0}, {"k": "dc19", "d": "Files uploaded by customers", "h": 0}, {"k": "dc20", "d": "Privacy Policy", "h": 0}, {"k": "dc21", "d": "Sending obscene, defamatory, fraudulent, infringing, or otherwise unlawful material is prohibited, and we may suspend access where misuse is reported or reasonably suspected.", "h": 0}, {"k": "dc22", "d": "Payments", "h": 0}, {"k": "dc23", "d": "Online payments are handled by Razorpay or the shop’s own UPI, and settle <strong>directly into the shop owner’s account</strong> — QR Se Print takes 0% commission and never holds that money. We do not collect or store card numbers, CVVs, or UPI PINs. Any payment failure or settlement dispute must be taken up with the payment provider and the shop concerned. We act as merchant of record only for our own software plan fees.", "h": 1}, {"k": "dc24", "d": "Internet, uptime and updates", "h": 0}, {"k": "dc25", "d": "QR Se Print depends on internet at both the customer’s and the shop’s end, and on third-party hosting and payment providers. We do not promise uninterrupted or error-free service. Maintenance, provider outages, power cuts, or a local network problem can interrupt printing. Where a job cannot be delivered at once it stays queued and prints when connectivity returns, and the agent updates itself so shops stay on a supported version.", "h": 0}, {"k": "dc26", "d": "Earnings examples are illustrative", "h": 0}, {"k": "dc27", "d": "Any figures shown on qrseprint.in — such as prints per day, monthly earnings, or how quickly a plan pays for itself — are <strong>illustrations, not promises</strong>. Real income depends on the shop’s location, footfall, pricing, and effort. QR Se Print makes no guarantee of revenue, customers, or business results.", "h": 1}, {"k": "dc28", "d": "Limitation of liability", "h": 0}, {"k": "dc29", "d": "To the maximum extent permitted by law, QR Se Print, its owner and its associates are not liable for any loss or damage — direct, indirect, incidental, special, or consequential — including lost business, lost profit, lost revenue, wasted paper or ink, loss of goodwill, loss of data, or business interruption arising from use of, or inability to use, qrseprint.in or the print-relay agent.", "h": 0}, {"k": "dc30", "d": "Where liability cannot lawfully be excluded, our total liability will not exceed what the affected shop actually paid QR Se Print for the software in the three (3) months before the claim.", "h": 0}, {"k": "dc31", "d": "External links", "h": 0}, {"k": "dc32", "d": "qrseprint.in may link to third-party sites and services we do not control — payment providers, download hosts, social pages. We are not responsible for their content, availability, or policies, and a link is not an endorsement.", "h": 0}, {"k": "dc33", "d": "Changes and governing law", "h": 0}, {"k": "dc34", "d": "This Disclaimer may be updated as QR Se Print changes; the date at the top shows when it was last revised, and continued use means acceptance. It is governed by the laws of India, with exclusive jurisdiction in the courts of Jharkhand, India.", "h": 0}, {"k": "dc35", "d": "If you do not agree with any part of this Disclaimer, please stop using qrseprint.in and the QR Se Print software.", "h": 0}, {"k": "dc36", "d": "Koi sawal hai?", "h": 0}, {"k": "dc37", "d": "QR Se Print ya qrseprint.in ke bare me kuch bhi poochna ho — seedha humse baat kariye.", "h": 0}, {"k": "dc38", "d": "💼 Business Inquiry", "h": 0}, {"k": "dc39", "d": "Terms & Conditions", "h": 0}, {"k": "dc40", "d": "Privacy Policy", "h": 0}, {"k": "dc41", "d": "Refund Policy", "h": 0}]}, {"g": "📄 Footer", "k": [{"k": "ft01", "d": "🖨️", "h": 0}, {"k": "ftTagline", "d": "Automated cyber cafe printing network — QR scan karo, print khud nikal jaye.", "h": 0}, {"k": "ftProductHead", "d": "Product", "h": 0}, {"k": "ft02", "d": "Home", "h": 0}, {"k": "ft03", "d": "Features", "h": 0}, {"k": "ft04", "d": "Pricing", "h": 0}, {"k": "ft05", "d": "FAQ", "h": 0}, {"k": "ft06", "d": "Start Free", "h": 0}, {"k": "ftAgent", "d": "💼 Become an Agent", "h": 0}, {"k": "ftLegalHead", "d": "Legal", "h": 0}, {"k": "ft07", "d": "Terms & Conditions", "h": 0}, {"k": "ft08", "d": "Privacy Policy", "h": 0}, {"k": "ft09", "d": "Refund Policy", "h": 0}, {"k": "ft10", "d": "Disclaimer", "h": 0}, {"k": "ftContactHead", "d": "Contact", "h": 0}, {"k": "ft11", "d": "💼 Business Inquiry", "h": 0}, {"k": "ft12", "d": "🔑 Shop Owner Login", "h": 0}, {"k": "ftCopyright", "d": "© 2026 · Powered By <b>QR Se Print</b> · All rights reserved. | Developed by Rupesh Kumar Mahato", "h": 1}, {"k": "ft13", "d": "⚙", "h": 0}]}];
+const HP_TEXTS = [{"g": "🔝 Top Bar (Agent Program)", "k": [{"k": "referText", "d": "💼 <b>Agent bano</b> — har shop par ₹100", "h": 1}]}, {"g": "🧭 Header Menu", "k": [{"k": "navHome", "d": "Home", "h": 0}, {"k": "navPricing", "d": "Pricing", "h": 0}, {"k": "navGuide", "d": "How to Setup", "h": 0}, {"k": "navFeatures", "d": "Features", "h": 0}, {"k": "navAbout", "d": "About", "h": 0}, {"k": "navContact", "d": "Contact Us", "h": 0}, {"k": "navPartner", "d": "Partner Program", "h": 0}, {"k": "navDisclaimer", "d": "Disclaimer", "h": 0}, {"k": "nav01", "d": "🔑 <span data-cfg=\"navLogin\">Shop Owner Login</span>", "h": 1}, {"k": "navLogin", "d": "Shop Owner Login", "h": 0}]}, {"g": "📱 Mobile Menu", "k": [{"k": "navHomeM", "d": "🏠 Home", "h": 0}, {"k": "navPricingM", "d": "💰 Pricing", "h": 0}, {"k": "navGuideM", "d": "How to Setup", "h": 0}, {"k": "navFeaturesM", "d": "✨ Features", "h": 0}, {"k": "navAboutM", "d": "ℹ️ About", "h": 0}, {"k": "navContactM", "d": "💬 Contact Us", "h": 0}, {"k": "navPartnerM", "d": "Partner Program", "h": 0}, {"k": "navDisclaimerM", "d": "📄 Disclaimer", "h": 0}]}, {"g": "🎯 Hero (sabse upar)", "k": [{"k": "heroTop", "d": "Customer ke phone se", "h": 0}, {"k": "heroTitle", "d": "Print", "h": 0}, {"k": "heroSub", "d": "seedha aapke printer par — <span class=\"mark\">in 1 Scan</span>", "h": 1}, {"k": "heroPara", "d": "Customer apne phone se <b>QR scan</b> karta hai, file bhejta hai, <b>payment karta hai</b> — aur print aapke printer se <b>khud nikal jata hai</b>.<br/> <b style=\"color:#ff2e63;\">Na WhatsApp pe file mangna, na pendrive, na hisaab ki tension.</b>", "h": 1}, {"k": "hero01", "d": "<b data-cfg=\"step1Ico\">📱</b><span data-cfg=\"step1\">QR Scan</span>", "h": 1}, {"k": "step1Ico", "d": "📱", "h": 0}, {"k": "step1", "d": "QR Scan", "h": 0}, {"k": "hero02", "d": "›", "h": 0}, {"k": "hero03", "d": "<b data-cfg=\"step2Ico\">📄</b><span data-cfg=\"step2\">File Upload</span>", "h": 1}, {"k": "step2Ico", "d": "📄", "h": 0}, {"k": "step2", "d": "File Upload", "h": 0}, {"k": "hero04", "d": "›", "h": 0}, {"k": "hero05", "d": "<b data-cfg=\"step3Ico\">💳</b><span data-cfg=\"step3\">Pay</span>", "h": 1}, {"k": "step3Ico", "d": "💳", "h": 0}, {"k": "step3", "d": "Pay", "h": 0}, {"k": "hero06", "d": "›", "h": 0}, {"k": "hero07", "d": "<b data-cfg=\"step4Ico\">🖨️</b><span data-cfg=\"step4\">Auto Print</span>", "h": 1}, {"k": "step4Ico", "d": "🖨️", "h": 0}, {"k": "step4", "d": "Auto Print", "h": 0}, {"k": "hero08", "d": "<span data-cfg=\"ctaPriceBtn\">💰 See Setup Price</span> <span class=\"arr\">↓</span>", "h": 1}, {"k": "ctaPriceBtn", "d": "💰 See Setup Price", "h": 0}, {"k": "pill1", "d": "✅ 0% Commission", "h": 0}, {"k": "pill2", "d": "⚡ Automatic Print", "h": 0}, {"k": "pill3", "d": "💳 Online + Counter Pay", "h": 0}, {"k": "pill4", "d": "🖥️ System Tray Agent", "h": 0}, {"k": "pill5", "d": "🔄 Auto Update", "h": 0}, {"k": "hero09", "d": "⚡ Auto Print", "h": 0}, {"k": "hero10", "d": "<span class=\"ph-dot\"></span><b>QR Se Print</b>", "h": 1}, {"k": "hero11", "d": "<span class=\"st1\">Scanning…</span> <span class=\"st2\">File Sent ✓</span>", "h": 1}, {"k": "hero12", "d": "📄 Notes.pdf", "h": 0}, {"k": "hero13", "d": "🖼️ Photo.jpg", "h": 0}, {"k": "hero14", "d": "💳 Paid ✓", "h": 0}, {"k": "hero15", "d": "<span class=\"pr-led\"></span><small>PRINTING</small>", "h": 1}, {"k": "hero16", "d": "<i>🖨️</i> QR Se Print", "h": 1}]}, {"g": "📊 Stats Banner (Hero ke niche colorful strip)", "k": [{"k": "hstNum1", "d": "1000+", "h": 0}, {"k": "hstLbl1", "d": "Shops Onboarded", "h": 0}, {"k": "hstNum2", "d": "500K+", "h": 0}, {"k": "hstLbl2", "d": "Documents Printed", "h": 0}, {"k": "hstNum3", "d": "98%+", "h": 0}, {"k": "hstLbl3", "d": "Happy Customers", "h": 0}, {"k": "hstMadeIco", "d": "🇮🇳", "h": 0}, {"k": "hstMadeLabel", "d": "Made in", "h": 0}, {"k": "hstMadeLoc", "d": "Jharkhand, India", "h": 0}]}, {"g": "🔧 Baaki", "k": [{"k": "oth01", "d": "<span class=\"rs-left\" data-cfg-html=\"referText\">🎁 <b>Refer &amp; Earn</b> — har referral par ₹50</span> <span class=\"rs-arrow\">›</span>", "h": 1}, {"k": "statShopsLabel", "d": "Shops chala rahi hain", "h": 0}, {"k": "statPrintsLabel", "d": "Prints nikal chuke", "h": 0}, {"k": "statMadeIco", "d": "🇮🇳", "h": 0}, {"k": "statMadeLabel", "d": "Jharkhand me bana", "h": 0}, {"k": "oth02", "d": "₹<span id=\"offerPrice\">499</span><small>/setup</small>", "h": 1}, {"k": "oth03", "d": "🚀 <span data-cfg=\"ctaMain\">Abhi Start Karein</span> <span class=\"arrow\">›</span>", "h": 1}, {"k": "ctaMain", "d": "Abhi Start Karein", "h": 0}, {"k": "oth04", "d": "🔑 <span data-cfg=\"ctaSub\">Shop Login</span>", "h": 1}, {"k": "ctaSub", "d": "Shop Login", "h": 0}]}, {"g": "📌 😤 Abhi Aapki Dukaan Me Kya Hota Hai?", "k": [{"k": "painHeading", "d": "😤 Abhi Aapki Dukaan Me Kya Hota Hai?", "h": 0}, {"k": "painx01", "d": "Har cyber cafe / print shop wale ka roz ka dard", "h": 0}, {"k": "painx02", "d": "<span class=\"wa-bub b1\"><i></i><i></i><i></i></span> <span class=\"wa-bub b2\">📄</span> <span class=\"wa-bub b3\">📄</span> <span class=\"wa-badge\">3</span>", "h": 1}, {"k": "pain1Title", "d": "WhatsApp pe file mangna", "h": 0}, {"k": "pain1Text", "d": "Apna personal number har customer ko dena padta hai. Chat me files kho jaati hain, \"bhaiya wo wali file\" dhundhte raho.", "h": 1}, {"k": "painx03", "d": "🦠", "h": 0}, {"k": "painx04", "d": "⚠️", "h": 0}, {"k": "pain2Title", "d": "Pendrive ka virus", "h": 0}, {"k": "pain2Text", "d": "Customer ka pendrive lagao = virus ka khatra. PC slow, files corrupt, kabhi-kabhi poora system hi baith jata hai.", "h": 1}, {"k": "painx05", "d": "<span class=\"cash-rs\">₹</span><span class=\"cash-qm\">?</span>", "h": 1}, {"k": "pain3Title", "d": "Hisaab ki tension", "h": 0}, {"k": "pain3Text", "d": "Kaun paid kar gaya, kaun baaki hai — copy pe likho, bhool jao, jhagda karo. Mahine ke end me hisaab milta hi nahi.", "h": 1}, {"k": "painx06", "d": "⏰", "h": 0}, {"k": "pain4Title", "d": "Bheed me ek-ek ka wait", "h": 0}, {"k": "pain4Text", "d": "Aap ek customer ka print nikal rahe ho, baaki 5 khade hain. File lo, kholo, print karo — poora din isi me jata hai.", "h": 1}]}, {"g": "📌 ✨ QR Se Print Lagane Ke Baad", "k": [{"k": "solutionHeading", "d": "✨ QR Se Print Lagane Ke Baad", "h": 0}, {"k": "solx01", "d": "Aapka kaam: QR chipkao. Bas.", "h": 0}, {"k": "solx02", "d": "✨", "h": 0}, {"k": "solx03", "d": "1️⃣", "h": 0}, {"k": "sol1", "d": "Shop me QR<br/>chipkao", "h": 1}, {"k": "solx04", "d": "<span class=\"sf s1\"><svg><use href=\"#qrGlyph\"></use></svg></span> <span class=\"sf s2\">📤</span> <span class=\"sf s3\">💳</span> <span class=\"sf-dots\"><i></i><i></i><i></i></span>", "h": 1}, {"k": "solx05", "d": "2️⃣", "h": 0}, {"k": "sol2", "d": "Customer scan,<br/>upload, pay", "h": 1}, {"k": "solx06", "d": "3️⃣", "h": 0}, {"k": "sol3", "d": "Print KHUD<br/>nikal jata hai", "h": 1}, {"k": "solNote", "d": "Aap counter pe baithe raho — file lena, kholna, print dabana — kuch nahi. Payment ka record khud banta hai.", "h": 0}]}, {"g": "📌 🎁 Sirf Print Nahi — Poori Dukaan Ka …", "k": [{"k": "benefitsHeading", "d": "🎁 Sirf Print Nahi — Poori Dukaan Ka System", "h": 0}, {"k": "benx01", "d": "Jo-jo milta hai, sab ek jagah", "h": 0}, {"k": "benx02", "d": "📄", "h": 0}, {"k": "ben1Title", "d": "Multi-file Print", "h": 0}, {"k": "ben1Text", "d": "Customer ek saath 5-10 files bheje (PDF + photo mix) — ek payment, sahi order me print.", "h": 1}, {"k": "benx03", "d": "✂️", "h": 0}, {"k": "ben2Title", "d": "Phone Se Hi Editing", "h": 0}, {"k": "ben2Text", "d": "Customer khud crop, rotate, brightness theek karta hai — aapse \"thoda seedha kar do\" nahi bolega.", "h": 1}, {"k": "benx04", "d": "📷", "h": 0}, {"k": "ben3Title", "d": "4×6 Passport Photos", "h": 0}, {"k": "ben3Text", "d": "Photo bhejo, 4 ya 6 ki sheet khud ban ke photo printer se nikle — cutting lines ke saath.", "h": 1}, {"k": "benx05", "d": "📝", "h": 0}, {"k": "ben4Title", "d": "Resume Maker", "h": 0}, {"k": "ben4Text", "d": "Customer QR se 6 designs me resume banaye aur print kare — aapki extra kamai, zero mehnat.", "h": 1}, {"k": "benx06", "d": "📐", "h": 0}, {"k": "ben5Title", "d": "A3 / A2 / A1 + Duplex", "h": 0}, {"k": "ben5Text", "d": "Bade naksha-banner prints aur dono-side printing — har size ka apna printer, apna rate.", "h": 1}, {"k": "benx07", "d": "💳", "h": 0}, {"k": "ben6Title", "d": "Paisa Seedha Aapke Account", "h": 0}, {"k": "ben6Text", "d": "Online payment (Razorpay/Cashfree) SEEDHA aapko. Hum beech me nahi — <b>0% commission, unlimited prints.</b>", "h": 1}, {"k": "benx08", "d": "🔒", "h": 0}, {"k": "ben7Title", "d": "Customer Ka Bharosa", "h": 0}, {"k": "ben7Text", "d": "File print ke 90 minute baad KHUD delete. Na aapke paas rahegi, na kisi aur ke — privacy pakki.", "h": 1}, {"k": "benx09", "d": "📶", "h": 0}, {"k": "ben8Title", "d": "Net Jaye To Bhi Safe", "h": 0}, {"k": "ben8Text", "d": "Internet band? Jobs queue me. Wapas aate hi sab print. Auto-update bhi khud hota hai.", "h": 1}, {"k": "ftc1", "d": "📄 Multi-file Print", "h": 0}, {"k": "ftc2", "d": "✂️ Phone Se Editing", "h": 0}, {"k": "ftc3", "d": "📷 Passport Photos", "h": 0}, {"k": "ftc4", "d": "📝 Resume Maker", "h": 0}, {"k": "ftc5", "d": "📐 A3 / A2 / A1 + Duplex", "h": 0}, {"k": "ftc6", "d": "💳 Paisa Seedha Aapke Account", "h": 0}, {"k": "ftc7", "d": "🔒 Auto File Delete", "h": 0}, {"k": "ftc8", "d": "📶 Net Jaye To Bhi Safe", "h": 0}, {"k": "ftMore", "d": "Saare features detail me dekho →", "h": 0}]}, {"g": "📌 ⚖️ Pehle vs Ab", "k": [{"k": "compareHeading", "d": "⚖️ Pehle vs Ab", "h": 0}, {"k": "cmp01", "d": "📱 WhatsApp Tareeka", "h": 0}, {"k": "cmp02", "d": "⚡ QR Se Print", "h": 0}, {"k": "cmp03", "d": "<b>File lena</b>", "h": 1}, {"k": "cmp04", "d": "Apna number do, chat dhundo", "h": 0}, {"k": "cmp05", "d": "QR scan — number private", "h": 0}, {"k": "cmp06", "d": "<b>Payment</b>", "h": 1}, {"k": "cmp07", "d": "Yaad rakho kaun baaki hai", "h": 0}, {"k": "cmp08", "d": "Record khud banta hai", "h": 0}, {"k": "cmp09", "d": "<b>Aapka time</b>", "h": 1}, {"k": "cmp10", "d": "Har print me haath lagao", "h": 0}, {"k": "cmp11", "d": "Print khud nikalta hai", "h": 0}, {"k": "cmp12", "d": "<b>Virus risk</b>", "h": 1}, {"k": "cmp13", "d": "Pendrive = khatra", "h": 0}, {"k": "cmp14", "d": "Zero — sab phone se", "h": 0}, {"k": "cmp15", "d": "<b>Photo/Resume</b>", "h": 1}, {"k": "cmp16", "d": "Alag software, alag jhanjhat", "h": 0}, {"k": "cmp17", "d": "Sab isi me built-in", "h": 0}, {"k": "cmp18", "d": "<b>Commission</b>", "h": 1}, {"k": "cmp19", "d": "—", "h": 0}, {"k": "cmp20", "d": "0% — paisa poora aapka", "h": 0}]}, {"g": "📌 🧮 Hisaab Lagao — Kitne Din Me Wasool…", "k": [{"k": "roi01", "d": "🧮 Hisaab Lagao — Kitne Din Me Wasool?", "h": 0}, {"k": "roi02", "d": "<span>Din ke sirf 15 print (kam se kam)</span><span>15 × ₹5 = ₹75/din</span>", "h": 1}, {"k": "roi03", "d": "<span>Mahine ki print kamai</span><span>~₹2,250</span>", "h": 1}, {"k": "roi04", "d": "<span>Software ka kharcha (One-Time)</span><span>₹999 — EK baar</span>", "h": 1}, {"k": "roi05", "d": "<span>Wasool</span><span>2 hafte se pehle ✅</span>", "h": 1}, {"k": "roi06", "d": "* Misaal ke taur par — aapke rates aur prints aapki dukaan par depend karte hain. Upar se time ki bachat aur photo/resume ki extra kamai alag.", "h": 0}, {"k": "roi07", "d": "🙋 Banane Wala Bhi Aap Jaisa Hi Hai", "h": 0}, {"k": "roi08", "d": "Main <b>Rupesh Kumar Mahato</b> — Jharkhand me apna cyber cafe chalata hoon. Ye software maine pehle <b>apni dukaan ke liye</b> banaya tha, kyunki WhatsApp-pendrive wala jhanjhat mujhse bhi nahi jhela ja raha tha.<br/><br/> Jab meri dukaan pe chal gaya, tab doosre shop walon ke liye khola. Isliye isme wahi cheezein hain jo <b>asli dukaan me kaam aati hain</b> — aur koi dikkat aaye to WhatsApp pe main khud jawab deta hoon.", "h": 1}]}, {"g": "📌 💰 Apna Plan Chuno", "k": [{"k": "plan01", "d": "💰 Apna Plan Chuno", "h": 0}, {"k": "plan02", "d": "🎯 Demo", "h": 0}, {"k": "plan03", "d": "₹0", "h": 0}, {"k": "plan04", "d": "Try karke dekho — bina paisa diye", "h": 0}, {"k": "plan05", "d": "Try Now — Free Demo", "h": 0}, {"k": "plan06", "d": "📅 Monthly", "h": 0}, {"k": "plan07", "d": "₹<span id=\"hpMonthly\">399</span> <small>/month</small>", "h": 1}, {"k": "plan08", "d": "Per month renewal — time par pay karo, service chalti rahe", "h": 0}, {"k": "plan09", "d": "Setup Now", "h": 0}, {"k": "plan10", "d": "💎 One-Time", "h": 0}, {"k": "plan11", "d": "<span class=\"cut3\" id=\"hpCut\">₹1999</span>₹<span id=\"hpOnetime\">999</span>", "h": 1}, {"k": "plan12", "d": "Lifetime Access & Update — No renewal", "h": 0}, {"k": "plan13", "d": "Setup Now", "h": 0}, {"k": "plan14", "d": "🚀 Setup Now", "h": 0}, {"k": "plan15", "d": "🎯 Try Now — Demo", "h": 0}]}, {"g": "❓ FAQ Section", "k": [{"k": "faqHeading", "d": "❓ Aksar Puchhe Jaane Wale Sawal", "h": 0}]}, {"g": "🎥 Setup Guide Video (Homepage Par)", "k": [{"k": "guideVideoTitle", "d": "2 Minute Mein Poora Setup Dekh Lo", "h": 0}, {"k": "guideVideoSub", "d": "Browser autoplay policy ki wajah se video muted shuru hoti hai — awaaz on karne ke liye button dabao", "h": 0}, {"k": "guideVideoCaption", "d": "Setup me koi dikkat aaye to Contact Us se seedha humse baat karo", "h": 0}]}, {"g": "🧭 Setup Guide Page (\"How to Setup\" Button)", "k": [{"k": "gd01", "d": "🧭 Setup Guide", "h": 0}, {"k": "gd02", "d": "QR Se Print Kaise Setup Karein", "h": 0}, {"k": "gd03", "d": "⏱️ 5 minute me shuru ho jayega", "h": 0}, {"k": "gd04", "d": "🙋 Koi bhi follow kar sakta hai — technical knowledge zaroori nahi", "h": 0}, {"k": "gd05", "d": "Ye guide aapko <strong>step-by-step</strong> dikhayega ki payment complete karne ke baad Shop ID milne se lekar\n      pehla test print nikalne tak kya-kya karna hai. Har step ko order me follow karo — kahin atko to sabse neeche\n      Support section me contact ka tarika bhi diya hai.", "h": 1}, {"k": "gd06", "d": "<b>Ek line me</b>Login karo → Download tab se QR + Software lo → PC me install karo → Settings me printer select karo → QR scan karke test print nikalo. Bas itna hi hai.", "h": 1}, {"k": "gd07", "d": "Step 1–8", "h": 0}, {"k": "gd08", "d": "🖨️ Print Software Setup Karo", "h": 0}, {"k": "gd09", "d": "Ye 8 steps sabke liye zaroori hain — chahe aap counter par cash lete ho ya online payment.", "h": 0}, {"k": "gd10", "d": "Payment Complete Karo", "h": 0}, {"k": "gd11", "d": "Registration ke baad payment poora hote hi aapko turant ek <b>Shop ID</b> mil jaata hai — yahi aapki dukaan ki pehchan hai, isko sambhal ke rakho.", "h": 1}, {"k": "gd12", "d": "Shop Login Karo", "h": 0}, {"k": "gd13", "d": "Apni Shop ID aur password se <b>Shop Owner Login</b> karo. Login hote hi aap seedha apne Shop Dashboard me pahunch jaoge.", "h": 1}, {"k": "gd14", "d": "Download Tab Kholo", "h": 0}, {"k": "gd15", "d": "Dashboard me Download tab me jaao. Yahan se teen kaam karne hain:", "h": 0}, {"k": "gd16", "d": "🔲 Apna personalized QR Code download karo", "h": 0}, {"k": "gd17", "d": "💻 Print Agent Software download karo", "h": 0}, {"k": "gd18", "d": "📋 Apni Shop ID copy kar lo", "h": 0}, {"k": "gd19", "d": "PC Me Software Install Karo", "h": 0}, {"k": "gd20", "d": "Jo software download kiya, use apne dukaan ke computer me install karo. Install hote waqt <b>Shop ID</b> maangi jaayegi — wahi Shop ID paste kar do jo abhi copy ki thi.", "h": 1}, {"k": "gd21", "d": "System Tray Me Chala Jayega", "h": 0}, {"k": "gd22", "d": "Install hote hi software apne aap minimize hoke <b>System Tray</b> (screen ke bottom-right, ghadi ke paas) me chala jaayega — background me chupchap kaam karta rahega.", "h": 1}, {"k": "gd23", "d": "Dashboard Refresh Karo", "h": 0}, {"k": "gd24", "d": "Browser me apne Shop Dashboard se ek baar <b>Logout karke dobara Login</b> karo — isse dashboard ko pata chal jaata hai ki aapka Print Agent connect ho chuka hai, aur Settings me printer options dikhne lagte hain.", "h": 1}, {"k": "gd25", "d": "Printer Select Karo", "h": 0}, {"k": "gd26", "d": "Settings me jaao — <b>B&amp;W Print</b> ke liye ek printer aur <b>Color Print</b> ke liye ek printer select karo. Agar dukaan me sirf ek hi printer hai, to dono jagah wahi printer select kar do. Phir <b>Save</b> dabao.", "h": 1}, {"k": "gd27", "d": "Test Print Karo", "h": 0}, {"k": "gd28", "d": "Ab apni dukaan ka QR scan karke ek <b>test print</b> nikalo — agar print nikal aaye, matlab sab kuch sahi set ho chuka hai! 🎊", "h": 1}, {"k": "gd29", "d": "Step 1–7 · Optional", "h": 0}, {"k": "gd30", "d": "💳 Online Payment Setup (Razorpay)", "h": 0}, {"k": "gd31", "d": "Agar customer se sirf counter par cash lena hai to ye section skip kar sakte ho. Online payment bhi lena hai to ye extra steps follow karo:", "h": 0}, {"k": "gd32", "d": "Razorpay Account Banao", "h": 0}, {"k": "gd33", "d": "<b>razorpay.com</b> par jaakar apna account banao.", "h": 1}, {"k": "gd34", "d": "Website Me \"qrseprint.in\" Likho", "h": 0}, {"k": "gd35", "d": "Registration ke time jahan business website maangi jaaye, wahaan <b>qrseprint.in</b> daal do — kyunki aapke online orders isi platform ke through aate hain.", "h": 1}, {"k": "gd36", "d": "Unregistered Business Select Karo", "h": 0}, {"k": "gd37", "d": "GST ya current account nahi hai? Koi baat nahi — <b>\"Unregistered Business\"</b> category chuno. Savings account aur PAN card se hi ho jaata hai.", "h": 1}, {"k": "gd38", "d": "Live API Key Generate Karo", "h": 0}, {"k": "gd39", "d": "Account active hone ke baad: <b>Profile → Settings → API Keys</b> me jaakar apni <b>Live Key</b> generate karo.", "h": 1}, {"k": "gd40", "d": "Payment Setup Kholo", "h": 0}, {"k": "gd41", "d": "qrseprint.in par apne Shop Dashboard me login karke <b>Payment Setup</b> me jaao, aur wahan <b>\"Online Payment\"</b> select karo.", "h": 1}, {"k": "gd42", "d": "Keys Paste Karke Save Karo", "h": 0}, {"k": "gd43", "d": "Razorpay se generate ki hui <b>API Key</b> aur <b>Secret Key</b> copy karke yahan paste karo, phir <b>Save</b> karo.", "h": 1}, {"k": "gd44", "d": "Test Karo", "h": 0}, {"k": "gd45", "d": "Ab QR scan karke phone se test print karo aur payment <b>online</b> karke dekho — is baar payment online hoga, aur print seedha automatic nikal jaayega. 🎊", "h": 1}, {"k": "gd46", "d": "FAQ", "h": 0}, {"k": "gd47", "d": "🔒 Customer File Privacy", "h": 0}, {"k": "gd48", "d": "File upload ke baad, file kahaan store hoti hai?", "h": 0}, {"k": "gd49", "d": "Kahin nahi. File server par sirf print hone tak rehti hai — print command chalte hi turant delete command chal jaata hai, aur file <b>permanently</b> mit jaati hai.", "h": 1}, {"k": "gd50", "d": "Agar print cancel kar diya, to kya customer ko dobara upload karna padega?", "h": 0}, {"k": "gd51", "d": "Haan, dobara upload karna padega. Hamari policy hai ki koi file store nahi ki jaati — chahe print ho ya cancel. Ye aap khud verify kar sakte ho: System Tray me QR Se Print icon par right-click karke <b>\"📋 Logs Dekho\"</b> kholo, wahaan har file print ke turant baad delete hoti dikhegi.", "h": 1}, {"k": "gd52", "d": "Kisi bhi sawal ke liye kya karein?", "h": 0}, {"k": "gd53", "d": "Do tarike hain — (1) apne Shop Dashboard ke Support tab me <b>WhatsApp Connect</b> button se seedha message karo, ya (2) System Tray me icon par right-click karke <b>\"💬 Contact Admin\"</b> dabao. Dono se seedha admin tak baat pahunchti hai.", "h": 1}, {"k": "gd54", "d": "Setup me atak gaye?", "h": 0}, {"k": "gd55", "d": "Koi bhi step samajh nahi aaya ho — seedha humse baat kariye, hum madad kar denge.", "h": 0}, {"k": "gd56", "d": "© 2026 QR Se Print (qrseprint.in) · Cyber cafe aur print shop ke liye automatic print software · Made in Jharkhand, India", "h": 1}]}, {"g": "🎁 Features Detail Page (\"See All Features\" Button)", "k": [{"k": "fp01", "d": "🎁 Features", "h": 0}, {"k": "fp02", "d": "Poori Dukaan Ka System", "h": 0}, {"k": "fp03", "d": "<span>Sab kuch ek jagah</span><span>Koi extra software nahi</span>", "h": 1}, {"k": "fp04", "d": "<b>Sab kuch ek hi software me</b>Na alag photo tool, na alag resume software, na alag hisaab ki copy. Ek QR — aur dukaan ka poora kaam.", "h": 1}, {"k": "fp05", "d": "Pricing dekho →", "h": 0}]}, {"g": "✨ About Page (\"About\" Button)", "k": [{"k": "ab01", "d": "🖨️", "h": 0}, {"k": "ab02", "d": "← Back to Home", "h": 0}, {"k": "ab03", "d": "✨ About", "h": 0}, {"k": "ab04", "d": "About QR Se Print", "h": 0}, {"k": "ab05", "d": "<span><b>Smart Printing. Made Simple.</b></span>\n<span>Scan · Upload · Pay · Auto Print</span>", "h": 1}, {"k": "ab06", "d": "<strong>QR Se Print</strong> ek modern Smart Printing Platform hai jo Cyber Cafes, Print Shops, CSC Centers aur Digital Service Businesses ke liye specially design kiya gaya hai. Hamara mission simple hai — printing ko fast, automated aur hassle-free banana.", "h": 1}, {"k": "ab07", "d": "<b>Kaam kaise karta hai</b>Customer ko sirf QR scan karna hai, document upload karna hai, payment complete karni hai — aur print automatically start ho jata hai. Na pendrive ki zarurat, na WhatsApp par file bhejne ka jhanjhat, na manual file handling.", "h": 1}, {"k": "ab08", "d": "Hamara Mission", "h": 0}, {"k": "ab09", "d": "Hum believe karte hain ki technology ka asli purpose logon ka kaam easy banana hai. Isi soch ke saath QR Se Print develop kiya gaya hai, taaki har print shop bina expensive hardware ya complicated setup ke ek modern self-service printing experience de sake.", "h": 0}, {"k": "ab10", "d": "Hamara goal sirf software dena nahi, balki har shop owner ko apna business aur professional, fast aur efficient banane me help karna hai.", "h": 0}, {"k": "ab11", "d": "QR Se Print kya offer karta hai", "h": 0}, {"k": "ab12", "d": "QR based smart printing — Scan → Upload → Pay → Auto Print", "h": 0}, {"k": "ab13", "d": "Har tarah ke printer ka support — WiFi printer ki zarurat nahi", "h": 0}, {"k": "ab14", "d": "Aasan software installation", "h": 0}, {"k": "ab15", "d": "Secure document processing", "h": 0}, {"k": "ab16", "d": "Shop owner dashboard", "h": 0}, {"k": "ab17", "d": "Black & White aur Colour ke liye alag printer selection", "h": 0}, {"k": "ab18", "d": "Order aur income management", "h": 0}, {"k": "ab19", "d": "Fast performance", "h": 0}, {"k": "ab20", "d": "Regular updates aur improvements", "h": 0}, {"k": "ab21", "d": "Kis ke liye hai", "h": 0}, {"k": "ab22", "d": "Cyber Cafes", "h": 0}, {"k": "ab23", "d": "Print & Xerox Shops", "h": 0}, {"k": "ab24", "d": "CSC Centers", "h": 0}, {"k": "ab25", "d": "Digital Service Centers", "h": 0}, {"k": "ab26", "d": "Schools & Colleges", "h": 0}, {"k": "ab27", "d": "Coaching Institutes", "h": 0}, {"k": "ab28", "d": "Libraries aur Offices", "h": 0}, {"k": "ab29", "d": "Small & Medium printing businesses", "h": 0}, {"k": "ab30", "d": "Ye kahan se shuru hua", "h": 0}, {"k": "ab31", "d": "QR Se Print ki kahani kisi office ya startup se nahi, balki ek asli Cyber Cafe se shuru hui.", "h": 0}, {"k": "ab32", "d": "Rupesh Kumar Mahato apna Cyber Cafe chalate hain. Roz customers WhatsApp se file bhejte, ya pendrive lekar aate.", "h": 0}, {"k": "ab33", "d": "Isi problem ko theek karne ke liye QR Se Print banaya — bechne ke liye nahi, apna kaam aasan karne ke liye.", "h": 0}, {"k": "ab34", "d": "Daily use kiya, improve kiya, aur asli feedback ke basis par features add kiye. Jo kaam nahi aaya, hata diya.", "h": 0}, {"k": "ab35", "d": "Jab apni shop me system bharose ka ho gaya, tab laga ki ye doosre Cyber Cafes aur Print Shops ke bhi kaam aayega.", "h": 0}, {"k": "ab36", "d": "Support seedha, bina kisi bicholiye ke", "h": 0}, {"k": "ab37", "d": "Setup ya software use karte waqt koi problem aaye to support kisi third-party team se nahi milta — seedha WhatsApp par personally diya jata hai, taaki har user bina confusion ke QR Se Print ka poora fayda le sake.", "h": 0}, {"k": "ab38", "d": "Hamara Vision", "h": 0}, {"k": "ab39", "d": "Hamara vision hai ki QR Se Print India ka sabse trusted Smart Printing Platform bane — jahan har print shop bina expensive infrastructure ke smart aur automated printing service de sake.", "h": 0}, {"k": "ab40", "d": "Hum lagatar naye features, better security, faster performance aur reliable technology par kaam kar rahe hain, taaki har business confidently digital printing ka future apna sake.", "h": 0}, {"k": "ab41", "d": "<b>QR Se Print</b>Scan. Upload. Pay. Auto Print.<br/>Making printing smarter, faster &amp; simpler.", "h": 1}, {"k": "ab42", "d": "Terms & Conditions", "h": 0}, {"k": "ab43", "d": "Privacy Policy", "h": 0}, {"k": "ab44", "d": "Refund Policy", "h": 0}, {"k": "ab45", "d": "Disclaimer", "h": 0}, {"k": "ab46", "d": "Ek chhoti dukaan, Jharkhand me", "h": 0}, {"k": "ab47", "d": "Roz ka wahi jhanjhat", "h": 0}, {"k": "ab48", "d": "File receive karo, download karo, payment lo, phir manually print do. Peak hours me line lag jaati thi.", "h": 0}, {"k": "ab49", "d": "Pehle sirf apni shop ke liye", "h": 0}, {"k": "ab50", "d": "Mahino asli customers ke saath", "h": 0}, {"k": "ab51", "d": "Phir sabke liye", "h": 0}, {"k": "ab52", "d": "Isliye isme wahi features milte hain jo ek asli print shop ki roz ki zarurat dekh kar bane hain — sirf dikhane ke liye nahi.", "h": 0}, {"k": "ab53", "d": "mujhe niche khicho", "h": 0}]}, {"g": "💬 Contact Page (\"Contact Us\" Button)", "k": [{"k": "cp01", "d": "💬 Contact", "h": 0}, {"k": "cp02", "d": "Baat Karo", "h": 0}, {"k": "cp03", "d": "<span>Support seedha, bina bicholiye</span>", "h": 1}, {"k": "cp04", "d": "Setup me dikkat ho, ya kuch samajh na aaye — seedha message karo. Koi third-party support team nahi hai, jawab khud milta hai.", "h": 1}, {"k": "cp05", "d": "WhatsApp", "h": 0}, {"k": "cp06", "d": "Sabse jaldi jawab yahin milta hai", "h": 0}, {"k": "cp07", "d": "Email", "h": 0}, {"k": "cp08", "d": "Detail wali baat ke liye", "h": 0}, {"k": "cp09", "d": "Phone", "h": 0}, {"k": "cp10", "d": "Kaam ke ghanto me", "h": 0}, {"k": "cp11", "d": "Ya yahin se message bhej do", "h": 0}, {"k": "cp12", "d": "WhatsApp se bhejo", "h": 0}, {"k": "cp13", "d": "Email se bhejo", "h": 0}]}, {"g": "🤝 Partner Program Page (\"Partner\" Button)", "k": [{"k": "pp01", "d": "🤝 Partner Program", "h": 0}, {"k": "pp02", "d": "Saath Milkar Kamao", "h": 0}, {"k": "pp03", "d": "<span>Teen tarike — apni suvidha ka chuno</span>", "h": 1}, {"k": "pp04", "d": "QR Se Print se judne ke teen raaste hain. Kisi me apna brand chalao, kisi me shop jodo, ya sirf baat karke shuru karo.", "h": 1}, {"k": "pp05", "d": "White Label", "h": 0}, {"k": "pp06", "d": "Apne brand ke naam se poora software becho. Apna logo, apna domain, apna Razorpay — setup fee seedha aapke account me. Hum beech me nahi aate.", "h": 0}, {"k": "pp07", "d": "White Label dekho →", "h": 0}, {"k": "pp08", "d": "Agent Program", "h": 0}, {"k": "pp09", "d": "Shops jodo aur har shop par commission kamao. Apna referral code, apna dashboard, kamai ka poora hisaab. Koi investment nahi.", "h": 0}, {"k": "pp10", "d": "Agent Program dekho →", "h": 0}, {"k": "pp11", "d": "Business Inquiry", "h": 0}, {"k": "pp12", "d": "Bulk deal, custom requirement, ya kuch aur soch rahe ho? Seedha baat karo — form bharo, message WhatsApp ya email par pahunch jayega.", "h": 0}, {"k": "pp13", "d": "Baat karo →", "h": 0}]}, {"g": "🤝 Become an Agent Banner (Homepage)", "k": [{"k": "agentBtnTitle", "d": "Become an Agent — Earn Lifetime", "h": 0}, {"k": "agentBtnSub", "d": "Har shop onboard karne par ₹200 commission + apna margin", "h": 0}]}, {"g": "⭐ Reviews Section (Homepage)", "k": [{"k": "rvTitle", "d": "⭐ Shop Owners Kya Kehte Hain", "h": 0}]}, {"g": "🎯 Demo Popup", "k": [{"k": "demo01", "d": "🎯 2 Ghante Free Demo", "h": 0}, {"k": "demo02", "d": "Naam + mobile — turant Demo Shop ID milega, koi payment nahi", "h": 0}, {"k": "demo03", "d": "Demo Shuru Karo ›", "h": 0}, {"k": "demo04", "d": "Band karo", "h": 0}]}, {"g": "💼 Business Inquiry Popup", "k": [{"k": "inq01", "d": "💼 Business Inquiry", "h": 0}, {"k": "inq02", "d": "Form bharo — message seedha humare WhatsApp ya Email par pahunchega", "h": 0}, {"k": "inq03", "d": "💬 WhatsApp Se Bhejo", "h": 0}, {"k": "inq04", "d": "📧 Email Se Bhejo", "h": 0}, {"k": "inq05", "d": "Band karo", "h": 0}]}, {"g": "📜 Terms & Conditions Page", "k": [{"k": "tm01", "d": "🖨️", "h": 0}, {"k": "tm02", "d": "← Back to Home", "h": 0}, {"k": "tm03", "d": "📜 Legal", "h": 0}, {"k": "tm04", "d": "Terms & Conditions", "h": 0}, {"k": "tm05", "d": "<span>Last updated: <b>July 2026</b></span> <span><b>qrseprint.in</b> — QR Se Print software &amp; print-relay agent</span>", "h": 1}, {"k": "tm06", "d": "These Terms govern your use of <strong>QR Se Print</strong> — the automatic print software for cyber cafes and print shops available at <strong>qrseprint.in</strong>, together with the customer QR upload portal, the shop admin panel, and the Windows print-relay agent. By taking a demo on qrseprint.in, registering a shop, or purchasing a plan, you agree to these Terms.", "h": 1}, {"k": "tm07", "d": "<b>Saral bhasha me</b>QR Se Print ek software hai jo aapki dukaan ke printer ko customer ke phone se jodta hai. Ye niyam batate hain ki account, plan, referral aur payment kaise chalte hain, aur kya karna mana hai.", "h": 1}, {"k": "tm08", "d": "What QR Se Print does", "h": 0}, {"k": "tm09", "d": "QR Se Print connects a customer’s mobile phone directly to a shop’s printer. The shop displays its own QR code; the customer scans it, uploads files, pays, and the job prints automatically through the Windows print-relay agent installed at the shop.", "h": 0}, {"k": "tm10", "d": "The Platform includes multi-file printing (several PDFs and photos in one order), on-phone editing such as crop, rotate and brightness, automatic 4×6 passport photo sheets with cutting lines, a built-in resume maker, A3/A2/A1 and duplex support, and an offline queue that releases jobs once the internet returns. Availability of individual features depends on the plan and on the shop’s own hardware.", "h": 0}, {"k": "tm11", "d": "Who can register a shop", "h": 0}, {"k": "tm12", "d": "A shop account on qrseprint.in may be opened by any cyber cafe, stationery shop, print shop, or similar business operated by a person aged 18 or above. You must give accurate details when registering and keep your Shop ID and password confidential. Anything done through your account is treated as done by you.", "h": 0}, {"k": "tm13", "d": "Free demo", "h": 0}, {"k": "tm14", "d": "Every prospective shop gets a free demo on qrseprint.in with no payment and no card details. The demo runs the real software so you can test it with your own printer before deciding. Demo shops may be limited in duration and may be reset or removed at any time.", "h": 0}, {"k": "tm15", "d": "Plans and the print-relay agent", "h": 0}, {"k": "tm16", "d": "Paid plans published on qrseprint.in include a monthly plan and a one-time lifetime plan. On purchase you get a limited, non-transferable licence to install and run the QR Se Print agent at your own shop. You may not:", "h": 0}, {"k": "tm17", "d": "Resell, rent, sub-licence, or redistribute the software or your Shop ID;", "h": 0}, {"k": "tm18", "d": "Share one shop account across separate businesses or premises;", "h": 0}, {"k": "tm19", "d": "Reverse-engineer, decompile, patch, or tamper with the agent or its auto-update mechanism;", "h": 0}, {"k": "tm20", "d": "Run a modified build, or block updates that we publish for security or compatibility.", "h": 0}, {"k": "tm21", "d": "Advance features such as 4×6 photo sheets, A3, duplex and the resume maker may be sold as a separate unlock, at the price shown on qrseprint.in at that time.", "h": 0}, {"k": "tm22", "d": "Money: your customers pay you directly", "h": 0}, {"k": "tm23", "d": "Payments made by your customers for printing go <strong>straight into your own account</strong> through Razorpay or your configured UPI, or are taken as cash at your counter. QR Se Print charges <strong>0% commission</strong> on print revenue and places no limit on the number of prints.", "h": 1}, {"k": "tm24", "d": "The print transaction is between you and your customer. We are not a party to it, do not hold that money, and do not become responsible for it.", "h": 0}, {"k": "tm25", "d": "Shop owner responsibilities", "h": 0}, {"k": "tm26", "d": "Running the shop is entirely yours. You are responsible for:", "h": 0}, {"k": "tm27", "d": "Your printer, computer, drivers, paper, ink or toner, and internet connection;", "h": 0}, {"k": "tm28", "d": "Keeping the QR Se Print agent installed, running, and updated on the shop computer;", "h": 0}, {"k": "tm29", "d": "Your own trade licence, GST and tax compliance, and any local permissions;", "h": 0}, {"k": "tm30", "d": "The rates you charge and honouring jobs your customers have paid for;", "h": 0}, {"k": "tm31", "d": "Serving your customers and resolving their complaints about print work done at your shop.", "h": 0}, {"k": "tm32", "d": "Referral programme and withdrawals", "h": 0}, {"k": "tm33", "d": "Where a referral reward is offered on qrseprint.in, it is credited only for a genuine new shop that completes registration and payment. Self-referrals, duplicate shops, fake registrations, or referrals later refunded or reversed do not qualify, and we may cancel such credits.", "h": 0}, {"k": "tm34", "d": "Withdrawal requests are processed to the details you provide in your admin panel. Please keep those details correct — we are not responsible for money sent to a wrong account number given by you. We may hold or reverse a withdrawal where fraud or abuse is suspected.", "h": 0}, {"k": "tm35", "d": "What you must not print or do", "h": 0}, {"k": "tm36", "d": "The Platform must not be used to:", "h": 0}, {"k": "tm37", "d": "Print or distribute obscene, defamatory, fraudulent, or otherwise unlawful material;", "h": 0}, {"k": "tm38", "d": "Print documents you have no right to copy, including examination papers, currency, identity documents belonging to others, or copyrighted work;", "h": 0}, {"k": "tm39", "d": "Attack, probe, overload, or gain unauthorised access to qrseprint.in or its servers;", "h": 0}, {"k": "tm40", "d": "Upload malware, or use bots or scripts to place fake print jobs;", "h": 0}, {"k": "tm41", "d": "Copy the design, content, or code of qrseprint.in for a competing product.", "h": 0}, {"k": "tm42", "d": "Intellectual property", "h": 0}, {"k": "tm43", "d": "The QR Se Print name, logo, website qrseprint.in, print-relay agent, admin panel, and all its code and content belong to QR Se Print. Your plan gives you the right to use the software, not to own it. Documents uploaded by your customers remain theirs — we claim no rights over them.", "h": 0}, {"k": "tm44", "d": "Suspension and termination", "h": 0}, {"k": "tm45", "d": "You can stop using QR Se Print at any time. We may suspend or close a shop account that breaches these Terms, does not pay for its plan, abuses the referral or withdrawal system, or puts the Platform or other shops at risk. On termination the licence to run the agent ends immediately.", "h": 0}, {"k": "tm46", "d": "Service changes", "h": 0}, {"k": "tm47", "d": "QR Se Print is under active development and features on qrseprint.in may be added, changed, or withdrawn. We may also update these Terms; the date at the top of this page shows when they last changed, and continued use means you accept the updated version.", "h": 0}, {"k": "tm48", "d": "Liability", "h": 0}, {"k": "tm49", "d": "Disclaimer", "h": 0}, {"k": "tm50", "d": "Governing law", "h": 0}, {"k": "tm51", "d": "These Terms are governed by the laws of India, and the courts of Jharkhand, India have exclusive jurisdiction over any dispute relating to QR Se Print or qrseprint.in.", "h": 0}, {"k": "tm52", "d": "Koi sawal hai?", "h": 0}, {"k": "tm53", "d": "QR Se Print ya qrseprint.in ke bare me kuch bhi poochna ho — seedha humse baat kariye.", "h": 0}, {"k": "tm54", "d": "💼 Business Inquiry", "h": 0}, {"k": "tm55", "d": "Privacy Policy", "h": 0}, {"k": "tm56", "d": "Refund Policy", "h": 0}, {"k": "tm57", "d": "Disclaimer", "h": 0}]}, {"g": "🔒 Privacy Policy Page", "k": [{"k": "pv01", "d": "🖨️", "h": 0}, {"k": "pv02", "d": "← Back to Home", "h": 0}, {"k": "pv03", "d": "🔒 Legal", "h": 0}, {"k": "pv04", "d": "Privacy Policy", "h": 0}, {"k": "pv05", "d": "<span>Last updated: <b>July 2026</b></span> <span><b>qrseprint.in</b> — Files delete turant · Shop owner ke apne logs</span>", "h": 1}, {"k": "pv06", "d": "<strong>QR Se Print</strong> is built around a simple promise: a customer’s document should exist only long enough to print, and nothing longer. This policy explains exactly what qrseprint.in collects, how long a print file survives, and what a shop owner can see. We do not sell data to anyone, and we do not keep a library of your customers’ documents.", "h": 1}, {"k": "pv07", "d": "<b>Saral bhasha me</b>Sabse zaroori baat: <b>customer ki file print hote hi turant delete ho jati hai</b> — server par kuch nahi bachta. Shop owner apne admin panel ke logs me dekh sakta hai ki job print hua aur file hat gayi. Card ya UPI PIN hum kabhi store nahi karte, wo Razorpay ke paas jata hai.", "h": 1}, {"k": "pv08", "d": "Print files are deleted immediately after printing", "h": 0}, {"k": "pv09", "d": "<strong>This is the core of how QR Se Print works.</strong> When a customer scans a shop’s QR code on qrseprint.in and uploads a document, that file is held only until the print-relay agent has sent it to the shop’s printer. As soon as the job is printed, <strong>the file is deleted right away</strong> — it is not archived, not backed up, and not kept for later viewing by us or by the shop.", "h": 1}, {"k": "pv10", "d": "A job that is never paid for, or never printed, is cleared automatically as well, so nothing lingers on qrseprint.in indefinitely. Because deletion is immediate, <strong>a printed file cannot be recovered or reprinted from the server</strong> — if a customer needs another copy, they must upload it again. Customers should always keep their own copy of any document they send.", "h": 1}, {"k": "pv11", "d": "What the shop owner can see in their logs", "h": 0}, {"k": "pv12", "d": "Every shop has its own admin panel on qrseprint.in with a print log. That log records <strong>what happened, not the document itself</strong>: job ID and time, number of pages and copies, colour or black-and-white, the amount paid and payment status, and whether the file was printed and cleared.", "h": 1}, {"k": "pv13", "d": "The shop owner can therefore verify their earnings and confirm that each customer file was removed after printing — while the document content itself is already gone. Only that shop can see its own log; one shop can never see another shop’s jobs or customers.", "h": 0}, {"k": "pv14", "d": "Information we collect", "h": 0}, {"k": "pv15", "d": "Beyond the print file itself, qrseprint.in collects only what the service needs to work:", "h": 0}, {"k": "pv16", "d": "<strong>Shop account</strong> — shop name, owner name, mobile number, email, shop area, Shop ID, and password stored in hashed form;", "h": 1}, {"k": "pv17", "d": "<strong>Print job record</strong> — page count, copies, colour setting, paper size, amount, payment status and time;", "h": 1}, {"k": "pv18", "d": "<strong>Customer mobile number</strong>, where entered, so the right job can be identified at the counter;", "h": 1}, {"k": "pv19", "d": "<strong>Payment reference</strong> — transaction ID, amount and success or failure, received from the payment gateway;", "h": 1}, {"k": "pv20", "d": "<strong>Printer list from the shop computer</strong> — the names of installed printers, so you can choose which printer handles which job;", "h": 1}, {"k": "pv21", "d": "<strong>Basic technical logs</strong> — device type, browser, agent version, error messages and timestamps.", "h": 1}, {"k": "pv22", "d": "We do not read, index, or analyse the contents of customer documents, and we never use them for advertising, profiling, or training any model.", "h": 0}, {"k": "pv23", "d": "Payment details are never stored with us", "h": 0}, {"k": "pv24", "d": "Online payments on qrseprint.in are handled by <strong>Razorpay</strong> or the shop’s own UPI. Card numbers, CVV, UPI PIN and net-banking passwords are entered on the payment provider’s own secure screen. <strong>QR Se Print never sees or stores them.</strong> We receive only the transaction ID, amount, and whether it succeeded — which is what releases the print job.", "h": 1}, {"k": "pv25", "d": "Who else sees anything", "h": 0}, {"k": "pv26", "d": "We do not sell or rent personal information. Limited data is shared only where the service requires it:", "h": 0}, {"k": "pv27", "d": "<strong>The shop you sent the job to</strong> — which receives the print job and the counter details needed to hand it over;", "h": 1}, {"k": "pv28", "d": "<strong>Razorpay</strong> — to take and verify payment;", "h": 1}, {"k": "pv29", "d": "<strong>Our hosting and database providers</strong> — to run qrseprint.in;", "h": 1}, {"k": "pv30", "d": "<strong>Authorities</strong> — only where a valid legal requirement applies.", "h": 1}, {"k": "pv31", "d": "Security", "h": 0}, {"k": "pv32", "d": "We use reasonable technical measures to protect qrseprint.in, including encrypted connections, hashed passwords, admin access controls, and shop-level separation so no shop can reach another shop’s data. Immediate deletion of print files is itself a security measure — data that no longer exists cannot leak.", "h": 0}, {"k": "pv33", "d": "No system is perfectly secure, and we cannot promise absolute safety. Shop owners must protect their own Shop ID, password, and the computer running the print-relay agent.", "h": 0}, {"k": "pv34", "d": "Cookies and local storage", "h": 0}, {"k": "pv35", "d": "qrseprint.in uses cookies and browser local storage to keep a shop owner signed in to the admin panel, remember the language chosen on the homepage, and record basic errors so faults can be fixed. These are functional. You can clear or block them in your browser, though the admin panel may then not stay logged in.", "h": 0}, {"k": "pv36", "d": "Your rights", "h": 0}, {"k": "pv37", "d": "You may, subject to Indian law:", "h": 0}, {"k": "pv38", "d": "Ask what personal information we hold about your shop account;", "h": 0}, {"k": "pv39", "d": "Ask us to correct anything wrong;", "h": 0}, {"k": "pv40", "d": "Ask us to delete your shop account and its details, where we are not required to keep them;", "h": 0}, {"k": "pv41", "d": "Ask us to stop sending non-essential messages.", "h": 0}, {"k": "pv42", "d": "Send any such request through the Business Inquiry form on qrseprint.in or the contact details in the footer.", "h": 0}, {"k": "pv43", "d": "Children", "h": 0}, {"k": "pv44", "d": "QR Se Print is meant for shop owners and their walk-in customers. We do not knowingly collect information from children. If you believe a child’s information has reached us, tell us and we will remove it.", "h": 0}, {"k": "pv45", "d": "Changes to this policy", "h": 0}, {"k": "pv46", "d": "If the way qrseprint.in handles data changes, this page is updated and the date at the top changes with it. Anything that materially affects shops will also be shown in the admin panel.", "h": 0}, {"k": "pv47", "d": "Koi sawal hai?", "h": 0}, {"k": "pv48", "d": "QR Se Print ya qrseprint.in ke bare me kuch bhi poochna ho — seedha humse baat kariye.", "h": 0}, {"k": "pv49", "d": "💼 Business Inquiry", "h": 0}, {"k": "pv50", "d": "Terms & Conditions", "h": 0}, {"k": "pv51", "d": "Refund Policy", "h": 0}, {"k": "pv52", "d": "Disclaimer", "h": 0}]}, {"g": "💳 Refund Policy Page", "k": [{"k": "rf01", "d": "🖨️", "h": 0}, {"k": "rf02", "d": "← Back to Home", "h": 0}, {"k": "rf03", "d": "💳 Legal", "h": 0}, {"k": "rf04", "d": "Refund & Cancellation Policy", "h": 0}, {"k": "rf05", "d": "<span>Last updated: <b>July 2026</b></span> <span><b>qrseprint.in</b> — No refund · Setup hum karke denge</span>", "h": 1}, {"k": "rf06", "d": "<strong>QR Se Print does not give refunds.</strong> A free demo of the complete software is available on qrseprint.in before you pay anything, so you can test it with your own printer first. What we do guarantee is that your setup gets finished — if you cannot install it, we will install it for you.", "h": 1}, {"k": "rf07", "d": "<b>Saral bhasha me</b>Paise dene se pehle free demo se poora software try karo. Payment ke baad refund nahi milta. Par install nahi kar pa rahe to tension mat lo — WhatsApp ya AnyDesk se hum khud setup karke denge, jab tak chalu na ho jaye.", "h": 1}, {"k": "rf08", "d": "The policy, in full", "h": 0}, {"k": "rf09", "d": "every payment made for a QR Se Print plan is final and non-refundable.", "h": 0}, {"k": "rf10", "d": "Terms & Conditions", "h": 0}, {"k": "rf11", "d": "Instead of a refund you get the service delivered:", "h": 0}, {"k": "rf12", "d": "monthly plan", "h": 0}, {"k": "rf13", "d": "genuine billing errors", "h": 0}, {"k": "rf14", "d": "not covered by this policy at all", "h": 0}, {"k": "rf15", "d": "Before you pay — use the free demo", "h": 0}, {"k": "rf16", "d": "Take the free demo on qrseprint.in, install the agent on the same computer you will actually use, and print a real job on your own printer. That is the moment to check compatibility — not after payment. If anything does not work during the demo, message us and we will help; there is no cost and no obligation.", "h": 0}, {"k": "rf17", "d": "Koi sawal hai?", "h": 0}, {"k": "rf18", "d": "QR Se Print ya qrseprint.in ke bare me kuch bhi poochna ho — seedha humse baat kariye.", "h": 0}, {"k": "rf19", "d": "💼 Business Inquiry", "h": 0}, {"k": "rf20", "d": "Terms & Conditions", "h": 0}, {"k": "rf21", "d": "Privacy Policy", "h": 0}, {"k": "rf22", "d": "Disclaimer", "h": 0}]}, {"g": "⚖️ Disclaimer Page", "k": [{"k": "dc01", "d": "🖨️", "h": 0}, {"k": "dc02", "d": "← Back to Home", "h": 0}, {"k": "dc03", "d": "⚖️ Legal", "h": 0}, {"k": "dc04", "d": "Disclaimer", "h": 0}, {"k": "dc05", "d": "<span>Last updated: <b>July 2026</b></span> <span><b>qrseprint.in</b> — SaaS software · aapki dukaan aapki</span>", "h": 1}, {"k": "dc06", "d": "<strong>QR Se Print</strong> at <strong>qrseprint.in</strong> is software, not a printing business. We supply the QR upload portal, the job queue, and the Windows print-relay agent that pushes a job to a shop’s printer. Everything physical — the printer, the paper, the ink, the counter, the shop — belongs to the shop owner. The website and the software are provided on an “as is” and “as available” basis, without warranties of any kind.", "h": 1}, {"k": "dc07", "d": "<b>Saral bhasha me</b>QR Se Print sirf software deta hai — printer, paper, ink aur dukaan shop owner ki apni hai. Customer jo file bhejta hai uski zimmedari customer ki. Kamai ke jo example website par dikhte hain wo sirf samajhne ke liye hain, guarantee nahi.", "h": 1}, {"k": "dc08", "d": "We are software, not your print shop", "h": 0}, {"k": "dc09", "d": "qrseprint.in provides a software-as-a-service platform. Each shop using QR Se Print is an independent business. We are not a printing service, a courier, a document bureau, or a party to any transaction between a shop and a walk-in customer. When a customer pays and collects a print, that deal is entirely between that customer and that shop.", "h": 0}, {"k": "dc10", "d": "Your printer, your consumables, your licences", "h": 0}, {"k": "dc11", "d": "Every shop running QR Se Print remains fully responsible for:", "h": 0}, {"k": "dc12", "d": "The printer, computer, drivers and internet line at the shop;", "h": 0}, {"k": "dc13", "d": "Paper, ink, toner, and keeping the machine serviced;", "h": 0}, {"k": "dc14", "d": "Trade licence, GST registration, tax filings, and any local permission needed to run a print shop;", "h": 0}, {"k": "dc15", "d": "The rates displayed to customers and the quality of work handed over the counter.", "h": 0}, {"k": "dc16", "d": "Nothing in QR Se Print creates a partnership, franchise, agency, or employment relationship with any shop.", "h": 0}, {"k": "dc17", "d": "Print quality depends on your machine", "h": 0}, {"k": "dc18", "d": "What comes out of the printer depends on the shop’s own hardware, driver settings, paper and ink — not on qrseprint.in. Colour, sharpness, margins and alignment may differ from the preview on the customer’s phone. Features such as 4×6 passport sheets, A3 and larger sizes, and duplex printing work only if the shop actually has a printer capable of them.", "h": 0}, {"k": "dc19", "d": "Files uploaded by customers", "h": 0}, {"k": "dc20", "d": "Privacy Policy", "h": 0}, {"k": "dc21", "d": "Sending obscene, defamatory, fraudulent, infringing, or otherwise unlawful material is prohibited, and we may suspend access where misuse is reported or reasonably suspected.", "h": 0}, {"k": "dc22", "d": "Payments", "h": 0}, {"k": "dc23", "d": "Online payments are handled by Razorpay or the shop’s own UPI, and settle <strong>directly into the shop owner’s account</strong> — QR Se Print takes 0% commission and never holds that money. We do not collect or store card numbers, CVVs, or UPI PINs. Any payment failure or settlement dispute must be taken up with the payment provider and the shop concerned. We act as merchant of record only for our own software plan fees.", "h": 1}, {"k": "dc24", "d": "Internet, uptime and updates", "h": 0}, {"k": "dc25", "d": "QR Se Print depends on internet at both the customer’s and the shop’s end, and on third-party hosting and payment providers. We do not promise uninterrupted or error-free service. Maintenance, provider outages, power cuts, or a local network problem can interrupt printing. Where a job cannot be delivered at once it stays queued and prints when connectivity returns, and the agent updates itself so shops stay on a supported version.", "h": 0}, {"k": "dc26", "d": "Earnings examples are illustrative", "h": 0}, {"k": "dc27", "d": "Any figures shown on qrseprint.in — such as prints per day, monthly earnings, or how quickly a plan pays for itself — are <strong>illustrations, not promises</strong>. Real income depends on the shop’s location, footfall, pricing, and effort. QR Se Print makes no guarantee of revenue, customers, or business results.", "h": 1}, {"k": "dc28", "d": "Limitation of liability", "h": 0}, {"k": "dc29", "d": "To the maximum extent permitted by law, QR Se Print, its owner and its associates are not liable for any loss or damage — direct, indirect, incidental, special, or consequential — including lost business, lost profit, lost revenue, wasted paper or ink, loss of goodwill, loss of data, or business interruption arising from use of, or inability to use, qrseprint.in or the print-relay agent.", "h": 0}, {"k": "dc30", "d": "Where liability cannot lawfully be excluded, our total liability will not exceed what the affected shop actually paid QR Se Print for the software in the three (3) months before the claim.", "h": 0}, {"k": "dc31", "d": "External links", "h": 0}, {"k": "dc32", "d": "qrseprint.in may link to third-party sites and services we do not control — payment providers, download hosts, social pages. We are not responsible for their content, availability, or policies, and a link is not an endorsement.", "h": 0}, {"k": "dc33", "d": "Changes and governing law", "h": 0}, {"k": "dc34", "d": "This Disclaimer may be updated as QR Se Print changes; the date at the top shows when it was last revised, and continued use means acceptance. It is governed by the laws of India, with exclusive jurisdiction in the courts of Jharkhand, India.", "h": 0}, {"k": "dc35", "d": "If you do not agree with any part of this Disclaimer, please stop using qrseprint.in and the QR Se Print software.", "h": 0}, {"k": "dc36", "d": "Koi sawal hai?", "h": 0}, {"k": "dc37", "d": "QR Se Print ya qrseprint.in ke bare me kuch bhi poochna ho — seedha humse baat kariye.", "h": 0}, {"k": "dc38", "d": "💼 Business Inquiry", "h": 0}, {"k": "dc39", "d": "Terms & Conditions", "h": 0}, {"k": "dc40", "d": "Privacy Policy", "h": 0}, {"k": "dc41", "d": "Refund Policy", "h": 0}]}, {"g": "📄 Footer", "k": [{"k": "ft01", "d": "🖨️", "h": 0}, {"k": "ftTagline", "d": "Automated cyber cafe printing network — QR scan karo, print khud nikal jaye.", "h": 0}, {"k": "ftProductHead", "d": "Product", "h": 0}, {"k": "ft02", "d": "Home", "h": 0}, {"k": "ft03", "d": "Features", "h": 0}, {"k": "ft04", "d": "Pricing", "h": 0}, {"k": "ft05", "d": "FAQ", "h": 0}, {"k": "ft06", "d": "Start Free", "h": 0}, {"k": "ftAgent", "d": "💼 Become an Agent", "h": 0}, {"k": "ftLegalHead", "d": "Legal", "h": 0}, {"k": "ft07", "d": "Terms & Conditions", "h": 0}, {"k": "ft08", "d": "Privacy Policy", "h": 0}, {"k": "ft09", "d": "Refund Policy", "h": 0}, {"k": "ft10", "d": "Disclaimer", "h": 0}, {"k": "ftContactHead", "d": "Contact", "h": 0}, {"k": "ft11", "d": "💼 Business Inquiry", "h": 0}, {"k": "ft12", "d": "🔑 Shop Owner Login", "h": 0}, {"k": "ftCopyright", "d": "© 2026 · Powered By <b>QR Se Print</b> · All rights reserved. | Developed by Rupesh Kumar Mahato", "h": 1}, {"k": "ft13", "d": "⚙", "h": 0}]}];
 let _texts = {};
 const _escT = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const _escSel = s => String(s==null?'':s).replace(/"/g,'&quot;');
@@ -3516,12 +4027,145 @@ async function deletePendingShop(shopId, name){
 
 
 // ===== SIDEBAR NAV =====
-const PAGE_TITLES = {kaam:'Aaj Ka Kaam', overview:'Overview', shops:'Shops', demos:'Demo Accounts', agents:'Agents', withdrawals:'Withdrawals', agent:'Agent Software', pricing:'Setup Fee', analytics:'Analytics', whitelabel:'White Label', reviews:'Reviews', langs:'Languages', notify:'Email Alerts'};
+const PAGE_TITLES = {kaam:'Aaj Ka Kaam', overview:'Overview', shops:'Shops', demos:'Demo Accounts', agents:'Agents', withdrawals:'Withdrawals', agent:'Agent Software', pricing:'Setup Fee', analytics:'Analytics', whitelabel:'White Label', reviews:'Reviews', langs:'Languages', notify:'Email Alerts', wlshops:'White Label Shops', payments:'Payments', homepage:'Homepage Edit', broadcast:'Broadcast Message', qrtools:'QR Tools', database:'Database'};
 function navTo(sect, btn){
   document.querySelectorAll('[data-sect]').forEach(el=>el.classList.toggle('show', el.getAttribute('data-sect')===sect));
   document.querySelectorAll('.nav-it[data-nav]').forEach(n=>n.classList.toggle('active', n.getAttribute('data-nav')===sect));
-  const t = document.getElementById('pageTitle'); if(t) t.textContent = PAGE_TITLES[sect]||'';
+  const name = PAGE_TITLES[sect] || '';
+  const t = document.getElementById('pageTitle'); if(t) t.textContent = name;
+  const c = document.getElementById('pageCrumb');
+  if (c) c.innerHTML = 'Home <i>›</i> <span>' + name + '</span>';
+  if (sect === 'wlshops')  loadWlShops();
+  if (sect === 'payments') loadPayments();
   closeSide(); window.scrollTo(0,0);
+}
+
+/* ═══════════ WHITE LABEL SHOPS ═══════════ */
+async function loadWlShops(){
+  const tb = document.getElementById('wlShopsList');
+  const sm = document.getElementById('wlShopsSummary');
+  if (!tb) return;
+  try {
+    const r = await fetch('/api/superadmin/whitelabel-shops', { headers:{ 'Authorization':'Bearer '+authToken }});
+    const d = await r.json();
+    const shops = d.shops || [];
+    const paid = shops.filter(s=>s.setup_paid && !s.demo).length;
+    const demo = shops.filter(s=>s.demo).length;
+    const brands = new Set(shops.map(s=>s.whitelabel_id)).size;
+    if (sm) sm.innerHTML =
+      tile('🏪', shops.length, 'Total WL Shops', '#eef2ff', '#4338ca') +
+      tile('✅', paid,          'Active',         '#ecfdf5', '#047857') +
+      tile('🎯', demo,          'Demo',           '#fff7ed', '#c2410c') +
+      tile('🏷️', brands,        'Partners',       '#faf5ff', '#7c3aed');
+    if (!shops.length){
+      tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:22px;color:#6b6870;">Abhi koi white-label shop nahi hai</td></tr>';
+      return;
+    }
+    tb.innerHTML = shops.map(s => {
+      const dt = new Date(s.created_at);
+      const online = (s.agent_seconds_ago!=null && s.agent_seconds_ago<120);
+      return `<tr>
+        <td><div class="shop-name">${online?'🟢':'🔴'} ${sanitize(s.name||'')}</div>
+            <div class="shop-id-mono">${sanitize(s.id)}</div></td>
+        <td style="font-size:12px;"><b>${sanitize(s.whitelabel_name||'—')}</b><br>
+            <span style="color:#9a9aa0;font-family:monospace;font-size:11px;">${sanitize(s.whitelabel_id||'')}</span></td>
+        <td class="contact-cell">📍 ${sanitize(s.address||'-')}<br>📞 ${sanitize(s.phone||'-')}</td>
+        <td>${s.demo
+              ? '<span class="status-pill pending">🎯 Demo</span>'
+              : `<span class="status-pill ${s.setup_paid?'active':'pending'}">${s.setup_paid?'✅ Active':'⏳ Pending'}</span>`}
+            <div style="font-size:10.5px;color:#6b6870;margin-top:4px;">paisa partner ko</div></td>
+        <td style="font-size:11px;color:#6b6870;">${dt.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</td>
+      </tr>`;
+    }).join('');
+  } catch(e){
+    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:22px;color:#dc2626;">Load nahi hua</td></tr>';
+  }
+}
+
+/* ═══════════ PAYMENTS LEDGER ═══════════ */
+let _payKind = '';
+function setPayFilter(k){
+  _payKind = k;
+  ['','setup','advanced','renewal','wl_license'].forEach(x=>{
+    const el = document.getElementById('payf' + (x||'All'));
+    if (el) el.classList.toggle('active', x === k);
+  });
+  loadPayments();
+}
+function tile(icon, val, label, bg, fg){
+  return `<div style="background:${bg};border-radius:12px;padding:12px 13px;">
+    <div style="font-size:17px;">${icon}</div>
+    <div style="font-size:19px;font-weight:800;color:${fg};font-family:'Syne',sans-serif;">${val}</div>
+    <div style="font-size:11px;color:#6b6870;font-weight:700;">${label}</div></div>`;
+}
+async function loadPayments(){
+  const tb = document.getElementById('payList');
+  const sm = document.getElementById('paySummary');
+  if (!tb) return;
+  const q = (document.getElementById('paySearch')||{}).value || '';
+  try {
+    const r = await fetch('/api/superadmin/payments?kind='+encodeURIComponent(_payKind)+'&q='+encodeURIComponent(q),
+      { headers:{ 'Authorization':'Bearer '+authToken }});
+    const d = await r.json();
+    const rows = d.payments || [], T = d.totals || {};
+    if (sm) sm.innerHTML =
+      tile('💰','₹'+(T.our_amount||0).toLocaleString('en-IN'),'Hamari kamai','#ecfdf5','#047857') +
+      tile('🧾',(T.cnt||0),'Total payments','#eef2ff','#4338ca') +
+      tile('📊','₹'+(T.all_amount||0).toLocaleString('en-IN'),'Sab milakar (WL sameth)','#fffbeb','#b45309');
+    if (!rows.length){
+      tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:22px;color:#6b6870;">Koi payment nahi mila</td></tr>';
+      return;
+    }
+    const KIND = {
+      setup:      ['💰 Setup Fee','#ecfdf5','#047857'],
+      advanced:   ['⚡ Advanced Unlock','#faf5ff','#7c3aed'],
+      renewal:    ['🔄 Monthly Renewal','#eff6ff','#1d4ed8'],
+      wl_license: ['🏷️ WL License','#fffbeb','#b45309']
+    };
+    tb.innerHTML = rows.map(p => {
+      const k = KIND[p.kind] || [p.kind,'#f3f4f6','#374151'];
+      const dt = new Date(p.created_at);
+      const wl = p.kind==='setup' && p.whitelabel_id;
+      return `<tr>
+        <td><span style="background:${k[1]};color:${k[2]};border-radius:8px;padding:5px 9px;font-size:11.5px;font-weight:800;white-space:nowrap;">${k[0]}</span>
+            ${wl?'<div style="font-size:10px;color:#b45309;font-weight:700;margin-top:4px;">partner ka paisa</div>':''}</td>
+        <td><div style="font-weight:700;font-size:13px;">${sanitize(p.shop_name||'—')}</div>
+            <div class="shop-id-mono">${sanitize(p.shop_id||p.whitelabel_id||'')}</div></td>
+        <td style="font-weight:800;color:${wl?'#9a9aa0':'#047857'};font-size:14px;">₹${(p.amount||0).toLocaleString('en-IN')}</td>
+        <td style="font-family:monospace;font-size:11px;color:#6b6870;">${sanitize(p.payment_id||'—')}</td>
+        <td style="font-size:11px;color:#6b6870;">${dt.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}<br>
+            <span style="font-family:monospace;color:#9a9aa0;">${dt.toLocaleTimeString('en-GB',{hour12:false,timeZone:'Asia/Kolkata',hour:'2-digit',minute:'2-digit'})}</span></td>
+      </tr>`;
+    }).join('');
+  } catch(e){
+    tb.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:22px;color:#dc2626;">Load nahi hua</td></tr>';
+  }
+}
+
+/* ═══════════ EK CLICK ME SAFAI ═══════════ */
+async function bulkDeletePending(btn){
+  if (!confirm('Saari PENDING PAYMENT shops (register hui, paisa nahi aaya) delete ho jayengi.\n\nDemo aur white-label shops ko haath nahi lagega.\n\nPakka?')) return;
+  const old = btn.textContent; btn.disabled = true; btn.textContent = 'Delete ho raha hai…';
+  try {
+    const r = await fetch('/api/superadmin/bulk/delete-pending', { method:'POST', headers:{ 'Authorization':'Bearer '+authToken }});
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    alert('✅ ' + (d.deleted||0) + ' pending shop delete ho gayi');
+    await loadPanel();
+  } catch(e){ alert('❌ ' + e.message); }
+  btn.disabled = false; btn.textContent = old;
+}
+async function bulkDeleteExpiredDemos(btn){
+  if (!confirm('Saare EXPIRED DEMO accounts delete ho jayenge.\n\nJo demo abhi chal rahe hain wo safe rahenge.\n\nPakka?')) return;
+  const old = btn.textContent; btn.disabled = true; btn.textContent = 'Delete ho raha hai…';
+  try {
+    const r = await fetch('/api/superadmin/bulk/delete-expired-demos', { method:'POST', headers:{ 'Authorization':'Bearer '+authToken }});
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    alert('✅ ' + (d.deleted||0) + ' expired demo delete ho gaye');
+    await loadPanel();
+  } catch(e){ alert('❌ ' + e.message); }
+  btn.disabled = false; btn.textContent = old;
 }
 function openSide(){ document.getElementById('sideNav').classList.add('open'); document.getElementById('sideOverlay').classList.add('show'); }
 function closeSide(){ document.getElementById('sideNav').classList.remove('open'); document.getElementById('sideOverlay').classList.remove('show'); }
@@ -3551,6 +4195,10 @@ function logout() {
   </div>
 </div>
 
-  <script src="/i18n.js" defer></script>
+  <!-- i18n.js JAAN-BUJH KAR hata diya gaya.
+       Ye script bottom-left me ek floating "English ▾" dropdown bana deti
+       thi jo har tab par sidebar ke upar chadh jaata tha. Superadmin ek
+       internal panel hai — iske liye translation ki zaroorat nahi.
+       (Public pages par i18n.js waise ka waisa chal raha hai.) -->
 </body>
 </html>

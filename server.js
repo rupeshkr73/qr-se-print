@@ -36,6 +36,15 @@ const archiver = require('archiver');
 const nodemailer = require('nodemailer');
 const compression = require('compression');
 
+// ── KAUN SA PRINT JOB "GINTI" ME AAYEGA ──
+// Pehle sirf payment_status='paid' dekha jaata tha. Uska matlab tha ki
+// jo job cancel ho gaya, abandon ho gaya ya printer par fail ho gaya
+// wo bhi shop owner ki earning aur print count me jud jaata tha.
+// Ab wo teeno status ginti se bahar hain — earning aur count dono me.
+// (Yahan sabse upar rakha hai taaki niche ki har query ise use kar sake.)
+const JOB_NOT_COUNTED = "('cancelled','abandoned','failed')";
+const JOB_COUNTS = `payment_status='paid' AND COALESCE(status,'') NOT IN ${JOB_NOT_COUNTED}`;
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || 'https://qr-se-print.onrender.com';
@@ -1110,6 +1119,32 @@ async function initDB() {
         created_at TIMESTAMP DEFAULT NOW()
       );
 
+      -- ══ PLATFORM PAYMENTS — har wo paisa jo HUMARE account me aaya ══
+      -- Pehle sirf shops.setup_paid flag tha; advanced unlock (₹199) aur
+      -- renewal ka koi record hi nahi banta tha — isliye superadmin me
+      -- kuch dikhta hi nahi tha. Ab har payment ki ek row banti hai.
+      --   kind: 'setup' | 'advanced' | 'renewal' | 'wl_license'
+      -- payment_id par UNIQUE index hai → webhook + verify + reconcile
+      -- teeno fire ho jayen to bhi ek hi row banegi (double count nahi).
+      CREATE TABLE IF NOT EXISTS platform_payments (
+        id SERIAL PRIMARY KEY,
+        kind VARCHAR(20) NOT NULL,
+        shop_id VARCHAR(50) DEFAULT '',
+        shop_name VARCHAR(200) DEFAULT '',
+        whitelabel_id VARCHAR(50) DEFAULT '',
+        amount INTEGER DEFAULT 0,
+        payment_id VARCHAR(200) DEFAULT '',
+        order_id VARCHAR(200) DEFAULT '',
+        gateway VARCHAR(20) DEFAULT 'razorpay',
+        note VARCHAR(300) DEFAULT '',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_pp_payid
+        ON platform_payments(payment_id) WHERE payment_id <> '';
+      CREATE INDEX IF NOT EXISTS idx_pp_kind    ON platform_payments(kind);
+      CREATE INDEX IF NOT EXISTS idx_pp_shop    ON platform_payments(shop_id);
+      CREATE INDEX IF NOT EXISTS idx_pp_created ON platform_payments(created_at DESC);
+
       -- ══ TRANSLATIONS ══
       -- source = Hinglish text jo HTML me likha hai (yahi "key" hai).
       -- Har language ke liye ek row. Missing ho to source hi dikhta hai —
@@ -1469,7 +1504,7 @@ app.get('/api/shop/insights', verifyToken, async (req, res) => {
     // Busy hours (last 30 din, IST = UTC+5:30)
     const hours = await pool.query(
       `SELECT EXTRACT(HOUR FROM created_at + INTERVAL '5 hours 30 minutes') as hr, COUNT(*) as n
-       FROM print_jobs WHERE shop_id=$1 AND payment_status='paid' AND created_at > NOW() - INTERVAL '30 days'
+       FROM print_jobs WHERE shop_id=$1 AND ${JOB_COUNTS} AND created_at > NOW() - INTERVAL '30 days'
        GROUP BY hr ORDER BY n DESC LIMIT 1`, [req.shopId]);
     // Feedback tally
     const fb = await pool.query(
@@ -1495,12 +1530,12 @@ app.get('/api/shop/earnings-breakdown', verifyToken, async (req, res) => {
               COALESCE(SUM(copies),0) as prints,
               COALESCE(SUM(amount),0) as earnings
        FROM print_jobs
-       WHERE shop_id=$1 AND payment_status='paid' AND created_at > NOW() - INTERVAL '7 days'
+       WHERE shop_id=$1 AND ${JOB_COUNTS} AND created_at > NOW() - INTERVAL '7 days'
        GROUP BY DATE(created_at) ORDER BY day DESC`, [req.shopId]);
     const weeks = await pool.query(
       `SELECT COALESCE(SUM(CASE WHEN created_at > NOW() - INTERVAL '7 days' THEN amount ELSE 0 END),0) as this_week,
               COALESCE(SUM(CASE WHEN created_at <= NOW() - INTERVAL '7 days' AND created_at > NOW() - INTERVAL '14 days' THEN amount ELSE 0 END),0) as last_week
-       FROM print_jobs WHERE shop_id=$1 AND payment_status='paid'`, [req.shopId]);
+       FROM print_jobs WHERE shop_id=$1 AND ${JOB_COUNTS}`, [req.shopId]);
     res.json({ daily: daily.rows, this_week: weeks.rows[0].this_week, last_week: weeks.rows[0].last_week });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
@@ -1578,10 +1613,12 @@ app.get('/api/agent/status', verifyToken, async (req, res) => {
 
     res.json({
       is_agent: !!s.is_agent, agent_code: s.agent_code, upi: s.agent_upi || '',
-      blocked: !!s.agent_blocked, price: s.agent_price || 0,
-      base_price: base, max_price: AGENT_PRICE_MAX,
+      blocked: !!s.agent_blocked,
+      // price/markup ka concept khatam — sab ek hi rate par bechte hain
+      price: base, base_price: base, max_price: 0, can_set_price: false,
       commission_per_shop: AGENT_COMMISSION,
-      bonus_every: AGENT_BONUS_EVERY, bonus_amount: AGENT_BONUS_AMOUNT,
+      flat_commission: true,
+      bonus_every: 0, bonus_amount: 0,
       earnings: s.agent_earnings || 0,
       withdrawn: wd.rows[0].used,
       available: Math.max(0, (s.agent_earnings || 0) - wd.rows[0].used),
@@ -1623,22 +1660,15 @@ app.put('/api/agent/upi', verifyToken, async (req, res) => {
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
-// Apna selling price set karo — base se neeche nahi, cap se upar nahi
+// ── AGENT APNA PRICE AB SET NAHI KAR SAKTA ──
+// Purana system: agent base se upar apna price rakh kar markup kamata tha.
+// Naya system: sabka price ek — commission flat ₹100. Endpoint 410 deta
+// hai (route hata dene se purane panel par JS error aata, isliye rakha hai).
 app.put('/api/agent/price', verifyToken, async (req, res) => {
-  try {
-    const r = await pool.query('SELECT is_agent, agent_blocked FROM shops WHERE id=$1', [req.shopId]);
-    if (!r.rows.length || !r.rows[0].is_agent) return res.status(403).json({ error: 'Aap agent nahi ho' });
-    if (r.rows[0].agent_blocked) return res.status(403).json({ error: 'Aapka agent account abhi paused hai' });
-
-    const base = await getAgentBasePrice();  // agent isse neeche nahi ja sakta
-    const p = parseInt(req.body.price, 10);
-    if (!Number.isInteger(p)) return res.status(400).json({ error: 'Sahi price daalo' });
-    if (p < base) return res.status(400).json({ error: `Price ₹${base} se kam nahi ho sakta` });
-    if (p > AGENT_PRICE_MAX) return res.status(400).json({ error: `Price ₹${AGENT_PRICE_MAX} se zyada nahi ho sakta` });
-
-    await pool.query('UPDATE shops SET agent_price=$2 WHERE id=$1', [req.shopId, p]);
-    res.json({ success: true, price: p, base, markup: p - base });
-  } catch(err) { res.status(500).json({ error: err.message }); }
+  return res.status(410).json({
+    error: 'Agent ab apna price set nahi kar sakta. Har shop par flat ₹' +
+           AGENT_COMMISSION + ' commission milta hai.'
+  });
 });
 
 // Meri onboard ki hui shops
@@ -1691,9 +1721,10 @@ app.post('/api/agent/onboard', verifyToken, async (req, res) => {
     if (!name) return res.status(400).json({ error: 'Shop ka naam zaroori hai' });
     if (!/^\d{10}$/.test(phone)) return res.status(400).json({ error: 'Sahi 10 digit mobile number daalo' });
 
+    // Agent ka apna markup khatam — shop ko wahi price milta hai jo
+    // superadmin ne set kiya hai. Agent ko har paid shop par flat ₹100.
     const base = await getSetupFeeAmount();
-    const ap = me.rows[0].agent_price;
-    const sold = (ap && ap > base) ? ap : base;
+    const sold = base;
 
     // Baaki details — normal registration jaisi hi
     const printerModel = String(req.body.printer_model || '').trim().slice(0,120);
@@ -1729,34 +1760,40 @@ app.post('/api/agent/onboard', verifyToken, async (req, res) => {
 // ══════════════ SUPERADMIN: AGENTS ══════════════
 app.get('/api/superadmin/agents', verifySuperAdmin, async (req, res) => {
   try {
-    const base = await getAgentBasePrice();  // agent ka apna floor — 599 nahi, 699
+    const base = await getAgentBasePrice();
+    // Sabse zyada kamane wala agent SABSE UPAR. Uske neeche uski
+    // onboard ki hui shops (wahi 'shops' array me jaati hain).
     const ags = await pool.query(
       `SELECT id,name,phone,agent_code,agent_upi,agent_price,agent_blocked,agent_earnings,agent_joined_at
-       FROM shops WHERE is_agent=true ORDER BY agent_joined_at DESC NULLS LAST`);
+       FROM shops WHERE is_agent=true
+       ORDER BY COALESCE(agent_earnings,0) DESC, agent_joined_at DESC NULLS LAST`);
     const out = [];
     for (const a of ags.rows) {
       const sh = await pool.query(
-        `SELECT s.id,s.name,s.phone,s.created_at,s.setup_paid,s.demo,s.plan_type,
-                s.base_price_at_signup,s.sold_price,s.setup_amount,s.agent_last_seen,
+        `SELECT s.id,s.name,s.phone,s.address,s.created_at,s.setup_paid,s.demo,s.plan_type,
+                s.setup_amount,s.agent_last_seen,
                 EXTRACT(EPOCH FROM (NOW() - s.agent_last_seen))::int AS agent_seconds_ago,s.paused,
-                c.total AS earned, c.markup, c.commission, c.bonus
+                COALESCE(c.total,0) AS earned, c.created_at AS credited_at
          FROM shops s
          LEFT JOIN agent_commissions c ON c.shop_id=s.id AND c.agent_id=$1
          WHERE s.onboarded_by=$1 ORDER BY s.created_at DESC`, [a.id]);
       const wd = await pool.query(
         "SELECT COALESCE(SUM(amount),0)::int AS used FROM withdrawals WHERE shop_id=$1 AND status IN ('pending','done')",
         [a.id]);
+      const paidShops = sh.rows.filter(s => s.setup_paid && !s.demo).length;
       out.push({
         ...a,
         base_price: base,
-        markup: Math.max(0, (a.agent_price || 0) - base),
+        markup: 0,                       // markup ka concept khatam
+        shops_total: sh.rows.length,
+        shops_paid:  paidShops,
         paid_out: wd.rows[0].used,
         pending_payout: Math.max(0, (a.agent_earnings || 0) - wd.rows[0].used),
         shops: sh.rows
       });
     }
     res.json({ agents: out, base_price: base, commission: AGENT_COMMISSION,
-      max_price: AGENT_PRICE_MAX, bonus_every: AGENT_BONUS_EVERY, bonus_amount: AGENT_BONUS_AMOUNT });
+      flat_commission: true, max_price: 0, bonus_every: 0, bonus_amount: 0 });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -2044,7 +2081,9 @@ app.get('/api/superadmin/demos', verifySuperAdmin, async (req, res) => {
               EXTRACT(EPOCH FROM (NOW() - s.agent_last_seen))::int AS agent_seconds_ago, s.agent_version, s.agent_version_label,
              s.agent_machine, (s.agent_token IS NOT NULL) AS agent_bound,
               (SELECT COUNT(*) FROM print_jobs j WHERE j.shop_id = s.id) as total_jobs,
-              (SELECT COUNT(*) FROM print_jobs j WHERE j.shop_id = s.id AND j.payment_status='paid') as prints
+              (SELECT COUNT(*) FROM print_jobs j WHERE j.shop_id = s.id
+                 AND j.payment_status='paid'
+                 AND COALESCE(j.status,'') NOT IN ('cancelled','abandoned','failed')) as prints
        FROM shops s WHERE s.demo = true
        ORDER BY s.created_at DESC`);
     res.json(r.rows);
@@ -2154,8 +2193,10 @@ async function checkDemoAllowance(shopId) {
     return { ok: false, demo: true, reason: 'expired', used: null, limit: cfg.printLimit,
              error: 'Your demo has ended. Please upgrade to continue printing.' };
   }
+  // Demo print limit — cancel/abandon/fail hue job limit me nahi ginte,
+  // warna customer ka job fail hone par demo user ka quota kat jaata tha.
   const c = await pool.query(
-    "SELECT COUNT(*)::int AS n FROM print_jobs WHERE shop_id=$1 AND payment_status='paid'", [shopId]);
+    `SELECT COUNT(*)::int AS n FROM print_jobs WHERE shop_id=$1 AND ${JOB_COUNTS}`, [shopId]);
   const used = c.rows[0].n;
   if (used >= cfg.printLimit) {
     return { ok: false, demo: true, reason: 'limit', used, limit: cfg.printLimit,
@@ -2584,10 +2625,16 @@ One-Time plan walon ko AnyDesk support bhi milta hai.
 // Kamai = ₹200 fix per shop + markup (agent ka price − superadmin ka base price)
 // + har 10 shop par ₹300 bonus. Payout manual (UPI), withdrawals table se.
 // ══════════════════════════════════════════════════════════════
-const AGENT_COMMISSION   = 200;   // per successful paid shop
-const AGENT_PRICE_MAX    = 2999;  // agent isse upar price nahi rakh sakta
-const AGENT_BONUS_EVERY  = 10;    // har 10 shop par
-const AGENT_BONUS_AMOUNT = 300;   // itna extra bonus
+// ── AGENT PROGRAM (naya, simple) ──
+// FLAT ₹100 per paid shop. Bas itna hi.
+// Purana system: ₹200 + agent ka apna markup + har 10 shop par ₹300 bonus.
+// Wo hata diya gaya — agent ab apna price set NAHI kar sakta, sabko ek
+// hi rate milta hai. BONUS constants 0 hain taaki koi purana reference
+// bacha ho to bhi paisa na jude.
+const AGENT_COMMISSION   = 100;   // per successful paid shop (flat)
+const AGENT_PRICE_MAX    = 0;     // 0 = agent apna price set nahi kar sakta
+const AGENT_BONUS_EVERY  = 0;     // bonus band
+const AGENT_BONUS_AMOUNT = 0;     // bonus band
 
 // ══════════════════════════════════════════════════════════════
 // WHITE LABEL — helpers
@@ -3168,7 +3215,7 @@ app.post('/api/whitelabel/license/verify', async (req, res) => {
       .update(`${razorpay_order_id}|${razorpay_payment_id}`).digest('hex');
     if (expected !== razorpay_signature) return res.status(400).json({ error: 'Payment verification failed' });
 
-    const r = await pool.query('SELECT id, slug, paid FROM whitelabels WHERE id=$1 AND license_order_id=$2',
+    const r = await pool.query('SELECT id, slug, paid, brand_name, license_fee FROM whitelabels WHERE id=$1 AND license_order_id=$2',
       [wlId, razorpay_order_id]);
     if (!r.rows.length) return res.status(404).json({ error: 'Order match nahi hua' });
 
@@ -3179,6 +3226,15 @@ app.post('/api/whitelabel/license/verify', async (req, res) => {
     await pool.query(
       `UPDATE whitelabels SET paid=true, paid_at=NOW(), password_hash=$2 WHERE id=$1`,
       [wlId, await hashPassword(password)]);
+
+    // License fee HAMARA paisa hai (shop ka setup fee reseller ka hota hai)
+    await recordPayment({
+      kind: 'wl_license', whitelabelId: wlId,
+      shopName: r.rows[0].brand_name || '',
+      amount: r.rows[0].license_fee || 0,
+      paymentId: razorpay_payment_id, orderId: razorpay_order_id,
+      note: 'White-label license fee'
+    });
 
     console.log(`White label activated: ${wlId} (${r.rows[0].slug})`);
     res.json({ success: true, wlId, slug: r.rows[0].slug, password,
@@ -4862,9 +4918,46 @@ async function extendShop(shopId, orderId, paymentId) {
     [shopId, orderId]);
   if (r.rows.length) {
     console.log(`Subscription renewed: ${shopId} | till ${r.rows[0].paid_until} | pay ${paymentId}`);
+    // Renewal bhi ledger me — pehle iska bhi koi record nahi banta tha
+    try {
+      await recordPayment({
+        kind: 'renewal', shopId,
+        amount: await getMonthlyFee(),
+        paymentId, orderId, note: 'Monthly renewal +30 din'
+      });
+    } catch (e) { console.error('renewal ledger error:', e.message); }
     return r.rows[0].paid_until;
   }
   return null; // koi aur pehle process kar chuka
+}
+
+// ── PAYMENT LEDGER ──
+// Har platform payment (setup / advanced / renewal / whitelabel license)
+// yahin se record hoti hai. ON CONFLICT DO NOTHING ki wajah se webhook aur
+// verify dono aa jayen to bhi ek hi row banti hai — kabhi double count nahi.
+// Ye function kabhi throw nahi karta: ledger fail hone se payment ka asli
+// kaam (shop activate hona) nahi rukna chahiye.
+async function recordPayment({ kind, shopId = '', shopName = '', whitelabelId = '',
+                               amount = 0, paymentId = '', orderId = '',
+                               gateway = 'razorpay', note = '' }) {
+  try {
+    if (!shopName && shopId) {
+      const s = await pool.query('SELECT name FROM shops WHERE id=$1', [shopId]);
+      shopName = s.rows[0]?.name || '';
+    }
+    const r = await pool.query(
+      `INSERT INTO platform_payments
+         (kind, shop_id, shop_name, whitelabel_id, amount, payment_id, order_id, gateway, note)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+       ON CONFLICT DO NOTHING RETURNING id`,
+      [kind, shopId, shopName, whitelabelId, Math.max(0, parseInt(amount) || 0),
+       paymentId || '', orderId || '', gateway, note]);
+    if (r.rows.length) console.log(`Payment recorded: ${kind} ₹${amount} ${shopId} ${paymentId}`);
+    return r.rows.length > 0;
+  } catch (e) {
+    console.error('recordPayment error:', e.message);
+    return false;
+  }
 }
 
 async function activateShop(shopId, paymentId) {
@@ -4888,6 +4981,24 @@ async function activateShop(shopId, paymentId) {
       [shopId]);
     console.log(`Setup fee paid: ${shopId} | Payment: ${paymentId}`);
 
+    // Ledger me record karo — superadmin ko yahi dikhta hai.
+    // White-label ki shop ka paisa reseller ke account me jaata hai,
+    // hamare paas nahi — isliye wo alag mark hota hai aur hamare
+    // revenue total me nahi ginta.
+    try {
+      const pinfo = await pool.query(
+        'SELECT name, setup_amount, whitelabel_id, setup_order_id FROM shops WHERE id=$1', [shopId]);
+      const p = pinfo.rows[0] || {};
+      await recordPayment({
+        kind: 'setup',
+        shopId, shopName: p.name || '',
+        whitelabelId: p.whitelabel_id || '',
+        amount: p.setup_amount || 0,
+        paymentId, orderId: p.setup_order_id || '',
+        note: p.whitelabel_id ? 'white-label shop (paisa reseller ko)' : ''
+      });
+    } catch (e) { console.error('setup ledger error:', e.message); }
+
     // Aapko alert (fail ho to bhi activation nahi rukega)
     alertNewShop(shopId, 'paid');
     // Shop owner ko payment confirmation email
@@ -4897,59 +5008,43 @@ async function activateShop(shopId, paymentId) {
   }
 
   // ── AGENT COMMISSION ── kya ye shop kisi agent ne onboard ki thi?
+  // NAYA NIYAM: har paid shop par FLAT ₹100. Koi markup nahi (agent apna
+  // price nahi badal sakta), koi 10-shop bonus nahi. Isliye markup/bonus
+  // columns hamesha 0 jaate hain — purani rows ka hisab waise ka waisa
+  // rehta hai, sirf aage se flat rate lagta hai.
   try {
     const ob = await pool.query(
-      `SELECT name, onboarded_by, agent_credited, base_price_at_signup, sold_price, setup_amount
+      `SELECT name, onboarded_by, agent_credited, setup_amount
        FROM shops WHERE id=$1`, [shopId]);
     const s = ob.rows[0];
     if (s && s.onboarded_by && !s.agent_credited) {
       const ag = await pool.query(
         'SELECT id, is_agent, agent_blocked FROM shops WHERE id=$1', [s.onboarded_by]);
       if (ag.rows.length && ag.rows[0].is_agent && !ag.rows[0].agent_blocked) {
-        const base   = s.base_price_at_signup || 0;
-        const sold   = s.sold_price || s.setup_amount || 0;
-        const markup = Math.max(0, sold - base);
-
-        // Bonus: har 10 onboarded (paid) shop par ek baar
-        const cnt = await pool.query(
-          'SELECT COUNT(*)::int AS n FROM agent_commissions WHERE agent_id=$1', [s.onboarded_by]);
-        const nth = (cnt.rows[0].n || 0) + 1;
-        const bonus = (nth % AGENT_BONUS_EVERY === 0) ? AGENT_BONUS_AMOUNT : 0;
-        const total = AGENT_COMMISSION + markup + bonus;
+        const sold  = s.setup_amount || 0;
+        const total = AGENT_COMMISSION;   // flat ₹100
 
         await pool.query(
           `INSERT INTO agent_commissions
              (agent_id, shop_id, shop_name, base_price, sold_price, markup, commission, bonus, total)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-          [s.onboarded_by, shopId, s.name || '', base, sold, markup, AGENT_COMMISSION, bonus, total]);
+           VALUES ($1,$2,$3,$4,$5,0,$6,0,$7)`,
+          [s.onboarded_by, shopId, s.name || '', sold, sold, AGENT_COMMISSION, total]);
         await pool.query(
           'UPDATE shops SET agent_earnings = COALESCE(agent_earnings,0) + $2 WHERE id=$1',
           [s.onboarded_by, total]);
-        console.log(`Agent commission: ₹${total} (₹${AGENT_COMMISSION}+₹${markup}+bonus ₹${bonus}) -> ${s.onboarded_by} for ${shopId}`);
+        console.log(`Agent commission: flat ₹${total} -> ${s.onboarded_by} for ${shopId}`);
       }
       await pool.query('UPDATE shops SET agent_credited=true WHERE id=$1', [shopId]);
     }
   } catch(e) { console.error('Agent commission error:', e.message); }
 
-  // ── REFERRAL REWARD ── is naye shop ko kisi ne refer kiya tha?
-  // NOTE: agar shop kisi AGENT ne onboard ki hai to ₹50 referral nahi milta —
-  // usko ₹200 wala agent commission upar mil chuka hai (double count se bachne ke liye)
+  // ── REFER & EARN HATA DIYA GAYA ──
+  // Pehle yahan referrer ko ₹50 milta tha. Ab sirf Agent program hai
+  // (flat ₹100). referred_by / referral_earnings columns DB me rehte hain
+  // taaki purana data na tootey, par naya reward kabhi nahi banta.
   try {
-    const me = await pool.query('SELECT referred_by, referral_rewarded, onboarded_by FROM shops WHERE id=$1', [shopId]);
-    const row = me.rows[0];
-    if (row && row.onboarded_by) {
-      await pool.query('UPDATE shops SET referral_rewarded=true WHERE id=$1', [shopId]);
-    } else if (row && row.referred_by && !row.referral_rewarded) {
-      // Referrer khud PAID hona chahiye — warna reward nahi
-      const ref = await pool.query('SELECT id, setup_paid FROM shops WHERE id=$1', [row.referred_by]);
-      if (ref.rows.length && ref.rows[0].setup_paid) {
-        await pool.query('UPDATE shops SET referral_earnings = referral_earnings + 50 WHERE id=$1', [row.referred_by]);
-        console.log(`Referral reward: ₹50 -> ${row.referred_by} (referred ${shopId})`);
-      }
-      // rewarded flag hamesha set — dobara trigger na ho (referrer unpaid ho tab bhi)
-      await pool.query('UPDATE shops SET referral_rewarded=true WHERE id=$1', [shopId]);
-    }
-  } catch(e) { console.error('Referral reward error:', e.message); }
+    await pool.query('UPDATE shops SET referral_rewarded=true WHERE id=$1', [shopId]);
+  } catch(e) { console.error('referral flag error:', e.message); }
 
   return { qrCode, qrUrl };
 }
@@ -5029,7 +5124,17 @@ app.post('/api/admin/advanced/verify', verifyToken, async (req, res) => {
     const r = await pool.query(
       "UPDATE shops SET advanced_unlocked=true, advanced_order_id='' WHERE id=$1 AND advanced_order_id=$2 RETURNING id",
       [req.shopId, razorpay_order_id]);
-    if (r.rows.length) console.log('Advanced unlocked:', req.shopId, razorpay_payment_id);
+    if (r.rows.length) {
+      console.log('Advanced unlocked:', req.shopId, razorpay_payment_id);
+      // PEHLE ye paisa kahin record hi nahi hota tha — sirf console.log.
+      // Isliye superadmin me ₹199 wale unlock kabhi dikhte hi nahi the.
+      await recordPayment({
+        kind: 'advanced', shopId: req.shopId,
+        amount: await getAdvancedFee(),
+        paymentId: razorpay_payment_id, orderId: razorpay_order_id,
+        note: 'Advanced printing unlock'
+      });
+    }
     res.json({ success: true, unlocked: true });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
@@ -5263,13 +5368,16 @@ app.get('/api/shop/:shopId/stats', verifyToken, async (req, res) => {
       return res.status(403).json({ error: 'Ye shop aapki nahi hai' });
     }
     const today = new Date().toISOString().split('T')[0];
+    // prev_* = kal ke number. Dashboard inse "+40% vs yesterday" dikhata hai.
     const r = await pool.query(`
       SELECT COUNT(*) as total_orders,
         COALESCE(SUM(amount),0) as total_earnings,
         COUNT(CASE WHEN DATE(created_at)=$1 THEN 1 END) as today_orders,
         COALESCE(SUM(CASE WHEN DATE(created_at)=$1 THEN amount ELSE 0 END),0) as today_earnings,
-        COALESCE(SUM(CASE WHEN DATE(created_at)=$1 THEN copies ELSE 0 END),0) as today_prints
-      FROM print_jobs WHERE shop_id=$2 AND payment_status='paid'
+        COALESCE(SUM(CASE WHEN DATE(created_at)=$1 THEN copies ELSE 0 END),0) as today_prints,
+        COALESCE(SUM(CASE WHEN DATE(created_at)=DATE($1)-1 THEN amount ELSE 0 END),0) as prev_earnings,
+        COALESCE(SUM(CASE WHEN DATE(created_at)=DATE($1)-1 THEN copies ELSE 0 END),0) as prev_prints
+      FROM print_jobs WHERE shop_id=$2 AND ${JOB_COUNTS}
     `, [today, req.params.shopId]);
     res.json(r.rows[0]);
   } catch(err) { res.status(500).json({ error: err.message }); }
@@ -5470,7 +5578,7 @@ app.get('/api/admin/stats', verifyToken, async (req, res) => {
          COUNT(*)::int                                                                          AS total_orders,
          COALESCE(SUM(amount),0)::int                                                           AS total_earnings
        FROM print_jobs
-       WHERE shop_id=$1 AND payment_status='paid'`, [req.shopId]);
+       WHERE shop_id=$1 AND ${JOB_COUNTS}`, [req.shopId]);
 
     const recent = await pool.query(
       `SELECT id, status, created_at,
@@ -7384,24 +7492,45 @@ app.get('/api/superadmin/overview', verifySuperAdmin, async (req, res) => {
   try {
     // Overview ab sirf shop ki ginti dikhata hai — paisa Analytics me hai,
     // do jagah same number rakhne se confusion hota hai.
+    // AHEM: white-label ki shops HAMARI shops nahi hain — wo reseller ki
+    // hain aur unka setup fee seedha reseller ke Razorpay me jaata hai.
+    // Pehle ye 'pending' me gin li jaati thi (setup_paid=false hone ki
+    // wajah se) jabki Shops list unhe dikhati hi nahi thi — isliye
+    // "Pending 5" dikhta tha par list khali rehti thi.
+    // Ab har jagah ek hi niyam: WL = alag, apne tab me.
+    const WL = `COALESCE(whitelabel_id,'') = ''`;
     const shopCount = await pool.query(`
       SELECT
-        COUNT(*)::int AS total,
-        COUNT(*) FILTER (WHERE demo = false AND setup_paid = true)::int  AS active,
-        COUNT(*) FILTER (WHERE demo = false AND setup_paid = false)::int AS pending,
-        COUNT(*) FILTER (WHERE demo = true
+        COUNT(*) FILTER (WHERE ${WL})::int AS total,
+        COUNT(*) FILTER (WHERE ${WL} AND demo = false AND setup_paid = true)::int  AS active,
+        COUNT(*) FILTER (WHERE ${WL} AND demo = false AND setup_paid = false)::int AS pending,
+        COUNT(*) FILTER (WHERE ${WL} AND demo = true
               AND (demo_expires_at IS NULL OR demo_expires_at > NOW()))::int AS demo_live,
-        COUNT(*) FILTER (WHERE demo = true
+        COUNT(*) FILTER (WHERE ${WL} AND demo = true
               AND demo_expires_at IS NOT NULL AND demo_expires_at <= NOW())::int AS demo_expired,
-        COUNT(*) FILTER (WHERE demo = false AND plan_type = 'monthly')::int AS monthly
+        COUNT(*) FILTER (WHERE ${WL} AND demo = false AND plan_type = 'monthly')::int AS monthly,
+        COUNT(*) FILTER (WHERE COALESCE(whitelabel_id,'') <> '')::int AS whitelabel_shops
       FROM shops`);
+
+    // Revenue: sirf WO paisa jo HUMARE account me aaya.
+    // White-label shops ka setup fee reseller ka hai — isliye total me nahi.
     const earnings = await pool.query(`
-      SELECT 
-        COALESCE(SUM(setup_amount) FILTER (WHERE setup_paid), 0) as total_setup_revenue,
-        COUNT(*) FILTER (WHERE setup_paid) as paid_shops
+      SELECT
+        COALESCE(SUM(setup_amount) FILTER (WHERE setup_paid AND ${WL}), 0)::int as total_setup_revenue,
+        COUNT(*) FILTER (WHERE setup_paid AND ${WL})::int as paid_shops
       FROM shops
     `);
-    const printEarnings = await pool.query(`SELECT COALESCE(SUM(amount),0) as total FROM print_jobs WHERE payment_status='paid'`);
+    // Advanced unlock + renewal + WL license — ab ledger se aata hai
+    const ledger = await pool.query(`
+      SELECT kind, COALESCE(SUM(amount),0)::int AS amt, COUNT(*)::int AS cnt
+      FROM platform_payments GROUP BY kind`);
+    const byKind = {};
+    ledger.rows.forEach(r => { byKind[r.kind] = { amount: r.amt, count: r.cnt }; });
+
+    // Print volume = shop owner ka customer se aaya paisa. Ye HUMARI
+    // kamai nahi hai — isliye alag field me jaata hai, total me nahi.
+    const printEarnings = await pool.query(
+      `SELECT COALESCE(SUM(amount),0) as total FROM print_jobs WHERE ${JOB_COUNTS}`);
 
     res.json({
       total_shops:   shopCount.rows[0].total,
@@ -7410,7 +7539,14 @@ app.get('/api/superadmin/overview', verifySuperAdmin, async (req, res) => {
       demo_shops:    shopCount.rows[0].demo_live,
       demo_expired:  shopCount.rows[0].demo_expired,
       monthly_shops: shopCount.rows[0].monthly,
-      total_setup_revenue: parseInt(earnings.rows[0].total_setup_revenue),
+      whitelabel_shops: shopCount.rows[0].whitelabel_shops,
+      total_setup_revenue: earnings.rows[0].total_setup_revenue,
+      advanced_revenue:  byKind.advanced?.amount   || 0,
+      advanced_count:    byKind.advanced?.count    || 0,
+      renewal_revenue:   byKind.renewal?.amount    || 0,
+      renewal_count:     byKind.renewal?.count     || 0,
+      license_revenue:   byKind.wl_license?.amount || 0,
+      license_count:     byKind.wl_license?.count  || 0,
       total_print_volume: parseInt(printEarnings.rows[0].total)
     });
   } catch(err) { res.status(500).json({ error: err.message }); }
@@ -7418,17 +7554,122 @@ app.get('/api/superadmin/overview', verifySuperAdmin, async (req, res) => {
 
 app.get('/api/superadmin/shops', verifySuperAdmin, async (req, res) => {
   try {
+    // whitelabel_id ab zaroori hai — UI ko pata hona chahiye kaun si shop
+    // reseller ki hai (wo alag tab me jaati hai, Active me nahi).
+    // onboarded_by_name se agent ka naam list me hi dikh jaata hai, taaki
+    // agent wali shop ko chhupana na pade (pehle chhupti thi — isi wajah
+    // se uska payment superadmin me kabhi dikhta hi nahi tha).
     const r = await pool.query(`
-      SELECT id, name, address, phone, printer_model, price_bw, price_color,
-             payment_mode, payment_gateway, setup_paid, setup_amount, created_at,
-             demo, plan_type, paid_until, advanced_unlocked, agent_last_seen,
-             EXTRACT(EPOCH FROM (NOW() - agent_last_seen))::int AS agent_seconds_ago,
-             agent_version, agent_version_label, onboarded_by,
-             agent_machine, (agent_token IS NOT NULL) AS agent_bound
-      FROM shops ORDER BY created_at DESC
+      SELECT s.id, s.name, s.address, s.phone, s.printer_model, s.price_bw, s.price_color,
+             s.payment_mode, s.payment_gateway, s.setup_paid, s.setup_amount, s.created_at,
+             s.demo, s.plan_type, s.paid_until, s.advanced_unlocked, s.agent_last_seen,
+             EXTRACT(EPOCH FROM (NOW() - s.agent_last_seen))::int AS agent_seconds_ago,
+             s.agent_version, s.agent_version_label, s.onboarded_by,
+             s.agent_machine, (s.agent_token IS NOT NULL) AS agent_bound,
+             COALESCE(s.whitelabel_id,'') AS whitelabel_id,
+             COALESCE(a.name,'')          AS onboarded_by_name,
+             COALESCE(w.brand_name,'')    AS whitelabel_name
+      FROM shops s
+      LEFT JOIN shops a       ON a.id = s.onboarded_by
+      LEFT JOIN whitelabels w ON w.id = s.whitelabel_id
+      ORDER BY s.created_at DESC
     `);
     res.json({ shops: r.rows });
   } catch(err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Superadmin: PAYMENTS LEDGER ───
+// Har payment jo hamare account me aayi. Pehle sirf setup fee ka flag tha
+// aur advanced/renewal ka koi record hi nahi banta tha.
+// ?kind=setup|advanced|renewal|wl_license se filter, ?q= se search.
+app.get('/api/superadmin/payments', verifySuperAdmin, async (req, res) => {
+  try {
+    const kind = String(req.query.kind || '').trim();
+    const q    = String(req.query.q || '').trim();
+    const lim  = Math.min(1000, Math.max(1, parseInt(req.query.limit) || 300));
+    const where = [];
+    const args  = [];
+    if (kind) { args.push(kind); where.push(`kind = $${args.length}`); }
+    if (q) {
+      args.push('%' + q + '%');
+      where.push(`(shop_id ILIKE $${args.length} OR shop_name ILIKE $${args.length}
+                   OR payment_id ILIKE $${args.length} OR order_id ILIKE $${args.length})`);
+    }
+    args.push(lim);
+    const rows = await pool.query(
+      `SELECT * FROM platform_payments
+       ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+       ORDER BY created_at DESC LIMIT $${args.length}`, args);
+
+    // Totals: white-label shop ka setup fee reseller ka paisa hai —
+    // isliye "hamara" total usko chhod kar banta hai.
+    const tot = await pool.query(`
+      SELECT
+        COALESCE(SUM(amount),0)::int AS all_amount,
+        COALESCE(SUM(amount) FILTER (WHERE NOT (kind='setup' AND whitelabel_id <> '')),0)::int AS our_amount,
+        COUNT(*)::int AS cnt
+      FROM platform_payments`);
+    res.json({ payments: rows.rows, totals: tot.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Superadmin: WHITE-LABEL ki shops (alag tab) ───
+// Ye shops reseller ki hain — hamare Active/Pending count me nahi aatin.
+app.get('/api/superadmin/whitelabel-shops', verifySuperAdmin, async (req, res) => {
+  try {
+    const r = await pool.query(`
+      SELECT s.id, s.name, s.address, s.phone, s.setup_paid, s.setup_amount,
+             s.created_at, s.demo, s.plan_type, s.paid_until, s.advanced_unlocked,
+             s.agent_last_seen,
+             EXTRACT(EPOCH FROM (NOW() - s.agent_last_seen))::int AS agent_seconds_ago,
+             s.whitelabel_id, COALESCE(w.brand_name,'') AS whitelabel_name,
+             COALESCE(w.slug,'') AS whitelabel_slug
+      FROM shops s
+      LEFT JOIN whitelabels w ON w.id = s.whitelabel_id
+      WHERE COALESCE(s.whitelabel_id,'') <> ''
+      ORDER BY s.created_at DESC`);
+    res.json({ shops: r.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ─── Superadmin: BULK CLEANUP ───
+// Ek click me saare expired demo accounts hatao.
+// Protected shop (SHOP_ECB1AB8A) kabhi delete nahi hoti.
+app.post('/api/superadmin/bulk/delete-expired-demos', verifySuperAdmin, async (req, res) => {
+  try {
+    const find = await pool.query(
+      `SELECT id FROM shops
+       WHERE demo = true AND demo_expires_at IS NOT NULL AND demo_expires_at <= NOW()
+         AND id <> 'SHOP_ECB1AB8A'`);
+    const ids = find.rows.map(r => r.id);
+    if (!ids.length) return res.json({ success: true, deleted: 0 });
+    for (const tbl of ['print_jobs', 'reviews', 'withdrawals', 'agent_commissions', 'platform_payments']) {
+      try { await pool.query(`DELETE FROM ${tbl} WHERE shop_id = ANY($1)`, [ids]); } catch (e) {}
+    }
+    const del = await pool.query('DELETE FROM shops WHERE id = ANY($1) RETURNING id', [ids]);
+    console.log(`Bulk delete expired demos: ${del.rows.length}`);
+    res.json({ success: true, deleted: del.rows.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Ek click me saare pending-payment (register hua, paisa nahi aaya) hatao.
+// Demo aur white-label shops ko haath nahi lagate.
+app.post('/api/superadmin/bulk/delete-pending', verifySuperAdmin, async (req, res) => {
+  try {
+    const find = await pool.query(
+      `SELECT id FROM shops
+       WHERE demo = false AND setup_paid = false
+         AND COALESCE(whitelabel_id,'') = ''
+         AND id <> 'SHOP_ECB1AB8A'`);
+    const ids = find.rows.map(r => r.id);
+    if (!ids.length) return res.json({ success: true, deleted: 0 });
+    for (const tbl of ['print_jobs', 'reviews', 'withdrawals', 'agent_commissions', 'platform_payments']) {
+      try { await pool.query(`DELETE FROM ${tbl} WHERE shop_id = ANY($1)`, [ids]); } catch (e) {}
+    }
+    const del = await pool.query('DELETE FROM shops WHERE id = ANY($1) RETURNING id', [ids]);
+    console.log(`Bulk delete pending shops: ${del.rows.length}`);
+    res.json({ success: true, deleted: del.rows.length });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ─── Superadmin: kisi bhi shop (paid ya demo) ka PC printer list + selection ───
@@ -7533,7 +7774,7 @@ app.get('/api/superadmin/shop/:shopId/earnings', verifySuperAdmin, async (req, r
   try {
     const r = await pool.query(`
       SELECT COUNT(*) as total_orders, COALESCE(SUM(amount),0) as total_earnings
-      FROM print_jobs WHERE shop_id=$1 AND payment_status='paid'
+      FROM print_jobs WHERE shop_id=$1 AND ${JOB_COUNTS}
     `, [req.params.shopId]);
     res.json(r.rows[0]);
   } catch(err) { res.status(500).json({ error: err.message }); }
@@ -7911,6 +8152,12 @@ app.post('/api/webhook/razorpay', async (req, res) => {
           if (adv.rows.length) {
             await pool.query("UPDATE shops SET advanced_unlocked=true, advanced_order_id='' WHERE id=$1", [adv.rows[0].id]);
             console.log('Advanced unlocked (webhook):', adv.rows[0].id);
+            await recordPayment({
+              kind: 'advanced', shopId: adv.rows[0].id,
+              amount: await getAdvancedFee(),
+              paymentId: paymentId || '', orderId,
+              note: 'Advanced printing unlock (webhook)'
+            });
             return res.json({ status: 'ok' });
           }
         }
@@ -8096,6 +8343,13 @@ async function backgroundMaintenance() {
           if (order && order.status === 'paid') {
             await pool.query("UPDATE shops SET advanced_unlocked=true, advanced_order_id='' WHERE id=$1", [shop.id]);
             console.log('Advanced unlocked (reconcile):', shop.id);
+            await recordPayment({
+              kind: 'advanced', shopId: shop.id,
+              amount: await getAdvancedFee(),
+              orderId: shop.advanced_order_id,
+              paymentId: 'RECONCILE_' + shop.advanced_order_id,
+              note: 'Advanced printing unlock (reconcile)'
+            });
           }
         } catch(e) {}
       }
