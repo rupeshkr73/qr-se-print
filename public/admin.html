@@ -1038,6 +1038,26 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 
 
       <button class="btn-save" onclick="saveSettings()">💾 Settings Save Karo</button>
+
+      <!-- Ek Shop ID sirf EK PC par chalti hai -->
+      <div style="margin-top:22px;padding-top:18px;border-top:1.5px solid #e8e6f0;">
+        <div style="font-size:14px;font-weight:800;margin-bottom:6px;">🖥️ Connected Computer</div>
+        <p style="font-size:12.5px;color:#64748b;line-height:1.7;margin-bottom:12px;">
+          Aapki Shop ID sirf <b>ek hi computer</b> par chal sakti hai — taaki koi aur
+          aapka Shop ID apne PC me daal kar aapke customer ki files na le sake.<br>
+          Naya computer lena ho ya Windows dobara install kiya ho, to yahan se purana
+          PC hata dijiye. Uske baad naye PC me Shop ID daal sakte hain.
+        </p>
+        <div id="agentPcBox" style="background:#f8f7fc;border:1px solid #e8e6f0;border-radius:11px;padding:13px;font-size:13px;margin-bottom:11px;">
+          <span style="color:#64748b;">Loading…</span>
+        </div>
+        <button id="disconnectPcBtn" onclick="disconnectComputer()"
+          style="width:100%;background:#fff;color:#b45309;border:1.5px solid #fde68a;
+                 border-radius:11px;padding:13px;font-weight:800;font-size:13.5px;cursor:pointer;">
+          🔌 Disconnect Computer
+        </button>
+        <div id="disconnectMsg" style="display:none;font-size:12.5px;margin-top:9px;"></div>
+      </div>
       <p style="font-size:11px;color:#6b6870;margin-top:8px;text-align:center;">✅ QR Code change nahi hoga — sirf naya price/printer turant apply ho jayega, server automatically update ho jata hai</p>
       <div class="success-msg" id="settingsSuccess">✅ Settings save ho gayi!</div>
       <div class="err-msg" id="settingsErr"></div>
@@ -1890,6 +1910,53 @@ async function deleteMyAccount(){
   }
 }
 
+// ── CONNECTED COMPUTER ──────────────────────────────────────
+// Ek Shop ID sirf ek PC par. Naya PC lena ho to yahan se purana hatao.
+function renderAgentPc(shop){
+  const box = document.getElementById('agentPcBox');
+  if(!box || !shop) return;
+  if(shop.agent_bound){
+    const pc = shop.agent_machine || 'Unknown PC';
+    const when = shop.agent_bound_at
+      ? new Date(shop.agent_bound_at).toLocaleString('en-IN',
+          {day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})
+      : '';
+    box.innerHTML = '<b style="color:#15803d;">🟢 ' + sanitizeTxt(pc) + '</b>'
+      + (when ? '<div style="font-size:11.5px;color:#64748b;margin-top:3px;">Juda: ' + when + '</div>' : '');
+  }else{
+    box.innerHTML = '<span style="color:#64748b;">Abhi koi computer juda nahi hai — '
+      + 'software me Shop ID daalte hi jud jayega.</span>';
+  }
+}
+
+function sanitizeTxt(v){
+  return String(v==null?'':v).replace(/[&<>"']/g, function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; });
+}
+
+async function disconnectComputer(){
+  if(!confirm('Purana computer hata dein?\n\nUs PC par printing turant band ho jayegi.\nNaye PC me Shop ID daal kar dobara shuru kar sakte hain.')) return;
+  const btn = document.getElementById('disconnectPcBtn');
+  const msg = document.getElementById('disconnectMsg');
+  btn.disabled = true; btn.textContent = '⏳ Hata rahe hain…';
+  try{
+    const r = await fetch('/api/admin/agent/disconnect', {
+      method:'POST', headers:{ 'Authorization':'Bearer ' + authToken }
+    });
+    const d = await r.json();
+    if(!r.ok || !d.success) throw new Error(d.error || 'Nahi ho paya');
+    msg.textContent = '✅ Computer hata diya — ab naye PC me Shop ID daal sakte hain';
+    msg.style.color = '#15803d'; msg.style.display = 'block';
+    const box = document.getElementById('agentPcBox');
+    if(box) box.innerHTML = '<span style="color:#64748b;">Abhi koi computer juda nahi hai</span>';
+  }catch(e){
+    msg.textContent = '❌ ' + e.message;
+    msg.style.color = '#b91c1c'; msg.style.display = 'block';
+  }finally{
+    btn.disabled = false; btn.textContent = '🔌 Disconnect Computer';
+  }
+}
+
 function navTo(sect,btn){
   document.querySelectorAll('[data-sect]').forEach(el=>el.classList.toggle('show',el.getAttribute('data-sect')===sect));
   document.querySelectorAll('.nav-it[data-nav]').forEach(n=>n.classList.toggle('active',n.getAttribute('data-nav')===sect));
@@ -2034,6 +2101,7 @@ async function loadAdminPanel() {
     }
     const shop = await res.json();
     currentShop = shop;
+    try { renderAgentPc(shop); } catch(e) {}
     startAgentStatusPolling();
 
     document.getElementById('loginScreen').classList.add('hidden');
@@ -3251,7 +3319,12 @@ function downloadPoster(){
 
 async function loadStats(shopId) {
   try {
-    const res = await fetch(`/api/shop/${shopId}/stats`);
+    // Ab login zaroori hai — ye endpoint pehle bina token ke khula tha,
+    // jisse koi bhi Shop ID daal kar kisi ki bhi kamai dekh sakta tha.
+    const res = await fetch(`/api/shop/${shopId}/stats`, {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (!res.ok) return;               // session khatam — chupchap chhod do
     const stats = await res.json();
     document.getElementById('todayPrints').textContent = stats.today_prints || 0;
     document.getElementById('todayEarn').textContent = '₹' + (stats.today_earnings || 0);

@@ -1551,11 +1551,36 @@ async function loadDemos(){
           </div>
           <button onclick="openPrinterPanel('${d.id}','${sanitize(d.name||'')}')" style="background:#0f766e;color:#fff;border:none;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🖨️ Printer</button>
           <button onclick="notifyShop('${d.id}')" style="background:#f59e0b;color:#fff;border:none;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔔 Notify</button>
+          ${d.agent_bound ? `<button onclick="saDisconnectPc('${d.id}','${(d.agent_machine||'').replace(/'/g,"")}')" style="background:#fff;color:#b45309;border:1.5px solid #fde68a;border-radius:10px;padding:9px 12px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🔌 PC Hatao</button>` : ''}
           <button onclick="deletePendingShop('${d.id}','${sanitize(d.name||'')}' )" style="background:#ff3b3b;color:#fff;border:none;border-radius:10px;padding:9px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">🗑️ Delete</button>
         </div>
       </div>`;
     }).join('');
   }catch(e){ document.getElementById('demosList').innerHTML = '<div style="color:#c22;">Load fail</div>'; }
+}
+
+// ── SHOP KA PC HATAO ────────────────────────────────────────
+// Ek Shop ID sirf ek PC par chalti hai. Shop owner ka computer achanak
+// kharab ho jaye aur wo aapko call kare, to yahan se turant hata dijiye —
+// phir wo naye PC me apni Shop ID daal sakega.
+async function saDisconnectPc(shopId, machine){
+  const on = machine ? '\n\nAbhi juda hai: ' + machine : '';
+  if(!confirm('Is shop ka computer hata dein?' + on
+    + '\n\nUs PC par printing turant band ho jayegi.\n'
+    + 'Shop owner naye PC me apni Shop ID daal kar dobara shuru kar sakega.')) return;
+  try{
+    const r = await fetch('/api/superadmin/shop/' + shopId + '/agent-disconnect', {
+      method:'POST', headers:{ 'Authorization':'Bearer ' + authToken }
+    });
+    const d = await r.json();
+    if(!r.ok || !d.success) throw new Error(d.error || 'Nahi ho paya');
+    alert('✅ PC hata diya' + (d.wasOn ? ' (' + d.wasOn + ')' : '')
+      + '\n\nAb shop owner naye computer me apni Shop ID daal sakta hai.');
+    // List refresh — jo bhi maujood ho
+    try{ if(typeof loadPanel === 'function') await loadPanel(); }catch(e){}
+    try{ if(typeof renderShops === 'function') renderShops(); }catch(e){}
+    try{ if(typeof loadDemos === 'function') loadDemos(); }catch(e){}
+  }catch(e){ alert('❌ ' + e.message); }
 }
 
 // ═══ AGENTS (superadmin) ═══
@@ -3107,7 +3132,7 @@ function setFilter(f) {
 }
 
 function shopActions(shop) {
-  return `${shop.advanced_unlocked ? `<span style="display:inline-block;background:#f3e8ff;color:#7c3aed;border-radius:8px;padding:7px 9px;font-size:11px;font-weight:800;margin-right:6px;" title="Advance Feature active">⚡✓</span>` : `<button onclick="unlockAdvancedFor('${shop.id}')" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">⚡ Unlock</button>`}${shop.plan_type === 'monthly' ? `<button onclick="extendShop30('${shop.id}')" style="background:#0ea5e9;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">🔄 +30 Din</button>` : ''}<button onclick="openPrinterPanel('${shop.id}','${(shop.name||'').replace(/'/g,"")}')" style="background:#0f766e;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;" title="PC ka printer list + payment method">🖨️ Printer</button><button onclick="resetShopPassword('${shop.id}')" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">🔑 Reset Pass</button>${!shop.setup_paid ? `<button onclick="manualActivate('${shop.id}')" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;margin-right:6px;">💰 Activate</button>` : ''}${(!shop.setup_paid || !shop.setup_amount || shop.setup_amount == 0) && shop.id !== 'SHOP_ECB1AB8A' ? `<button onclick="deletePendingShop('${shop.id}','${(shop.name||'').replace(/'/g,"")}')" style="background:#ff3b3b;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑️ Delete</button>` : `<span style="font-size:11px;color:#b0b0b0">${shop.id === 'SHOP_ECB1AB8A' ? '🔒 Protected' : '—'}</span>`}`;
+  return `${shop.advanced_unlocked ? `<span style="display:inline-block;background:#f3e8ff;color:#7c3aed;border-radius:8px;padding:7px 9px;font-size:11px;font-weight:800;margin-right:6px;" title="Advance Feature active">⚡✓</span>` : `<button onclick="unlockAdvancedFor('${shop.id}')" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">⚡ Unlock</button>`}${shop.plan_type === 'monthly' ? `<button onclick="extendShop30('${shop.id}')" style="background:#0ea5e9;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">🔄 +30 Din</button>` : ''}<button onclick="openPrinterPanel('${shop.id}','${(shop.name||'').replace(/'/g,"")}')" style="background:#0f766e;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;" title="PC ka printer list + payment method">🖨️ Printer</button><button onclick="resetShopPassword('${shop.id}')" style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;">🔑 Reset Pass</button>${shop.agent_bound ? `<button onclick="saDisconnectPc('${shop.id}','${(shop.agent_machine||'').replace(/'/g,"")}')" style="background:#fff;color:#b45309;border:1.5px solid #fde68a;border-radius:8px;padding:7px 10px;font-size:11px;font-weight:700;cursor:pointer;margin-right:6px;" title="PC: ${(shop.agent_machine||'unknown').replace(/"/g,'')} — hatane par naye PC me Shop ID lag sakegi">🔌 PC Hatao</button>` : ''}${!shop.setup_paid ? `<button onclick="manualActivate('${shop.id}')" style="background:#16a34a;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;margin-right:6px;">💰 Activate</button>` : ''}${(!shop.setup_paid || !shop.setup_amount || shop.setup_amount == 0) && shop.id !== 'SHOP_ECB1AB8A' ? `<button onclick="deletePendingShop('${shop.id}','${(shop.name||'').replace(/'/g,"")}')" style="background:#ff3b3b;color:#fff;border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer">🗑️ Delete</button>` : `<span style="font-size:11px;color:#b0b0b0">${shop.id === 'SHOP_ECB1AB8A' ? '🔒 Protected' : '—'}</span>`}`;
 }
 
 async function renderShops() {
