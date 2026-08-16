@@ -1086,6 +1086,16 @@ input,select,textarea{border:1.5px solid #e3e5ec;border-radius:12px;
         </div>
         <button id="demoToggleBtn" onclick="toggleDemoEnabled()" style="border:none;border-radius:12px;padding:11px 20px;font-weight:800;font-size:13px;cursor:pointer;">Loading...</button>
       </div>
+      <div style="border-top:1.5px dashed #d9caf9;padding-top:12px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;margin-bottom:8px;">⚡ Activation Mode</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <div style="min-width:210px;">
+            <div style="font-weight:800;font-size:13.5px;" id="demoModeLbl">Loading...</div>
+            <div style="font-size:11px;color:#6b6870;margin-top:2px;line-height:1.55;" id="demoModeSub"></div>
+          </div>
+          <button id="demoModeBtn" onclick="toggleDemoInstant()" style="border:none;border-radius:12px;padding:11px 18px;font-weight:800;font-size:12.5px;cursor:pointer;">Loading...</button>
+        </div>
+      </div>
       <div style="border-top:1.5px dashed #d9caf9;padding-top:12px;">
         <div style="font-size:12px;font-weight:700;margin-bottom:8px;">⏰ Demo Time Limit</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -1124,11 +1134,11 @@ input,select,textarea{border:1.5px solid #e3e5ec;border-radius:12px;
       </p>
     </div>
 
-    <!-- PENDING DEMO REQUESTS -->
-    <div class="card" style="margin-bottom:20px;">
+    <!-- PENDING DEMO REQUESTS — sirf Manual mode me bharta hai -->
+    <div class="card" id="demoReqCard" style="margin-bottom:20px;display:none;">
       <h2><span>📥 Pending Demo Requests <span id="demoReqCount" style="display:none;background:#ff2e63;color:#fff;border-radius:999px;padding:2px 9px;font-size:12px;margin-left:6px;">0</span></span></h2>
-      <p style="font-size:11px;color:#6b6870;margin:6px 0 0;">
-        Homepage form se aayi requests. <b>Accept</b> karte hi demo shop ban jaati hai aur timer shuru hota hai —
+      <p style="font-size:11px;color:#6b6870;margin:6px 0 0;line-height:1.6;">
+        Ye list sirf <b>Manual Approval</b> mode me bharti hai. <b>Accept</b> karte hi demo shop ban jaati hai aur timer shuru hota hai —
         phir WhatsApp button se Shop ID bhej do. <b>Delete</b> karne par request hat jaati hai aur wo number dobara demo le sakta hai.
       </p>
       <div id="demoReqList" style="margin-top:12px;">Loading...</div>
@@ -1570,7 +1580,7 @@ async function doLogin() {
   btn.disabled = false; btn.textContent = 'Login';
 }
 
-let _demoCfg = { enabled: true, minutes: 120 };
+let _demoCfg = { enabled: true, minutes: 120, instant: true };
 function humanMins(m){
   if (m >= 60 && m % 60 === 0) return (m/60) + ' hr';
   if (m >= 60) return (m/60).toFixed(1) + ' hr';
@@ -1590,6 +1600,58 @@ function renderDemoCfg(){
   }
   document.getElementById('demoMinsInput').value = _demoCfg.minutes;
   document.getElementById('demoMinsHuman').textContent = humanMins(_demoCfg.minutes);
+  renderDemoMode();
+}
+
+// Instant = form bharte hi Shop ID + password screen par.
+// Manual  = pehle yahan Accept karo, phir WhatsApp se bhejo (purana flow).
+function renderDemoMode(){
+  const lbl = document.getElementById('demoModeLbl');
+  const sub = document.getElementById('demoModeSub');
+  const btn = document.getElementById('demoModeBtn');
+  const reqCard = document.getElementById('demoReqCard');
+  if(!lbl || !btn) return;
+  const instant = _demoCfg.instant !== false;
+  if(instant){
+    lbl.textContent = '⚡ Instant — apne aap activate';
+    sub.innerHTML = 'Form submit karte hi Shop ID aur password <b>usi screen par</b> mil jaate hain. Aapko kuch nahi karna.';
+    btn.textContent = '🔒 Manual Approval Karo';
+    btn.style.background = '#fef3c7'; btn.style.color = '#92400e';
+  } else {
+    lbl.textContent = '🔒 Manual — aapki approval ke baad';
+    sub.innerHTML = 'Har request neeche <b>Pending</b> me aayegi. Accept karne par hi demo banega, phir WhatsApp se ID bhejni hogi.';
+    btn.textContent = '⚡ Instant Karo';
+    btn.style.background = '#dcfce7'; btn.style.color = '#166534';
+  }
+  // Instant mode me pending list kabhi nahi bharti — card chhupa do,
+  // par purani pending rows abhi bhi ho sakti hain isliye tabhi dikhao.
+  if(reqCard){
+    const badge = document.getElementById('demoReqCount');
+    const pending = badge ? (parseInt(badge.textContent, 10) || 0) : 0;
+    reqCard.style.display = (instant && pending === 0) ? 'none' : '';
+  }
+}
+
+async function toggleDemoInstant(){
+  const next = !(_demoCfg.instant !== false);
+  const msg = next
+    ? 'Instant mode ON karein?\n\nAage se har demo form submit karte hi apne aap activate ho jayegi — aapko Accept nahi dabana padega.'
+    : 'Manual approval ON karein?\n\nAage se har demo pehle Pending me aayegi. Jab tak aap Accept nahi karoge, shop nahi banegi.';
+  if(!confirm(msg)) return;
+  const btn = document.getElementById('demoModeBtn');
+  if(btn) btn.disabled = true;
+  try{
+    const r = await fetch('/api/superadmin/demo-config', {
+      method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},
+      body: JSON.stringify({ enabled: _demoCfg.enabled, minutes: _demoCfg.minutes, instant: next })
+    });
+    const d = await r.json();
+    if(!r.ok || !d.success) throw new Error(d.error || 'Fail');
+    _demoCfg = d;
+    renderDemoCfg();
+    loadDemoRequests();
+  }catch(e){ alert('❌ '+e.message); }
+  finally { if(btn) btn.disabled = false; }
 }
 async function loadDbCounts(){
   try{
@@ -1838,8 +1900,11 @@ async function loadDemoRequests(){
     }
     if(!rows.length){
       box.innerHTML = '<div style="padding:18px;text-align:center;color:#6b6870;font-size:13px;">No pending requests \u2705</div>';
+      renderDemoMode();   // instant mode + 0 pending = card chhupa do
       return;
     }
+    const _card = document.getElementById('demoReqCard');
+    if(_card) _card.style.display = '';   // pending hai to hamesha dikhao
     box.innerHTML = rows.map(function(d){
       const when = new Date(d.created_at).toLocaleString('en-IN',
         { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
@@ -1873,6 +1938,7 @@ function _dreqBump(delta){
   const n = Math.max(0, (parseInt(badge.textContent,10)||0) + delta);
   badge.textContent = n;
   badge.style.display = n ? 'inline-block' : 'none';
+  if(typeof renderDemoMode === 'function') renderDemoMode();
 }
 
 async function approveDemoRequest(id){

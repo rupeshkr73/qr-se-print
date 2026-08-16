@@ -2076,6 +2076,14 @@ function applyAdvancedGate(shop) {
     rc: parseFloat(shop.price_resume_color)||0,
     rb: parseFloat(shop.price_resume_bw)||0
   };
+  // Big Size (A3/A2/A1) ka apna per-page rate. Shop ne set nahi kiya
+  // (0/blank) to normal B&W/Color rate hi lagta hai — bilkul waise hi
+  // jaise pehle chal raha tha. Server par bhi yahi rule hai.
+  window.__bigPrices = {
+    a3: { bw: parseFloat(shop.price_a3_bw)||0, color: parseFloat(shop.price_a3_color)||0 },
+    a2: { bw: parseFloat(shop.price_a2_bw)||0, color: parseFloat(shop.price_a2_color)||0 },
+    a1: { bw: parseFloat(shop.price_a1_bw)||0, color: parseFloat(shop.price_a1_color)||0 }
+  };
 
   const sel  = document.getElementById('paperSizeSel');
   const ori  = document.getElementById('orientBtn');
@@ -2176,6 +2184,7 @@ function selectService(svc) {
     toast('📄 Document Print mode — A4');
   }
   applyPaper();
+  if (typeof updatePriceSummary === 'function') updatePriceSummary();
 }
 
 // ═══ PAPER SIZE / ORIENTATION ═══
@@ -2243,7 +2252,11 @@ function applyPaper() {
 function changePaperSize() {
   state.paperSize = document.getElementById('paperSizeSel').value;
   applyPaper();
-  toast('📐 ' + (PAPER_SIZES[state.paperSize] || {}).label + ' select hua — print isi size par niklega');
+  // Size badla to rate bhi badal sakta hai — summary turant refresh
+  if (typeof updatePriceSummary === 'function') updatePriceSummary();
+  const big = getBigSizeRate();
+  toast('📐 ' + (PAPER_SIZES[state.paperSize] || {}).label + ' select hua' +
+        (big > 0 ? ' — ₹' + money(big) + '/page' : ' — print isi size par niklega'));
 }
 
 function toggleOrientation() {
@@ -3689,7 +3702,21 @@ function getServiceRate() {
 // Duplex chuna ho aur shop ne duplex ka alag rate rakha ho to wahi rate lagta hai.
 // Server bhi yahi karta hai (price_bw_duplex / price_color_duplex), isliye
 // screen par dikhne wala price aur payment ka price ab hamesha same rahega.
+/**
+ * Chune hue paper size ka apna rate (A3/A2/A1). Set na ho to 0.
+ * 4×6 photo yahan nahi aata — uska apna sheet-rate getServiceRate() me hai.
+ */
+function getBigSizeRate() {
+  const B = (window.__bigPrices || {})[state.paperSize];
+  if (!B) return 0;
+  const v = state.colorMode === 'bw' ? B.bw : B.color;
+  return v > 0 ? v : 0;
+}
 function getPerPageRate() {
+  // Bada kagaz sabse pehle: A3/A2/A1 ka rate set ho to wahi chalega.
+  // Duplex ke saath bhi yahi — bada kagaz hi asli lagat hai.
+  const big = getBigSizeRate();
+  if (big > 0) return big;
   if (state.colorMode === 'bw')
     return (state.duplex && state.priceBwDuplex > 0) ? state.priceBwDuplex : state.priceBW;
   return (state.duplex && state.priceColorDuplex > 0) ? state.priceColorDuplex : state.priceColor;
@@ -3716,13 +3743,18 @@ function updatePriceSummary() {
   const bwP = document.getElementById('optBWPrice');
   const clP = document.getElementById('optColorPrice');
   const P2 = window.__shopPrices || {};
+  // Big size chuna hai to card par bhi USI size ka rate dikhe, warna
+  // customer ko payment page par alag amount dekh kar shak hota hai.
+  const BIG = (window.__bigPrices || {})[state.paperSize] || null;
   if (clP) {
     if (state.service === 'photo4x6' && rate > 0) clP.textContent = '₹' + rate + '/sheet';
     else if (state.service === 'resume' && (P2.rc || 0) > 0) clP.textContent = '₹' + P2.rc + '/resume';
+    else if (BIG && BIG.color > 0) clP.textContent = '₹' + money(BIG.color) + '/page';
     else clP.textContent = '₹' + state.priceColor + '/page';
   }
   if (bwP) {
     if (state.service === 'resume' && (P2.rb || 0) > 0) bwP.textContent = '₹' + P2.rb + '/resume';
+    else if (BIG && BIG.bw > 0) bwP.textContent = '₹' + money(BIG.bw) + '/page';
     else bwP.textContent = '₹' + state.priceBW + '/page';
   }
   if (rate > 0) {
@@ -3742,8 +3774,11 @@ function updatePriceSummary() {
   const dupOn = state.duplex &&
     ((state.colorMode === 'bw' && state.priceBwDuplex > 0) ||
      (state.colorMode !== 'bw' && state.priceColorDuplex > 0));
+  // Bade size par label me size bhi likho — bill saaf samajh aata hai
+  const bigLbl = (getBigSizeRate() > 0 && PAPER_SIZES[state.paperSize])
+    ? ' — ' + PAPER_SIZES[state.paperSize].label : '';
   document.getElementById('sumType').textContent =
-    (state.colorMode === 'bw' ? 'B&W' : 'Color') + ' Print' + (dupOn ? ' (Dual-Side)' : '');
+    (state.colorMode === 'bw' ? 'B&W' : 'Color') + ' Print' + bigLbl + (dupOn ? ' (Dual-Side)' : '');
   document.getElementById('sumPerPage').textContent = '₹' + money(pricePerPage) + '/page';
   document.getElementById('sumPages').textContent = printPages + ' page' + (printPages>1?'s':'') + ' × ' + state.copies + ' cop' + (state.copies>1?'ies':'y');
   document.getElementById('sumPagesAmt').textContent = '₹' + money(total);

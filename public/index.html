@@ -1034,6 +1034,128 @@ a{color:inherit}
   padding:14px;font-size:13px;line-height:1.8;margin-top:6px}
 .dm-result code{background:#fff;padding:2px 8px;border-radius:6px;font-weight:800;font-size:14px}
 
+/* ══════════════════════════════════════════════════════════════
+   DEMO SUCCESS CARD — instant activation ke baad wala screen.
+   Purana version plain green box tha, log bharosa nahi karte the.
+   Ye bank-statement jaisa dikhta hai: sealed header, verified badge,
+   credentials apne alag "vault" row me, aur trust footer.
+   ══════════════════════════════════════════════════════════════ */
+.dm-box.dmx-wide{max-width:470px;padding:0;overflow:hidden;text-align:left}
+.dmx-head{
+  background:linear-gradient(135deg,#0f172a 0%,#1e293b 48%,#312e81 100%);
+  color:#fff;padding:26px 22px 22px;text-align:center;position:relative;overflow:hidden;
+}
+.dmx-head::after{
+  content:'';position:absolute;top:-46px;right:-38px;width:150px;height:150px;
+  background:radial-gradient(circle,rgba(124,58,237,.45),transparent 68%);
+}
+.dmx-seal{
+  width:60px;height:60px;margin:0 auto 12px;border-radius:50%;
+  background:linear-gradient(135deg,#22c55e,#15803d);
+  display:flex;align-items:center;justify-content:center;font-size:29px;
+  box-shadow:0 0 0 7px rgba(34,197,94,.16),0 10px 26px rgba(21,128,61,.42);
+  animation:dmxPop .45s var(--ease) both;position:relative;
+}
+@keyframes dmxPop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+.dmx-head h3{font-family:'Plus Jakarta Sans',sans-serif;font-size:21px;font-weight:800;
+  margin:0 0 5px;color:#fff;position:relative}
+.dmx-head p{font-size:12.5px;opacity:.82;margin:0;position:relative;line-height:1.6}
+.dmx-verified{
+  display:inline-flex;align-items:center;gap:6px;margin-top:12px;position:relative;
+  background:rgba(34,197,94,.16);border:1px solid rgba(34,197,94,.42);
+  color:#86efac;border-radius:20px;padding:5px 13px;font-size:11px;font-weight:700;
+  letter-spacing:.2px;
+}
+.dmx-body{padding:20px 22px 22px;background:#fff}
+.dmx-vault{
+  background:linear-gradient(180deg,#f8fafc,#fff);
+  border:1.5px solid #dbe3ec;border-radius:16px;padding:6px 14px;margin-bottom:14px;
+  box-shadow:inset 0 1px 0 #fff,0 3px 12px rgba(15,23,42,.05);
+}
+.dmx-row{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:13px 0;border-bottom:1px dashed #e2e8f0;
+}
+.dmx-vault .dmx-row:last-child{border-bottom:none}
+.dmx-row .k{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.55px}
+.dmx-row .v{
+  font-family:'JetBrains Mono',ui-monospace,'SF Mono',Menlo,monospace;
+  font-size:15px;font-weight:800;color:#0f172a;letter-spacing:.4px;
+  word-break:break-all;text-align:right;
+}
+.dmx-copy{
+  flex:none;background:#0f172a;color:#fff;border:none;border-radius:9px;
+  padding:7px 12px;font-size:11px;font-weight:800;cursor:pointer;
+  transition:background .18s,transform .12s;
+}
+.dmx-copy:hover{background:#312e81}
+.dmx-copy:active{transform:scale(.94)}
+.dmx-copy.done{background:#16a34a}
+.dmx-warn{
+  display:flex;gap:9px;align-items:flex-start;
+  background:#fffbeb;border:1.5px solid #fcd34d;border-radius:12px;
+  padding:11px 13px;font-size:12px;color:#92400e;line-height:1.65;margin-bottom:14px;
+}
+.dmx-meta{display:flex;gap:8px;margin-bottom:16px}
+.dmx-chip{
+  flex:1;text-align:center;background:#f8fafc;border:1.5px solid #e2e8f0;
+  border-radius:12px;padding:10px 6px;
+}
+.dmx-chip b{display:block;font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:17px;font-weight:800;color:#0f172a;line-height:1.2}
+.dmx-chip span{display:block;font-size:10px;color:#64748b;font-weight:700;
+  margin-top:3px;text-transform:uppercase;letter-spacing:.4px}
+.dmx-steps{counter-reset:dmx;margin-bottom:16px}
+.dmx-step{
+  display:flex;gap:11px;align-items:flex-start;padding:9px 0;
+  border-bottom:1px dashed #eef2f7;font-size:12.5px;line-height:1.6;color:#334155;
+}
+.dmx-steps .dmx-step:last-child{border-bottom:none}
+.dmx-step::before{
+  counter-increment:dmx;content:counter(dmx);
+  flex:none;width:23px;height:23px;border-radius:50%;
+  background:#0f172a;color:#fff;font-size:11.5px;font-weight:800;
+  display:flex;align-items:center;justify-content:center;margin-top:1px;
+}
+.dmx-step b{color:#0f172a}
+.dmx-go{
+  display:block;width:100%;text-align:center;text-decoration:none;
+  background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;
+  border-radius:14px;padding:15px;font-family:'Plus Jakarta Sans',sans-serif;
+  font-weight:800;font-size:15px;box-shadow:0 12px 26px rgba(79,70,229,.34);
+  transition:transform .18s var(--ease);
+}
+.dmx-go:hover{transform:translateY(-2px)}
+.dmx-go:active{transform:translateY(0) scale(.98)}
+.dmx-qr{text-align:center;margin-bottom:14px}
+.dmx-qr img{
+  width:132px;height:132px;margin:0 auto;border-radius:12px;
+  border:1.5px solid #e2e8f0;padding:6px;background:#fff;
+}
+.dmx-qr span{display:block;font-size:11px;color:#64748b;margin-top:7px;font-weight:600}
+.dmx-trust{
+  display:flex;flex-wrap:wrap;gap:5px 12px;justify-content:center;
+  margin-top:14px;padding-top:13px;border-top:1px dashed #e2e8f0;
+}
+.dmx-trust span{font-size:10.5px;color:#64748b;font-weight:600;display:inline-flex;
+  align-items:center;gap:4px}
+.dmx-pending{
+  background:linear-gradient(135deg,#1e293b,#312e81);color:#fff;
+  border-radius:16px;padding:18px;text-align:center;margin-bottom:14px;
+}
+.dmx-pending b{display:block;font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;margin-bottom:6px}
+.dmx-pending p{font-size:12.5px;opacity:.85;line-height:1.65;margin:0}
+/* Modal ke andar ka lock badge — form par bhi bharosa dikhe */
+.dm-secure{
+  display:inline-flex;align-items:center;gap:5px;margin-bottom:12px;
+  background:#f0fdf4;border:1.5px solid #bbf7d0;color:#15803d;
+  border-radius:18px;padding:5px 12px;font-size:11px;font-weight:700;
+}
+.dm-box input.bad{border-color:#ef4444;background:#fff5f5}
+.dm-hint{font-size:11px;color:var(--muted);text-align:left;margin:-4px 0 10px 2px;min-height:14px}
+.dm-hint.err{color:#dc2626;font-weight:700}
+.dm-hint.ok{color:#15803d;font-weight:700}
+
 /* ── Footer ── */
 .footer{
   border-top:1.5px dashed #e0d8c6;margin-top:70px;
@@ -2522,13 +2644,17 @@ html.legal-open,body.legal-open{overflow:hidden}
 </main>
 
 <div class="dm-overlay" id="demoModal">
-  <div class="dm-box">
-    <h3>🎯 24 Hour Free Demo</h3>
-    <div class="dm-sub">Fill in your shop details — we activate your demo and send the Shop ID on WhatsApp</div>
+  <div class="dm-box" id="dmBox">
+    <div id="dmHead">
+      <h3 id="dmTitle">🎯 24 Hour Free Demo</h3>
+      <div class="dm-sub" id="dmSub">Details bharo — Shop ID aur password turant isi screen par mil jayenge</div>
+      <div class="dm-secure">🔒 Secure form · No payment · No card</div>
+    </div>
     <div class="dm-err" id="dmErr"></div>
     <div id="dmForm">
       <input id="dmName" autocomplete="name" placeholder="Your name">
-      <input id="dmPhone" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="Mobile number (10 digit)">
+      <input id="dmPhone" type="tel" inputmode="numeric" maxlength="10" autocomplete="tel" placeholder="WhatsApp number (10 digit)" oninput="dmPhoneLive()" onblur="dmPhoneLive()">
+      <div class="dm-hint" id="dmPhoneHint"></div>
       <input id="dmShop" autocomplete="organization" placeholder="Shop name">
       <input id="dmAddress" autocomplete="street-address" placeholder="Shop address">
       <input id="dmEmail" type="email" autocomplete="email" placeholder="Email address">
@@ -2536,7 +2662,10 @@ html.legal-open,body.legal-open{overflow:hidden}
         <option value="">Select your printer</option>
       </select>
       <div id="dmTurnstile" style="margin:10px 0;display:none;"></div>
-      <button class="dm-btn" id="dmGo" onclick="createDemo()">Request Free Demo ›</button>
+      <button class="dm-btn" id="dmGo" onclick="createDemo()">Demo Shuru Karo — Free ›</button>
+      <div style="font-size:10.5px;color:var(--muted);text-align:center;margin-top:9px;line-height:1.6;">
+        Shop ID aur password turant screen par milega · Koi payment nahi
+      </div>
     </div>
     <div class="dm-result" id="dmResult"></div>
     <button data-cfg="demo04" class="dm-close" onclick="closeDemoModal()">Band karo</button>
@@ -3725,8 +3854,33 @@ function initFestivalOffer(enabled, name, endAt) {
   const timer = setInterval(tick, 1000);
 }
 
-function openDemoModal(){ document.getElementById('demoModal').classList.add('open'); loadDemoPrinters(); loadChallenge(); }
-function closeDemoModal(){ document.getElementById('demoModal').classList.remove('open'); }
+function openDemoModal(){
+  // Pehle koi result dikha ho to reset — warna dobara khulne par
+  // purani credentials wapas dikh jaati hain (aur form gayab rehta hai)
+  var res = document.getElementById('dmResult');
+  var box = document.getElementById('dmBox');
+  var head = document.getElementById('dmHead');
+  var form = document.getElementById('dmForm');
+  var btn = document.getElementById('dmGo');
+  if(res && res.style.display === 'block'){
+    res.style.display = 'none';
+    res.innerHTML = '';
+    res.className = 'dm-result';
+    if(box) box.classList.remove('dmx-wide');
+    if(head) head.style.display = '';
+    if(form) form.style.display = '';
+    if(btn){ btn.disabled = false; btn.textContent = _DM_BTN_LABEL; }
+  }
+  document.getElementById('demoModal').classList.add('open');
+  loadDemoPrinters();
+  loadChallenge();
+}
+function closeDemoModal(){
+  // iframe hatao warna video background me chalta rehta hai
+  var f = document.getElementById('dmMiniFrame');
+  if(f) f.src = 'about:blank';
+  document.getElementById('demoModal').classList.remove('open');
+}
 // ── BOT CHALLENGE (Cloudflare Turnstile) ──
 // Server batata hai enabled hai ya nahi. TURNSTILE_SECRET_KEY set na ho to
 // widget dikhta hi nahi aur form pehle jaisa hi chalta hai.
@@ -3763,6 +3917,130 @@ function resetChallenge(){
   try{ if(window.turnstile && _tsWidgetId !== null) window.turnstile.reset(_tsWidgetId); }catch(e){}
 }
 
+/* ══════════════════════════════════════════════════════════════
+   ASLI MOBILE NUMBER CHECK — server ke validateIndianMobile() ka
+   exact mirror. Yahan sirf TURANT feedback ke liye hai; asli
+   faisla hamesha server karta hai (koi bypass nahi kar sakta).
+   Server file: server.js -> validateIndianMobile()
+   ══════════════════════════════════════════════════════════════ */
+var DM_FAKE_MOBILES = ['9999999999','8888888888','7777777777','6666666666','1111111111','0000000000',
+  '1234567890','9876543210','9123456789','9987654321','1234512345','9999900000',
+  '9000000000','8000000000','7000000000','6000000000','9090909090','9080706050',
+  '9999988888','9876512345','8765432109','7654321098','9998887776','9876543211',
+  '9999999998','9999999990','9111111111','8123456789','7123456789','6123456789'];
+
+function dmNormPhone(raw){
+  var d = String(raw||'').replace(/\D/g,'');
+  if(d.length===13 && d.indexOf('091')===0) d = d.slice(3);
+  else if(d.length===12 && d.indexOf('91')===0) d = d.slice(2);
+  else if(d.length===11 && d.charAt(0)==='0') d = d.slice(1);
+  return d.length===10 ? d : '';
+}
+function _dmSeq(d){
+  if(d.length<4) return false;
+  var asc=true, desc=true;
+  for(var i=1;i<d.length;i++){
+    var step=(Number(d[i])-Number(d[i-1])+10)%10;
+    if(step!==1) asc=false;
+    if(step!==9) desc=false;
+  }
+  return asc||desc;
+}
+function _dmBlock(d){
+  var sizes=[1,2,5];
+  for(var s=0;s<sizes.length;s++){
+    var size=sizes[s];
+    if(d.length%size!==0) continue;
+    var block=d.slice(0,size), same=true;
+    for(var i=size;i<d.length;i+=size){ if(d.slice(i,i+size)!==block){ same=false; break; } }
+    if(same) return true;
+  }
+  return false;
+}
+function _dmRun(d){
+  var best=1, run=1;
+  for(var i=1;i<d.length;i++){ run = d[i]===d[i-1] ? run+1 : 1; if(run>best) best=run; }
+  return best;
+}
+function dmValidatePhone(raw){
+  var d = dmNormPhone(raw);
+  var FAKE = 'Ye number asli nahi lag raha — apna WhatsApp number daalo.';
+  if(!d) return { ok:false, phone:'', error:'Sahi 10-digit mobile number daalo.' };
+  if(!/^[6-9]/.test(d)) return { ok:false, phone:'', error:'Mobile number 6, 7, 8 ya 9 se shuru hota hai — dobara check karo.' };
+  if(DM_FAKE_MOBILES.indexOf(d) !== -1) return { ok:false, phone:'', error:'Ye test number hai — apna asli WhatsApp number daalo.' };
+  if(_dmBlock(d)) return { ok:false, phone:'', error:FAKE };
+  if(_dmSeq(d) || _dmSeq(d.slice(1))) return { ok:false, phone:'', error:FAKE };
+  var uniq = {}, n = 0;
+  for(var i=0;i<d.length;i++){ if(!uniq[d[i]]){ uniq[d[i]]=1; n++; } }
+  if(n<=2) return { ok:false, phone:'', error:FAKE };
+  if(_dmRun(d)>=7) return { ok:false, phone:'', error:FAKE };
+  if(/^(\d)\1(\d)\2(\d)\3(\d)\4(\d)\5$/.test(d)) return { ok:false, phone:'', error:FAKE };
+  return { ok:true, phone:d, error:'' };
+}
+
+/* Type karte hi feedback — submit dabane ka wait nahi karana */
+function dmPhoneLive(){
+  var inp = document.getElementById('dmPhone');
+  var hint = document.getElementById('dmPhoneHint');
+  if(!inp || !hint) return;
+  var raw = (inp.value||'').trim();
+  if(!raw){ hint.textContent=''; hint.className='dm-hint'; inp.classList.remove('bad'); return; }
+  var digits = raw.replace(/\D/g,'');
+  if(digits.length < 10){
+    hint.textContent = digits.length + '/10 digit';
+    hint.className = 'dm-hint';
+    inp.classList.remove('bad');
+    return;
+  }
+  var v = dmValidatePhone(raw);
+  hint.textContent = v.ok ? '\u2705 Number theek hai — Shop ID isi par bhi bhej denge' : '\u26A0\uFE0F ' + v.error;
+  hint.className = 'dm-hint ' + (v.ok ? 'ok' : 'err');
+  inp.classList.toggle('bad', !v.ok);
+}
+
+/* Copy button — clipboard API fail ho to purana execCommand fallback */
+function dmCopy(btn, text){
+  var done = function(){
+    var old = btn.textContent;
+    btn.textContent = '\u2713 Copied';
+    btn.classList.add('done');
+    setTimeout(function(){ btn.textContent = old; btn.classList.remove('done'); }, 1600);
+  };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done, function(){ dmCopyFallback(text, done); });
+  } else { dmCopyFallback(text, done); }
+}
+function dmCopyFallback(text, done){
+  try{
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.setAttribute('readonly','');
+    ta.style.cssText = 'position:absolute;left:-9999px;top:0;';
+    document.body.appendChild(ta);
+    ta.select(); ta.setSelectionRange(0, text.length);
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    done();
+  }catch(e){ alert(text); }
+}
+
+var DM_VIDEO_ID = 'qOPE-90Um8g';
+function dmVideoSrc(muted){
+  return 'https://www.youtube-nocookie.com/embed/' + DM_VIDEO_ID +
+         '?autoplay=1&mute=' + (muted ? 1 : 0) + '&loop=1&playlist=' + DM_VIDEO_ID +
+         '&controls=1&rel=0&modestbranding=1&playsinline=1';
+}
+function dmVideoUnmute(btn){
+  var f = document.getElementById('dmMiniFrame');
+  if(f) f.src = dmVideoSrc(false);
+  btn.style.display = 'none';
+}
+function dmEsc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 let _dmPrintersLoaded = false;
 async function loadDemoPrinters(){
   if(_dmPrintersLoaded) return;
@@ -3784,6 +4062,8 @@ async function loadDemoPrinters(){
   _dmPrintersLoaded = true;
 }
 
+var _DM_BTN_LABEL = 'Demo Shuru Karo \u2014 Free \u203A';
+
 async function createDemo(){
   const err = document.getElementById('dmErr');
   err.style.display = 'none';
@@ -3796,19 +4076,22 @@ async function createDemo(){
     const el = id && document.getElementById(id); if(el) el.focus();
     return false;
   };
-  if(!name)                   return fail('Please enter your name','dmName');
-  if(!/^\d{10}$/.test(phone)) return fail('Please enter a valid 10-digit mobile number','dmPhone');
-  if(!shopName)               return fail('Please enter your shop name','dmShop');
+  if(!name)                   return fail('Apna naam daalo','dmName');
+  // Random 10 digit (9999999999 / 1234567890) yahin ruk jaata hai —
+  // server par bhi bilkul yahi check dobara hota hai.
+  var _ph = dmValidatePhone(phone);
+  if(!_ph.ok){ dmPhoneLive(); return fail(_ph.error,'dmPhone'); }
+  if(!shopName)               return fail('Shop ka naam daalo','dmShop');
   if(!address)                return fail('Please enter your shop address','dmAddress');
   if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return fail('Please enter a valid email address','dmEmail');
   if(!printerModel)           return fail('Please select your printer','dmPrinter');
 
   const btn = document.getElementById('dmGo');
-  btn.disabled = true; btn.textContent = '\u23F3 Submitting...';
+  btn.disabled = true; btn.textContent = '\u23F3 Demo ban raha hai...';
   try{
     const r = await fetch('/api/demo/request', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ name, phone, shopName, address, email, printerModel,
+      body: JSON.stringify({ name, phone: _ph.phone, shopName, address, email, printerModel,
                              turnstileToken: challengeToken() })
     });
     const d = await r.json();
@@ -3816,31 +4099,102 @@ async function createDemo(){
 
     document.getElementById('dmForm').style.display = 'none';
     const res = document.getElementById('dmResult');
+    const head = document.getElementById('dmHead');
+    const box  = document.getElementById('dmBox');
+    const errBox = document.getElementById('dmErr');
+    if(errBox) errBox.style.display = 'none';
 
     if(d.approved){
-      res.innerHTML = '\u2705 <b>Demo ready \u2014 your 24 hours start now!</b><br>' +
-        '\uD83C\uDD94 Shop ID: <code>' + d.shopId + '</code><br>' +
-        '\uD83D\uDD11 Password: <code>' + d.password + '</code> (your mobile number)<br><br>' +
-        '<b>Next steps:</b><br>' +
-        '1\uFE0F\u20E3 <a href="/admin" target="_blank" style="color:#7c3aed;font-weight:700;">Shop Login</a> and download the Print Agent (.exe)<br>' +
-        '2\uFE0F\u20E3 Install it on your PC and enter this Shop ID<br>' +
-        '3\uFE0F\u20E3 Scan the QR from your phone and send a test print!';
+      // ── INSTANT ── Shop ID + password wahin, secure-looking card me.
+      // Purana plain green box log ko "fake" lagta tha; isliye ab
+      // sealed header + verified badge + credential vault + QR.
+      const hrs   = d.hours || Math.round((d.minutes || d.expiresInMinutes || 1440) / 60);
+      const lim   = d.printLimit || 10;
+      const login = d.loginUrl || (location.origin + '/admin');
+      const sid   = dmEsc(d.shopId);
+      const pwd   = dmEsc(d.password);
+      if(head) head.style.display = 'none';
+      if(box)  box.classList.add('dmx-wide');
+      res.className = '';
+      res.innerHTML =
+        '<div class="dmx-head">'
+      +   '<div class="dmx-seal">\uD83D\uDD13</div>'
+      +   '<h3>Demo Account Active Hai</h3>'
+      +   '<p>Aapki shop ban gayi. Neeche wali details <b>abhi note kar lo</b>.</p>'
+      +   '<div class="dmx-verified">\u2713 Verified &amp; activated \u00B7 ' + hrs + ' hours</div>'
+      + '</div>'
+      + '<div class="dmx-body">'
+      +   '<div class="dmx-meta">'
+      +     '<div class="dmx-chip"><b>' + hrs + ' hr</b><span>Valid</span></div>'
+      +     '<div class="dmx-chip"><b>' + lim + '</b><span>Free prints</span></div>'
+      +     '<div class="dmx-chip"><b>\u20B90</b><span>Charge</span></div>'
+      +   '</div>'
+      +   '<div class="dmx-vault">'
+      +     '<div class="dmx-row"><span class="k">Shop ID</span>'
+      +       '<span class="v">' + sid + '</span>'
+      +       '<button type="button" class="dmx-copy" onclick="dmCopy(this,\'' + sid + '\')">Copy</button></div>'
+      +     '<div class="dmx-row"><span class="k">Password</span>'
+      +       '<span class="v">' + pwd + '</span>'
+      +       '<button type="button" class="dmx-copy" onclick="dmCopy(this,\'' + pwd + '\')">Copy</button></div>'
+      +   '</div>'
+      +   '<div class="dmx-warn"><span>\u26A0\uFE0F</span><div>Ye screen <b>dobara nahi khulegi</b>. '
+      +     'Screenshot le lo ya Copy dabao. Password aapka mobile number hi hai \u2014 baad me dashboard se badal sakte ho.</div></div>'
+      +   (d.qrCode ? '<div class="dmx-qr"><img src="' + dmEsc(d.qrCode) + '" alt="Shop QR Code">'
+      +     '<span>Aapki shop ka QR \u2014 customer isi ko scan karega</span></div>' : '')
+      +   '<div class="dmx-steps">'
+      +     '<div class="dmx-step"><div><b>Login karo</b> \u2014 upar wali Shop ID aur password se</div></div>'
+      +     '<div class="dmx-step"><div><b>Print Agent download</b> karke shop ke PC me install karo</div></div>'
+      +     '<div class="dmx-step"><div><b>Shop ID daalo</b> agent me \u2014 printer apne aap detect ho jayega</div></div>'
+      +     '<div class="dmx-step"><div><b>QR scan karke</b> phone se ek test print bhejo \uD83C\uDF89</div></div>'
+      +   '</div>'
+      +   '<div class="gv-mini-label">\uD83C\uDFAC Poora setup 2 minute me \u2014 dekh lo</div>'
+      +   '<div class="gv-mini-frame"><div class="gv-mini-inner">'
+      +     '<iframe id="dmMiniFrame" src="' + dmVideoSrc(true) + '" title="QR Se Print \u2014 How to Setup" '
+      +     'allow="autoplay;encrypted-media;picture-in-picture" allowfullscreen loading="lazy"></iframe>'
+      +     '<button type="button" class="gv-mini-sound" onclick="dmVideoUnmute(this)">\uD83D\uDD0A Sound</button>'
+      +   '</div></div>'
+      +   '<a class="dmx-go" href="' + dmEsc(login) + '" target="_blank" rel="noopener" style="margin-top:16px;">'
+      +     '\uD83D\uDD11 Ab Login Karo \u203A</a>'
+      +   '<div class="dmx-trust">'
+      +     '<span>\uD83D\uDD12 Encrypted connection</span>'
+      +     '<span>\uD83D\uDEAB No payment taken</span>'
+      +     '<span>\uD83D\uDDD1\uFE0F Files auto-delete</span>'
+      +   '</div>'
+      + '</div>';
+      try{ if(window.qspTrack) window.qspTrack('demo_activated'); }catch(e){}
     } else {
-      res.innerHTML = '\u2705 <b>Request submitted!</b><br><br>' +
-        'Your demo request is with our team. Once approved you will get your ' +
-        '<b>Shop ID and password on WhatsApp</b> at <code>' + phone + '</code>.<br><br>' +
-        '<div style="font-size:13px;line-height:1.7;text-align:left;">' +
-        '\u23F1\uFE0F Usually activated within a few minutes during working hours.<br>' +
-        '\uD83C\uDF81 Your demo runs for <b>24 hours</b> with <b>10 free prints</b>.<br>' +
-        '\uD83D\uDCF1 Keep WhatsApp open on <code>' + phone + '</code>.' +
-        '</div>';
+      // ── MANUAL MODE ── superadmin ne approval on kar rakha hai
+      if(head) head.style.display = 'none';
+      if(box)  box.classList.add('dmx-wide');
+      res.className = '';
+      res.innerHTML =
+        '<div class="dmx-head">'
+      +   '<div class="dmx-seal">\u2713</div>'
+      +   '<h3>Request Mil Gayi</h3>'
+      +   '<p>Aapki demo request humare paas aa gayi hai.</p>'
+      + '</div>'
+      + '<div class="dmx-body">'
+      +   '<div class="dmx-pending"><b>\u23F1\uFE0F Thodi der me activate</b>'
+      +     '<p>Working hours me kuch hi minute lagte hain. Shop ID aur password '
+      +     '<b>WhatsApp par</b> ' + dmEsc(phone) + ' par aa jayenge.</p></div>'
+      +   '<div class="gv-mini-label">\uD83C\uDFAC Tab tak setup dekh lo \u2014 2 minute</div>'
+      +   '<div class="gv-mini-frame"><div class="gv-mini-inner">'
+      +     '<iframe id="dmMiniFrame" src="' + dmVideoSrc(true) + '" title="QR Se Print \u2014 How to Setup" '
+      +     'allow="autoplay;encrypted-media;picture-in-picture" allowfullscreen loading="lazy"></iframe>'
+      +     '<button type="button" class="gv-mini-sound" onclick="dmVideoUnmute(this)">\uD83D\uDD0A Sound</button>'
+      +   '</div></div>'
+      +   '<div class="dmx-trust">'
+      +     '<span>\uD83D\uDD12 Encrypted connection</span>'
+      +     '<span>\uD83D\uDEAB No payment taken</span>'
+      +   '</div>'
+      + '</div>';
     }
     res.style.display = 'block';
   }catch(e){
     err.textContent = e.message;
     err.style.display = 'block';
     resetChallenge();
-    btn.disabled = false; btn.textContent = 'Request Free Demo \u203A';
+    btn.disabled = false; btn.textContent = _DM_BTN_LABEL;
   }
 }
 </script>
@@ -4109,6 +4463,10 @@ function sendInq(via){
       }
     }catch(e){}
   };
+
+  // Doosre scripts (demo modal) bhi conversion track kar sakein.
+  // IIFE ke andar `track` local hai — isliye ek saaf global handle.
+  window.qspTrack = track;
 
   // Pageview — ek hi baar page load par
   track('pageview');

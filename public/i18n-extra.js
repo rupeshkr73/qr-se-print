@@ -17,6 +17,110 @@
 (function () {
   var EXTRA = {
 
+    /* ─────────── ADMIN — Advance Feature (naye strings) ─────────── */
+    'saare': 'all',
+    '4×6 Photo · Resume · A3/A2/A1 · Duplex · Mini Print':
+      '4×6 Photo · Resume · A3/A2/A1 · Duplex · Mini Print',
+    'Mini Print — ek sheet par 16 pages tak':
+      'Mini Print — up to 16 pages on one sheet',
+    'Notes, question paper, syllabus — customer 2/4/6/8/9/12/16 pages ek hi A4 par chhapwa sakta hai.':
+      'Notes, question papers, syllabus — the customer can print 2/4/6/8/9/12/16 pages on a single A4.',
+    '16 page ka kaam 1 page ke kagaz me.': '16 pages of work on 1 sheet of paper.',
+    'Student season me sabse zyada chalne wala option.':
+      'The most-used option during student season.',
+
+    /* ─────────── ADMIN — Big Size (A3/A2/A1) pricing ─────────── */
+    '📐 BIG SIZE PRICING — A3 / A2 / A1 (₹ per page)':
+      '📐 BIG SIZE PRICING — A3 / A2 / A1 (₹ per page)',
+    'Bade kagaz ki lagat alag hoti hai — yahan har size ka apna rate set karo.':
+      'Large paper costs more — set a separate rate for each size here.',
+    'Khaali chhodo ya 0 daalo': 'Leave blank or enter 0',
+    'to us size par aapka normal B&W / Color rate hi lagega.':
+      'and that size will use your normal B&W / Color rate.',
+    'A3 — ⚫ B&W (₹/page)': 'A3 — ⚫ B&W (₹/page)',
+    'A3 — 🌈 Color (₹/page)': 'A3 — 🌈 Color (₹/page)',
+    'A2 — ⚫ B&W (₹/page)': 'A2 — ⚫ B&W (₹/page)',
+    'A2 — 🌈 Color (₹/page)': 'A2 — 🌈 Color (₹/page)',
+    'A1 — ⚫ B&W (₹/page)': 'A1 — ⚫ B&W (₹/page)',
+    'A1 — 🌈 Color (₹/page)': 'A1 — 🌈 Color (₹/page)',
+    'ℹ️ Abhi koi big-size rate set nahi — A3/A2/A1 par bhi normal A4 wala rate hi lagega.':
+      'ℹ️ No big-size rate set yet — A3/A2/A1 will also use your normal A4 rate.',
+    '✅ Apna rate lag raha hai:': '✅ Your own rate is applied:',
+    'par normal rate': 'use the normal rate',
+
+    /* ─────────── HOMEPAGE — instant demo ─────────── */
+    'Details bharo — Shop ID aur password turant isi screen par mil jayenge':
+      'Fill in your details — your Shop ID and password appear right on this screen',
+    '🔒 Secure form · No payment · No card': '🔒 Secure form · No payment · No card',
+    'WhatsApp number (10 digit)': 'WhatsApp number (10 digits)',
+    'Demo Shuru Karo — Free ›': 'Start Free Demo ›',
+    'Shop ID aur password turant screen par milega · Koi payment nahi':
+      'Shop ID and password appear instantly on screen · No payment',
+    '⏳ Demo ban raha hai...': '⏳ Creating your demo...',
+    'Demo Account Active Hai': 'Your Demo Account Is Active',
+    'Aapki shop ban gayi. Neeche wali details': 'Your shop is created. Save the details below',
+    'abhi note kar lo': 'right now',
+    'Valid': 'Valid',
+    'Free prints': 'Free prints',
+    'Charge': 'Charge',
+    'Shop ID': 'Shop ID',
+    'Password': 'Password',
+    'Copy': 'Copy',
+    'Ye screen': 'This screen',
+    'dobara nahi khulegi': 'will not open again',
+    'Screenshot le lo ya Copy dabao. Password aapka mobile number hi hai — baad me dashboard se badal sakte ho.':
+      'Take a screenshot or tap Copy. Your password is your mobile number — you can change it later from the dashboard.',
+    'Aapki shop ka QR — customer isi ko scan karega':
+      'Your shop QR — this is what customers scan',
+    'Login karo': 'Log in',
+    '— upar wali Shop ID aur password se': '— with the Shop ID and password above',
+    'Print Agent download': 'Download the Print Agent',
+    'karke shop ke PC me install karo': 'and install it on your shop PC',
+    'Shop ID daalo': 'Enter the Shop ID',
+    'agent me — printer apne aap detect ho jayega':
+      'in the agent — your printer is detected automatically',
+    'QR scan karke': 'Scan the QR',
+    'phone se ek test print bhejo 🎉': 'and send a test print from your phone 🎉',
+    '🎬 Poora setup 2 minute me — dekh lo': '🎬 See the full setup in 2 minutes',
+    '🔊 Sound': '🔊 Sound',
+    '🔑 Ab Login Karo ›': '🔑 Log In Now ›',
+    '🔒 Encrypted connection': '🔒 Encrypted connection',
+    '🚫 No payment taken': '🚫 No payment taken',
+    '🗑️ Files auto-delete': '🗑️ Files auto-delete',
+    'Request Mil Gayi': 'Request Received',
+    'Aapki demo request humare paas aa gayi hai.': 'We have received your demo request.',
+    '⏱️ Thodi der me activate': '⏱️ Activating shortly',
+    '🎬 Tab tak setup dekh lo — 2 minute': '🎬 Meanwhile, watch the 2-minute setup',
+
+    /* ─────────── Phone validation messages ─────────── */
+    'Sahi 10-digit mobile number daalo.': 'Please enter a valid 10-digit mobile number.',
+    'Mobile number 6, 7, 8 ya 9 se shuru hota hai — dobara check karo.':
+      'Mobile numbers start with 6, 7, 8 or 9 — please check again.',
+    'Ye test number hai — apna asli WhatsApp number daalo.':
+      'That is a test number — please enter your real WhatsApp number.',
+    'Ye number asli nahi lag raha — apna WhatsApp number daalo.':
+      'That number does not look real — please enter your WhatsApp number.',
+    '✅ Number theek hai — Shop ID isi par bhi bhej denge':
+      '✅ Number looks good — we will send the Shop ID here too',
+    'Apna naam daalo': 'Enter your name',
+    'Shop ka naam daalo': 'Enter your shop name',
+
+    /* ─────────── SUPERADMIN — activation mode ─────────── */
+    '⚡ Activation Mode': '⚡ Activation Mode',
+    '⚡ Instant — apne aap activate': '⚡ Instant — activates automatically',
+    'Form submit karte hi Shop ID aur password': 'As soon as the form is submitted, the Shop ID and password',
+    'usi screen par': 'appear on that screen',
+    'mil jaate hain. Aapko kuch nahi karna.': ' — you do not have to do anything.',
+    '🔒 Manual — aapki approval ke baad': '🔒 Manual — after your approval',
+    '🔒 Manual Approval Karo': '🔒 Switch to Manual Approval',
+    '⚡ Instant Karo': '⚡ Switch to Instant',
+    'Har request neeche': 'Every request lands below in',
+    'me aayegi. Accept karne par hi demo banega, phir WhatsApp se ID bhejni hogi.':
+      '. The demo is created only when you Accept, then you send the ID on WhatsApp.',
+    'Ye list sirf': 'This list only fills up in',
+    'Manual Approval': 'Manual Approval',
+    'mode me bharti hai.': ' mode.',
+
     /* ─────────── CUSTOMER PAGE — upload / editor ─────────── */
     'Sab theek hai / Edit karna hai': 'All good / Want to edit',
     'pehle file upload karo': 'please upload a file first',
