@@ -835,11 +835,15 @@ function shareWA() {
   if (!ME) return;
   const price = ME.shopPrice || ME.basePrice || 0;
   const brand = ME.brandName || 'Print Software';
-  const msg = `🖨️ *${brand}* — cyber cafe ke liye automatic print software\n\n` +
-    `Put the QR in your shop — the customer scans it with their phone, sends the file, pays, ` +
-    `and the print comes out of your printer AUTOMATICALLY.\n\n` +
-    `✅ 0% commission — money goes straight to your account\n✅ Unlimited print\n✅ No asking for files on WhatsApp, no pendrive ka virus\n\n` +
-    `💰 Setup: ₹${price} (one-time)\n\n👉 ${ME.shareLink}`;
+  // Source Hinglish me rakha gaya hai (baaki site ki tarah) aur TL() use
+  // hone par English ban jaata hai. Pehle ye aadha English likha tha —
+  // isliye Hinglish chunne par bhi English hi jaata tha.
+  const msg = (window.TL || String)(
+    `🖨️ *${brand}* — cyber cafe ke liye automatic print software\n\n` +
+    `Dukaan me QR chipkao — customer apne phone se scan karke file bhejta hai, payment karta hai, ` +
+    `aur print aapke printer se KHUD nikal jata hai.\n\n` +
+    `✅ 0% commission — paisa seedha aapke account me\n✅ Unlimited print\n✅ Na WhatsApp pe file mangna, na pendrive ka virus\n\n` +
+    `💰 Setup: ₹${price} (one-time)\n\n👉 ${ME.shareLink}`);
   window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank', 'noopener');
 }
 

@@ -54,6 +54,23 @@ window.QSP_EN_DICT = { "Order Bhej Diya!": "Order Sent!", "Shop Owner ne agar Pa
   function normNum(s) { return s.replace(/\d+(?:[.,]\d+)?/g, '%d'); }
   function countSlots(s) { return (s.match(/%d/g) || []).length; }
 
+  // ── WHITESPACE-AWARE LOOKUP ──
+  // HTML me lamba paragraph kai lines me toota hota hai, isliye DOM ke
+  // text node ke ANDAR newline aur kai spaces hote hain — jabki dictionary
+  // ki key ek hi line me likhi hoti hai. Exact match isi wajah se fail ho
+  // jaata tha aur poora paragraph Hinglish hi reh jaata tha.
+  // Ab har key ka ek "space nichoda hua" roop bhi index hota hai.
+  function normWs(s) { return s.replace(/\s+/g, ' ').trim(); }
+  var flatIndex = null;
+  function buildFlatIndex() {
+    flatIndex = {};
+    for (var k in dict) {
+      if (!dict.hasOwnProperty(k)) continue;
+      var f = normWs(k);
+      if (f !== k && flatIndex[f] === undefined) flatIndex[f] = dict[k];
+    }
+  }
+
   function buildNumIndex() {
     numIndex = {};
     for (var k in dict) {
@@ -73,20 +90,114 @@ window.QSP_EN_DICT = { "Order Bhej Diya!": "Order Sent!", "Shop Owner ne agar Pa
       numIndex[nk] = (countSlots(nk) === countSlots(nv)) ? nv : dict[k];
     }
   }
+  // ── TEXT-AWARE LOOKUP (%s) ──
+  // %d sirf number ke liye tha. Par bahut si strings me BEECH me text
+  // aata hai jo number hai hi nahi — file ka naam, shop ka naam, brand:
+  //   "❌ resume.pdf load nahi hui:"   <- har baar alag naam
+  // Aisi string ka exact match kabhi nahi milta, isliye English chunne
+  // par bhi ye Hinglish hi dikhti thi. Ab key me %s likh sakte ho:
+  //   "❌ %s load nahi hui:"  →  "❌ Could not load %s:"
+  // %s = koi bhi text, %d = sirf number. Dono ek hi key me chal sakte
+  // hain; jis kram me key me hain, usi kram me value me bhar jaate hain.
+  var patIndex = null;
+  function esc(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+  function buildPatIndex() {
+    patIndex = [];
+    var keys = [];
+    for (var k in dict) {
+      if (!dict.hasOwnProperty(k)) continue;
+      if (k.indexOf('%s') === -1) continue;     // %d wala index alag hai
+      keys.push(k);
+    }
+    // Lamba (zyada specific) pattern pehle — warna chhota pattern pehle
+    // match hokar zyada text kha jaata hai.
+    keys.sort(function (a, b) { return b.length - a.length; });
+    for (var i = 0; i < keys.length; i++) {
+      var key = keys[i], val = dict[key];
+      // Placeholder ke kram ko yaad rakho — value me usi kram me bharenge
+      var order = key.match(/%[sd]/g) || [];
+      // %s ko "khaali bhi chalega" rakha hai — bahut jagah naam/brand blank
+      // aa jaata hai ("Namaste , aapka demo…") aur tab bhi translate hona chahiye
+      var src = esc(key)
+        .replace(/%s/g, '([\\s\\S]*?)')
+        .replace(/%d/g, '(\\d+(?:[.,]\\d+)?)');
+      var vSlots = (val.match(/%[sd]/g) || []).length;
+      try {
+        patIndex.push({
+          re: new RegExp('^' + src + '$'),
+          val: val,
+          // Slot count barabar na ho to bharna galat hoga — seedhi value do
+          fill: (order.length === vSlots)
+        });
+      } catch (e) { /* koi key regex-safe na ho to use chhod do */ }
+    }
+  }
+
+  // Har mutation par poora pattern scan mehnga hai — jawab yaad rakh lo.
+  // Prefix isliye ki "__proto__" jaisi key object ko na tode.
+  var memo = null, memoN = 0;
+  function resetIndexes() { numIndex = null; patIndex = null; flatIndex = null; memo = null; memoN = 0; }
+  function memoGet(k) { return memo ? memo['\u0001' + k] : undefined; }
+  function memoSet(k, v) {
+    if (!memo) { memo = {}; memoN = 0; }
+    if (memoN > 4000) { memo = {}; memoN = 0; }   // bina limit ke memory badhti rahegi
+    memo['\u0001' + k] = v; memoN++;
+    return v;
+  }
+
+  // dict[key] seedha mat padho — "__proto__" / "constructor" jaisi text par
+  // wo Object ka prototype laut aata hai (truthy!) aur page par kachra chhap
+  // jaata hai. hasOwnProperty se sirf apni hi key milti hai.
+  var owns = Object.prototype.hasOwnProperty;
+  function ownGet(o, k) { return owns.call(o, k) ? o[k] : undefined; }
+
   function lookup(key) {
-    var hit = dict[key];
+    var hit = ownGet(dict, key);
     if (hit) return hit;
+
+    var cached = memoGet(key);
+    if (cached !== undefined) return cached;
+
+    // 1) wahi key, bas spaces nichod kar (multi-line paragraph ke liye)
+    var flat = normWs(key);
+    if (flat !== key) {
+      var fh = ownGet(dict, flat);
+      if (fh) return memoSet(key, fh);
+    }
+    if (flatIndex === null) buildFlatIndex();
+    var fi = ownGet(flatIndex, flat);
+    if (fi) return memoSet(key, fi);
+
+    // 2) number-wala index
     if (numIndex === null) buildNumIndex();
-    var norm = normNum(key);
-    if (norm === key) return null;              // koi number hi nahi tha
-    var tpl = numIndex[norm];
-    if (!tpl) return null;
-    // Template ke %d me original numbers usi kram me wapas bhar do
-    var nums = key.match(/\d+(?:[.,]\d+)?/g) || [];
-    var i = 0;
-    return tpl.replace(/%d/g, function (whole) {
-      return (i < nums.length) ? nums[i++] : whole;
-    });
+    var norm = normNum(flat);
+    if (norm !== flat) {
+      var tpl = numIndex[norm];
+      if (tpl) {
+        var nums = flat.match(/\d+(?:[.,]\d+)?/g) || [];
+        var i = 0;
+        return memoSet(key, tpl.replace(/%d/g, function (whole) {
+          return (i < nums.length) ? nums[i++] : whole;
+        }));
+      }
+    }
+
+    // 3) %s wala pattern index
+    if (patIndex === null) buildPatIndex();
+    if (patIndex.length && flat.length <= 2000) {
+      for (var p = 0; p < patIndex.length; p++) {
+        var m = flat.match(patIndex[p].re);
+        if (!m) continue;
+        var val = patIndex[p].val;
+        if (!patIndex[p].fill) return memoSet(key, val);
+        var j = 1;
+        return memoSet(key, val.replace(/%[sd]/g, function (whole) {
+          return (j < m.length) ? m[j++] : whole;
+        }));
+      }
+    }
+    return memoSet(key, null);
   }
 
   function translateText(node) {
@@ -165,7 +276,8 @@ window.QSP_EN_DICT = { "Order Bhej Diya!": "Order Sent!", "Shop Owner ne agar Pa
               var known = origText.get(m.target), now = m.target.nodeValue;
               if (known !== undefined) {
                 var t = (known || '').trim();
-                if (dict[t] && now === (known || '').replace(t, dict[t])) continue;
+                var tr = ownGet(dict, t);
+                if (tr && now === (known || '').replace(t, tr)) continue;
               }
               origText.delete(m.target);
               translateText(m.target);
@@ -183,12 +295,13 @@ window.QSP_EN_DICT = { "Order Bhej Diya!": "Order Sent!", "Shop Owner ne agar Pa
     saveLang(l);
     d.documentElement.setAttribute('lang', l === 'hin' ? 'hi' : 'en');
     dict = (l === 'en') ? EN : {};    // <-- server call nahi, bundled dict
-    numIndex = null;                  // dict badla -> number-index dobara banega
+    resetIndexes();                   // dict badla -> index/cache dobara banenge
     applyAll();
     startObserver();
     var sels = d.querySelectorAll('select[data-i18n-select], #langSel, .qsp-lang-sel');
     for (var i = 0; i < sels.length; i++) sels[i].value = l;
     try { w.dispatchEvent(new CustomEvent('i18n:changed', { detail: { lang: l } })); } catch (e) {}
+    if (typeof loadServerDict === 'function') loadServerDict(l);
     return l;
   }
 
@@ -225,11 +338,36 @@ window.QSP_EN_DICT = { "Order Bhej Diya!": "Order Sent!", "Shop Owner ne agar Pa
     (d.body || d.documentElement).appendChild(box);
   }
 
+  // ── DB wali dictionary (superadmin ka "🌐 Languages" tab) ──
+  // Bundled dictionary hi asli hai; ye uske UPAR merge hoti hai, taaki
+  // koi bhi string bina naya deploy kiye panel se theek ki ja sake.
+  // Fail ho jaye (purana server, net nahi) to kuch nahi bigadta —
+  // bundled dictionary se page waise hi chalta rehta hai.
+  var fetched = {};
+  function loadServerDict(l) {
+    if (l === SRC_LANG || fetched[l] || !w.fetch) return;
+    fetched[l] = true;
+    try {
+      w.fetch('/api/i18n/dict?lang=' + encodeURIComponent(l))
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) {
+          if (!d || !d.dict) return;
+          var n = 0;
+          for (var k in d.dict) if (d.dict.hasOwnProperty(k)) { EN[k] = d.dict[k]; n++; }
+          if (!n) return;
+          resetIndexes();
+          if (lang === 'en') { dict = EN; applyAll(); }
+        })
+        .catch(function () {});
+    } catch (e) {}
+  }
+
   function init() {
     lang = getSaved();
     ensureSelector();
     fillSelectors();
-    setLang(lang);          // default English -> dict turant lag jaati hai
+    setLang(lang);          // default English -> bundled dict turant lag jaati hai
+    loadServerDict(lang);   // DB wali baad me aakar upar chad jaati hai
   }
 
   if (d.readyState === 'loading') d.addEventListener('DOMContentLoaded', init);
@@ -246,21 +384,34 @@ window.QSP_EN_DICT = { "Order Bhej Diya!": "Order Sent!", "Shop Owner ne agar Pa
     return lookup(str.trim()) || str;
   }
 
+  // Multi-line text (WhatsApp message, alert ka body) — har line alag
+  // translate hoti hai. Poora block dictionary me na ho tab bhi jitni
+  // line mil jaye utni English ho jaati hai.
+  function tLines(s) {
+    if (s == null) return s;
+    return String(s).split('\n').map(function (line) {
+      var m = line.match(/^(\s*)([\s\S]*?)(\s*)$/);
+      return m ? m[1] + t(m[2]) + m[3] : t(line);
+    }).join('\n');
+  }
+
   w.QSPi18n = {
     setLang: setLang,
     getLang: function () { return lang; },
     langs: LANGS,
     refresh: applyAll,
     t: t,
+    tLines: tLines,
     addDict: function (obj) {
       if (obj) {
         for (var k in obj) if (obj.hasOwnProperty(k)) EN[k] = obj[k];
-        numIndex = null;
+        resetIndexes();
         if (lang === 'en') { dict = EN; applyAll(); }
       }
     }
   };
   // Chhota global alias — purane code me bhi aasaani se lag jaye
   w.T = t;
+  w.TL = tLines;            // multi-line (WhatsApp / share message) ke liye
   w.setLang = setLang;      // purane onchange="setLang(this.value)" ke liye
 })(window, document);
