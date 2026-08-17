@@ -918,6 +918,113 @@
     '1 din se offline · v%s': 'offline for 1 day · v%s',
     '1 ghante se offline · v%s': 'offline for 1 hour · v%s',
     '1 din se print nahi': 'no print for 1 day'
+,
+
+    /* ─────────── CHHOTE FRAGMENTS jo word-list se chhoot gaye the ─────────── */
+    'ek hi computer': 'one computer only',
+    'Kab': 'When',
+    'Kis time': 'What time',
+    'Kis cheez ka': 'For what',
+    'me jaiye.': 'and go there.',
+    'Plan lo ›': 'Get a plan ›',
+    'GitHub pe': 'on GitHub',
+    '16 akshar': '16 characters',
+    'Agent bano': 'Become an agent',
+    'Agent bano — har shop par ₹100': 'Become an agent — ₹100 per shop',
+    'Saare block': 'All blocks',
+    'Shop ka price': 'Shop price',
+    '🔤 Naam (A–Z)': '🔤 Name (A–Z)',
+    'Ek Aakhri Step!': 'One Last Step!',
+    'Har paid shop par': 'On every paid shop',
+    'Har paid shop par (flat)': 'On every paid shop (flat)',
+    '15 × ₹5 = ₹75/din': '15 × ₹5 = ₹75/day',
+    'partner ke account': 'the partner’s account',
+    'flat ₹100 commission': 'a flat ₹100 commission',
+    'Paid Shop Owner bano': 'Become a paid shop owner',
+    'Net Jaye To Bhi Safe': 'Safe Even If the Internet Drops',
+    'ek baar → humare paas': 'once → to us',
+    'Festival/Offer ka naam': 'Festival / offer name',
+    '🏷️ White Label ki Shops': '🏷️ White-Label Shops',
+    'Shop Poster (QR laga hua)': 'Shop poster (with the QR on it)',
+    '🧾 Saare Payments': '🧾 All Payments',
+    'Homepage form se aayi requests.': 'Requests that came in from the homepage form.',
+    'commission. Bas itna hi — na koi extra margin, na koi condition.':
+      'commission. That is all — no extra margin, no conditions.',
+
+    /* ─────────── JUD KAR BANNE WALI STRINGS — inka poora roop kabhi dictionary me nahi hota ─────────── */
+    'Agent ab apna price set nahi kar sakta. Har shop par flat ₹%s commission milta hai.':
+      'Agents can no longer set their own price. A flat ₹%s commission is paid on every shop.',
+    'Order create nahi hua: %s': 'Could not create the order: %s',
+    'Monthly price %s se kam nahi ho sakta': 'The monthly price cannot be lower than %s',
+    'SMTP connect nahi hua: %s%s': 'Could not connect to SMTP: %s%s',
+    'Bheja nahi ja saka: %s': 'Could not be sent: %s',
+    'Server ne reject kiya: %s': 'The server rejected it: %s',
+    'Setup fee order create nahi hua: %s': 'Could not create the setup fee order: %s',
+    'Cashfree ka jawab samajh nahi aaya (HTTP %s)': 'Could not read Cashfree’s response (HTTP %s)',
+    'Agent code load nahi hua: %s': 'Could not load the agent code: %s',
+    'Installer load nahi hua: %s': 'Could not load the installer: %s',
+    'Package banane mein error: %s': 'Error while building the package: %s',
+    'This Shop ID is already in use on another computer%s. Shop Login → Settings → "Disconnect Computer" se purana PC hata kar dobara try karein.':
+      'This Shop ID is already in use on another computer%s. Go to Shop Login → Settings → "Disconnect Computer", remove the old PC and try again.',
+    '❌ %s load nahi hui: %s': '❌ Could not load %s: %s',
+    '❌ %s load nahi hua: %s': '❌ Could not load %s: %s',
+    'Is photo ka format browser support nahi karta (%s). JPG ya PNG photo try karo.':
+      'The browser does not support this photo format (%s). Try a JPG or PNG photo.',
+    '📐 %s select hua — print isi size par niklega':
+      '📐 %s selected — the print will come out at this size',
+    'Original PDF bheja ja raha hai (%s KB) — dobara banane ki zaroorat nahi':
+      'Sending the original PDF (%s KB) — no need to rebuild it',
+    'File badi hai (%s MB) — quality %s par dobara bana rahe hain':
+      'The file is large (%s MB) — rebuilding it at %s quality',
+    '❌ Download nahi hua: %s': '❌ Download failed: %s',
+    '%s%s — ek nazar dekh lo': '%s%s — take a quick look',
+    '%s (offline/not detected abhi)': '%s (offline / not detected right now)',
+    '✅ UPI save ho gaya — %s': '✅ UPI saved — %s',
+    '🤝 %ske through aaye ho — aapke liye special price':
+      '🤝 %sreferred you — here’s a special price for you',
+    'Register Karo — Agla Step: ₹%s (pehla mahina) ›': 'Register — Next step: ₹%s (first month) ›',
+    'Dukaan ke counter pe ₹%s dein. Resume print hoga. Dhanyawad! 🙏':
+      'Pay ₹%s at the shop counter and your resume will be printed. Thank you! 🙏',
+    '💳 ₹%s Pay Karke Partner Banein': '💳 Pay ₹%s and Become a Partner',
+    '✅ Demo time save ho gaya: %s': '✅ Demo time saved: %s',
+    'Abhi juda hai: %s': 'Currently connected: %s',
+    ', %s hataye': ', %s removed',
+    'Approve nahi hua: %s': 'Could not approve: %s',
+    'Nahi hua: %s': 'That didn’t work: %s',
+    'Save nahi hua: %s': 'Could not save: %s',
+    '₹%s kamai (is range me)': '₹%s earned (in this range)',
+    '✅ Extend ho gaya — ab till: %s': '✅ Extended — now valid till: %s',
+    '✅ %d pending shop delete ho gayi': '✅ %d pending shops deleted',
+    '✅ %d expired demo delete ho gaye': '✅ %d expired demos deleted',
+    '✅ %s/%s shops ke QR naye ban gaye (%s se)%s':
+      '✅ QR regenerated for %s of %s shops (from %s)%s',
+    '✅ Naya password: %s': '✅ New password: %s',
+
+    /* ─────────── HOMEPAGE CONFIG DEFAULTS — plan features aur FAQ (DB se aate hain) ─────────── */
+    'Unlimited Print 24/Hrs': 'Unlimited printing, 24 hrs',
+    'Advance Feature (4x6 Photo, Resume, A3, Duplex) — sab included':
+      'Advance features (4×6 photo, resume, A3, duplex) — all included',
+    'Sab kuch Monthly wala': 'Everything in the Monthly plan',
+    'No renewal — ek baar pay': 'No renewal — pay once',
+    'QR Se Print kya hai?': 'What is QR Se Print?',
+    'QR Se Print cyber cafe aur print shop ke liye ek automatic print software hai. Aap apni shop ka QR code lagate ho — customer apne phone se scan karke file upload karta hai, payment karta hai, aur print aapke printer se automatic nikal jata hai. Na WhatsApp pe file mangni padti hai, na pendrive, na email.':
+      'QR Se Print is automatic printing software for cyber cafes and print shops. You put up your shop’s QR code — the customer scans it from their phone, uploads a file, pays, and the print comes out of your printer automatically. No asking for files on WhatsApp, no pen drive, no email.',
+    'Shop par laga QR code scan karo, file select karo (PDF, photo — ek saath kai files), edit karo (crop, rotate, brightness), payment karo (online ya counter cash) — print automatic nikal jata hai. Poora kaam customer ke phone se, 1 minute me.':
+      'Scan the QR code displayed at the shop, pick your files (PDFs or photos — several at once), edit them (crop, rotate, brightness), pay (online or cash at the counter) — and the print comes out automatically. The whole thing happens on the customer’s phone in about a minute.',
+    'WhatsApp pe file lene se ye better kyun hai?':
+      'Why is this better than receiving files on WhatsApp?',
+    'WhatsApp me aapka personal number public ho jata hai, chat me files kho jaati hain, aur hisaab manually rakhna padta hai. QR Se Print me number private rehta hai, har print ka payment record automatic banta hai, aur customer ki file print ke 90 minute baad khud delete ho jaati hai.':
+      'On WhatsApp your personal number becomes public, files get lost in chat, and you have to keep the accounts by hand. With QR Se Print your number stays private, a payment record is created automatically for every print, and the customer’s file deletes itself 90 minutes after printing.',
+    'Kaunse printer ke saath chalta hai?': 'Which printers does it work with?',
+    'Har Windows printer ke saath — HP, Canon, Epson, Brother, sab. B&W aur Color ke liye alag printer set kar sakte ho. Advance me 4x6 photo printer, A3 bada printer aur duplex (dono side) printing bhi support hai.':
+      'Every Windows printer — HP, Canon, Epson, Brother, all of them. You can set separate printers for black & white and colour. The advance features also support a 4×6 photo printer, a large A3 printer and duplex (double-sided) printing.',
+    'Do tarike: counter par cash, ya online payment (Razorpay/Cashfree) jo seedha aapke account me jata hai. Hum beech me nahi aate — koi commission nahi, unlimited prints.':
+      'Two ways: cash at the counter, or online payment (Razorpay/Cashfree) that goes straight into your own account. We never sit in between — no commission, unlimited prints.',
+    'Kitna kharcha aata hai?': 'How much does it cost?',
+    'Free demo se shuru karo. Phir Rs 399/month ka monthly plan ya Rs 999 one-time lifetime plan — ek baar do, hamesha chalao. Koi hidden charge nahi, koi per-print commission nahi.':
+      'Start with the free demo. After that it is a ₹399/month monthly plan or a ₹999 one-time lifetime plan — pay once, use it forever. No hidden charges and no per-print commission.',
+    'Internet chala jaye to print ka kya hoga?':
+      'What happens to prints if the internet goes down?'
 
   };
 

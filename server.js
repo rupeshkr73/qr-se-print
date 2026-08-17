@@ -4106,7 +4106,16 @@ app.delete('/api/superadmin/reviews/:id', verifySuperAdmin, async (req, res) => 
 // (Panel ye teen route pehle se call kar raha tha par server par ye
 // bane hi nahi the, isliye tab hamesha error dikhata tha.)
 // ══════════════════════════════════════════════════════════════
-const I18N_LANGS = { en: 'English', hin: 'Hinglish' };
+// Naam apni hi lipi me — panel aur website dono me wahi dikhta hai.
+// public/i18n.js ki LANGS list se ye MATCH karni chahiye.
+const I18N_LANGS = {
+  en:  'English',
+  ta:  'தமிழ்',
+  te:  'తెలుగు',
+  kn:  'ಕನ್ನಡ',
+  bn:  'বাংলা',
+  hin: 'Hinglish'
+};
 const I18N_SRC_LANG = 'hin';                 // jis bhasha me HTML likha hai
 
 let _i18nCache = {}, _i18nCacheAt = 0;

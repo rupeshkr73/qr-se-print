@@ -7,16 +7,32 @@ window.QSP_EN_DICT = { "Order Bhej Diya!": "Order Sent!", "Shop Owner ne agar Pa
   var SRC_LANG   = 'hin';           // HTML me jo likha hai wo Hinglish hai
   var DEF_LANG   = 'en';            // default = English
   var STORE_KEY  = 'qsp_lang';
-  var LANGS      = { en: 'English', hin: 'Hinglish' };   // sirf 2
   var ATTRS      = ['placeholder', 'title', 'aria-label', 'alt'];
 
-  // ── English dictionary: { "Hinglish source": "English" } ──
-  // Sirf UN strings ke entry hain jo Hinglish hain. Jo pehle se English hai
-  // (Upload, Edit, PDF, A4…) unka entry nahi — source hi sahi dikhta hai.
-  // Naye page add karne par yahin niche apni strings jod do.
-  var EN = (w.QSP_EN_DICT) || {};   // baaki dict file/inline se bhi aa sakti hai
+  // ── Kaun si bhasha, aur uska naam apni hi lipi me ──
+  // Apni bhasha apni lipi me likhi ho to log turant pehchaan lete hain —
+  // ek Tamil bolne wala list me "Tamil" nahi, "தமிழ்" dhoondhta hai.
+  var LANGS = {
+    en:  'English',
+    ta:  'தமிழ்',      // Tamil
+    te:  'తెలుగు',      // Telugu
+    kn:  'ಕನ್ನಡ',      // Kannada
+    bn:  'বাংলা',       // Bengali
+    hin: 'Hinglish'   // = source; iske liye dictionary lagti hi nahi
+  };
 
-  var dict     = {};                // active dictionary (en => EN, hin => {})
+  // <html lang=""> ke liye sahi code (screen reader + Google dono ke liye)
+  var HTML_LANG = { en: 'en', ta: 'ta', te: 'te', kn: 'kn', bn: 'bn', hin: 'hi' };
+
+  // Har bhasha ki dictionary { "Hinglish source": "us bhasha ka text" }.
+  // English yahin bundled aati hai kyunki wahi default hai — use fetch karne
+  // se pehla paint Hinglish dikhta. Baaki bhashaayein tabhi download hoti
+  // hain jab koi unhe chunta hai, isliye normal user ko ek byte extra nahi.
+  var EN = (w.QSP_EN_DICT) || {};
+  var DICTS = { en: EN, hin: {} };
+  var loading = {};                 // lang -> true jab file aa rahi ho
+
+  var dict     = EN;                // abhi jo laga hua hai
   var lang     = DEF_LANG;
   var origText = new WeakMap();     // text node -> original string
   var origAttr = new WeakMap();     // element   -> { attr: original }
@@ -25,7 +41,7 @@ window.QSP_EN_DICT = { "Order Bhej Diya!": "Order Sent!", "Shop Owner ne agar Pa
   function getSaved() {
     try {
       var v = localStorage.getItem(STORE_KEY);
-      return (v === 'en' || v === 'hin') ? v : DEF_LANG;  // purane hi/bn/ta.. => English
+      return LANGS[v] ? v : DEF_LANG;   // anjaan/purani value => English
     } catch (e) { return DEF_LANG; }
   }
   function saveLang(l) { try { localStorage.setItem(STORE_KEY, l); } catch (e) {} }
@@ -289,19 +305,106 @@ window.QSP_EN_DICT = { "Order Bhej Diya!": "Order Sent!", "Shop Owner ne agar Pa
     observer.observe(d.body, { childList: true, subtree: true, characterData: true });
   }
 
+  // ── INDIC FONT ──
+  // Site ke fonts (Plus Jakarta Sans, Inter, Space Grotesk, Syne) me Tamil /
+  // Telugu / Kannada / Bangla ke akshar hain hi nahi. Bina iske kai desktop
+  // par khaali dabbe (□□□) dikhte hain. Jis bhasha me ho sirf usi ka Noto
+  // font mangwate hain, aur font stack ke AAKHIR me jodte hain — Latin text
+  // ka look bilkul waisa hi rehta hai.
+  //
+  // Tarika: site jo font-family likhti hai UNHI naamo par ek extra
+  // @font-face jod dete hain jo sirf us lipi ke unicode-range par lagta
+  // hai aur system ka Indic font uthata hai. Matlab 'Inter' me ab Tamil
+  // ke akshar bhi "aa gaye". Kisi element ki font-family badalni nahi
+  // padti — English/number/design bilkul jaisa tha waisa hi rehta hai.
+  // local() use karte hain, isliye koi extra download bhi nahi hota.
+  var SCRIPTS = {
+    ta: { range: 'U+0B80-0BFF',
+          faces: ['Noto Sans Tamil', 'Nirmala UI', 'Latha', 'Tamil Sangam MN', 'Tamil MN'] },
+    te: { range: 'U+0C00-0C7F',
+          faces: ['Noto Sans Telugu', 'Nirmala UI', 'Gautami', 'Telugu Sangam MN', 'Telugu MN'] },
+    kn: { range: 'U+0C80-0CFF',
+          faces: ['Noto Sans Kannada', 'Nirmala UI', 'Tunga', 'Kannada Sangam MN', 'Kannada MN'] },
+    bn: { range: 'U+0980-09FF',
+          faces: ['Noto Sans Bengali', 'Nirmala UI', 'Vrinda', 'Bangla Sangam MN', 'Bangla MN'] }
+  };
+  // Site me jo bhi font naam use hote hain
+  var SITE_FACES = ['Plus Jakarta Sans', 'Inter', 'Space Grotesk', 'Syne', 'Poppins'];
+
+  var fontDone = {};
+  function ensureFont(l) {
+    var sc = SCRIPTS[l];
+    if (!sc || fontDone[l]) return;
+    fontDone[l] = true;
+    try {
+      var src = sc.faces.map(function (f) { return 'local("' + f + '")'; }).join(',');
+      var css = '';
+      for (var i = 0; i < SITE_FACES.length; i++) {
+        css += '@font-face{font-family:"' + SITE_FACES[i] + '";' +
+               'src:' + src + ';unicode-range:' + sc.range + ';font-display:swap;}';
+      }
+      var st = d.createElement('style');
+      st.setAttribute('data-qsp-font', l);
+      st.textContent = css;
+      (d.head || d.documentElement).appendChild(st);
+    } catch (e) {}
+  }
+
+  // ── Bhasha ki dictionary file mangwao (sirf pehli baar) ──
+  function loadDict(l, done) {
+    if (DICTS[l]) return done(true);
+    if (loading[l]) {                       // koi aur pehle se mangwa raha hai
+      var wait = setInterval(function () {
+        if (DICTS[l]) { clearInterval(wait); done(true); }
+        else if (!loading[l]) { clearInterval(wait); done(false); }
+      }, 60);
+      return;
+    }
+    loading[l] = true;
+    try {
+      var s = d.createElement('script');
+      s.src = '/i18n/' + l + '.js';
+      s.async = true;
+      s.onload = function () { loading[l] = false; done(!!DICTS[l]); };
+      s.onerror = function () { loading[l] = false; done(false); };
+      (d.head || d.documentElement).appendChild(s);
+    } catch (e) { loading[l] = false; done(false); }
+  }
+
+  function applyDict(l) {
+    dict = DICTS[l] || {};
+    resetIndexes();                   // dict badla -> index/cache dobara banenge
+    applyAll();
+    startObserver();
+  }
+
   function setLang(l) {
     if (!LANGS[l]) l = DEF_LANG;
     lang = l;
     saveLang(l);
-    d.documentElement.setAttribute('lang', l === 'hin' ? 'hi' : 'en');
-    dict = (l === 'en') ? EN : {};    // <-- server call nahi, bundled dict
-    resetIndexes();                   // dict badla -> index/cache dobara banenge
-    applyAll();
-    startObserver();
+    d.documentElement.setAttribute('lang', HTML_LANG[l] || 'en');
+    ensureFont(l);
+
     var sels = d.querySelectorAll('select[data-i18n-select], #langSel, .qsp-lang-sel');
     for (var i = 0; i < sels.length; i++) sels[i].value = l;
+
+    if (DICTS[l]) {
+      applyDict(l);
+    } else {
+      // File aane tak page ko Hinglish mat dikhao — jo abhi laga hai wahi
+      // rehne do (aksar English), aur aate hi badal do.
+      loadDict(l, function (okLoad) {
+        if (lang !== l) return;             // beech me user ne dobara badal diya
+        if (okLoad) applyDict(l);
+        else {                              // file na mile to English par lauto
+          try { if (w.console) w.console.warn('[i18n] ' + l + ' dictionary load nahi hui'); } catch (e) {}
+          applyDict('en');
+        }
+      });
+    }
+
     try { w.dispatchEvent(new CustomEvent('i18n:changed', { detail: { lang: l } })); } catch (e) {}
-    if (typeof loadServerDict === 'function') loadServerDict(l);
+    loadServerDict(l);
     return l;
   }
 
@@ -350,13 +453,14 @@ window.QSP_EN_DICT = { "Order Bhej Diya!": "Order Sent!", "Shop Owner ne agar Pa
     try {
       w.fetch('/api/i18n/dict?lang=' + encodeURIComponent(l))
         .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (d) {
-          if (!d || !d.dict) return;
+        .then(function (res) {
+          if (!res || !res.dict) return;
+          var target = DICTS[l] || (DICTS[l] = {});
           var n = 0;
-          for (var k in d.dict) if (d.dict.hasOwnProperty(k)) { EN[k] = d.dict[k]; n++; }
+          for (var k in res.dict) if (res.dict.hasOwnProperty(k)) { target[k] = res.dict[k]; n++; }
           if (!n) return;
           resetIndexes();
-          if (lang === 'en') { dict = EN; applyAll(); }
+          if (lang === l) { dict = target; applyAll(); }
         })
         .catch(function () {});
     } catch (e) {}
@@ -402,12 +506,22 @@ window.QSP_EN_DICT = { "Order Bhej Diya!": "Order Sent!", "Shop Owner ne agar Pa
     refresh: applyAll,
     t: t,
     tLines: tLines,
-    addDict: function (obj) {
-      if (obj) {
-        for (var k in obj) if (obj.hasOwnProperty(k)) EN[k] = obj[k];
-        resetIndexes();
-        if (lang === 'en') { dict = EN; applyAll(); }
-      }
+    // addDict(obj)        -> English me jodta hai (purana behaviour)
+    // addDict(obj, 'ta')  -> us bhasha ki dictionary banata/badhata hai.
+    // Har /i18n/<lang>.js file yahi doosra roop use karti hai.
+    addDict: function (obj, forLang) {
+      if (!obj) return;
+      var l = LANGS[forLang] ? forLang : 'en';
+      var target = DICTS[l] || (DICTS[l] = {});
+      for (var k in obj) if (obj.hasOwnProperty(k)) target[k] = obj[k];
+      if (l === lang) { dict = target; resetIndexes(); applyAll(); }
+      else if (l === 'en' && dict === EN) { resetIndexes(); applyAll(); }
+    },
+    // Kis-kis bhasha ki dictionary abhi memory me hai (debug ke liye)
+    loaded: function () {
+      var out = {};
+      for (var k in DICTS) if (DICTS.hasOwnProperty(k)) out[k] = Object.keys(DICTS[k]).length;
+      return out;
     }
   };
   // Chhota global alias — purane code me bhi aasaani se lag jaye
