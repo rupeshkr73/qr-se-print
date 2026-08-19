@@ -55,6 +55,29 @@ const WL_MIN_MONTHLY = 399;
 
 // Price decimal me bhi ho sakta hai (2.5, 1.5) — 2 decimal tak round karo.
 // Galat/negative aaye to null lautao taaki purana price waisa hi rahe.
+// ── BIG SIZE (A3/A2/A1) PRICING ──────────────────────────────
+// Customer bada kagaz chunta hai to per-page rate alag hota hai.
+// Owner ne set nahi kiya (0/blank) to normal B&W/Color rate hi lagta
+// hai — isliye purani shops ka billing bilkul waisa ka waisa rehta hai.
+const BIG_SIZE_PRICE_COLS = {
+  a3: ['price_a3_bw', 'price_a3_color'],
+  a2: ['price_a2_bw', 'price_a2_color'],
+  a1: ['price_a1_bw', 'price_a1_color']
+};
+const BIG_SIZE_PRICE_SELECT =
+  's.price_a3_bw, s.price_a3_color, s.price_a2_bw, s.price_a2_color, s.price_a1_bw, s.price_a1_color';
+
+/** row me se paper size + color mode ka big-size rate. Set na ho to 0. */
+function bigSizeRate(row, paperSize, colorMode) {
+  if (!row) return 0;
+  const cols = BIG_SIZE_PRICE_COLS[String(paperSize || '').toLowerCase()];
+  if (!cols) return 0;
+  const v = parseFloat(row[colorMode === 'color' ? cols[1] : cols[0]]);
+  return (!isNaN(v) && v > 0) ? v : 0;
+}
+/** Paisa hamesha 2 decimal — float dust gateway par reject ho jaati hai. */
+function round2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+
 function parsePrice(v) {
   if (v === undefined || v === null || v === '') return null;
   const n = parseFloat(v);
@@ -1052,6 +1075,15 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_4x6_8 NUMERIC(10,2) DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_resume_color INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_resume_bw INTEGER DEFAULT 0;
+      -- ── BIG SIZE (A3 / A2 / A1) ka apna per-page rate ──
+      -- 0 / blank = purana behaviour (normal B&W/Color rate hi lagega),
+      -- isliye purani shops par kuch nahi badalta.
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_a3_bw    NUMERIC(10,2) DEFAULT 0;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_a3_color NUMERIC(10,2) DEFAULT 0;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_a2_bw    NUMERIC(10,2) DEFAULT 0;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_a2_color NUMERIC(10,2) DEFAULT 0;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_a1_bw    NUMERIC(10,2) DEFAULT 0;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_a1_color NUMERIC(10,2) DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS shop_notice VARCHAR(200) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS advanced_active BOOLEAN DEFAULT true;
       -- Advance ke andar 4 alag-alag module. Har ek ka apna switch, taki
@@ -1297,7 +1329,29 @@ async function initDB() {
     // Demo me kitne free print milenge (spec: 10)
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_print_limit','10') ON CONFLICT DO NOTHING");
     // '1' = demo turant ban jaaye (purana behaviour). '0' = superadmin approve kare.
-    await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_auto_approve','0') ON CONFLICT DO NOTHING");
+    // Demo ab INSTANT hai — form submit karte hi Shop ID + password mil
+    // jaata hai. Superadmin chahe to 'Manual approval' wapas on kar sakta
+    // hai (Demo Control card se).
+    await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_auto_approve','1') ON CONFLICT DO NOTHING");
+    // Naye plan (Starter / Pro / Premium) ke default price. ON CONFLICT
+    // DO NOTHING — matlab superadmin ne badal diya ho to restart par
+    // wapas default nahi hoga.
+    await pool.query(`INSERT INTO system_settings (key,value) VALUES
+      ('plan_starter_fee','599'), ('plan_starter_actual','2999'),
+      ('plan_pro_fee','899'),     ('plan_pro_actual','2999'),
+      ('plan_premium_fee','999'), ('plan_premium_actual','2999')
+      ON CONFLICT DO NOTHING`);
+    // One-time flip: jo installs pehle se chal rahe hain unme ye key '0'
+    // padi hai. Ise EK BAAR '1' karo, phir kabhi mat chhedo — warna
+    // superadmin ka manual-mode har restart par ud jaata.
+    {
+      const flipped = await pool.query("SELECT 1 FROM system_settings WHERE key='demo_instant_migrated'");
+      if (!flipped.rows.length) {
+        await pool.query("UPDATE system_settings SET value='1' WHERE key='demo_auto_approve'");
+        await pool.query("INSERT INTO system_settings (key,value) VALUES ('demo_instant_migrated','1') ON CONFLICT DO NOTHING");
+        console.log('Demo activation switched to INSTANT (one-time migration)');
+      }
+    }
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('monthly_fee','399') ON CONFLICT DO NOTHING");
     await pool.query("INSERT INTO system_settings (key,value) VALUES ('advanced_fee','199') ON CONFLICT DO NOTHING");
     // Agent Base Price (0 = abhi tak set nahi — tab tak agent ka floor = public
@@ -2070,7 +2124,12 @@ app.put('/api/superadmin/demo-config', verifySuperAdmin, async (req, res) => {
       return res.status(400).json({ error: 'Minutes 15 se 1440 (24 ghante) ke beech ho' });
     await pool.query("UPDATE system_settings SET value=$1 WHERE key='demo_enabled'", [enabled]);
     await pool.query("UPDATE system_settings SET value=$1 WHERE key='demo_minutes'", [String(mins)]);
-    res.json({ success: true, enabled: enabled === '1', minutes: mins });
+    // instant bheja hi na ho to purani setting waise ki waisi rehti hai
+    if (req.body.instant !== undefined) {
+      await pool.query("UPDATE system_settings SET value=$1 WHERE key='demo_auto_approve'",
+                       [req.body.instant ? '1' : '0']);
+    }
+    res.json({ success: true, ...(await getDemoConfig()) });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
 
@@ -2123,9 +2182,12 @@ async function getDemoConfig() {
       enabled: (m.demo_enabled || '1') === '1',
       minutes: mins,
       printLimit: Math.max(1, Math.min(1000, parseInt(m.demo_print_limit) || 10)),
-      autoApprove: (m.demo_auto_approve || '0') === '1'
+      // instant = form submit karte hi demo ban jaata hai (default).
+      // false = purana flow: pehle superadmin Accept kare tabhi bane.
+      autoApprove: (m.demo_auto_approve || '1') === '1',
+      instant:     (m.demo_auto_approve || '1') === '1'
     };
-  } catch (e) { return { enabled: true, minutes: 1440, printLimit: 10, autoApprove: false }; }
+  } catch (e) { return { enabled: true, minutes: 1440, printLimit: 10, autoApprove: true, instant: true }; }
 }
 
 /**
@@ -2209,6 +2271,99 @@ function normPhone(p) {
   const d = String(p || '').replace(/\D/g, '');
   return d.length >= 10 ? d.slice(-10) : '';
 }
+
+// ══════════════════════════════════════════════════════════════
+// ASLI MOBILE NUMBER CHECK
+// Log form bharne se bachne ke liye 9999999999 / 1234567890 jaisa
+// kuch bhi daal dete the aur demo waste ho jaata tha. Ye validator
+// sirf pattern dekhta hai — koi paid API nahi, koi OTP nahi.
+// Ye SERVER ka final faisla hai; homepage par same rules dobara
+// chalte hain sirf turant feedback dene ke liye.
+// ══════════════════════════════════════════════════════════════
+const FAKE_MOBILE_LIST = new Set([
+  '9999999999','8888888888','7777777777','6666666666','1111111111','0000000000',
+  '1234567890','9876543210','9123456789','9987654321','1234512345','9999900000',
+  '9000000000','8000000000','7000000000','6000000000','9090909090','9080706050',
+  '9999988888','9876512345','8765432109','7654321098','9998887776','9876543211',
+  '9999999998','9999999990','9111111111','8123456789','7123456789','6123456789'
+]);
+
+/** +91 / 0 / spaces hata kar saaf 10 digit. Sahi na ho to ''. */
+function normIndianMobile(raw) {
+  let d = String(raw || '').replace(/\D/g, '');
+  if (d.length === 13 && d.startsWith('091')) d = d.slice(3);
+  else if (d.length === 12 && d.startsWith('91')) d = d.slice(2);
+  else if (d.length === 11 && d.startsWith('0'))  d = d.slice(1);
+  return d.length === 10 ? d : '';
+}
+
+/**
+ * 1234567890 / 9876543210 / 6789012345 jaisa seedha sequence?
+ * Modulo-10 step use karte hain taaki 9->0 ka wrap bhi pakda jaye.
+ */
+function _isRunSequence(d) {
+  if (d.length < 4) return false;
+  let asc = true, desc = true;
+  for (let i = 1; i < d.length; i++) {
+    const step = (Number(d[i]) - Number(d[i - 1]) + 10) % 10;
+    if (step !== 1) asc = false;
+    if (step !== 9) desc = false;   // -1 mod 10
+  }
+  return asc || desc;
+}
+
+/** 1212121212 / 1234512345 / 1111111111 jaisa dohraya hua block? */
+function _isRepeatingBlock(d) {
+  for (const size of [1, 2, 5]) {
+    if (d.length % size !== 0) continue;
+    const block = d.slice(0, size);
+    let same = true;
+    for (let i = size; i < d.length; i += size) {
+      if (d.slice(i, i + size) !== block) { same = false; break; }
+    }
+    if (same) return true;
+  }
+  return false;
+}
+
+/** Sabse lamba ek hi digit ka run (9000000001 -> 8). */
+function _longestRun(d) {
+  let best = 1, run = 1;
+  for (let i = 1; i < d.length; i++) {
+    run = d[i] === d[i - 1] ? run + 1 : 1;
+    if (run > best) best = run;
+  }
+  return best;
+}
+
+/**
+ * Demo form ka phone check.
+ * @returns {{ok:boolean, phone:string, error:string}}
+ */
+function validateIndianMobile(raw) {
+  const d = normIndianMobile(raw);
+  const bad = msg => ({ ok: false, phone: '', error: msg });
+
+  if (!d) return bad('Please enter a valid 10-digit mobile number.');
+  // TRAI: mobile series sirf 6/7/8/9 se shuru hoti hai
+  if (!/^[6-9]/.test(d))
+    return bad('Indian mobile numbers start with 6, 7, 8 or 9. Please check the number.');
+  if (FAKE_MOBILE_LIST.has(d))
+    return bad('That looks like a test number. Please enter your real WhatsApp number.');
+  if (_isRepeatingBlock(d))
+    return bad('That number looks made up. Please enter your real WhatsApp number.');
+  if (_isRunSequence(d) || _isRunSequence(d.slice(1)))
+    return bad('That number looks made up. Please enter your real WhatsApp number.');
+  if (new Set(d.split('')).size <= 2)
+    return bad('That number looks made up. Please enter your real WhatsApp number.');
+  if (_longestRun(d) >= 7)
+    return bad('That number looks made up. Please enter your real WhatsApp number.');
+  // 9988776655 / 1122334455 — har jodi ek hi digit ki
+  if (/^(\d)\1(\d)\2(\d)\3(\d)\4(\d)\5$/.test(d))
+    return bad('That number looks made up. Please enter your real WhatsApp number.');
+
+  return { ok: true, phone: d, error: '' };
+}
 function isDemoExpired(shop) {
   return shop && shop.demo && shop.demo_expires_at &&
          new Date(shop.demo_expires_at).getTime() < Date.now();
@@ -2229,14 +2384,15 @@ app.post('/api/demo/request', demoRateLimit, async (req, res) => {
 
     const b = req.body || {};
     const name    = String(b.name || '').trim().slice(0, 100);
-    const phone   = normPhone(b.phone);
+    const phoneChk = validateIndianMobile(b.phone);
+    const phone   = phoneChk.phone;
     const shopName= String(b.shopName || '').trim().slice(0, 180);
     const address = String(b.address || '').trim().slice(0, 300);
     const email   = String(b.email || '').trim().slice(0, 150);
     const printer = String(b.printerModel || '').trim().slice(0, 100);
 
     if (!name)      return res.status(400).json({ error: 'Please enter your name' });
-    if (!phone)     return res.status(400).json({ error: 'Please enter a valid 10-digit mobile number' });
+    if (!phoneChk.ok) return res.status(400).json({ error: phoneChk.error });
     if (!shopName)  return res.status(400).json({ error: 'Please enter your shop name' });
     if (!address)   return res.status(400).json({ error: 'Please enter your shop address' });
     if (!printer)   return res.status(400).json({ error: 'Please select your printer' });
@@ -2295,16 +2451,28 @@ app.post('/api/demo/request', demoRateLimit, async (req, res) => {
     // rejections (validation, duplicate phone, captcha) quota nahi khaate.
     if (typeof req.countDemoRequest === 'function') req.countDemoRequest();
 
-    // Legacy auto-approve (default OFF) — rollback ke liye rakha hai.
-    if (cfg.autoApprove) {
+    // ── INSTANT ACTIVATION (default) ──
+    // Form submit karte hi shop ban jaati hai aur Shop ID + password
+    // wahin screen par aa jaate hain. Manual approval sirf tab jab
+    // superadmin ne Demo Control se off kiya ho.
+    if (cfg.instant) {
       const created = await createDemoShop({ name, phone, shopName, address, email, printerModel: printer });
       await pool.query(
         "UPDATE demo_registrations SET shop_id=$1, status='approved', reviewed_at=NOW() WHERE id=$2",
         [created.shopId, reg.rows[0].id]);
-      console.log(`Demo auto-approved: ${created.shopId} | ${phone} | ip ${ip}`);
-      return res.json({ success: true, approved: true, shopId: created.shopId, password: phone,
-                        qrUrl: created.qrUrl, qrCode: created.qrCode,
-                        expiresInMinutes: created.minutes });
+      console.log(`Demo INSTANT activated: ${created.shopId} | ${phone} | ip ${ip}`);
+      return res.json({
+        success: true, approved: true,
+        shopId: created.shopId,
+        password: phone,
+        qrUrl: created.qrUrl,
+        qrCode: created.qrCode,
+        loginUrl: `${BASE_URL}/admin`,
+        minutes: created.minutes,
+        hours: Math.round(created.minutes / 60),
+        printLimit: created.printLimit,
+        expiresInMinutes: created.minutes
+      });
     }
 
     console.log(`Demo REQUEST received: #${reg.rows[0].id} | ${name} | ${phone} | ${shopName} | ip ${ip}`);
@@ -2515,9 +2683,80 @@ app.get('/api/printer-models', (req, res) => {
   res.json({ models: PRINTER_MODELS });
 });
 
+// ══════════════════════════════════════════════════════════════
+//  ADVANCE FEATURE LIST  (shop ke Advance tab par jo list dikhti hai)
+//
+//  Pehle ye list admin.html me hardcoded thi — naya advance feature
+//  aane par HTML edit karke dobara deploy karna padta tha, aur Mini
+//  Print add karna isi wajah se chhoot gaya tha. Ab list DB me hai
+//  aur Superadmin se badalti hai.
+//
+//  Shape: [{ icon, title, desc, isNew }]
+//  desc me halka HTML (<b>) allowed hai — likhne wala superadmin hi hai.
+// ══════════════════════════════════════════════════════════════
+const DEFAULT_ADVANCE_FEATURES = [
+  { icon: '📷', title: '4×6 Passport Photos',
+    desc: 'Customer photo bhejta hai — 4, 6, 8 ya 10 ki sheet khud ban kar photo printer se nikalti hai, cutting lines ke saath. Layout aur printer routing sab automatic.' },
+  { icon: '📝', title: 'Resume Maker',
+    desc: 'Customer QR se hi 6 design me resume banata hai aur form khud bharta hai. Aap sirf print dete ho — naya kaam, bina kuch seekhe.' },
+  { icon: '📐', title: 'A3 / A2 / A1 — Bade Size',
+    desc: 'Naksha, project chart, banner. Har bade size ka apna printer aur apna rate set kar sakte ho — A3 printer hai to ye kaam aapke paas hi rahega.' },
+  { icon: '🗒️', title: 'Mini Print — ek sheet par 16 pages tak',
+    desc: 'Notes, question paper, syllabus — customer 2/4/6/8/9/12/16 pages ek hi A4 par chhapwa sakta hai. Student season me sabse zyada chalne wala option.' },
+  { icon: '📄', title: 'Duplex — Dono Side Print',
+    desc: 'Double-side print ka alag rate rakho. Auto-duplex printer nahi hai to manual mode — system khud bolta hai "page palto".' }
+];
+
+async function getAdvanceFeatures() {
+  try {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key='advance_features'");
+    if (!r.rows.length) return DEFAULT_ADVANCE_FEATURES;
+    const parsed = JSON.parse(r.rows[0].value);
+    // Khaali array save ho gaya ho to default hi behtar hai — warna
+    // shop ko bilkul khaali box dikhega.
+    return (Array.isArray(parsed) && parsed.length) ? parsed : DEFAULT_ADVANCE_FEATURES;
+  } catch (e) {
+    return DEFAULT_ADVANCE_FEATURES;
+  }
+}
+
+// Shop ka Advance tab yahi padhta hai — public, koi auth nahi
+app.get('/api/advance-features', async (req, res) => {
+  res.json({ features: await getAdvanceFeatures() });
+});
+
+app.get('/api/superadmin/advance-features', verifySuperAdmin, async (req, res) => {
+  res.json({ features: await getAdvanceFeatures(),
+             defaults: DEFAULT_ADVANCE_FEATURES });
+});
+
+app.put('/api/superadmin/advance-features', verifySuperAdmin, async (req, res) => {
+  try {
+    const list = Array.isArray(req.body.features) ? req.body.features : null;
+    if (!list) return res.status(400).json({ error: 'features ek list honi chahiye' });
+    if (list.length > 30) return res.status(400).json({ error: 'Zyada se zyada 30 feature' });
+
+    // Saaf karke rakho — jo bhej diya wo seedha shop ke page par jaata hai
+    const clean = list.map(f => ({
+      icon:  String(f.icon  || '✨').slice(0, 8),
+      title: String(f.title || '').slice(0, 90).trim(),
+      desc:  String(f.desc  || '').slice(0, 600).trim(),
+      isNew: !!f.isNew
+    })).filter(f => f.title);
+
+    if (!clean.length) return res.status(400).json({ error: 'Kam se kam ek feature ka title chahiye' });
+
+    await pool.query(
+      `INSERT INTO system_settings (key,value) VALUES ('advance_features',$1)
+       ON CONFLICT (key) DO UPDATE SET value=$1`, [JSON.stringify(clean)]);
+    res.json({ success: true, features: clean });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/demo/config', async (req, res) => {
   const c = await getDemoConfig();
-  res.json({ enabled: c.enabled, minutes: c.minutes });
+  res.json({ enabled: c.enabled, minutes: c.minutes,
+             printLimit: c.printLimit, instant: c.instant });
 });
 
 // Setup-payment page: is shop ka plan + amount (sirf unpaid — paid par info leak nahi)
@@ -4095,108 +4334,6 @@ app.delete('/api/superadmin/reviews/:id', verifySuperAdmin, async (req, res) => 
 });
 
 // ══════════════════════════════════════════════════════════════
-// TRANSLATIONS — superadmin ka "🌐 Languages" tab
-//
-// Website ka source text Hinglish hai; English wali dictionary
-// public/i18n.js + i18n-extra.js me bundled aati hai. Ye tab uske
-// UPAR ek DB layer deta hai: bina deploy kiye koi bhi string yahin se
-// theek ki ja sakti hai (ya nayi bhasha ke liye tarjuma daala ja
-// sakta hai). Browser dono ko merge karta hai — DB wali jeetti hai.
-//
-// (Panel ye teen route pehle se call kar raha tha par server par ye
-// bane hi nahi the, isliye tab hamesha error dikhata tha.)
-// ══════════════════════════════════════════════════════════════
-// Naam apni hi lipi me — panel aur website dono me wahi dikhta hai.
-// public/i18n.js ki LANGS list se ye MATCH karni chahiye.
-const I18N_LANGS = {
-  en:  'English',
-  ta:  'தமிழ்',
-  te:  'తెలుగు',
-  kn:  'ಕನ್ನಡ',
-  bn:  'বাংলা',
-  hin: 'Hinglish'
-};
-const I18N_SRC_LANG = 'hin';                 // jis bhasha me HTML likha hai
-
-let _i18nCache = {}, _i18nCacheAt = 0;
-const I18N_CACHE_MS = 60 * 1000;
-function bustI18nCache() { _i18nCache = {}; _i18nCacheAt = 0; }
-
-// Kaun si languages hain — panel ye pehle call karta hai
-app.get('/api/i18n', (req, res) => {
-  res.json({ langs: I18N_LANGS, source: I18N_SRC_LANG });
-});
-
-// Browser yahan se DB wali dictionary uthata hai aur bundled ke upar
-// merge kar deta hai. Public hai (koi private data nahi) + cached.
-app.get('/api/i18n/dict', async (req, res) => {
-  const lang = I18N_LANGS[req.query.lang] ? req.query.lang : 'en';
-  try {
-    if (Date.now() - _i18nCacheAt > I18N_CACHE_MS) { _i18nCache = {}; _i18nCacheAt = Date.now(); }
-    if (!_i18nCache[lang]) {
-      const r = await pool.query(
-        `SELECT source, text FROM translations WHERE lang=$1 AND text <> ''`, [lang]);
-      const dict = {};
-      for (const row of r.rows) dict[row.source] = row.text;
-      _i18nCache[lang] = dict;
-    }
-    res.set('Cache-Control', 'public, max-age=60');
-    res.json({ lang, dict: _i18nCache[lang] });
-  } catch (err) {
-    // DB down ho to bhi page na tootey — bundled dictionary kaafi hai
-    res.json({ lang, dict: {} });
-  }
-});
-
-app.get('/api/superadmin/translations', verifySuperAdmin, async (req, res) => {
-  try {
-    const lang = I18N_LANGS[req.query.lang] ? req.query.lang : 'en';
-    const rows = await pool.query(
-      `SELECT id, source, text FROM translations WHERE lang=$1 ORDER BY source ASC`, [lang]);
-    const tally = await pool.query(
-      `SELECT lang, COUNT(*)::int AS n FROM translations WHERE text <> '' GROUP BY lang`);
-    const counts = {};
-    for (const row of tally.rows) counts[row.lang] = row.n;
-    res.json({ rows: rows.rows, counts, langs: I18N_LANGS });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.put('/api/superadmin/translations', verifySuperAdmin, async (req, res) => {
-  try {
-    const lang = I18N_LANGS[req.body.lang] ? req.body.lang : '';
-    if (!lang) return res.status(400).json({ error: 'Galat language' });
-    if (lang === I18N_SRC_LANG)
-      return res.status(400).json({ error: 'Hinglish source hai — iska tarjuma nahi hota' });
-    const items = Array.isArray(req.body.items) ? req.body.items : [];
-    if (!items.length) return res.status(400).json({ error: 'Kuch hai hi nahi' });
-    if (items.length > 5000) return res.status(400).json({ error: 'Ek baar me 5000 se zyada nahi' });
-
-    let saved = 0, removed = 0;
-    for (const it of items) {
-      const source = String((it && it.source) || '').trim().slice(0, 2000);
-      const text   = String((it && it.text)   || '').trim().slice(0, 2000);
-      if (!source) continue;
-      if (!text) {
-        // khaali chhod dene ka matlab "hata do" — phir Hinglish hi dikhega
-        const del = await pool.query(
-          `DELETE FROM translations WHERE lang=$1 AND md5(source)=md5($2)`, [lang, source]);
-        removed += del.rowCount;
-        continue;
-      }
-      await pool.query(
-        `INSERT INTO translations (lang, source, text, updated_at)
-         VALUES ($1,$2,$3,NOW())
-         ON CONFLICT (lang, md5(source))
-         DO UPDATE SET text = EXCLUDED.text, updated_at = NOW()`,
-        [lang, source, text]);
-      saved++;
-    }
-    bustI18nCache();     // panel kehta hai "turant live" — cache saaf karo
-    res.json({ success: true, saved, removed });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ══════════════════════════════════════════════════════════════
 // ALERTS — naya shop aane par EMAIL
 //
 // SMTP sirf EK BAAR superadmin set karta hai (Gmail app password se
@@ -4701,6 +4838,9 @@ app.get('/api/setup-fee/current', async (req, res) => {
       const fest0 = await getFestivalOffer();
       return res.json({
         ...pricing,
+        // Partner apne base price par SIRF Starter bechta hai —
+        // uska economics wahi rehta hai jo pehle onetime ka tha.
+        plans: { starter: { fee: wlPrice, actual: 0, advance: false } },
         amount: wlPrice,
         offerPrice: wlPrice,
         actualPrice: wlPrice,        // partner ke yahan koi "cut" price nahi
@@ -4721,6 +4861,8 @@ app.get('/api/setup-fee/current', async (req, res) => {
     const festival = await getFestivalOffer();
     const out = {
       amount: pricing.offerPrice, ...pricing,
+      // Naye teen plan — homepage aur register page ise hi padhte hain
+      plans: await getPlanPricing(),
       advancedFee: await getAdvancedFee(),
       monthlyActualPrice: await getMonthlyActualFee(),
       advancedActualPrice: await getAdvancedActualFee(),
@@ -4797,15 +4939,20 @@ app.post('/api/shop/register', async (req, res) => {
     const shopId = 'SHOP_' + uuidv4().substring(0,8).toUpperCase();
     const passwordHash = await hashPassword(password);
     const currentSetupFee = await getSetupFeeAmount();
-    // Plan: 'onetime' (default) ya 'monthly' (₹99/mahina — pehli payment se 30 din)
-    const plan = req.body.plan === 'monthly' ? 'monthly' : 'onetime';
-    const monthlyFee = await getMonthlyFee();
+    // Plan: starter / pro / premium — teeno LIFETIME.
+    // Purane 'monthly'/'onetime' ab naye registration me nahi aate;
+    // purani shops apne plan_type ke saath waise hi chalti rehti hain.
+    const plan = normalizePlan(req.body.plan);
+    const planPricing = await getPlanPricing();
     // Agent ke link se aaya hai to floor = AGENT BASE PRICE (superadmin ne
     // set kiya hua, jaise 699) — public Offer Price (599) nahi. Agent ne
     // khud kuch aur set kiya ho (jaise 799) to wahi lagega. Ye SIRF
     // one-time plan par lagta hai; monthly hamesha public rate par.
-    let oneTimePrice = currentSetupFee;
-    let onetimeBaseForRecord = currentSetupFee;
+    // Direct registration = chune hue plan ka price.
+    // Agent / white-label ke link se aaye to unka apna price jeetta
+    // hai (neeche override hota hai) — unka business model wahi rehta hai.
+    let oneTimePrice = planPricing[plan].fee;
+    let onetimeBaseForRecord = planPricing[plan].fee;
     if (onboardedBy) {
       const agentBase = await getAgentBasePrice();
       oneTimePrice = (refShop.agent_price && refShop.agent_price > agentBase) ? refShop.agent_price : agentBase;
@@ -4827,9 +4974,9 @@ app.post('/api/shop/register', async (req, res) => {
       oneTimePrice = (wl.shop_price && wl.shop_price > wlBase) ? wl.shop_price : wlBase;
       onetimeBaseForRecord = wlBase;
     }
-    const firstPayment = plan === 'monthly' ? monthlyFee : oneTimePrice;
-    const soldPrice = plan === 'monthly' ? monthlyFee : oneTimePrice;
-    const basePrice  = plan === 'monthly' ? monthlyFee : onetimeBaseForRecord;
+    const firstPayment = oneTimePrice;
+    const soldPrice = oneTimePrice;
+    const basePrice  = onetimeBaseForRecord;
 
     // Shop create hoti hai lekin setup_paid=false rehta hai by default.
     // QR Code aur Print Agent sirf setup fee payment confirm hone ke baad milte hain.
@@ -4959,6 +5106,66 @@ app.post('/api/setup-fee/create', async (req, res) => {
 
 // ── Shop activation (setup fee confirm hone par) — verify handler,
 //    webhook aur reconciliation teeno yahi use karte hain ──
+// ══════════════════════════════════════════════════════════════
+//  PLANS — Starter / Pro / Premium (teeno LIFETIME)
+//
+//  Purane plan ('monthly', 'onetime') DB me jaise hain waise hi rehte
+//  hain — unko haath nahi lagaya. Naye registration sirf in teen me se
+//  ek chunte hain.
+//
+//    Starter — software + basic QR Se Print. Advance alag se (₹199).
+//    Pro     — advance aaj hi unlock. Aage naya feature aaye to alag.
+//    Premium — advance + aane wale SAARE advance feature free.
+//
+//  Price ke liye NAYE keys banaye hain. Purane keys (setup_fee_amount,
+//  monthly_fee) chhede nahi — un par agent, white-label aur purani
+//  shops ka hisaab tika hua hai.
+// ══════════════════════════════════════════════════════════════
+const PLAN_DEFS = {
+  starter: { feeKey: 'plan_starter_fee', actualKey: 'plan_starter_actual',
+             defFee: 599, defActual: 2999, advance: false },
+  pro:     { feeKey: 'plan_pro_fee',     actualKey: 'plan_pro_actual',
+             defFee: 899, defActual: 2999, advance: true  },
+  premium: { feeKey: 'plan_premium_fee', actualKey: 'plan_premium_actual',
+             defFee: 999, defActual: 2999, advance: true  }
+};
+
+/** Body se aaya plan saaf karo. Purana naam aaye to sabse kareeb wala. */
+function normalizePlan(p) {
+  const v = String(p || '').toLowerCase().trim();
+  if (PLAN_DEFS[v]) return v;
+  // Purana cached page ya purana link. 'onetime'/'monthly' dono me
+  // advance shaamil NAHI tha — isliye Starter hi sahi mapping hai.
+  return 'starter';
+}
+
+/** Pro aur Premium me advance payment ke saath hi unlock ho jaata hai. */
+function planIncludesAdvance(plan) {
+  return !!(PLAN_DEFS[normalizePlan(plan)] || {}).advance;
+}
+
+/** Teeno plan ka price + strikethrough, ek hi query me. */
+async function getPlanPricing() {
+  const keys = [];
+  Object.values(PLAN_DEFS).forEach(d => keys.push(d.feeKey, d.actualKey));
+  const map = {};
+  try {
+    const r = await pool.query(
+      `SELECT key, value FROM system_settings WHERE key = ANY($1)`, [keys]);
+    r.rows.forEach(row => { map[row.key] = parseInt(row.value); });
+  } catch (e) { /* default par gir jao */ }
+
+  const out = {};
+  for (const [name, d] of Object.entries(PLAN_DEFS)) {
+    const fee = (!isNaN(map[d.feeKey]) && map[d.feeKey] > 0) ? map[d.feeKey] : d.defFee;
+    // actual 0 = strikethrough chhupa do
+    const actualRaw = map[d.actualKey];
+    const actual = (!isNaN(actualRaw)) ? Math.max(0, actualRaw) : d.defActual;
+    out[name] = { fee, actual: actual > fee ? actual : 0, advance: d.advance };
+  }
+  return out;
+}
+
 async function getAdvancedFee() {
   try {
     const r = await pool.query("SELECT value FROM system_settings WHERE key='advanced_fee'");
@@ -5077,9 +5284,16 @@ async function activateShop(shopId, paymentId) {
   const firstTime = upd.rows.length > 0;
 
   if (firstTime) {
-    // Monthly plan: pehli payment = pehle 30 din
+    // Legacy monthly (purani shops) — pehli payment = pehle 30 din.
+    // Naye registration me monthly aata hi nahi, par koi purana
+    // unpaid registration pending ho to ye chalu rehna chahiye.
     await pool.query(
       "UPDATE shops SET paid_until = NOW() + INTERVAL '30 days' WHERE id=$1 AND plan_type='monthly'",
+      [shopId]);
+    // Pro aur Premium me Advance Feature payment ke saath hi khul jaata
+    // hai — shop owner ko alag se ₹199 nahi dena padta.
+    await pool.query(
+      "UPDATE shops SET advanced_unlocked=true WHERE id=$1 AND plan_type IN ('pro','premium')",
       [shopId]);
     console.log(`Setup fee paid: ${shopId} | Payment: ${paymentId}`);
 
@@ -5404,7 +5618,7 @@ app.get('/api/shop/:shopId/demo-status', async (req, res) => {
 app.get('/api/shop/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,shop_notice,advanced_active,shop_logo,adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,adv_mini_active FROM shops WHERE id=$1',
+      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,price_a3_bw,price_a3_color,price_a2_bw,price_a2_color,price_a1_bw,price_a1_color,shop_notice,advanced_active,shop_logo,adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,adv_mini_active FROM shops WHERE id=$1',
       [req.params.shopId]
     );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
@@ -5494,7 +5708,7 @@ app.get('/api/admin/profile', verifyToken, async (req, res) => {
               (agent_token IS NOT NULL) AS agent_bound,
               GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (demo_expires_at - NOW()))))::bigint AS demo_seconds_left,
               plan_type,paid_until,advanced_unlocked,advanced_active,
-              adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,adv_mini_active,shop_notice,shop_logo,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
+              adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,adv_mini_active,shop_notice,shop_logo,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,price_a3_bw,price_a3_color,price_a2_bw,price_a2_color,price_a1_bw,price_a1_color,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
               email,payment_gateway,razorpay_key_id,cashfree_app_id,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
               CASE WHEN cashfree_secret_key != '' THEN true ELSE false END as has_cashfree_secret
@@ -5629,7 +5843,10 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
       // Advance pricing (4x6 sheet: 4/6/8/10-photo; resume: color/bw)
       for (const [key, col] of [['price_4x6_4','price_4x6_4'],['price_4x6_6','price_4x6_6'],
                                 ['price_4x6_8','price_4x6_8'],['price_4x6_10','price_4x6_10'],
-                                ['price_resume_color','price_resume_color'],['price_resume_bw','price_resume_bw']]) {
+                                ['price_resume_color','price_resume_color'],['price_resume_bw','price_resume_bw'],
+                                ['price_a3_bw','price_a3_bw'],['price_a3_color','price_a3_color'],
+                                ['price_a2_bw','price_a2_bw'],['price_a2_color','price_a2_color'],
+                                ['price_a1_bw','price_a1_bw'],['price_a1_color','price_a1_color']]) {
         const v = parsePrice(req.body[key]);
         if (v !== null) {
           await pool.query(`UPDATE shops SET ${col}=$1 WHERE id=$2`, [v, req.shopId]);
@@ -6312,7 +6529,7 @@ app.post('/api/payment/online/create', async (req, res) => {
     const { jobId, colorMode, copies, totalPages, selectedPages } = req.body;
 
     const jobCheck = await pool.query(
-      `SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.price_4x6_4, s.price_4x6_6, s.price_4x6_8, s.price_4x6_10, s.price_resume_color, s.price_resume_bw, s.payment_mode, s.payment_gateway, s.paused, s.plan_type, s.paid_until,
+      `SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.price_4x6_4, s.price_4x6_6, s.price_4x6_8, s.price_4x6_10, s.price_resume_color, s.price_resume_bw, ${BIG_SIZE_PRICE_SELECT}, s.payment_mode, s.payment_gateway, s.paused, s.plan_type, s.paid_until,
               s.razorpay_key_id, s.razorpay_key_secret,
               s.cashfree_app_id, s.cashfree_secret_key
        FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1`, [jobId]
@@ -6373,7 +6590,14 @@ app.post('/api/payment/online/create', async (req, res) => {
                  : job.photo_count === 6 ? (parseInt(job.price_4x6_6) || 0)
                  : (parseInt(job.price_4x6_4) || 0);
       if (pRate > 0) amount = pRate * effCopies;
+    } else {
+      // Big Size (A3/A2/A1) — owner ka apna per-page rate, set ho tabhi.
+      // Duplex ke saath bhi big-size rate hi jeetta hai: bada kagaz
+      // hi asli lagat hai, duplex uske andar aata hai.
+      const bigRate = bigSizeRate(job, job.paper_size, finalColorMode);
+      if (bigRate > 0) amount = bigRate * finalPages * effCopies;
     }
+    amount = round2(amount);
 
     // Common job update (gateway se pehle)
     await pool.query(
@@ -6385,7 +6609,7 @@ app.post('/api/payment/online/create', async (req, res) => {
       if (!job.razorpay_key_id || !job.razorpay_key_secret) {
         return res.status(400).json({ error: 'Shop ki Razorpay keys set nahi hain' });
       }
-      const amountInPaise = amount * 100;
+      const amountInPaise = Math.round(amount * 100);
       const orderData = JSON.stringify({
         amount: amountInPaise,
         currency: 'INR',
@@ -6646,7 +6870,7 @@ app.post('/api/payment/counter', async (req, res) => {
     if (!jobId) return res.status(400).json({ error:'Job ID required' });
 
     const jobCheck = await pool.query(
-      'SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.price_4x6_4, s.price_4x6_6, s.price_4x6_8, s.price_4x6_10, s.price_resume_color, s.price_resume_bw, s.payment_mode, s.paused, s.plan_type, s.paid_until FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1', [jobId]
+      `SELECT j.*, s.price_bw, s.price_color, s.price_bw_duplex, s.price_color_duplex, s.price_4x6_4, s.price_4x6_6, s.price_4x6_8, s.price_4x6_10, s.price_resume_color, s.price_resume_bw, ${BIG_SIZE_PRICE_SELECT}, s.payment_mode, s.paused, s.plan_type, s.paid_until FROM print_jobs j JOIN shops s ON j.shop_id=s.id WHERE j.id=$1`, [jobId]
     );
     if (!jobCheck.rows.length) return res.status(404).json({ error:'Job not found' });
 
@@ -6700,7 +6924,14 @@ app.post('/api/payment/counter', async (req, res) => {
                  : job.photo_count === 6 ? (parseInt(job.price_4x6_6) || 0)
                  : (parseInt(job.price_4x6_4) || 0);
       if (pRate > 0) amount = pRate * effCopies;
+    } else {
+      // Big Size (A3/A2/A1) — owner ka apna per-page rate, set ho tabhi.
+      // Duplex ke saath bhi big-size rate hi jeetta hai: bada kagaz
+      // hi asli lagat hai, duplex uske andar aata hai.
+      const bigRate = bigSizeRate(job, job.paper_size, finalColorMode);
+      if (bigRate > 0) amount = bigRate * finalPages * effCopies;
     }
+    amount = round2(amount);
     const txnId = 'COUNTER_' + uuidv4().substring(0,10).toUpperCase();
 
     await pool.query(
@@ -7926,7 +8157,10 @@ app.put('/api/superadmin/homepage-config', verifySuperAdmin, async (req, res) =>
       }
       cfg.texts = t;
     }
-    for (const k of ['planDemo','planMonthly','planOnetime']) {
+    // planMonthly/planOnetime purane homepage ke liye rakhe hain —
+    // naye teen card planStarter/planPro/planPremium padhte hain.
+    for (const k of ['planDemo','planMonthly','planOnetime',
+                     'planStarter','planPro','planPremium']) {
       if (Array.isArray(b[k])) cfg[k] = b[k].filter(x => typeof x === 'string').map(x => x.slice(0,120)).slice(0, 20);
     }
     if (Array.isArray(b.faqs)) {
@@ -7996,6 +8230,30 @@ app.put('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
     }
     if (newActualPrice < newOfferPrice) {
       return res.status(400).json({ error: 'Actual Price, Offer Price se kam nahi ho sakta' });
+    }
+
+    // ── Naye plan ke price ──
+    // body.plans = { starter:{fee,actual}, pro:{...}, premium:{...} }
+    if (req.body.plans && typeof req.body.plans === 'object') {
+      for (const [name, d] of Object.entries(PLAN_DEFS)) {
+        const p = req.body.plans[name];
+        if (!p) continue;
+        const fee = parseInt(p.fee);
+        if (isNaN(fee) || fee < 1)
+          return res.status(400).json({ error: name + ' ka price sahi daalo (1 ya zyada)' });
+        const act = (p.actual === '' || p.actual === undefined || p.actual === null)
+          ? 0 : parseInt(p.actual);
+        if (isNaN(act) || act < 0)
+          return res.status(400).json({ error: name + ' ka actual price sahi daalo' });
+        if (act > 0 && act < fee)
+          return res.status(400).json({ error: name + ': actual price, offer price se kam nahi ho sakta' });
+        await pool.query(
+          `INSERT INTO system_settings (key,value) VALUES ($1,$2)
+           ON CONFLICT (key) DO UPDATE SET value=$2`, [d.feeKey, String(fee)]);
+        await pool.query(
+          `INSERT INTO system_settings (key,value) VALUES ($1,$2)
+           ON CONFLICT (key) DO UPDATE SET value=$2`, [d.actualKey, String(act)]);
+      }
     }
 
     let newMonthlyFee = null, newAdvancedFee = null;
