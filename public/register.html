@@ -80,6 +80,22 @@ h1 .mark{background:linear-gradient(transparent 62%,var(--yellow) 62%);padding:0
 .cta:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
 .err{display:none;background:#fff1f1;border:1.5px solid #ffc9c9;color:#c22;border-radius:12px;padding:11px;font-size:12.5px;font-weight:600;margin-top:12px;text-align:center}
 .note{text-align:center;font-size:11px;color:var(--muted);margin-top:14px;line-height:1.7}
+/* 3 plan cards — 900px se neeche ek ke neeche ek */
+.plan-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:900px){.plan-row{grid-template-columns:1fr}}
+.plan-card{position:relative}
+.pcrown{
+  position:absolute;top:-11px;left:50%;transform:translateX(-50%);
+  background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border-radius:20px;
+  padding:3px 12px;font-size:10px;font-weight:800;letter-spacing:.3px;white-space:nowrap;
+}
+#planPremium.sel{border-color:#f59e0b}
+/* Pro aur Premium ka farak saaf likha — warna Pro lene wala baad me
+   shikayat karega ki "maine to poora paisa diya tha". */
+.pdiff{font-size:11px;line-height:1.6;border-radius:10px;padding:9px 10px;margin-top:10px;text-align:left}
+.pdiff-plain{background:#f8fafc;border:1px solid #e2e8f0;color:#475569}
+.pdiff-warn{background:#fffbeb;border:1px solid #fcd34d;color:#92400e}
+.pdiff-good{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}
 </style>
 </head>
 <body>
@@ -160,24 +176,27 @@ h1 .mark{background:linear-gradient(transparent 62%,var(--yellow) 62%);padding:0
     <h3><span class="n">3</span> Customer Payment Kaise Lena Hai</h3>
     <label class="fl" style="margin-bottom:8px;display:block;">PLAN CHUNO</label>
     <div class="plan-row">
-      <div class="plan-card" id="planMonthly" onclick="selPlan('monthly')">
-        <div class="pt">📅 Monthly</div>
-        <div class="pp">₹<span id="planMonthlyPrice">399</span><span style="font-size:12px;color:#6b6870;">/mahina</span></div>
-        <div class="pd" style="color:#b45309;font-weight:700;">Har mahine time par pay karo —<br>tabhi service active rahegi</div>
-        <div class="pd" style="text-align:left;margin-top:8px;">
-          ✅ Auto Print Software<br>✅ Personalize QR For Shop<br>✅ Unlimited Print<br>
-          ✅ Assistant in Setup<br>✅ On Demand Service will be added<br>✅ Bug fix on update<br>✅ WhatsApp Assistant
-        </div>
+      <div class="plan-card" id="planStarter" onclick="selPlan('starter')">
+        <div class="pt">🚀 Starter</div>
+        <div class="pp"><span class="cut planCut" id="cutStarter" style="display:none;">₹0</span>₹<span id="feeStarter">599</span></div>
+        <div class="pd" style="color:#166534;font-weight:700;">Ek baar pay — Lifetime, koi renewal nahi</div>
+        <div class="pd planFeat" id="featStarter" style="text-align:left;margin-top:8px;"></div>
+        <div class="pdiff pdiff-plain" id="diffStarter">Advance Feature isme nahi hai — baad me ₹199 me alag se unlock kar sakte ho</div>
       </div>
-      <div class="plan-card sel" id="planOnetime" onclick="selPlan('onetime')">
-        <div class="pt">💎 One-Time</div>
-        <div class="pp"><span class="cut" id="planCutPrice">₹1999</span>₹<span id="planOfferPrice">999</span></div>
-        <div class="pd" style="color:#166534;font-weight:700;">Ek baar pay — Lifetime Access & Update<br>No renewal kabhi nahi</div>
-        <div class="pd" style="text-align:left;margin-top:8px;">
-          ✅ Auto Print Software<br>✅ Personalize QR For Shop<br>✅ Unlimited Print<br>
-          ✅ Assistant in Setup<br>✅ Assistant in Online Payment Gateway Setup<br>✅ Bug Fix Within 2Hr<br>
-          ✅ WhatsApp Assistant<br>✅ AnyDesk Assistant
-        </div>
+      <div class="plan-card sel" id="planPro" onclick="selPlan('pro')">
+        <div class="pt">💎 Pro</div>
+        <div class="pp"><span class="cut planCut" id="cutPro" style="display:none;">₹0</span>₹<span id="feePro">899</span></div>
+        <div class="pd" style="color:#166534;font-weight:700;">Lifetime — Advance Feature already unlocked</div>
+        <div class="pd planFeat" id="featPro" style="text-align:left;margin-top:8px;"></div>
+        <div class="pdiff pdiff-warn" id="diffPro">Aaj ke saare advance features. Aage naya advance feature aaya to ₹49 me alag se</div>
+      </div>
+      <div class="plan-card" id="planPremium" onclick="selPlan('premium')">
+        <div class="pcrown">👑 BEST VALUE</div>
+        <div class="pt">👑 Premium</div>
+        <div class="pp"><span class="cut planCut" id="cutPremium" style="display:none;">₹0</span>₹<span id="feePremium">999</span></div>
+        <div class="pd" style="color:#166534;font-weight:700;">Lifetime — aaj ka bhi, aane wala bhi</div>
+        <div class="pd planFeat" id="featPremium" style="text-align:left;margin-top:8px;"></div>
+        <div class="pdiff pdiff-good">Jo bhi naya advance feature banega, apne aap mil jayega — dobara paisa nahi</div>
       </div>
     </div>
 
@@ -221,21 +240,37 @@ function buildPrinterModel(){
   return (brand || model || '').trim();
 }
 
-let selectedPlan = 'onetime';
-// Demo se aaye ho to jo plan choose kiya wahi pehle se select rahega
+let selectedPlan = 'pro';
+// Homepage / demo panel se ?plan= aaya to wahi pehle se selected
 try {
-  const _qp = new URLSearchParams(location.search).get('plan');
-  if (_qp === 'monthly' || _qp === 'onetime') selectedPlan = _qp;
+  const _qp = String(new URLSearchParams(location.search).get('plan') || '').toLowerCase();
+  if (['starter','pro','premium'].includes(_qp)) selectedPlan = _qp;
+  else if (_qp === 'onetime' || _qp === 'monthly') selectedPlan = 'starter';  // purana link
 } catch (e) {}
+
+const PLAN_IDS = ['starter','pro','premium'];
+
 function selPlan(p) {
+  if (!PLAN_IDS.includes(p)) p = 'starter';
   selectedPlan = p;
-  document.getElementById('planOnetime').classList.toggle('sel', p === 'onetime');
-  document.getElementById('planMonthly').classList.toggle('sel', p === 'monthly');
+  PLAN_IDS.forEach(k => {
+    const el = document.getElementById('plan' + k.charAt(0).toUpperCase() + k.slice(1));
+    if (el) el.classList.toggle('sel', k === p);
+  });
   const btn = document.getElementById('regBtn');
-  btn.textContent = p === 'monthly'
-    ? 'Register Karo — Agla Step: ₹' + document.getElementById('planMonthlyPrice').textContent + ' (pehla mahina) ›'
-    : 'Register Karo — Agla Step: Setup Fee ›';
+  const fee = (document.getElementById('fee' + p.charAt(0).toUpperCase() + p.slice(1)) || {}).textContent;
+  if (btn) btn.textContent = 'Register Karo — Agla Step: ₹' + (fee || '') + ' ›';
 }
+
+/** Superadmin ki feature list ko card me daalo. */
+function fillPlanFeatures(id, list) {
+  const el = document.getElementById(id);
+  if (!el || !Array.isArray(list) || !list.length) return;   // khaali ho to HTML wala default rehne do
+  el.innerHTML = list.slice(0, 20).map(line =>
+    '✅ ' + String(line).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  ).join('<br>');
+}
+
 (async () => {
   try {
     // Page ke URL ka ?ref= aur ?wl= dono API ko bhejo.
@@ -246,15 +281,49 @@ function selPlan(p) {
     if (_q.get('wl'))  _p.set('wl',  _q.get('wl'));
     const r = await fetch('/api/setup-fee/current' + (_p.toString() ? '?' + _p.toString() : ''));
     const d = await r.json();
-    if (d.offerPrice !== undefined) document.getElementById('planOfferPrice').textContent = d.offerPrice;
-    if (d.actualPrice) document.getElementById('planCutPrice').textContent = '₹' + d.actualPrice;
-    if (d.monthlyFee) {
-      document.getElementById('planMonthlyPrice').textContent = d.monthlyFee;
-      const p2 = document.getElementById('planMonthlyPrice2');
-      if (p2) p2.textContent = d.monthlyFee;  // purane card me tha, revamp me nahi — null-crash guard
+
+    // ── price ──
+    if (d.plans) {
+      PLAN_IDS.forEach(k => {
+        const p = d.plans[k];
+        const cap = k.charAt(0).toUpperCase() + k.slice(1);
+        const card = document.getElementById('plan' + cap);
+        if (!p) { if (card) card.style.display = 'none'; return; }   // partner ke page par sirf Starter
+        const fEl = document.getElementById('fee' + cap);
+        if (fEl) fEl.textContent = p.fee;
+        const cEl = document.getElementById('cut' + cap);
+        if (cEl) {
+          if (p.actual > 0) { cEl.textContent = '₹' + p.actual; cEl.style.display = ''; }
+          else cEl.style.display = 'none';
+        }
+      });
+      // Agar chuna hua plan is page par hai hi nahi (partner link) to
+      // pehla dikhne wala plan select kar do
+      if (!d.plans[selectedPlan]) {
+        selectedPlan = PLAN_IDS.find(k => d.plans[k]) || 'starter';
+      }
+    }
+    // Poora vaakya EK text node — warna i18n tukdon me translate
+    // karta hai aur English ka word order bigad jaata hai.
+    if (d.advancedFee) {
+      const ds = document.getElementById('diffStarter');
+      if (ds) ds.textContent = 'Advance Feature isme nahi hai — baad me ₹'
+        + d.advancedFee + ' me alag se unlock kar sakte ho';
     }
   } catch(e) {}
-  // Demo panel / agent se aaye ho to wahi plan pehle se selected rahega
+
+  // ── features — Superadmin se ──
+  // Pehle ye list yahan HARDCODED thi, isliye Superadmin me likhe hue
+  // features is page par kabhi nahi aate the.
+  try {
+    const hr = await fetch('/api/homepage-config');
+    const hc = await hr.json();
+    const cfg = hc.config || hc || {};
+    fillPlanFeatures('featStarter', cfg.planStarter);
+    fillPlanFeatures('featPro',     cfg.planPro);
+    fillPlanFeatures('featPremium', cfg.planPremium);
+  } catch(e) {}
+
   try { selPlan(selectedPlan); } catch(e) {}
 })();
 

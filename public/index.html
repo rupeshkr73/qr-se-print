@@ -2274,6 +2274,30 @@ html.legal-open,body.legal-open{overflow:hidden}
   display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534;
   border-radius:10px;padding:10px;font-size:12px;font-weight:700;margin-bottom:8px;
 }
+/* ── 4 plan cards (Demo / Starter / Pro / Premium) ──
+   Pehle 3 the. 4 par desktop me 4-column thoda tang lagta hai, isliye
+   1100px se neeche 2×2 grid ho jaata hai — phone par pehle jaisa
+   single column. */
+.plans3{grid-template-columns:repeat(4,1fr);gap:14px}
+@media(max-width:1180px){.plans3{grid-template-columns:repeat(2,1fr);max-width:820px;margin-left:auto;margin-right:auto}}
+@media(max-width:860px){.plans3{grid-template-columns:1fr;max-width:440px}}
+.plan3.best{border-color:#f59e0b;box-shadow:0 14px 34px rgba(245,158,11,.16);position:relative}
+.p3crown{
+  position:absolute;top:-13px;left:50%;transform:translateX(-50%);
+  background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;
+  border-radius:20px;padding:4px 14px;font-size:10.5px;font-weight:800;
+  letter-spacing:.4px;white-space:nowrap;box-shadow:0 4px 12px rgba(217,119,6,.35);
+}
+/* Pro aur Premium ka farak card par SAAF likha hai — warna Pro lene
+   wala baad me shikayat karega ki "maine to poora paisa diya tha". */
+.p3diff{
+  font-size:11.5px;line-height:1.65;border-radius:11px;
+  padding:10px 12px;margin:10px 0 12px;text-align:left;
+}
+.p3diff-plain{background:#f8fafc;border:1px solid #e2e8f0;color:#475569}
+.p3diff-warn{background:#fffbeb;border:1px solid #fcd34d;color:#92400e}
+.p3diff-good{background:#f0fdf4;border:1px solid #bbf7d0;color:#166534}
+.p3btn.gold{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff}
 </style>
 </head>
 <body>
@@ -2566,52 +2590,60 @@ html.legal-open,body.legal-open{overflow:hidden}
         <ul id="planDemoList">
           <li>✅ Demo Auto Print Software</li>
           <li>✅ Personalize QR For Shop</li>
-          <li>✅ Unlimited Print 24/Hrs</li>
+          <li>✅ 24 Ghante · 10 Print</li>
           <li>✅ Setup Guide (README) included</li>
         </ul>
         <button data-cfg="plan05" class="p3btn dark" onclick="openDemoModal()">Try Now — Free Demo</button>
       </div>
+
       <div class="plan3">
-        <div data-cfg="plan06" class="p3t">📅 Monthly</div>
-        <div data-cfg-html="plan07" class="p3p"><span class="cut3" id="hpMonthlyCut" style="display:none;">₹0</span>₹<span id="hpMonthly">399</span> <small>/month</small></div>
-        <div data-cfg="plan08" class="p3note" style="color:#b45309;">Per month renewal — time par pay karo, service chalti rahe</div>
-        <ul id="planMonthlyList">
+        <div class="festival-banner-wrap"><span class="festival-banner fest-b" style="display:none;"></span></div>
+        <div data-cfg="plan06" class="p3t">🚀 Starter</div>
+        <div data-cfg-html="plan07" class="p3p"><span class="cut3 hpStarterCut" style="display:none;">₹0</span>₹<span id="hpStarter">599</span></div>
+        <div data-cfg="plan08" class="p3note" style="color:#166534;">Lifetime — ek baar pay, koi renewal nahi</div>
+        <ul id="planStarterList">
           <li>✅ Auto Print Software</li>
           <li>✅ Personalize QR For Shop</li>
           <li>✅ Unlimited Print</li>
           <li>✅ Assistant in Setup</li>
-          <li>✅ On Demand Service will be added</li>
-          <li>✅ Bug fix on update</li>
           <li>✅ WhatsApp Assistant</li>
         </ul>
-        <a data-cfg="plan09" class="p3btn violet" href="/register">Setup Now</a>
+        <div class="p3diff p3diff-plain" id="diffStarter">Advance Feature isme nahi hai — baad me ₹199 me alag se unlock kar sakte ho</div>
+        <a data-cfg="plan09" class="p3btn violet" href="/register?plan=starter">Upgrade Your Shop to Smart Printing</a>
       </div>
+
       <div class="plan3 hot">
-        <div class="festival-banner-wrap"><span id="festivalBanner" class="festival-banner" style="display:none;"></span></div>
-        <div data-cfg="plan10" class="p3t">💎 One-Time</div>
-        <div data-cfg-html="plan11" class="p3p"><span class="cut3" id="hpCut">₹1999</span>₹<span id="hpOnetime">999</span></div>
-        <div id="festivalCountdown" class="festival-countdown" style="display:none;">
-          <span class="fc-lead">⏰ Ending in</span>
-          <div class="fc-box" id="fcDaysBox"><span class="fc-num" id="fcDays">00</span><span class="fc-lbl">Days</span></div>
-          <span class="fc-sep" id="fcSep1">:</span>
-          <div class="fc-box"><span class="fc-num" id="fcHours">00</span><span class="fc-lbl">Hrs</span></div>
-          <span class="fc-sep">:</span>
-          <div class="fc-box"><span class="fc-num" id="fcMins">00</span><span class="fc-lbl">Min</span></div>
-          <span class="fc-sep">:</span>
-          <div class="fc-box"><span class="fc-num" id="fcSecs">00</span><span class="fc-lbl">Sec</span></div>
-        </div>
-        <div data-cfg="plan12" class="p3note" style="color:#166534;">Lifetime Access &amp; Update — No renewal</div>
-        <ul id="planOnetimeList">
-          <li>✅ Auto Print Software</li>
-          <li>✅ Personalize QR For Shop</li>
-          <li>✅ Unlimited Print</li>
-          <li>✅ Assistant in Setup</li>
+        <div class="festival-banner-wrap"><span id="festivalBanner" class="festival-banner fest-b" style="display:none;"></span></div>
+        <div data-cfg="plan10" class="p3t">💎 Pro</div>
+        <div data-cfg-html="plan11" class="p3p"><span class="cut3 hpProCut" style="display:none;">₹0</span>₹<span id="hpPro">899</span></div>
+        <div data-cfg="plan12" class="p3note" style="color:#166534;">Lifetime — Advance Feature already unlocked</div>
+        <ul id="planProList">
+          <li>✅ Starter ka sab kuch</li>
+          <li>✅ Advance Feature — UNLOCKED</li>
+          <li>✅ 4×6 Photo · Resume · A3 · Duplex · Mini Print</li>
           <li>✅ Assistant in Online Payment Gateway Setup</li>
           <li>✅ Bug Fix Within 2Hr</li>
-          <li>✅ WhatsApp Assistant</li>
           <li>✅ AnyDesk Assistant</li>
         </ul>
-        <a data-cfg="plan13" class="p3btn pink" href="/register">Setup Now</a>
+        <div class="p3diff p3diff-warn" id="diffPro">Aaj ke saare advance features. Aage koi naya advance feature aaya to ₹49 me alag se</div>
+        <a data-cfg="plan13" class="p3btn pink" href="/register?plan=pro">Upgrade Your Shop to Smart Printing</a>
+      </div>
+
+      <div class="plan3 best">
+        <div class="p3crown">👑 BEST VALUE</div>
+        <div class="festival-banner-wrap"><span class="festival-banner fest-b" style="display:none;"></span></div>
+        <div data-cfg="plan16" class="p3t">👑 Premium</div>
+        <div data-cfg-html="plan17" class="p3p"><span class="cut3 hpPremiumCut" style="display:none;">₹0</span>₹<span id="hpPremium">999</span></div>
+        <div data-cfg="plan18" class="p3note" style="color:#166534;">Lifetime — aaj ka bhi, aane wala bhi</div>
+        <ul id="planPremiumList">
+          <li>✅ Pro ka sab kuch</li>
+          <li>✅ Advance Feature — UNLOCKED</li>
+          <li>✅ Aane wale SAARE advance feature — FREE</li>
+          <li>✅ Kabhi dobara koi payment nahi</li>
+          <li>✅ Priority Support</li>
+        </ul>
+        <div class="p3diff p3diff-good">Aaj ke bhi, kal ke bhi. Jo bhi naya advance feature banega, apne aap mil jayega — dobara paisa nahi.</div>
+        <a data-cfg="plan19" class="p3btn gold" href="/register?plan=premium">Upgrade Your Shop to Smart Printing</a>
       </div>
     </div>
     <div class="plans-cta">
@@ -3754,8 +3786,9 @@ loadPrices();
     if (ul && Array.isArray(arr) && arr.length) ul.innerHTML = arr.map(x=>'<li>✅ '+x+'</li>').join('');
   };
   fillPlan('planDemoList', cfg.planDemo);
-  fillPlan('planMonthlyList', cfg.planMonthly);
-  fillPlan('planOnetimeList', cfg.planOnetime);
+  fillPlan('planStarterList', cfg.planStarter);
+  fillPlan('planProList', cfg.planPro);
+  fillPlan('planPremiumList', cfg.planPremium);
   // FAQ — config se (visible + SEO schema dono)
   if (Array.isArray(cfg.faqs) && cfg.faqs.length) {
     const esc = t => String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -3795,7 +3828,30 @@ loadPrices();
   try {
     const r = await fetch('/api/setup-fee/current');
     const d = await r.json();
-    if (d.monthlyFee) document.getElementById('hpMonthly').textContent = d.monthlyFee;
+    // Naye teen plan ka price. Server na de paye to HTML me likha
+    // hua default hi dikhta rahega — card kabhi khaali nahi hoga.
+    if (d.plans) {
+      [['starter','hpStarter','hpStarterCut'],['pro','hpPro','hpProCut'],
+       ['premium','hpPremium','hpPremiumCut']].forEach(function(row){
+        var p = d.plans[row[0]];
+        if (!p) return;
+        var el = document.getElementById(row[1]);
+        if (el) el.textContent = p.fee;
+        document.querySelectorAll('.' + row[2]).forEach(function(c){
+          if (p.actual > 0) { c.textContent = '₹' + p.actual; c.style.display = ''; }
+          else c.style.display = 'none';
+        });
+      });
+    }
+    // Poora vaakya EK text node me rakhte hain — i18n har node ko
+    // alag translate karta hai, isliye beech me <span> hone se
+    // English ka word order bigad jaata tha. Number wala %d template
+    // dictionary khud handle kar leti hai.
+    if (d.advancedFee) {
+      var ds = document.getElementById('diffStarter');
+      if (ds) ds.textContent = 'Advance Feature isme nahi hai — baad me ₹'
+        + d.advancedFee + ' me alag se unlock kar sakte ho';
+    }
     if (d.offerPrice !== undefined) document.getElementById('hpOnetime').textContent = d.offerPrice;
     if (d.actualPrice) document.getElementById('hpCut').textContent = '₹' + d.actualPrice;
     initFestivalOffer(d.festivalOfferEnabled, d.festivalOfferName, d.festivalOfferEnd);

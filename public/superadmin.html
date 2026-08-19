@@ -174,10 +174,6 @@ input,select,textarea{border:1.5px solid #e3e5ec;border-radius:12px;
 .side-foot{margin-top:auto;padding-top:12px;border-top:1px solid rgba(255,255,255,.1)}
 .side-lg{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:12px;color:#ff8a9b;
   font-weight:700;font-size:13.5px;cursor:pointer;background:rgba(255,80,100,.12);border:none;width:100%;font-family:'Inter',sans-serif}
-.side-lang{width:100%;margin-bottom:8px;padding:10px 12px;border-radius:12px;cursor:pointer;
-  border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;
-  font-weight:700;font-size:13px;font-family:'Inter',sans-serif}
-.side-lang option{color:#1a1030}
 .app-main{flex:1;margin-left:250px;min-height:100vh}
 .app-topbar{position:sticky;top:0;z-index:90;background:rgba(255,255,255,.85);backdrop-filter:blur(12px);
   border-bottom:1.5px dashed #ece7f5;padding:14px 26px;display:flex;align-items:center;gap:14px}
@@ -650,14 +646,7 @@ input,select,textarea{border:1.5px solid #e3e5ec;border-radius:12px;
     <button class="nav-it" data-nav="broadcast"   onclick="navTo('broadcast',this)"><span class="ico">📢</span> Broadcast Message</button>
     <button class="nav-it" data-nav="qrtools"     onclick="navTo('qrtools',this)"><span class="ico">🔲</span> QR Tools</button>
     <button class="nav-it" data-nav="database"    onclick="navTo('database',this)"><span class="ico">🗄️</span> Database</button>
-    <div class="side-foot">
-      <!-- Language selector sidebar ke andar hai. Pehle i18n.js khud
-           bottom-left me ek floating dropdown bana deti thi jo har tab par
-           sidebar ke upar chadh jaata tha — yahan rakhne se wo dikkat
-           khatam, aur panel English/Hinglish dono me chal jaata hai. -->
-      <select data-i18n-select aria-label="Language" class="side-lang"></select>
-      <button class="side-lg" onclick="logout()"><span>🚪</span> Logout</button>
-    </div>
+    <div class="side-foot"><button class="side-lg" onclick="logout()"><span>🚪</span> Logout</button></div>
   </aside>
   <div class="app-main">
     <div class="app-topbar">
@@ -803,6 +792,12 @@ input,select,textarea{border:1.5px solid #e3e5ec;border-radius:12px;
             <textarea id="hpPlanMonthly" rows="8" style="width:100%;padding:10px;border:1.5px solid #c4b5fd;border-radius:10px;font-size:12px;font-family:inherit;"></textarea></div>
           <div><label style="font-weight:800;font-size:13px;color:#ff2e63;">💎 One-Time Plan — features (har line alag)</label>
             <textarea id="hpPlanOnetime" rows="7" style="width:100%;padding:10px;border:1.5px solid #fca5a5;border-radius:10px;font-size:12px;font-family:inherit;"></textarea></div>
+          <div><label style="font-weight:800;font-size:13px;color:#7c3aed;">🚀 Starter Plan — features (har line alag)</label>
+            <textarea id="hpPlanStarter" rows="7" style="width:100%;padding:10px;border:1.5px solid #c4b5fd;border-radius:10px;font-size:12px;font-family:inherit;"></textarea></div>
+          <div><label style="font-weight:800;font-size:13px;color:#ff2e63;">💎 Pro Plan — features (har line alag)</label>
+            <textarea id="hpPlanPro" rows="7" style="width:100%;padding:10px;border:1.5px solid #fca5a5;border-radius:10px;font-size:12px;font-family:inherit;"></textarea></div>
+          <div><label style="font-weight:800;font-size:13px;color:#d97706;">👑 Premium Plan — features (har line alag)</label>
+            <textarea id="hpPlanPremium" rows="7" style="width:100%;padding:10px;border:1.5px solid #fcd34d;border-radius:10px;font-size:12px;font-family:inherit;"></textarea></div>
         </div>
 
         <div style="margin-top:16px;">
@@ -909,6 +904,19 @@ input,select,textarea{border:1.5px solid #e3e5ec;border-radius:12px;
         <span style="font-size:16px;font-weight:800;color:#7c3aed;" id="monthlyPreviewOffer">₹0</span>
         <span id="monthlyPreviewDiscount" style="background:#7c3aed;color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;">0% OFF</span>
       </div>
+
+      <!-- ═══ NAYE PLAN KA PRICE ═══
+             Teeno LIFETIME hain. Actual price = katega hua (0 = chhupa do).
+             Festival offer ka banner + timer teeno card par lagta hai. -->
+        <div style="border-top:2px dashed #e2ddd6;margin-top:18px;padding-top:16px;">
+          <label style="font-weight:800;font-size:14px;color:#1b1b1f;">🏷️ PLAN PRICING — Starter / Pro / Premium</label>
+          <p style="font-size:11.5px;color:#6b6870;margin:5px 0 12px;line-height:1.7;">
+            Teeno plan <b>lifetime</b> hain. <b>Actual</b> = katega hua price (0 daalo to nahi dikhega),
+            <b>Offer</b> = customer jo dega. Upar wala Festival Offer banner aur timer
+            <b>teeno card</b> par dikhta hai.
+          </p>
+          <div id="planPriceRows" style="display:grid;gap:10px;"></div>
+        </div>
 
       <!-- Advanced Feature -->
       <label style="font-size:12px;font-weight:700;display:block;margin-bottom:8px;">⚡ Advanced Printing Unlock</label>
@@ -1097,6 +1105,16 @@ input,select,textarea{border:1.5px solid #e3e5ec;border-radius:12px;
         </div>
         <button id="demoToggleBtn" onclick="toggleDemoEnabled()" style="border:none;border-radius:12px;padding:11px 20px;font-weight:800;font-size:13px;cursor:pointer;">Loading...</button>
       </div>
+      <div style="border-top:1.5px dashed #d9caf9;padding-top:12px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;margin-bottom:8px;">⚡ Activation Mode</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+          <div style="min-width:210px;">
+            <div style="font-weight:800;font-size:13.5px;" id="demoModeLbl">Loading...</div>
+            <div style="font-size:11px;color:#6b6870;margin-top:2px;line-height:1.55;" id="demoModeSub"></div>
+          </div>
+          <button id="demoModeBtn" onclick="toggleDemoInstant()" style="border:none;border-radius:12px;padding:11px 18px;font-weight:800;font-size:12.5px;cursor:pointer;">Loading...</button>
+        </div>
+      </div>
       <div style="border-top:1.5px dashed #d9caf9;padding-top:12px;">
         <div style="font-size:12px;font-weight:700;margin-bottom:8px;">⏰ Demo Time Limit</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
@@ -1135,11 +1153,28 @@ input,select,textarea{border:1.5px solid #e3e5ec;border-radius:12px;
       </p>
     </div>
 
-    <!-- PENDING DEMO REQUESTS -->
-    <div class="card" style="margin-bottom:20px;">
+    <!-- ADVANCE FEATURE LIST — shop ke Advance tab par yahi dikhta hai -->
+    <div class="card" id="advFeatCard" style="margin-bottom:20px;">
+      <h2><span>⚡ Advance Feature — List</span></h2>
+      <p style="font-size:11px;color:#6b6870;margin:6px 0 14px;line-height:1.7;">
+        Shop ke <b>Advance Feature</b> tab par jo list dikhti hai, wahi yahan se banti hai.
+        Naya advance feature banao to yahan add kar do — sabhi shops ko turant dikhne lagega,
+        code chhune ki zaroorat nahi. <b>NAYA</b> tick karoge to us feature par peela
+        "NAYA" badge lag jayega.
+      </p>
+      <div id="advFeatRows"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">
+        <button onclick="advFeatAdd()" style="background:#ede9fe;color:#5b21b6;border:none;border-radius:11px;padding:11px 16px;font-weight:800;font-size:12.5px;cursor:pointer;">+ Naya Feature</button>
+        <button onclick="advFeatReset()" style="background:#f4f4f5;color:#52525b;border:none;border-radius:11px;padding:11px 16px;font-weight:800;font-size:12.5px;cursor:pointer;">↺ Default Wapas</button>
+        <button onclick="advFeatSave()" id="advFeatSaveBtn" style="background:linear-gradient(135deg,#7c3aed,#a855f7);color:#fff;border:none;border-radius:11px;padding:11px 20px;font-weight:800;font-size:12.5px;cursor:pointer;">💾 Save Karo</button>
+      </div>
+    </div>
+
+    <!-- PENDING DEMO REQUESTS — sirf Manual mode me bharta hai -->
+    <div class="card" id="demoReqCard" style="margin-bottom:20px;display:none;">
       <h2><span>📥 Pending Demo Requests <span id="demoReqCount" style="display:none;background:#ff2e63;color:#fff;border-radius:999px;padding:2px 9px;font-size:12px;margin-left:6px;">0</span></span></h2>
-      <p style="font-size:11px;color:#6b6870;margin:6px 0 0;">
-        Homepage form se aayi requests. <b>Accept</b> karte hi demo shop ban jaati hai aur timer shuru hota hai —
+      <p style="font-size:11px;color:#6b6870;margin:6px 0 0;line-height:1.6;">
+        Ye list sirf <b>Manual Approval</b> mode me bharti hai. <b>Accept</b> karte hi demo shop ban jaati hai aur timer shuru hota hai —
         phir WhatsApp button se Shop ID bhej do. <b>Delete</b> karne par request hat jaati hai aur wo number dobara demo le sakta hai.
       </p>
       <div id="demoReqList" style="margin-top:12px;">Loading...</div>
@@ -1581,7 +1616,7 @@ async function doLogin() {
   btn.disabled = false; btn.textContent = 'Login';
 }
 
-let _demoCfg = { enabled: true, minutes: 120 };
+let _demoCfg = { enabled: true, minutes: 120, instant: true };
 function humanMins(m){
   if (m >= 60 && m % 60 === 0) return (m/60) + ' hr';
   if (m >= 60) return (m/60).toFixed(1) + ' hr';
@@ -1601,6 +1636,58 @@ function renderDemoCfg(){
   }
   document.getElementById('demoMinsInput').value = _demoCfg.minutes;
   document.getElementById('demoMinsHuman').textContent = humanMins(_demoCfg.minutes);
+  renderDemoMode();
+}
+
+// Instant = form bharte hi Shop ID + password screen par.
+// Manual  = pehle yahan Accept karo, phir WhatsApp se bhejo (purana flow).
+function renderDemoMode(){
+  const lbl = document.getElementById('demoModeLbl');
+  const sub = document.getElementById('demoModeSub');
+  const btn = document.getElementById('demoModeBtn');
+  const reqCard = document.getElementById('demoReqCard');
+  if(!lbl || !btn) return;
+  const instant = _demoCfg.instant !== false;
+  if(instant){
+    lbl.textContent = '⚡ Instant — apne aap activate';
+    sub.innerHTML = 'Form submit karte hi Shop ID aur password <b>usi screen par</b> mil jaate hain. Aapko kuch nahi karna.';
+    btn.textContent = '🔒 Manual Approval Karo';
+    btn.style.background = '#fef3c7'; btn.style.color = '#92400e';
+  } else {
+    lbl.textContent = '🔒 Manual — aapki approval ke baad';
+    sub.innerHTML = 'Har request neeche <b>Pending</b> me aayegi. Accept karne par hi demo banega, phir WhatsApp se ID bhejni hogi.';
+    btn.textContent = '⚡ Instant Karo';
+    btn.style.background = '#dcfce7'; btn.style.color = '#166534';
+  }
+  // Instant mode me pending list kabhi nahi bharti — card chhupa do,
+  // par purani pending rows abhi bhi ho sakti hain isliye tabhi dikhao.
+  if(reqCard){
+    const badge = document.getElementById('demoReqCount');
+    const pending = badge ? (parseInt(badge.textContent, 10) || 0) : 0;
+    reqCard.style.display = (instant && pending === 0) ? 'none' : '';
+  }
+}
+
+async function toggleDemoInstant(){
+  const next = !(_demoCfg.instant !== false);
+  const msg = next
+    ? 'Instant mode ON karein?\n\nAage se har demo form submit karte hi apne aap activate ho jayegi — aapko Accept nahi dabana padega.'
+    : 'Manual approval ON karein?\n\nAage se har demo pehle Pending me aayegi. Jab tak aap Accept nahi karoge, shop nahi banegi.';
+  if(!confirm(msg)) return;
+  const btn = document.getElementById('demoModeBtn');
+  if(btn) btn.disabled = true;
+  try{
+    const r = await fetch('/api/superadmin/demo-config', {
+      method:'PUT', headers:{'Content-Type':'application/json','Authorization':'Bearer '+authToken},
+      body: JSON.stringify({ enabled: _demoCfg.enabled, minutes: _demoCfg.minutes, instant: next })
+    });
+    const d = await r.json();
+    if(!r.ok || !d.success) throw new Error(d.error || 'Fail');
+    _demoCfg = d;
+    renderDemoCfg();
+    loadDemoRequests();
+  }catch(e){ alert('❌ '+e.message); }
+  finally { if(btn) btn.disabled = false; }
 }
 async function loadDbCounts(){
   try{
@@ -1835,6 +1922,173 @@ async function unblockAll(){
 }
 
 // ═══ PENDING DEMO REQUESTS ═══
+// ══════════════════════════════════════════════════════════════
+//  PLAN PRICING — Starter / Pro / Premium (teeno lifetime)
+// ══════════════════════════════════════════════════════════════
+const PLAN_META = [
+  { key:'starter', icon:'🚀', name:'Starter', color:'#7c3aed',
+    hint:'Software + basic features. Advance alag se.' },
+  { key:'pro',     icon:'💎', name:'Pro',     color:'#ff2e63',
+    hint:'Advance unlocked. Naye feature alag se.' },
+  { key:'premium', icon:'👑', name:'Premium', color:'#d97706',
+    hint:'Advance + aane wale saare feature free.' }
+];
+
+function renderPlanPrices(plans){
+  const box = document.getElementById('planPriceRows');
+  if (!box) return;
+  box.innerHTML = PLAN_META.map(m => {
+    const p = (plans && plans[m.key]) || {};
+    return '<div style="border:1.5px solid #e2ddd6;border-radius:13px;padding:12px 13px;">'
+      + '<div style="font-weight:800;font-size:13px;color:' + m.color + ';margin-bottom:2px;">'
+      +   m.icon + ' ' + m.name + '</div>'
+      + '<div style="font-size:11px;color:#6b6870;margin-bottom:9px;">' + m.hint + '</div>'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">'
+      +   '<div><label style="font-size:10.5px;color:#6b6870;font-weight:700;">ACTUAL (₹) — 0 = hide</label>'
+      +     '<input type="number" min="0" id="planActual_' + m.key + '" value="' + (p.actual || 0) + '" '
+      +     'oninput="renderPlanPreview()" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid #e2ddd6;border-radius:9px;font-size:14px;font-weight:700;"></div>'
+      +   '<div><label style="font-size:10.5px;color:#6b6870;font-weight:700;">OFFER (₹) — customer dega</label>'
+      +     '<input type="number" min="1" id="planFee_' + m.key + '" value="' + (p.fee || '') + '" '
+      +     'oninput="renderPlanPreview()" style="width:100%;box-sizing:border-box;padding:10px;border:1.5px solid ' + m.color + ';border-radius:9px;font-size:14px;font-weight:800;color:' + m.color + ';"></div>'
+      + '</div>'
+      + '<div id="planPrev_' + m.key + '" style="margin-top:8px;font-size:12px;"></div>'
+      + '</div>';
+  }).join('');
+  renderPlanPreview();
+}
+
+function renderPlanPreview(){
+  PLAN_META.forEach(m => {
+    const fee = parseInt((document.getElementById('planFee_' + m.key) || {}).value) || 0;
+    const act = parseInt((document.getElementById('planActual_' + m.key) || {}).value) || 0;
+    const el = document.getElementById('planPrev_' + m.key);
+    if (!el) return;
+    let html = '';
+    if (act > fee && fee > 0){
+      const off = Math.round((1 - fee / act) * 100);
+      html = '<span style="text-decoration:line-through;color:#9b9690;">₹' + act + '</span> '
+           + '<b style="color:' + m.color + ';font-size:15px;">₹' + fee + '</b> '
+           + '<span style="background:#dcfce7;color:#166534;border-radius:6px;padding:2px 7px;font-size:10.5px;font-weight:800;">'
+           + off + '% OFF</span>';
+    } else if (fee > 0){
+      html = '<b style="color:' + m.color + ';font-size:15px;">₹' + fee + '</b>';
+    }
+    el.innerHTML = html;
+  });
+}
+
+/** Save ke waqt body me jaane wala plans object. */
+function collectPlanPrices(){
+  const out = {};
+  PLAN_META.forEach(m => {
+    out[m.key] = {
+      fee: (document.getElementById('planFee_' + m.key) || {}).value,
+      actual: (document.getElementById('planActual_' + m.key) || {}).value
+    };
+  });
+  return out;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  ADVANCE FEATURE LIST EDITOR
+//  Shop ke Advance tab ki list. Pehle ye admin.html me hardcoded thi
+//  (isliye Mini Print add karna chhoot gaya tha) — ab yahan se chalti hai.
+// ══════════════════════════════════════════════════════════════
+let _advFeats = [];
+let _advFeatDefaults = [];
+
+function advFeatEsc(s){
+  return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;');
+}
+
+function advFeatRender(){
+  const box = document.getElementById('advFeatRows');
+  if (!box) return;
+  if (!_advFeats.length){
+    box.innerHTML = '<div style="padding:16px;text-align:center;color:#6b6870;font-size:12.5px;">Koi feature nahi — "+ Naya Feature" dabao</div>';
+    return;
+  }
+  box.innerHTML = _advFeats.map((f,i) =>
+    '<div style="border:1.5px solid #e9d5ff;border-radius:14px;padding:12px;margin-bottom:10px;background:#fdfcff;">'
+    + '<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">'
+    +   '<input value="' + advFeatEsc(f.icon) + '" onchange="advFeatSet(' + i + ',\'icon\',this.value)" '
+    +     'style="width:56px;text-align:center;font-size:18px;padding:8px;border:1.5px solid #ddd6fe;border-radius:9px;">'
+    +   '<input value="' + advFeatEsc(f.title) + '" onchange="advFeatSet(' + i + ',\'title\',this.value)" '
+    +     'placeholder="Feature ka naam" style="flex:1;min-width:0;font-weight:700;padding:9px;border:1.5px solid #ddd6fe;border-radius:9px;">'
+    +   '<button onclick="advFeatDel(' + i + ')" title="Hatao" '
+    +     'style="flex:none;background:#fee2e2;color:#b91c1c;border:none;border-radius:9px;padding:9px 11px;font-weight:800;cursor:pointer;">🗑️</button>'
+    + '</div>'
+    + '<textarea onchange="advFeatSet(' + i + ',\'desc\',this.value)" rows="3" '
+    +   'placeholder="Ye feature shop ke liye kya karta hai — <b>bold</b> chalega" '
+    +   'style="width:100%;box-sizing:border-box;font-size:12.5px;line-height:1.7;padding:10px;border:1.5px solid #ddd6fe;border-radius:9px;resize:vertical;">'
+    +   advFeatEsc(f.desc) + '</textarea>'
+    + '<label style="display:flex;align-items:center;gap:7px;margin-top:8px;font-size:12px;font-weight:700;color:#92400e;cursor:pointer;">'
+    +   '<input type="checkbox" ' + (f.isNew ? 'checked' : '') + ' onchange="advFeatSet(' + i + ',\'isNew\',this.checked)"> '
+    +   'NAYA badge lagao'
+    + '</label>'
+    + '<div style="display:flex;gap:6px;margin-top:8px;">'
+    +   '<button onclick="advFeatMove(' + i + ',-1)" ' + (i === 0 ? 'disabled' : '')
+    +     ' style="background:#f4f4f5;border:none;border-radius:8px;padding:6px 11px;font-size:12px;cursor:pointer;">↑</button>'
+    +   '<button onclick="advFeatMove(' + i + ',1)" ' + (i === _advFeats.length-1 ? 'disabled' : '')
+    +     ' style="background:#f4f4f5;border:none;border-radius:8px;padding:6px 11px;font-size:12px;cursor:pointer;">↓</button>'
+    + '</div>'
+    + '</div>').join('');
+}
+
+function advFeatSet(i, k, v){ if(_advFeats[i]) _advFeats[i][k] = v; }
+function advFeatAdd(){ _advFeats.push({icon:'✨',title:'',desc:'',isNew:true}); advFeatRender(); }
+function advFeatDel(i){
+  if(!confirm('Ye feature list se hata dein?')) return;
+  _advFeats.splice(i,1); advFeatRender();
+}
+function advFeatMove(i, d){
+  const j = i + d;
+  if (j < 0 || j >= _advFeats.length) return;
+  const tmp = _advFeats[i]; _advFeats[i] = _advFeats[j]; _advFeats[j] = tmp;
+  advFeatRender();
+}
+function advFeatReset(){
+  if(!confirm('Default list wapas laayein? Aapke likhe hue changes chale jaayenge.')) return;
+  _advFeats = JSON.parse(JSON.stringify(_advFeatDefaults));
+  advFeatRender();
+}
+
+async function advFeatLoad(){
+  try{
+    const r = await fetch('/api/superadmin/advance-features',
+      { headers:{ 'Authorization':'Bearer '+authToken } });
+    const d = await r.json();
+    _advFeats = d.features || [];
+    _advFeatDefaults = d.defaults || [];
+    advFeatRender();
+  }catch(e){
+    const box = document.getElementById('advFeatRows');
+    if(box) box.innerHTML = '<div style="padding:14px;color:#b91c1c;font-size:12.5px;">List load nahi hui — page refresh karo</div>';
+  }
+}
+
+async function advFeatSave(){
+  const empty = _advFeats.filter(f => !String(f.title||'').trim());
+  if (empty.length) return alert('❌ Har feature ka naam bharo (ya use hata do)');
+  const btn = document.getElementById('advFeatSaveBtn');
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Save ho raha hai...'; }
+  try{
+    const r = await fetch('/api/superadmin/advance-features', {
+      method:'PUT',
+      headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+authToken },
+      body: JSON.stringify({ features: _advFeats })
+    });
+    const d = await r.json();
+    if(!r.ok || !d.success) throw new Error(d.error || 'Save fail');
+    _advFeats = d.features;
+    advFeatRender();
+    alert('✅ Save ho gaya — sabhi shops ko ab yahi list dikhegi');
+  }catch(e){ alert('❌ '+e.message); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='💾 Save Karo'; } }
+}
+
 async function loadDemoRequests(){
   const box = document.getElementById('demoReqList');
   const badge = document.getElementById('demoReqCount');
@@ -1849,8 +2103,11 @@ async function loadDemoRequests(){
     }
     if(!rows.length){
       box.innerHTML = '<div style="padding:18px;text-align:center;color:#6b6870;font-size:13px;">No pending requests \u2705</div>';
+      renderDemoMode();   // instant mode + 0 pending = card chhupa do
       return;
     }
+    const _card = document.getElementById('demoReqCard');
+    if(_card) _card.style.display = '';   // pending hai to hamesha dikhao
     box.innerHTML = rows.map(function(d){
       const when = new Date(d.created_at).toLocaleString('en-IN',
         { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' });
@@ -1884,6 +2141,7 @@ function _dreqBump(delta){
   const n = Math.max(0, (parseInt(badge.textContent,10)||0) + delta);
   badge.textContent = n;
   badge.style.display = n ? 'inline-block' : 'none';
+  if(typeof renderDemoMode === 'function') renderDemoMode();
 }
 
 async function approveDemoRequest(id){
@@ -2204,16 +2462,12 @@ async function loadActionCenter() {
     const nf  = n => (n||0).toLocaleString('en-IN');
 
     /* WhatsApp — 10 digit ho to 91 laga do */
-    /* msg/sub runtime par jud kar bante hain aur seedha URL me chale jaate
-       hain — DOM me na hone ki wajah se translator inhe kabhi nahi pakadta.
-       Isliye yahan haath se T() lagta hai. */
-    const tr = s => (window.T || String)(s);
     const wa = (phone, msg) => {
       let num = String(phone||'').replace(/\D/g,'');
       if (!num) return '';
       if (num.length === 10) num = '91' + num;
       return '<a class="ac-wa" target="_blank" rel="noopener" href="https://wa.me/' + num +
-             '?text=' + encodeURIComponent(tr(msg)) + '">WhatsApp</a>';
+             '?text=' + encodeURIComponent(msg) + '">WhatsApp</a>';
     };
 
     /* ── Har column ka data ek jaise shape me — {name,id,phone,sub,hot,msg} ── */
@@ -2263,7 +2517,7 @@ async function loadActionCenter() {
       '<div class="ac-row' + (v.hot ? ' hot' : '') + '">' +
         '<div class="ac-txt">' +
           '<div class="ac-name">' + esc(v.name) + '</div>' +
-          '<div class="ac-sub">' + esc(v.id) + ' · ' + esc(tr(v.sub)) + '</div>' +
+          '<div class="ac-sub">' + esc(v.id) + ' · ' + esc(v.sub) + '</div>' +
         '</div>' + wa(v.phone, v.msg) +
       '</div>';
 
@@ -3214,6 +3468,7 @@ async function loadPanel() {
   loadWithdrawals();
   loadDemos();
   loadDemoRequests();
+  advFeatLoad();
   loadSecurity();
   loadAgents();
   loadAnalytics();
@@ -3280,6 +3535,7 @@ async function loadPanel() {
       document.getElementById('actualPriceInput').value = feeData.actualPrice;
       document.getElementById('offerPriceInput').value = feeData.offerPrice;
       if (feeData.monthlyFee !== undefined) document.getElementById('monthlyFeeInput').value = feeData.monthlyFee;
+      renderPlanPrices(feeData.plans);
       if (feeData.advancedFee !== undefined) document.getElementById('advancedFeeInput').value = feeData.advancedFee;
       document.getElementById('monthlyActualInput').value = feeData.monthlyActualPrice || 0;
       document.getElementById('advancedActualInput').value = feeData.advancedActualPrice || 0;
@@ -3439,6 +3695,7 @@ async function refreshSetupFeeDisplay() {
     document.getElementById('actualPriceInput').value = feeData.actualPrice;
     document.getElementById('offerPriceInput').value = feeData.offerPrice;
     if (feeData.monthlyFee !== undefined) document.getElementById('monthlyFeeInput').value = feeData.monthlyFee;
+    renderPlanPrices(feeData.plans);
     if (feeData.advancedFee !== undefined) document.getElementById('advancedFeeInput').value = feeData.advancedFee;
     document.getElementById('monthlyActualInput').value = feeData.monthlyActualPrice || 0;
     document.getElementById('advancedActualInput').value = feeData.advancedActualPrice || 0;
@@ -3518,6 +3775,7 @@ async function updateSetupFee() {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
       body: JSON.stringify({
         actualPrice, offerPrice,
+        plans: collectPlanPrices(),
         monthlyFee: document.getElementById('monthlyFeeInput').value,
         advancedFee: document.getElementById('advancedFeeInput').value,
         monthlyActualPrice: document.getElementById('monthlyActualInput').value,
@@ -3804,6 +4062,9 @@ async function loadHomepageConfig() {
     g('hpPlanDemo').value = (_hpCfg.planDemo || []).join('\n');
     g('hpPlanMonthly').value = (_hpCfg.planMonthly || []).join('\n');
     g('hpPlanOnetime').value = (_hpCfg.planOnetime || []).join('\n');
+    g('hpPlanStarter').value = (_hpCfg.planStarter || []).join('\n');
+    g('hpPlanPro').value = (_hpCfg.planPro || []).join('\n');
+    g('hpPlanPremium').value = (_hpCfg.planPremium || []).join('\n');
     _faqs = Array.isArray(_hpCfg.faqs) ? JSON.parse(JSON.stringify(_hpCfg.faqs)) : [];
     renderFaqEditor();
     _texts = (_hpCfg.texts && typeof _hpCfg.texts === 'object') ? JSON.parse(JSON.stringify(_hpCfg.texts)) : {};
@@ -3953,6 +4214,9 @@ async function saveHomepage() {
     planDemo: lines('hpPlanDemo'),
     planMonthly: lines('hpPlanMonthly'),
     planOnetime: lines('hpPlanOnetime'),
+    planStarter: lines('hpPlanStarter'),
+    planPro: lines('hpPlanPro'),
+    planPremium: lines('hpPlanPremium'),
     faqs: _faqs.filter(f => (f.q||'').trim()),
     texts: Object.fromEntries(Object.entries(_texts).filter(([, v]) => String(v||'').trim()))
   };
@@ -4210,12 +4474,10 @@ function logout() {
   </div>
 </div>
 
-  <!-- i18n pehle hata diya gaya tha kyunki ye bottom-left me ek floating
-       "English ▾" dropdown bana deti thi jo har tab par sidebar ke upar
-       chadh jaata tha. Ab sidebar ke andar apna selector hai
-       (data-i18n-select), isliye floating wala banta hi nahi — aur panel
-       English/Hinglish dono me theek chalta hai. -->
-  <script src="/i18n.js" defer></script>
-  <script src="/i18n-extra.js" defer></script>
+  <!-- i18n.js JAAN-BUJH KAR hata diya gaya.
+       Ye script bottom-left me ek floating "English ▾" dropdown bana deti
+       thi jo har tab par sidebar ke upar chadh jaata tha. Superadmin ek
+       internal panel hai — iske liye translation ki zaroorat nahi.
+       (Public pages par i18n.js waise ka waisa chal raha hai.) -->
 </body>
 </html>
