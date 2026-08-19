@@ -4838,8 +4838,9 @@ app.get('/api/setup-fee/current', async (req, res) => {
       const fest0 = await getFestivalOffer();
       return res.json({
         ...pricing,
-        // Partner apne base price par SIRF Starter bechta hai —
-        // uska economics wahi rehta hai jo pehle onetime ka tha.
+        // White-label par sirf Starter. Partner apne base price par
+        // basic product bechta hai — Pro/Premium hamare apne channel
+        // ke liye hain. (Demo homepage par alag se milta hai.)
         plans: { starter: { fee: wlPrice, actual: 0, advance: false } },
         amount: wlPrice,
         offerPrice: wlPrice,
@@ -4882,6 +4883,15 @@ app.get('/api/setup-fee/current', async (req, res) => {
         out.amount = agentPrice;
         out.agentRef = req.query.ref;
         out.agentName = s.name;
+        // Agent ke link par SIRF Pro aur Premium. Starter sabse sasta
+        // hai — uspar agent ka commission nikalta hi nahi, isliye wo
+        // agent channel me nahi bechte.
+        out.plans = filterPlansForChannel(out.plans, 'agent');
+        // Agent ka apna price Pro ka floor ban jaata hai. Uske neeche
+        // nahi ja sakta, par Premium ka apna (upar wala) price rehta hai.
+        if (out.plans.pro && agentPrice > out.plans.pro.fee) {
+          out.plans.pro = { ...out.plans.pro, fee: agentPrice, actual: 0 };
+        }
       }
     }
     res.json(out);
@@ -4942,7 +4952,7 @@ app.post('/api/shop/register', async (req, res) => {
     // Plan: starter / pro / premium — teeno LIFETIME.
     // Purane 'monthly'/'onetime' ab naye registration me nahi aate;
     // purani shops apne plan_type ke saath waise hi chalti rehti hain.
-    const plan = normalizePlan(req.body.plan);
+    let plan = normalizePlan(req.body.plan);
     const planPricing = await getPlanPricing();
     // Agent ke link se aaya hai to floor = AGENT BASE PRICE (superadmin ne
     // set kiya hua, jaise 699) — public Offer Price (599) nahi. Agent ne
@@ -4954,9 +4964,21 @@ app.post('/api/shop/register', async (req, res) => {
     let oneTimePrice = planPricing[plan].fee;
     let onetimeBaseForRecord = planPricing[plan].fee;
     if (onboardedBy) {
+      // Agent channel me sirf Pro aur Premium bikte hain. Koi seedha
+      // ?plan=starter&ref=... bhej de to bhi Starter nahi milega —
+      // page par wo option dikhta hi nahi, isliye ye jaan-bujh kar
+      // bheja gaya request hai.
+      if (!PLANS_BY_CHANNEL.agent.includes(plan)) plan = 'pro';
       const agentBase = await getAgentBasePrice();
-      oneTimePrice = (refShop.agent_price && refShop.agent_price > agentBase) ? refShop.agent_price : agentBase;
-      onetimeBaseForRecord = agentBase;
+      // Agent ka apna price sirf Pro ka floor hai. Premium ka apna
+      // (upar wala) price rehta hai — warna agent Premium sasta bech deta.
+      if (plan === 'pro') {
+        oneTimePrice = (refShop.agent_price && refShop.agent_price > agentBase) ? refShop.agent_price : agentBase;
+        onetimeBaseForRecord = agentBase;
+      } else {
+        oneTimePrice = Math.max(planPricing[plan].fee, agentBase);
+        onetimeBaseForRecord = agentBase;
+      }
     }
 
     // ── WHITE LABEL ── ?wl=slug ya subdomain se aaya ho to reseller ka
@@ -4970,6 +4992,9 @@ app.post('/api/shop/register', async (req, res) => {
         return res.status(503).json({ error: 'Ye partner abhi payment setup complete nahi kiya hai. Thodi der baad try kariye.' });
       }
       whitelabelId = wl.id;
+      // White-label par sirf Starter. Partner apne naam par basic
+      // product bechta hai — Pro/Premium hamare apne channel ke liye.
+      if (!PLANS_BY_CHANNEL.wl.includes(plan)) plan = 'starter';
       const wlBase = wl.base_price || await getWlBasePrice();
       oneTimePrice = (wl.shop_price && wl.shop_price > wlBase) ? wl.shop_price : wlBase;
       onetimeBaseForRecord = wlBase;
@@ -5106,6 +5131,26 @@ app.post('/api/setup-fee/create', async (req, res) => {
 
 // ── Shop activation (setup fee confirm hone par) — verify handler,
 //    webhook aur reconciliation teeno yahi use karte hain ──
+// Kis raaste se aaya customer kaun se plan dekhega.
+//   direct  — teeno (Starter, Pro, Premium)
+//   agent   — sirf Pro aur Premium. Agent ko commission milta hai,
+//             isliye sabse sasta Starter uske link par nahi dikhta.
+//   wl      — sirf Starter. Partner apne naam par basic product
+//             bechta hai; Demo alag se homepage par hota hai.
+const PLANS_BY_CHANNEL = {
+  direct: ['starter', 'pro', 'premium'],
+  agent:  ['pro', 'premium'],
+  wl:     ['starter']
+};
+
+/** channel ke hisaab se sirf allowed plan chhod kar baaki hata do. */
+function filterPlansForChannel(plans, channel) {
+  const allow = PLANS_BY_CHANNEL[channel] || PLANS_BY_CHANNEL.direct;
+  const out = {};
+  allow.forEach(k => { if (plans[k]) out[k] = plans[k]; });
+  return out;
+}
+
 // ══════════════════════════════════════════════════════════════
 //  PLANS — Starter / Pro / Premium (teeno LIFETIME)
 //
@@ -8198,6 +8243,10 @@ app.get('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
       offerPrice: pricing.offerPrice,
       actualPrice: pricing.actualPrice,
       monthlyFee: pricing.monthlyFee,
+      // Starter/Pro/Premium ke price. Ye pehle chhoot gaye the,
+      // isliye superadmin me save karne ke baad refresh par input
+      // khaali dikhte the (save theek tha, load hi nahi ho raha tha).
+      plans: await getPlanPricing(),
       advancedFee: await getAdvancedFee(),
       monthlyActualPrice: await getMonthlyActualFee(),
       advancedActualPrice: await getAdvancedActualFee(),
