@@ -3834,7 +3834,16 @@ loadPrices();
       [['starter','hpStarter','hpStarterCut'],['pro','hpPro','hpProCut'],
        ['premium','hpPremium','hpPremiumCut']].forEach(function(row){
         var p = d.plans[row[0]];
-        if (!p) return;
+        // Server channel ke hisaab se plans filter karta hai:
+        //   agent link -> sirf Pro + Premium
+        //   white-label -> sirf Starter
+        // Jo plan nahi aaya uska card poora chhupa do — warna default
+        // price ke saath aisa plan dikhta rehta jo wahan bikta hi nahi.
+        var card = document.getElementById('hp' + row[0].charAt(0).toUpperCase() + row[0].slice(1));
+        if (!card) card = (document.getElementById(row[1]) || {}).closest
+          ? document.getElementById(row[1]).closest('.plan3') : null;
+        if (!p) { if (card) card.style.display = 'none'; return; }
+        if (card) card.style.display = '';
         var el = document.getElementById(row[1]);
         if (el) el.textContent = p.fee;
         document.querySelectorAll('.' + row[2]).forEach(function(c){

@@ -788,10 +788,14 @@ input,select,textarea{border:1.5px solid #e3e5ec;border-radius:12px;
         <div style="display:grid;gap:12px;">
           <div><label style="font-weight:800;font-size:13px;color:#1b1b1f;">🎯 Demo Plan (₹0) — features (har line alag)</label>
             <textarea id="hpPlanDemo" rows="4" style="width:100%;padding:10px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:12px;font-family:inherit;"></textarea></div>
-          <div><label style="font-weight:800;font-size:13px;color:#7c3aed;">📅 Monthly Plan — features (har line alag)</label>
-            <textarea id="hpPlanMonthly" rows="8" style="width:100%;padding:10px;border:1.5px solid #c4b5fd;border-radius:10px;font-size:12px;font-family:inherit;"></textarea></div>
-          <div><label style="font-weight:800;font-size:13px;color:#ff2e63;">💎 One-Time Plan — features (har line alag)</label>
-            <textarea id="hpPlanOnetime" rows="7" style="width:100%;padding:10px;border:1.5px solid #fca5a5;border-radius:10px;font-size:12px;font-family:inherit;"></textarea></div>
+          <!-- Purane Monthly / One-Time plan ke features. Homepage par ab
+               Starter/Pro/Premium wale card dikhte hain, isliye ye UI se
+               hata diye. Textarea HIDDEN rakhe hain kyunki JS inhe padhta
+               hai aur save karte waqt purana data mit jaata. -->
+          <div style="display:none;" aria-hidden="true">
+            <textarea id="hpPlanMonthly"></textarea>
+            <textarea id="hpPlanOnetime"></textarea>
+          </div>
           <div><label style="font-weight:800;font-size:13px;color:#7c3aed;">🚀 Starter Plan — features (har line alag)</label>
             <textarea id="hpPlanStarter" rows="7" style="width:100%;padding:10px;border:1.5px solid #c4b5fd;border-radius:10px;font-size:12px;font-family:inherit;"></textarea></div>
           <div><label style="font-weight:800;font-size:13px;color:#ff2e63;">💎 Pro Plan — features (har line alag)</label>
@@ -887,22 +891,14 @@ input,select,textarea{border:1.5px solid #e3e5ec;border-radius:12px;
 
       <div style="border-top:1.5px dashed #e2ddd6;margin-bottom:16px;"></div>
 
-      <!-- Monthly Plan -->
-      <label style="font-size:12px;font-weight:700;display:block;margin-bottom:8px;">📅 Monthly Plan</label>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:10px;">
-        <div>
-          <label style="font-size:10.5px;color:#6b6870;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px;">Actual (₹) <span style="font-weight:400;text-transform:none;">— 0 = hide</span></label>
-          <input type="number" id="monthlyActualInput" min="0" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid #e2ddd6;border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;">
-        </div>
-        <div>
-          <label style="font-size:10.5px;color:#6b6870;font-weight:600;text-transform:uppercase;display:block;margin-bottom:6px;">Fee (₹/mahina)</label>
-          <input type="number" id="monthlyFeeInput" min="1" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid #7c3aed;border-radius:10px;font-size:16px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#7c3aed;">
-        </div>
-      </div>
-      <div id="monthlyPreviewLine" style="display:none;align-items:center;gap:10px;background:#f7f7f9;border-radius:10px;padding:9px 13px;margin-bottom:18px;">
-        <span style="font-size:13px;color:#9b9690;text-decoration:line-through;" id="monthlyPreviewActual">₹0</span>
-        <span style="font-size:16px;font-weight:800;color:#7c3aed;" id="monthlyPreviewOffer">₹0</span>
-        <span id="monthlyPreviewDiscount" style="background:#7c3aed;color:#fff;font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;">0% OFF</span>
+      <!-- Monthly Plan — naye registration me monthly plan hai hi nahi,
+           isliye UI se hata diya. Inputs HIDDEN rakhe hain kyunki JS inhe
+           padhta/likhta hai (hataane par null-crash hota) aur purani 5
+           monthly shops ka rate abhi bhi isi value se aata hai. -->
+      <div style="display:none;" aria-hidden="true">
+        <input type="number" id="monthlyActualInput" value="0">
+        <input type="number" id="monthlyFeeInput" value="0">
+        <div id="monthlyPreviewLine"><span id="monthlyPreviewActual"></span><span id="monthlyPreviewOffer"></span><span id="monthlyPreviewDiscount"></span></div>
       </div>
 
       <!-- ═══ NAYE PLAN KA PRICE ═══

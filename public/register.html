@@ -288,7 +288,10 @@ function fillPlanFeatures(id, list) {
         const p = d.plans[k];
         const cap = k.charAt(0).toUpperCase() + k.slice(1);
         const card = document.getElementById('plan' + cap);
-        if (!p) { if (card) card.style.display = 'none'; return; }   // partner ke page par sirf Starter
+        // Server channel ke hisaab se filter karta hai — agent link par
+        // sirf Pro+Premium, white-label par sirf Starter. Jo nahi aaya
+        // uska card chhupa do.
+        if (!p) { if (card) card.style.display = 'none'; return; }
         const fEl = document.getElementById('fee' + cap);
         if (fEl) fEl.textContent = p.fee;
         const cEl = document.getElementById('cut' + cap);
