@@ -235,7 +235,12 @@ class PanelAPI:
             "prevPrints": d.get("prevPrints", 0) or 0,
             "prevEarnings": d.get("prevEarnings", 0) or 0,
             "shopOpen": not bool(d.get("paused")),
-            "supply": d.get("supply_warning") or "ok",
+            # Server 'low_ink' / 'no_paper' bhejta hai, panel ke button
+            # 'ink' / 'paper' samajhte hain. Pehle ye seedha pass ho jaata
+            # tha, isliye Low Ink / No Paper chuna hua kabhi highlight
+            # nahi hota tha — panel hamesha "All Good" dikhata rehta tha.
+            "supply": self._SUPPLY_FROM_SERVER.get(
+                str(d.get("supply_warning") or ""), "ok"),
             "activity": acts,
         }
 
@@ -311,15 +316,64 @@ class PanelAPI:
             return {"ok": False, "error": str(e)}
 
     # ── shop controls ──
+    #
+    # WAJAH KI YE DO ALAG ENDPOINT PAR JAATE HAIN:
+    # Pehle dono /api/admin/settings par jaate the. Us endpoint me `paused`
+    # aur `supply_warning` ka koi handler tha hi nahi — server
+    # { success:true } lauta deta tha par DB me kuch likhta NAHI tha.
+    # Panel refresh par purani value wapas aa jaati thi, isliye "Shop
+    # Close" dabate hi toggle wapas apni jagah chala jaata tha (website se
+    # wahi kaam theek chalta tha, kyunki website in dedicated endpoints ko
+    # call karti hai). Ab panel bhi wahi endpoint use karta hai jo website
+    # karti hai — ek hi raasta, ek hi vyavhaar.
     def set_shop_open(self, is_open):
-        return _api("PUT", "/api/admin/settings", {"paused": (not bool(is_open))})
+        return _api("POST", "/api/shop/pause", {"paused": (not bool(is_open))})
+
+    # Panel ki bhasha aur DB ki bhasha alag hai — yahin badal dete hain.
+    #   panel: ok / ink / paper      DB: '' / low_ink / no_paper
+    _SUPPLY_TO_SERVER = {"ok": "", "ink": "low_ink", "paper": "no_paper"}
+    _SUPPLY_FROM_SERVER = {"": "ok", "ok": "ok", "low_ink": "ink", "no_paper": "paper"}
 
     def set_supply(self, status):
-        if status not in ("ok", "ink", "paper"):
+        if status not in self._SUPPLY_TO_SERVER:
             return {"ok": False, "error": "Invalid status"}
-        return _api("PUT", "/api/admin/settings", {"supply_warning": status})
+        return _api("POST", "/api/shop/supply-warning",
+                    {"warning": self._SUPPLY_TO_SERVER[status]})
 
     # ── agent actions (existing functions) ──
+    def sync_now(self):
+        """
+        Statusbar ka 'Sync Now'.
+
+        Reconnect se HALKA hai: socket reset nahi hota, printer dobara
+        detect nahi hota. Bas server se poochte hain ki pahunch me hai ya
+        nahi, connection state theek karte hain, aur print loop ko jaga
+        dete hain taaki pending job poll ka intezaar na kare.
+
+        Numbers dobara laane ka kaam panel ka refresh() karta hai — yahan
+        sirf connection ki sachchai set hoti hai.
+        """
+        try:
+            connected = bool(_AGENT.ping_server())
+        except Exception as e:
+            return {"ok": False, "error": f"Could not reach the server: {e}"}
+
+        _AGENT.agent_state["connection"] = "online" if connected else "offline"
+
+        if not connected:
+            _AGENT.update_tray_status("Offline — click Reconnect to Server")
+            _log("Sync Now — server tak nahi pahunche", "WARN")
+            return {"ok": False, "connected": False,
+                    "error": "Server tak nahi pahunche — internet check karo"}
+
+        _AGENT.update_tray_status("Running — waiting for jobs")
+        try:
+            _AGENT.wake_print_loop()      # pending job turant nikle
+        except Exception:
+            pass
+        _log("Sync Now — server se taaza data liya")
+        return {"ok": True, "connected": True}
+
     def reconnect(self):
         """
         Reconnect — result TURANT.
@@ -575,8 +629,11 @@ def start_ui_loop(show_now=True):
             "QR Se Print — Print Agent",
             panel_html_path(),
             js_api=API,
-            width=1180, height=760,
-            min_size=(940, 620),
+            # v2.3: panel ab ek hi chhoti screen hai (9 page nahi), isliye
+            # window bhi chhoti. 760 height jaan-boojh kar — 1366x768 wale
+            # purane shop PC par bhi taskbar ke saath poori dikh jaati hai.
+            width=900, height=720,
+            min_size=(700, 600),
             background_color="#12131a",
             hidden=not show_now,
             confirm_close=False,
