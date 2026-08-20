@@ -43,23 +43,39 @@ except Exception:
 UNCONFIGURED_MARKER = "AAPKA" + "_SHOP_ID"
 SHOP_ID_TEMPLATE   = "AAPKA_SHOP_ID"
 SERVER_URL         = "https://qrseprint.in"
-CHECK_INTERVAL     = 5          # Job aane par / turant baad — itni jaldi check
-IDLE_INTERVAL_1    = 10         # Khaali hone par bhi sirf 10s (v2.0)
-# v2.0 se ye do use nahi hote — file ab Render se nahi guzarti, isliye
-# dheere check karke bandwidth bachane ki zaroorat khatam. Purane build
-# se compatibility ke liye naam rakhe hain.
-IDLE_INTERVAL_2    = 10
-IDLE_INTERVAL_3    = 10
+# ── POLLING KI TEEN SPEED ──
+# Dukaan busy ho to 5s, thodi der khaali ho to 10s, kaafi der se
+# khaali ho to 12s. Job aate hi turant 5s par wapas aa jata hai,
+# isliye print me deri kabhi nahi hoti.
+CHECK_INTERVAL     = 5          # Abhi job aaya tha — sabse tez
+IDLE_INTERVAL_1    = 10         # 2 min se khaali
+IDLE_INTERVAL_2    = 12         # 10 min se khaali
+# Kitni der baad agli speed par jayen (second me)
+IDLE_STEP_1_SEC    = 120        # 2 min  -> 10s
+IDLE_STEP_2_SEC    = 600        # 10 min -> 12s
+# Purane build se compatibility ke liye naam rakha hai
+IDLE_INTERVAL_3    = 12
+# Lambi idle ke baad TCP socket aksar mar chuka hota hai (NAT/ISP
+# timeout, ya Render ka sleep). Us mari hui socket par pehla poll
+# fail hota hai. Isliye khaali baithe rehne par har itni der me
+# session KHUD refresh kar dete hain — job aane se PEHLE.
+IDLE_SOCKET_REFRESH_SEC = 300   # 5 min
+# Offline hone par kitne second ka ulta counter dikhe, phir khud
+# reconnect ho jaye.
+AUTO_RECONNECT_SECONDS  = 10
+# Lambi outage me notification kitni der me ek baar (reconnect ki
+# koshish phir bhi chalti rehti hai — sirf notification rukti hai).
+AUTO_RECONNECT_NOTIFY_GAP = 600  # 10 min
 # Dukaan din bhar me sirf kuch der busy rehti hai. Har 5 second poll karne se
 # roz lakhon request jaati hain aur server ka bandwidth khatam ho jaata hai.
 # Isliye khaali waqt me dheere check karo — par job aate hi turant 5s par
 # wapas aa jao, taaki print me deri na ho.
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 31           # INTERNAL counter — server ke agent_version se compare hota hai.
+VERSION            = 33           # INTERNAL counter — server ke agent_version se compare hota hai.
                                   # Ye sirf badhta hai (29 → 30 → 31...). Isko kabhi
                                   # "2.0" mat banao: purane v27/v28/v29 agents integer
                                   # compare karte hain, warna woh update lena band kar denge.
-VERSION_LABEL      = "2.1"        # Jo sab jagah DIKHTA hai: 2.0 → 2.1 ... 2.10 → 3.0
+VERSION_LABEL      = "2.3"        # Jo sab jagah DIKHTA hai: 2.0 → 2.1 ... 2.10 → 3.0
 REMOTE_VERSION_LABEL = None       # Server ka latest label — update check par bhar jaata hai
 REMOTE_VERSION_INT = 0            # Server ka internal build number (integer compare ke liye)
 SUPPORT_WA         = "918404832414"  # Admin WhatsApp (shop-login Support jaisa) — Contact Admin isi par khulega
@@ -102,6 +118,11 @@ LOCAL_VERSION_FILE = os.path.join(_APPDATA_DIR, "agent_version.txt")
 SHOP_CONFIG_FILE   = os.path.join(_APPDATA_DIR, "shop_config.txt")
 APPROVAL_CONFIG    = os.path.join(_APPDATA_DIR, "approval_mode.txt")
 AGENT_TOKEN_FILE   = os.path.join(_APPDATA_DIR, "agent_token.txt")
+# Jab owner exe par dobara double-click kare, doosra instance yahan ek
+# chhoti file chhod jaata hai. CHALU agent use dekh kar apna panel khol
+# deta hai. (Iske bina doosra instance chup-chaap band ho jaata tha aur
+# owner ko lagta tha "kuch hua hi nahi".)
+PANEL_REQUEST_FILE = os.path.join(_APPDATA_DIR, "show_panel.request")
 
 
 def _machine_name():
@@ -195,6 +216,30 @@ agent_state = {
     "reconnect_requested": False,
 }
 
+# Log file kabhi rotate nahi hoti thi — mahino chalne wale PC par ye
+# badhti hi rehti thi. Ab 2 MB par ek baar .old me chali jaati hai.
+# Sirf 1 backup rakhte hain: purani log itni purani ho jaati hai ki
+# uska koi kaam nahi bachta, aur disk bharna is se bada problem hai.
+LOG_MAX_BYTES = 2 * 1024 * 1024
+
+
+def _rotate_log_if_big():
+    """2 MB se badi ho to log ko .old bana kar nayi shuru karo."""
+    try:
+        if os.path.getsize(LOG_FILE) < LOG_MAX_BYTES:
+            return
+    except OSError:
+        return          # file hai hi nahi — kuch karne ki zaroorat nahi
+    old = LOG_FILE + ".old"
+    try:
+        if os.path.exists(old):
+            os.remove(old)
+        os.replace(LOG_FILE, old)
+    except Exception:
+        # Rotation fail ho jaye to bhi logging ruknI nahi chahiye
+        pass
+
+
 def log(msg, level="INFO"):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{timestamp}] [{level}] {msg}"
@@ -203,10 +248,36 @@ def log(msg, level="INFO"):
     except Exception:
         pass  # .exe windowed mode mein console hi nahi hota, print() fail ho sakta hai
     try:
+        _rotate_log_if_big()
         with open(LOG_FILE, "a", encoding="utf-8") as f:
             f.write(line + "\n")
     except:
         pass
+
+# ─── BACKGROUND THREAD KA CRASH BHI LOG ME AAYE ──────────────────────
+# Python by default background thread ka traceback stderr par bhejta hai.
+# Windowed .exe me stderr hai hi nahi — wo traceback kahin nahi jaata.
+# Isi wajah se "na tray icon, na panel, aur log bilkul saaf" wali halat
+# banti thi: pystray apna tray window ek alag thread me banata hai, wahan
+# koi exception aata to wo thread chup-chaap mar jaata aur kisi ko pata
+# hi nahi chalta ki hua kya.
+def _thread_excepthook(args):
+    try:
+        import traceback as _tb
+        tname = getattr(getattr(args, "thread", None), "name", "?")
+        log(f"💥 Background thread '{tname}' crash: "
+            f"{args.exc_type.__name__}: {args.exc_value}", "ERROR")
+        log("".join(_tb.format_exception(
+            args.exc_type, args.exc_value, args.exc_traceback)), "ERROR")
+    except Exception:
+        pass          # logging khud fail ho jaye to bhi process na ruke
+
+
+try:
+    threading.excepthook = _thread_excepthook          # Python 3.8+
+except Exception:
+    pass
+
 
 def is_running_as_exe():
     """
@@ -302,9 +373,33 @@ def _shop_id_without_tkinter():
                 json={"machine": _machine_name()})
 
             if r.status_code == 404:
-                _msgbox("This Shop ID was not found on the server. Please check it.",
-                        "QR Se Print", 0x10)
-                continue
+                # Do tarah ke 404 hote hain:
+                #   a) HAMARA JSON  -> Shop ID sach me galat hai
+                #   b) Express ka HTML -> server purana hai, endpoint hai hi nahi
+                # Dono ko ek jaisa maan lena galat tha — purane server par
+                # sahi Shop ID par bhi "not found" dikh jaata tha.
+                is_our_404 = False
+                try:
+                    is_our_404 = bool(r.json().get("error"))
+                except Exception:
+                    is_our_404 = False
+
+                if is_our_404:
+                    _msgbox("This Shop ID was not found on the server. Please check it.",
+                            "QR Se Print", 0x10)
+                    continue
+
+                # Purana server — purane tarike se check karke aage badho
+                log("Server par claim endpoint nahi hai (purana server) — basic check", "WARN")
+                try:
+                    r2 = requests.get(f"{SERVER_URL}/api/shop/{value}", timeout=20)
+                    if r2.status_code == 404:
+                        _msgbox("This Shop ID was not found on the server. Please check it.",
+                                "QR Se Print", 0x10)
+                        continue
+                except Exception:
+                    pass
+                return value
 
             if r.status_code == 409:
                 # Kisi doosre PC par pehle se juda hua hai
@@ -559,7 +654,41 @@ def _release_mutex():
         pass
 
 if not _ensure_single_instance():
-    log("⛔ Agent is already running — this duplicate instance is exiting")
+    # ── PEHLE YAHAN SIRF sys.exit(0) THA ──
+    # Owner exe par double-click karta, kuch nahi hota, aur log me bas ek
+    # line aati thi jo wo dekhta hi nahi. Usse lagta tha "software chalta
+    # hi nahi hai" — jabki agent pehle se background me chal raha hota tha.
+    #
+    # Ab do kaam karte hain:
+    #   1. Chalu agent ke liye ek request file chhod dete hain -- wo apna
+    #      panel khol lega (yahi owner double-click se chahta hai).
+    #   2. Owner ko saaf batate hain ki hua kya.
+    log("⛔ Agent is already running — asking the running copy to show its panel")
+    try:
+        with open(PANEL_REQUEST_FILE, "w", encoding="utf-8") as _f:
+            _f.write(str(int(time.time())))
+    except Exception as _e:
+        log(f"Panel request file nahi bani: {_e}", "WARN")
+
+    # Chalu agent ko file dekhne ka mauka do, phir hi message dikhao —
+    # warna panel khulne se pehle hi popup aa jaata hai.
+    time.sleep(2.5)
+    try:
+        import ctypes as _ct
+        _still_pending = os.path.exists(PANEL_REQUEST_FILE)
+        if _still_pending:
+            _txt = ("QR Se Print pehle se chal raha hai.\n\n"
+                    "Panel kholne ke liye niche dayein taraf tray me (^ wale "
+                    "chhote arrow par click karke) QR Se Print ke icon par "
+                    "DOUBLE-CLICK karo.\n\n"
+                    "Aapki printing background me chalti rahi hai — kuch ruka nahi hai.")
+        else:
+            _txt = ("QR Se Print pehle se chal raha hai — uska panel khol diya gaya hai.\n\n"
+                    "Agla baar tray icon (niche dayein ^ ke andar) par double-click "
+                    "karke seedha panel khol sakte ho.")
+        _ct.windll.user32.MessageBoxW(0, _txt, "QR Se Print", 0x40 | 0x00010000 | 0x00040000)
+    except Exception:
+        pass
     sys.exit(0)
 
 SHOP_ID = resolve_shop_id()
@@ -673,6 +802,11 @@ def show_banner():
     # CRASH ho jaata tha (log mein "'NoneType' object has no attribute
     # 'write'" dikhta hai). log() already guarded hai, isliye usi se bhejo.
     log(f"QR Se Print - Local Agent v{VERSION_LABEL} | Tray + Auto-Update + Fit-A4")
+    # Bundle me kya hai kya nahi - guess mat karo, log me likho.
+    try:
+        bundle_selfcheck()
+    except Exception as _bse:
+        log(f"Bundle self-check fail: {_bse}", "WARN")
 
 def check_printer():
     """
@@ -1226,7 +1360,9 @@ def print_pdf_sumatra(filepath, copies=1, color_mode="bw", printer_name=None, ex
             log(f"⚠️  SumatraPDF subprocess error: {runErr}", "WARN")
 
     # Fallback
-    log("⚠️  SumatraPDF not found, trying the Windows shell...", "WARN")
+    log("SumatraPDF kahin nahi mila (na bundle me, na is PC par) - Windows "
+        "shell se try kar rahe hain. Is tarike me B&W / fit / specific-"
+        "printer setting LAGU NAHI hoti.", "WARN")
     try:
         os.startfile(filepath, "print")
         time.sleep(5)
@@ -1428,7 +1564,43 @@ def reset_http():
         pass
     _http = None
 
+class PollError(Exception):
+    """Server tak poll pahunch hi nahi paya (socket/network/server)."""
+    pass
+
+
+_poll_last_logged = 0.0
+
+
+def _log_poll_problem(msg):
+    """
+    Poll fail har baar log karein to 10 second me ek line — file
+    bhar jaati hai aur asli baat dab jaati hai. Isliye: pehli fail
+    turant, uske baad har 60s me ek baar.
+    """
+    global _poll_last_logged
+    now = time.time()
+    if now - _poll_last_logged >= 60:
+        _poll_last_logged = now
+        log(msg, "WARN")
+
+
+def _reset_poll_log():
+    """Connection wapas aane par counter reset — agli dikkat turant log ho."""
+    global _poll_last_logged
+    _poll_last_logged = 0.0
+
+
 def get_pending_jobs():
+    """
+    Returns:
+        list  -- server ne jawab diya (khaali list = sach me koi job nahi)
+        None  -- poll FAIL hua
+
+    Ye farak sabse zaroori hai. Pehle dono case me [] lautta tha,
+    isliye print_loop() network failure ko "koi job nahi" samajh
+    leta tha aur saari recovery band ho jaati thi.
+    """
     global _demo_expired_shown
     try:
         url = f"{SERVER_URL}/api/jobs/pending/{SHOP_ID}"
@@ -1438,11 +1610,24 @@ def get_pending_jobs():
             url += f"?v={VERSION}&vl={VERSION_LABEL}"
         resp = http().get(url, headers=auth_headers(), timeout=20)
         if resp.status_code == 403:
-            log("❌ Agent token rejected by the server. Open the shop dashboard "
-                "and use 'Re-link agent' to reset it.", "ERROR")
+            # Purana message "use 'Re-link agent'" kehta tha — dashboard me
+            # us naam ka koi button hai hi nahi, isliye shop owner dhoondta
+            # reh jaata tha. Asli jagah ye hai:
+            #   Dashboard -> Settings -> "Connected Computer" ->
+            #   "Disconnect Computer"
+            # Uske baad agent khud dobara link ho jaata hai.
+            log("❌ Server ne is PC ka agent token reject kar diya. "
+                "Shop dashboard kholo -> Settings -> 'Connected Computer' -> "
+                "'Disconnect Computer' dabao, phir ye agent band karke dobara "
+                "chalao. Wo apne aap link ho jayega.", "ERROR")
+            update_tray_status("Token reject — dashboard se 'Disconnect Computer' dabao")
             return []
         if resp.status_code != 200:
-            return []
+            # Server ne jawab to diya par galat status (502/503 =
+            # Render abhi jag raha hai). Ise "koi job nahi" maan
+            # lena galat hai — retry/backoff chalna chahiye.
+            _log_poll_problem(f"Server ne {resp.status_code} bheja — dobara koshish karenge")
+            return None
         d = resp.json()
         if d.get("demo_expired"):
             update_tray_status("⏰ Demo has ended — please register!")
@@ -1452,8 +1637,12 @@ def get_pending_jobs():
                 threading.Thread(target=_show_demo_expired_popup, daemon=True).start()
             return []
         return d.get("jobs", [])
-    except Exception:
-        return []
+    except Exception as e:
+        # YAHI WO JAGAH THI jahan bug baitha tha: pehle yahan
+        # `return []` tha, bina kisi log ke. Dead socket, timeout,
+        # DNS fail — sab chup-chaap "koi job nahi" ban jaate the.
+        _log_poll_problem(f"Server se baat nahi ho paayi: {type(e).__name__} — {e}")
+        return None
 
 _demo_expired_shown = False
 
@@ -1687,6 +1876,8 @@ def ask_backside():
     ready hai? tkinter popup, fail par ctypes MessageBox (win32 core,
     virtually kabhi fail nahi hota). Dono fail (impossible-adjacent) to
     True — evens print karo, worst case alag sheets par niklenge."""
+    if not tk_usable():
+        return _ask_backside_native()
     try:
         import tkinter as tk
         result = {"ok": None}
@@ -1730,6 +1921,10 @@ def ask_backside():
             return True
 
 def ask_approval(job):
+    # Tcl kaam hi nahi kar raha to bekar me Tk() banane ki koshish
+    # mat karo - seedha Windows ke apne dialog par jao.
+    if not tk_usable():
+        return _ask_approval_native(job)
     try:
         import tkinter as tk
 
@@ -1809,8 +2004,12 @@ def ask_approval(job):
             return None
         return result["ok"]
     except Exception as e:
-        log(f"⚠️ Approval popup fail ({e}) — fail-open, print jaari", "WARN")
-        return True
+        # PEHLE yahan seedha `return True` tha - popup fail hote hi
+        # job chup-chaap approve ho jaata tha aur log me "Owner
+        # approved" likh jaata tha. Paise ka gate aise hi bina kisi
+        # ko pata chale mar gaya tha.
+        log(f"Approval popup fail ({e}) - Windows dialog par ja rahe hain", "WARN")
+        return _ask_approval_native(job)
 
 def process_job(job):
     """
@@ -1868,9 +2067,15 @@ def _process_job_inner(job):
     printer_name_color = job.get("printer_name_color", "") or None
     printer_name_4x6 = job.get("printer_name_4x6", "") or None
     printer_name_a3 = job.get("printer_name_a3", "") or None
+    printer_name_duplex = job.get("printer_name_duplex", "") or None
     # ── ROUTING PRECEDENCE ──
     # 1. Paper-special printer (4x6 photo / A3-A2-A1 large) agar shop ne set kiya
-    # 2. Warna color/bw routing (jaisa pehle)
+    # 2. Duplex printer — dono side wala job, aur shop ne alag printer diya ho
+    # 3. Warna color/bw routing (jaisa pehle)
+    #
+    # Kagaz ka size printer ki MAJBOORI hai, duplex sirf ek suvidha —
+    # isliye A3/4x6 wala printer duplex se JEETTA hai. A3 ki sheet chhote
+    # printer me jaayegi hi nahi, chahe usme duplex ho.
     _paper = (job.get("paper_size", "a4") or "a4").lower()
     if _paper == "4x6" and printer_name_4x6:
         target_printer = printer_name_4x6
@@ -1878,6 +2083,9 @@ def _process_job_inner(job):
     elif _paper in ("a3", "a2", "a1") and printer_name_a3:
         target_printer = printer_name_a3
         log(f"   📐 {_paper.upper()} large job — special printer: {printer_name_a3}")
+    elif bool(job.get("duplex")) and printer_name_duplex:
+        target_printer = printer_name_duplex
+        log(f"   📄 Duplex job — duplex printer: {printer_name_duplex}")
     else:
         target_printer = printer_name_bw if color == "bw" else printer_name_color
 
@@ -2275,6 +2483,186 @@ def _msgbox(text, title="QR Se Print", flags=0x40):
         pass
 
 
+# ══════════════════════════════════════════════════════════════
+#  TCL-PROOF DIALOGS
+#
+#  Problem jo aaya tha: exe me tkinter ka MODULE to bundle tha, par
+#  uska Tcl DATA (init.tcl waghairah) nahi. Aise me `import tkinter`
+#  SAFAL hota hai aur galti sirf tab dikhti hai jab tk.Tk() banate ho
+#  ("Can't find a usable init.tcl"). Isliye sirf ImportError pakadna
+#  kaafi nahi - poora Tk() banakar dekhna padta hai.
+#
+#  Ye probe EK BAAR chalta hai, phir jawab yaad rakhta hai.
+# ══════════════════════════════════════════════════════════════
+_TK_STATE = None          # None = check nahi hua, True/False = pata hai
+
+
+def tk_usable():
+    """Tcl/Tk sach me chalta hai? Ek baar probe, phir cached."""
+    global _TK_STATE
+    if _TK_STATE is not None:
+        return _TK_STATE
+    try:
+        import tkinter as _tk
+        _probe = _tk.Tk()          # asli test - import kaafi nahi hota
+        _probe.withdraw()
+        _probe.destroy()
+        _TK_STATE = True
+    except Exception as e:
+        log(f"Tkinter/Tcl is build me kaam nahi kar raha ({e}) - "
+            f"Windows ke apne dialog use honge", "WARN")
+        _TK_STATE = False
+    return _TK_STATE
+
+
+# MessageBoxW ke flags (winuser.h)
+_MB_YESNO         = 0x00000004
+_MB_ICONQUESTION  = 0x00000020
+_MB_SETFOREGROUND = 0x00010000
+_MB_TOPMOST       = 0x00040000
+_IDYES, _IDNO = 6, 7
+
+
+def _native_yesno(text, title="QR Se Print"):
+    """
+    Yes/No poochho bina kisi Tcl ke - seedha user32.dll ka MessageBoxW.
+    Ye Windows ka apna hissa hai: na bundle karna padta hai, na install.
+
+    Returns True (Yes) / False (No) / None (dialog hi nahi bana).
+    """
+    try:
+        import ctypes
+        r = ctypes.windll.user32.MessageBoxW(
+            0, text, title,
+            _MB_YESNO | _MB_ICONQUESTION | _MB_SETFOREGROUND | _MB_TOPMOST)
+        if r == _IDYES:
+            return True
+        if r == _IDNO:
+            return False
+        return None
+    except Exception as e:
+        log(f"Native MessageBox bhi fail hua: {e}", "ERROR")
+        return None
+
+
+def _ask_approval_native(job):
+    """
+    Counter order ka approval, Tcl ke bina.
+
+    Dikhne me tkinter wale window jitna sundar nahi, par ye KABHI fail
+    nahi hota - aur paise wale gate ka chup-chaap khul jaana isse bahut
+    zyada bura hai.
+    """
+    color  = job.get("color_mode", "bw")
+    copies = job.get("copies", 1)
+    pages  = job.get("total_pages", 1)
+    sel    = job.get("selected_pages", "")
+    amount = job.get("amount", 0)
+    fname  = job.get("file_name", "file")
+
+    mode_txt  = "COLOR" if color == "color" else "B&W"
+    pages_txt = f"{pages} page" + ("s" if pages != 1 else "")
+    if sel:
+        pages_txt += f" (pages: {sel})"
+    cop_txt = "ies" if copies != 1 else "y"
+
+    text = (
+        "COUNTER PAYMENT ORDER\n"
+        "The customer will pay cash at the counter.\n"
+        "\n"
+        f"Print   :  {mode_txt}  -  {pages_txt}  -  {copies} cop{cop_txt}\n"
+        f"Amount  :  Rs {amount}   (collect at the counter)\n"
+        f"File    :  {str(fname)[:44]}\n"
+        "\n"
+        "Yes  =  Approve and print\n"
+        "No   =  Deny (order cancel, file delete)"
+    )
+    ans = _native_yesno(text, "QR Se Print - Counter Order")
+
+    if ans is None:
+        # Dono dialog systems fail - Windows par practically impossible.
+        # Agar phir bhi ho jaye to print ROKNA bhi galat hai (dukaan band
+        # ho jayegi), isliye print jaari - par LOUD, chupchaap nahi.
+        log("Approval dialog kisi bhi tarike se nahi khul paya - job print "
+            "ja raha hai BINA approval ke. Agent ek baar restart karke dekho.",
+            "ERROR")
+        try:
+            update_tray_status("Approval popup nahi khul raha - bina approval print")
+        except Exception:
+            pass
+        return True
+    return ans
+
+
+def _ask_backside_native():
+    """Back-side prompt bina Tcl ke."""
+    ans = _native_yesno(
+        "FRONT SIDE PRINTED\n"
+        "\n"
+        "Ab chhape hue page wapas printer ki tray me rakho\n"
+        "(khaali side print head ki taraf).\n"
+        "\n"
+        "Yes  =  Back side ab print karo\n"
+        "No   =  Rehne do (sirf front side)",
+        "QR Se Print - Back Side")
+    if ans is None:
+        log("Back-side dialog nahi khul paya - evens seedha print", "WARN")
+        return True
+    return ans
+
+
+def bundle_selfcheck():
+    """
+    Startup par ek baar: kya-kya sach me bundle hua hai, log me saaf likho.
+
+    Pehle ye guess-work tha. Exe ban jaati thi, print bhi chal jaata tha
+    (kyunki us PC par SumatraPDF alag se install tha) aur kisi ko pata hi
+    nahi chalta ki bundle khaali hai - jab tak kisi naye PC par sab fail
+    na ho jaye.
+    """
+    frozen = bool(getattr(sys, 'frozen', False) or globals().get('__compiled__'))
+    if not frozen:
+        log("Bundle check skip - ye sirf .exe build ke liye hai (abhi script mode)")
+        return
+
+    # -- SumatraPDF --
+    bundled = get_bundled_resource_path('SumatraPDF.exe')
+    if bundled:
+        log(f"BUNDLE  SumatraPDF : BUNDLED OK  ({bundled})")
+    else:
+        found_system = None
+        for p in (r"C:\Program Files\SumatraPDF\SumatraPDF.exe",
+                  r"C:\Program Files (x86)\SumatraPDF\SumatraPDF.exe",
+                  os.path.expanduser(r"~\AppData\Local\SumatraPDF\SumatraPDF.exe")):
+            try:
+                if os.path.exists(p):
+                    found_system = p
+                    break
+            except Exception:
+                pass
+        if found_system:
+            log(f"BUNDLE  SumatraPDF : BUNDLE ME NAHI - is PC par alag se install "
+                f"mila ({found_system}). NAYE PC PAR PRINT FAIL HOGA. Build folder "
+                f"me SumatraPDF.exe rakh kar dobara build karo.", "WARN")
+        else:
+            log("BUNDLE  SumatraPDF : MISSING - na bundle me, na is PC par. "
+                "Print kaam nahi karega!", "ERROR")
+
+    # -- Tcl/Tk --
+    if tk_usable():
+        log("BUNDLE  Tcl/Tk     : OK - popup window normal dikhenge")
+    else:
+        log("BUNDLE  Tcl/Tk     : BUNDLE ME NAHI - Windows ke simple dialog "
+            "use honge. Kaam sab chalega, bas dikhne me basic.", "WARN")
+
+    # -- Desktop panel --
+    if get_bundled_resource_path('agent_panel.html'):
+        log("BUNDLE  Panel HTML : BUNDLED OK")
+    else:
+        log("BUNDLE  Panel HTML : BUNDLE ME NAHI - desktop panel nahi khulega "
+            "(printing normal chalegi)", "WARN")
+
+
 def _manual_update_headless():
     """
     Update check without any Tkinter window.
@@ -2467,7 +2855,7 @@ def _interruptible_sleep(seconds):
     if _wake_event.wait(timeout=seconds):
         _wake_event.clear()
 
-def reconnect_to_server(icon=None, item=None):
+def reconnect_to_server(icon=None, item=None, announce=True):
     """
     'Reconnect to Server' — tray se ya desktop panel se.
     Software band karke dobara kholne ki zaroorat nahi: yeh printer dobara
@@ -2475,6 +2863,10 @@ def reconnect_to_server(icon=None, item=None):
     kar deta hai.
     """
     log("🔌 Reconnect to Server pressed")
+    # Manual click hua to chalta hua counter bekaar hai — rok do.
+    # (Auto wala khud yahan aata hai, use rokne ki zaroorat nahi.)
+    if announce:
+        cancel_auto_reconnect()
     reset_http()          # purane mare hue socket phenk do
     agent_state["connection"] = "connecting"
     update_tray_status("Reconnecting...")
@@ -2506,12 +2898,18 @@ def reconnect_to_server(icon=None, item=None):
         agent_state["connection"] = "online"
         update_tray_status("Running — waiting for jobs")
         log("✅ Reconnected — server se jud gaya")
+        # Success hamesha batao — chahe manual ho ya auto. Isi ka
+        # to intezaar tha.
         tray_notify("Connected", "Server se jud gaya — pending print ab nikal jayenge")
+        reset_auto_reconnect_notice()
     else:
         agent_state["connection"] = "offline"
         update_tray_status("Offline — click Reconnect to Server")
         log("❌ Reconnect fail — server tak nahi pahunche", "WARN")
-        tray_notify("Not connected", "Internet check karke dobara Reconnect dabao")
+        # Sirf manual click par batao. Auto koshish har baar
+        # notification bheje to lambi outage me spam ban jaayega.
+        if announce:
+            tray_notify("Not connected", "Internet check karke dobara Reconnect dabao")
     return connected
 
 def ping_server(timeout=8):
@@ -2535,6 +2933,104 @@ def tray_notify(title, msg):
             icon.notify(msg, f"QR Se Print — {title}")
     except Exception:
         pass
+
+# ══════════════════════════════════════════════════════════════
+#  OFFLINE -> NOTIFICATION + 10 SECOND ULTA COUNTER + AUTO RECONNECT
+#
+#  Pehle offline hone par sirf tray ka text badalta tha. Shop wale ka
+#  dhyan tray par tabhi jaata hai jab print na nikle — tab tak customer
+#  khada rehta hai. Ab Windows ka notification turant dikhta hai aur
+#  10 second baad agent KHUD reconnect kar leta hai.
+#
+#  EK BAAT SAAF: Windows ke tray notification (Shell_NotifyIcon balloon,
+#  jo pystray use karta hai) me BUTTON nahi ho sakta — wo sirf text
+#  dikhata hai. Isliye ulta counter TRAY TOOLTIP me chalta hai, jahan
+#  har second update hota hai:
+#      "Offline — 7s me auto reconnect"
+#  User chahe to tray par right-click -> Reconnect to Server dabakar
+#  turant kara sakta hai; tab counter apne aap ruk jaata hai.
+# ══════════════════════════════════════════════════════════════
+_auto_rc_lock = threading.Lock()
+_auto_rc_running = False
+_auto_rc_cancel = threading.Event()
+_auto_rc_last_notify = 0.0
+
+
+def auto_reconnect_active():
+    """Countdown chal raha hai? (print_loop tray text overwrite na kare)"""
+    return _auto_rc_running
+
+
+def cancel_auto_reconnect():
+    """User ne khud Reconnect daba diya — counter ab bekaar hai."""
+    _auto_rc_cancel.set()
+
+
+def reset_auto_reconnect_notice():
+    """Connection wapas aane par — agli baar notification turant aaye."""
+    global _auto_rc_last_notify
+    _auto_rc_last_notify = 0.0
+
+
+def start_auto_reconnect_countdown():
+    """
+    Offline hote hi ek notification bhejo, tray me 10 se 1 tak ulta
+    counter chalao, phir khud reconnect kar do.
+
+    Alag thread me chalta hai taaki print loop ruke nahi.
+    """
+    global _auto_rc_running
+    with _auto_rc_lock:
+        if _auto_rc_running:
+            return                      # ek waqt me ek hi counter
+        _auto_rc_running = True
+    _auto_rc_cancel.clear()
+
+    def _run():
+        global _auto_rc_running, _auto_rc_last_notify
+        try:
+            # Raat bhar internet band ho to har baar notification bhejna
+            # torture hai. Isliye notification AUTO_RECONNECT_NOTIFY_GAP me
+            # ek baar — par reconnect ki koshish tab bhi hoti rehti hai.
+            now = time.time()
+            if now - _auto_rc_last_notify >= AUTO_RECONNECT_NOTIFY_GAP:
+                _auto_rc_last_notify = now
+                tray_notify(
+                    "Connection toot gaya",
+                    f"Server se baat nahi ho rahi. {AUTO_RECONNECT_SECONDS} second me "
+                    f"apne aap reconnect hoga.\n"
+                    f"Turant karna ho to tray icon par right-click karke "
+                    f"'Reconnect to Server' dabao.")
+
+            for left in range(AUTO_RECONNECT_SECONDS, 0, -1):
+                if not agent_state.get("running"):
+                    return
+                if agent_state.get("connection") == "online":
+                    log("✅ Counter ke beech hi connection wapas aa gaya")
+                    return
+                update_tray_status(f"Offline — {left}s me auto reconnect")
+                # wait() us hi pal wapas aa jaata hai jab user Reconnect
+                # dabaye — poore 1 second ka intezaar nahi karna padta.
+                if _auto_rc_cancel.wait(timeout=1.0):
+                    log("🔌 User ne khud Reconnect dabaya — counter band")
+                    return
+
+            if not agent_state.get("running"):
+                return
+            log(f"⏱️  {AUTO_RECONNECT_SECONDS}s pura — auto reconnect chala rahe hain")
+            update_tray_status("Auto reconnect ho raha hai...")
+            # announce=False: fail hone par notification mat bhejo, warna
+            # lambi outage me har koshish par ek notification aayegi.
+            reconnect_to_server(announce=False)
+        except Exception as e:
+            log(f"Auto reconnect counter error: {e}", "WARN")
+        finally:
+            with _auto_rc_lock:
+                _auto_rc_running = False
+
+    threading.Thread(target=_run, daemon=True,
+                     name="auto-reconnect").start()
+
 
 def create_tray_icon_image():
     """Draw a small printer-like icon (using Pillow)"""
@@ -2639,6 +3135,87 @@ def quit_agent(icon=None, item=None):
         agent_state["tray_icon"].stop()
     os._exit(0)
 
+def _tray_action(fn):
+    """
+    Tray menu me function SEEDHA mat do — hamesha isse lapet kar do.
+
+    KYUN (ye ek asli bug tha, theory nahi):
+    pystray sirf 0, 1 ya 2 parameter wala callable accept karta hai. 3 ya
+    usse zyada dekhte hi wo MenuItem banate waqt phenk deta hai:
+
+        File "pystray/_base.py", in _assert_action
+        ValueError: <function reconnect_to_server at 0x...>
+
+    Aur ye exception poora `pystray.Menu(...)` banna rok deta hai — yaani
+    TRAY ICON BANTA HI NAHI. v2.3 me bilkul yahi hua: auto-reconnect
+    feature ne reconnect_to_server() me teesra parameter (announce=True)
+    jod diya, aur us din se na tray icon aaya na panel khula. Printing
+    chalti rehti thi kyunki wo apne alag thread me hai — isliye wajah
+    pakadna aur mushkil ho gaya tha.
+
+    Ye wrapper hamesha THEEK 2 parameter dikhata hai, chahe asli function
+    me kitne bhi ho. Aage koi naya parameter add kare to bhi tray safe.
+    """
+    def _runner(icon=None, item=None):
+        return fn(icon, item)
+    # Log/debug me asli naam dikhe, '_runner' nahi
+    try:
+        _runner.__name__ = fn.__name__
+    except Exception:
+        pass
+    return _runner
+
+
+# Tray icon ko taiyaar hone ke liye itne second do. Slow PC par pystray
+# ko window banane me thoda time lagta hai; 12s me aaram se ho jaata hai.
+TRAY_WAIT_SEC = 12
+
+
+def _tray_is_up(icon, timeout=TRAY_WAIT_SEC):
+    """
+    Tray icon SACH ME ban gaya?
+
+    icon.run_detached() turant laut aata hai — uska laut jaana iska sabut
+    NAHI hai ki icon ban gaya. pystray Windows par apna (chhupa hua)
+    window ek alag thread me banata hai aur usi ka handle _hwnd me rakhta
+    hai. Us thread me kuch fail ho to _hwnd kabhi set hi nahi hota.
+    Isliye handle ka intezaar karte hain, function ke return ka nahi.
+    """
+    end = time.time() + timeout
+    while time.time() < end:
+        try:
+            if getattr(icon, "_hwnd", None) or getattr(icon, "visible", False):
+                return True
+        except Exception:
+            pass
+        time.sleep(0.25)
+    return False
+
+
+def panel_request_watcher():
+    """
+    Owner ne exe par dobara double-click kiya? Wo doosra instance ek
+    request file chhod kar band ho jaata hai — hum wahi dekh kar apna
+    panel khol dete hain.
+    """
+    while agent_state.get("running", True):
+        try:
+            if os.path.exists(PANEL_REQUEST_FILE):
+                try:
+                    os.remove(PANEL_REQUEST_FILE)
+                except Exception:
+                    pass
+                log("🪟 Panel request mili (exe dobara chalaya gaya) — panel khol rahe hain")
+                if PANEL is not None:
+                    try:
+                        PANEL.open_panel()
+                    except Exception as e:
+                        log(f"Panel nahi khul paya: {e}", "WARN")
+        except Exception:
+            pass
+        time.sleep(1)
+
+
 def run_tray_icon():
     """
     System Tray icon start karo. Yeh function tray ke event-loop mein
@@ -2672,16 +3249,22 @@ def run_tray_icon():
             # DEMO-ONLY: conversion ke turant baad ye apne aap gayab ho
             # jaata hai — pystray har baar menu render karte waqt visible()
             # dobara call karta hai. Reinstall ki zaroorat nahi.
-            Item("⚡ Change Demo ID to Paid Shop", open_upgrade_panel,
+            # ── HAR ACTION _tray_action() SE HO KAR JAATA HAI ──
+            # Ek bhi action seedha diya aur usme 2 se zyada parameter hue,
+            # to pystray poora menu banane se mana kar deta hai aur TRAY
+            # ICON GAYAB ho jaata hai (v2.3 me reconnect_to_server ke saath
+            # yahi hua tha). Naya menu item add karo to wrapper mat bhoolna.
+            Item("⚡ Change Demo ID to Paid Shop", _tray_action(open_upgrade_panel),
                  visible=lambda item: is_demo_shop()),
-            Item("⚙ Settings", open_panel, default=True),
-            Item("🔌 Reconnect to Server", reconnect_to_server),
-            Item(lambda item: f"🔔 Counter Approval: {'ON' if approval_enabled() else 'OFF'}", toggle_approval),
-            Item("📋 View Logs", open_logs),
-            Item("💬 Contact Admin", contact_admin),
-            Item("⬆️ Check for Update", manual_update_check),
-            Item("🔄 Change Shop ID", change_shop_id),
-            Item("❌ Exit", quit_agent),
+            Item("⚙ Settings", _tray_action(open_panel), default=True),
+            Item("🔌 Reconnect to Server", _tray_action(reconnect_to_server)),
+            Item(lambda item: f"🔔 Counter Approval: {'ON' if approval_enabled() else 'OFF'}",
+                 _tray_action(toggle_approval)),
+            Item("📋 View Logs", _tray_action(open_logs)),
+            Item("💬 Contact Admin", _tray_action(contact_admin)),
+            Item("⬆️ Check for Update", _tray_action(manual_update_check)),
+            Item("🔄 Change Shop ID", _tray_action(change_shop_id)),
+            Item("❌ Exit", _tray_action(quit_agent)),
         )
 
         icon_image = create_tray_icon_image()
@@ -2712,6 +3295,7 @@ def run_tray_icon():
                 use_panel = False
 
         if not use_panel:
+            log("Panel is PC par available nahi — tray main thread par chala rahe hain")
             icon.run()               # purana behaviour — tray only
             return
 
@@ -2723,6 +3307,29 @@ def run_tray_icon():
             log(f"Tray detached mode unavailable ({e}) — tray-only mode", "WARN")
             icon.run()
             return
+
+        # ── AB CONFIRM KARO KI TRAY SACH ME AAYA ──
+        # Ye check isliye hai: run_detached() turant laut aata hai, par
+        # icon banta hai ek doosre thread me. Wahan kuch fail ho jaye to
+        # PEHLE ye hota tha — na tray icon, na koi error, aur uske turant
+        # baad panel main thread le leta tha. Owner ko dikhta kuch nahi
+        # tha aur log bilkul saaf rehta tha, isliye wajah pakadna
+        # namumkin ho jaata tha. Ab agar tray nahi aaya to use main
+        # thread par chalate hain — tray PAKKA milega (panel us halat me
+        # nahi khulega, par printing par koi asar nahi).
+        if not _tray_is_up(icon):
+            log(f"Tray icon {TRAY_WAIT_SEC}s me nahi aaya — ab ise main thread "
+                f"par chala rahe hain. Panel is baar nahi khulega; printing "
+                f"aur auto-update normal chalte rahenge.", "WARN")
+            try:
+                icon.run()
+            except Exception as e:
+                import traceback as _tb
+                log(f"Tray main thread par bhi start nahi hua: {e}", "ERROR")
+                log(_tb.format_exc(), "ERROR")
+            return
+
+        log("✅ Tray icon ready — ab panel main thread par khul raha hai")
 
         # Main thread ab panel ko de do. Shop ID verify ho chuka hai,
         # isliye panel seedha khulega (spec).
@@ -2738,16 +3345,24 @@ def run_tray_icon():
         # karke os._exit(0) call karta hai.
         while agent_state.get("running", True):
             time.sleep(1)
-    except ImportError:
-        log("⚠️  pystray/Pillow not available — tray mode disabled, running in normal console mode", "WARN")
-        log("    To install: pip install pystray Pillow", "WARN")
+    except ImportError as e:
+        # Pehle yahan sirf ek generic line jaati thi. Asli module ka naam
+        # kabhi log me nahi aata tha, isliye "tray gayab" wali shikayat par
+        # kuch pata hi nahi chalta tha ki kaun si cheez missing hai.
+        import traceback as _tb
+        log(f"⚠️  Tray ke liye zaroori module nahi mila: {e}", "WARN")
+        log(_tb.format_exc(), "WARN")
+        log("    Console mode me chal rahe hain — printing normal chalegi.", "WARN")
     except Exception as e:
+        import traceback as _tb
         log(f"❌ Tray icon could not start: {e}", "ERROR")
+        log(_tb.format_exc(), "ERROR")
 
 # ─── MAIN PRINT LOOP (background thread mein chalta hai jab tray active ho) ──
 def print_loop():
     log("=" * 50)
-    log(f"Checking print jobs every {CHECK_INTERVAL}s (idle: {IDLE_INTERVAL_1}s) — v2.0 me file Cloudinary se seedha aati hai, isliye tez check safe hai")
+    log(f"Job check: {CHECK_INTERVAL}s busy | {IDLE_INTERVAL_1}s ({IDLE_STEP_1_SEC//60} min khaali) "
+        f"| {IDLE_INTERVAL_2}s ({IDLE_STEP_2_SEC//60} min khaali) — job aate hi wapas {CHECK_INTERVAL}s par")
     log("=" * 50)
     update_tray_status("Running — waiting for jobs")
 
@@ -2756,6 +3371,8 @@ def print_loop():
     idle_since = time.time()      # aakhri job kab aaya tha
     cur_interval = CHECK_INTERVAL
     elapsed_min = 0.0
+    last_socket_refresh = time.time()
+    last_err_log = 0.0
 
     while agent_state["running"]:
         try:
@@ -2765,10 +3382,30 @@ def print_loop():
                 errors = 0
                 idle_since = time.time()
                 cur_interval = CHECK_INTERVAL
-                log("🔌 Reconnect requested — checking the server now...")
+                # Manual Reconnect ka matlab hi yahi hai ki kuch atka hai —
+                # isliye purana session phenk kar naya socket banao.
+                reset_http()
+                last_socket_refresh = time.time()
+                _reset_poll_log()
+                log("🔌 Reconnect requested — naya connection banakar check kar rahe hain...")
+
+            # Lambi idle ke baad socket mar chuka hota hai. Job aane ka
+            # intezaar mat karo — khaali baithe hi session refresh kar do,
+            # taaki asli job aaye to pehla hi poll kaam kar jaye.
+            if (time.time() - idle_since) > IDLE_STEP_1_SEC and \
+               (time.time() - last_socket_refresh) >= IDLE_SOCKET_REFRESH_SEC:
+                reset_http()
+                last_socket_refresh = time.time()
+                log("🔁 Idle socket refresh — naya connection taiyaar")
 
             jobs = get_pending_jobs()
             check_count += 1
+
+            # None = poll FAIL. Ise [] (koi job nahi) se alag rakhna
+            # zaroori hai. except me bhejte hain taaki wahan baithi
+            # recovery — reset_http(), backoff, tray "Offline" — chale.
+            if jobs is None:
+                raise PollError("server se jawab nahi mila")
 
             # Server ne jawab de diya = connection theek hai. Chahe jobs
             # mile ya nahi, error state yahin clear kar do.
@@ -2777,6 +3414,9 @@ def print_loop():
             #  "Error — retrying" par atak jaata tha.)
             if errors:
                 log("✅ Connection restored — back to normal")
+                _reset_poll_log()
+                last_err_log = 0.0
+                reset_auto_reconnect_notice()
             errors = 0
             agent_state["connection"] = "online"
 
@@ -2796,7 +3436,12 @@ def print_loop():
                 # Pehle 45s tak chala jaata tha, jisse job aane ke baad
                 # print me 45 second tak ki deri ho sakti thi.
                 idle_sec = time.time() - idle_since
-                new_interval = CHECK_INTERVAL if idle_sec <= 120 else IDLE_INTERVAL_1
+                if idle_sec <= IDLE_STEP_1_SEC:
+                    new_interval = CHECK_INTERVAL      # 5s
+                elif idle_sec <= IDLE_STEP_2_SEC:
+                    new_interval = IDLE_INTERVAL_1     # 10s
+                else:
+                    new_interval = IDLE_INTERVAL_2     # 12s
                 if new_interval != cur_interval:
                     cur_interval = new_interval
                     log(f"💤 Idle — ab har {cur_interval}s check")
@@ -2818,15 +3463,34 @@ def print_loop():
             break
         except Exception as e:
             errors += 1
-            log(f"❌ Error: {e}", "ERROR")
-            if errors == 3:
-                # Teen baar fail = socket sach me mar chuka hai. Naya session
+            # Har fail par line likhne se log file bhar jaati hai:
+            # 12s polling me ~300 line/ghanta, aur asli baat dab jaati
+            # hai. Pehli 3 turant likho, uske baad har 60s me ek.
+            if errors <= 3 or (time.time() - last_err_log) >= 60:
+                last_err_log = time.time()
+                log(f"❌ Error: {e}", "ERROR")
+            if errors == 2:
+                # Do baar fail = socket sach me mar chuka hai. Naya session
                 # banao taaki user ko khud Reconnect na dabana pade.
+                # (Pehle 3 par tha — 12s polling me wo ~36s ka intezaar
+                #  ban jaata tha. 2 par recovery kaafi tez ho jaati hai.)
                 log("🔄 Connection reset kar rahe hain (auto)")
                 reset_http()
+                last_socket_refresh = time.time()
             if errors >= 3:
+                was_offline = agent_state.get("connection") == "offline"
                 agent_state["connection"] = "offline"
-                update_tray_status("Offline — click Reconnect to Server")
+                # Counter chal raha ho to tray ka text mat chheedo —
+                # warna ulta counter har second overwrite ho jayega.
+                if not auto_reconnect_active():
+                    update_tray_status("Offline — click Reconnect to Server")
+                # Counter sirf tab shuru karo jab ABHI offline hue hain,
+                # ya lambi outage me notification ka gap poora ho gaya ho.
+                # Har error par shuru karte to 10s ka loop ban jaata aur
+                # backoff ka koi matlab nahi rehta.
+                if (not was_offline) or \
+                   (time.time() - _auto_rc_last_notify) >= AUTO_RECONNECT_NOTIFY_GAP:
+                    start_auto_reconnect_countdown()
             else:
                 agent_state["connection"] = "connecting"
                 update_tray_status("Reconnecting...")
@@ -2908,6 +3572,17 @@ def main():
     # foreground mein chal sake (yeh OS requirement hai tray icons ke liye)
     print_thread = threading.Thread(target=print_loop, daemon=True)
     print_thread.start()
+
+    # Owner exe par dobara double-click kare to panel khul jaye
+    threading.Thread(target=panel_request_watcher, daemon=True).start()
+
+    # Purani request file (pichhli baar ki) pehle hi saaf kar do, warna
+    # start hote hi bina wajah panel khul jayega.
+    try:
+        if os.path.exists(PANEL_REQUEST_FILE):
+            os.remove(PANEL_REQUEST_FILE)
+    except Exception:
+        pass
 
     # Tray icon start karo (yeh block karega jab tak Exit na dabaya jaye)
     try:

@@ -1,1120 +1,631 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>QR Se Print — Print Agent</title>
+<!--
+  ══════════════════════════════════════════════════════════════
+  QR SE PRINT — DESKTOP PANEL  (v2.3)
+
+  Ye panel JAAN-BOOJH KAR chhota hai. Pehle isme 9 page the (Shop
+  Settings, Pricing, Payment, Advanced, QR, Support, Updates...) —
+  wo sab website dashboard par pehle se hain, aur wahi asli jagah
+  hai. Shop ke PC par sirf teen cheezon ki zaroorat padti hai:
+
+     1. Agent zinda hai ya nahi
+     2. Kaunsa printer B&W ka hai, kaunsa Color ka
+     3. Kuch atka lage to Sync
+
+  Baaki sab kaam tray menu se hota hai (Logs, Contact Admin,
+  Check for Update, Change Shop ID, Reconnect, Exit) — TRAY KO
+  CHHUA NAHI GAYA hai.
+
+  EK CHHUPA HUA PAGE: 'upgrade' (Demo → Paid). Main screen par
+  kahin nahi dikhta. Tray ka "⚡ Change Demo ID to Paid Shop"
+  Python se go('upgrade') call karta hai, tabhi khulta hai.
+  Isse tray ka wo option zinda rehta hai aur design saaf rehta hai.
+  ══════════════════════════════════════════════════════════════
+-->
 <style>
-/* ══════════════════════════════════════════════════════════════
-   QR SE PRINT — DESKTOP CONTROL PANEL
-   Design system: restrained. White canvas, dark sidebar, brand pink
-   only for the active state and primary actions. Colour otherwise
-   means status, nothing else.
-   ══════════════════════════════════════════════════════════════ */
-:root{
-  --ink:#12131a; --ink-2:#3d4152; --muted:#767b8d;
-  --line:#e9eaef; --bg:#f5f6f8; --card:#ffffff;
-  --pink:#ff2e63; --pink-2:#d81f6a; --violet:#7c3aed;
-  --green:#16a34a; --green-bg:#f0fdf4; --green-line:#bbf7d0;
-  --amber:#f59e0b; --amber-bg:#fffbeb; --amber-line:#fde68a;
-  --red:#e11d48;   --red-bg:#fef2f2;   --red-line:#fecaca;
-  --sidebar:#12131a; --sidebar-2:#1c1e27;
-  --r:14px; --r-lg:18px;
-  --shadow:0 1px 2px rgba(16,18,32,.04), 0 4px 16px rgba(16,18,32,.06);
-  --sidebar-w:248px;
-}
-*{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
-body{
-  font-family:"Segoe UI Variable Display","Segoe UI",Inter,system-ui,-apple-system,sans-serif;
-  background:var(--bg); color:var(--ink);
-  font-size:14px; line-height:1.5;
-  -webkit-font-smoothing:antialiased;
-  overflow:hidden; user-select:none;
-}
-::-webkit-scrollbar{width:10px;height:10px}
-::-webkit-scrollbar-thumb{background:#d3d6de;border-radius:99px;border:3px solid transparent;background-clip:content-box}
-::-webkit-scrollbar-thumb:hover{background:#b9bdc9;background-clip:content-box}
-::-webkit-scrollbar-track{background:transparent}
+  /* Shop ke PC par system dark mode ho to form control ulte rang
+     me na dikhein — panel hamesha light hai. */
+  :root { color-scheme: light; }
 
-.shell{display:flex;height:100vh;overflow:hidden}
+  :root{
+    --bg:        #ffffff;
+    --ink:       #0b1220;
+    --ink-2:     #334155;
+    --muted:     #94a3b8;
+    --line:      #eef0f6;
+    --card:      #ffffff;
+    --card-line: #e9ecf5;
 
-/* ── SIDEBAR ────────────────────────────────────────────────── */
-.sidebar{
-  width:var(--sidebar-w); flex:0 0 var(--sidebar-w);
-  background:var(--sidebar); color:#fff;
-  display:flex; flex-direction:column;
-  transition:width .22s cubic-bezier(.4,0,.2,1), flex-basis .22s cubic-bezier(.4,0,.2,1);
-}
-body.collapsed .sidebar{width:78px;flex-basis:78px}
-.brand{display:flex;align-items:center;gap:11px;padding:18px 16px 16px;flex:0 0 auto}
-.brand-mark{width:42px;height:42px;flex:0 0 42px;border-radius:11px;background:#fff;
-  display:grid;place-items:center;padding:5px;box-shadow:0 2px 10px rgba(0,0,0,.25)}
-.brand-mark img{width:100%;height:100%;object-fit:contain;display:block}
-.brand-text{min-width:0;overflow:hidden;white-space:nowrap}
-.brand-text b{display:block;font-size:15px;font-weight:750;letter-spacing:-.2px}
-.brand-text span{display:block;font-size:11px;color:#8b90a3;font-weight:600}
-body.collapsed .brand-text{display:none}
+    --green:     #16a34a;
+    --green-d:   #128a3e;
+    --indigo:    #3b32cf;
+    --indigo-d:  #322ab4;
 
-.nav{flex:1 1 auto;overflow-y:auto;overflow-x:hidden;padding:6px 10px 10px}
-.nav::-webkit-scrollbar{width:6px}
-.nav::-webkit-scrollbar-thumb{background:#2e3140;border:2px solid transparent}
-.nav-item{
-  display:flex;align-items:center;gap:12px;
-  padding:11px 13px;margin-bottom:3px;border-radius:11px;
-  color:#a7abbd;font-size:13.5px;font-weight:600;cursor:pointer;
-  border:none;background:none;width:100%;text-align:left;
-  transition:background .14s, color .14s;
-  white-space:nowrap;
-}
-.nav-item svg{width:19px;height:19px;flex:0 0 19px;stroke-width:1.8}
-.nav-item:hover{background:#22242f;color:#e6e8ef}
-.nav-item.active{
-  background:linear-gradient(135deg,var(--pink),var(--pink-2));
-  color:#fff;box-shadow:0 4px 14px rgba(255,46,99,.32);
-}
-body.collapsed .nav-item{justify-content:center;padding:11px 0}
-body.collapsed .nav-item .nav-label{display:none}
+    --pink-bg:   #fdeef2;
+    --pink-line: #f8d5de;
+    --pink:      #ec4899;
 
-.side-foot{flex:0 0 auto;padding:10px}
-.upgrade-card{
-  display:none;background:linear-gradient(150deg,#3b1d6e,#5b21b6);
-  border:1px solid #7c3aed55;border-radius:var(--r);padding:13px;margin-bottom:9px;
-}
-body.is-demo .upgrade-card{display:block}
-body.collapsed .upgrade-card{display:none}
-.upgrade-card b{display:block;font-size:12.5px;margin-bottom:3px}
-.upgrade-card p{font-size:11px;color:#cdbdf5;line-height:1.5;margin-bottom:10px}
-.upgrade-card button{
-  width:100%;border:none;border-radius:10px;padding:9px;cursor:pointer;
-  background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;
-  font-size:12px;font-weight:750;font-family:inherit;
-}
-.upgrade-card button:hover{filter:brightness(1.12)}
+    --ok:        #16a34a;
+    --warn:      #d97706;
+    --bad:       #dc2626;
 
-.agent-box{background:var(--sidebar-2);border-radius:var(--r);padding:13px;margin-bottom:9px}
-body.collapsed .agent-box{display:none}
-.agent-box .row1{display:flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700}
-.agent-box .sub{font-size:10.5px;color:#7f8497;margin-top:3px}
-.agent-box hr{border:none;border-top:1px solid #2c2f3c;margin:11px 0}
-.agent-box .lbl{font-size:9.5px;color:#7f8497;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
-.agent-box .val{font-size:12.5px;font-weight:700;display:flex;align-items:center;gap:6px;margin-top:2px;word-break:break-all}
-.copy-btn{background:none;border:none;color:#7f8497;cursor:pointer;padding:2px;border-radius:5px;flex:0 0 auto}
-.copy-btn:hover{color:#fff;background:#2c2f3c}
-.copy-btn svg{width:13px;height:13px;display:block}
+    --r:         16px;
+    --shadow:    0 1px 2px rgba(15,23,42,.04), 0 8px 24px rgba(15,23,42,.05);
+  }
 
-.collapse-btn{
-  width:100%;background:var(--sidebar-2);border:none;border-radius:var(--r);
-  padding:12px;color:#a7abbd;font-size:12.5px;font-weight:650;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;gap:8px;font-family:inherit;
-}
-.collapse-btn:hover{background:#282b38;color:#fff}
-.collapse-btn svg{width:15px;height:15px;transition:transform .22s}
-body.collapsed .collapse-btn svg{transform:rotate(180deg)}
-body.collapsed .collapse-btn span{display:none}
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,sans-serif;
+    font-size:15px;
+    -webkit-font-smoothing:antialiased;
+    overflow-x:hidden;
+  }
 
-/* ── MAIN ───────────────────────────────────────────────────── */
-.main{flex:1 1 auto;display:flex;flex-direction:column;min-width:0;background:var(--card)}
+  .wrap{
+    max-width:880px;
+    margin:0 auto;
+    padding:14px 22px 8px;
+  }
 
-.topbar{
-  flex:0 0 auto;display:flex;align-items:center;gap:14px;
-  padding:14px 18px;border-bottom:1px solid var(--line);
-  -webkit-app-region:drag;
-}
-.topbar button,.topbar .chip,.topbar .pill{-webkit-app-region:no-drag}
-.hamburger{background:none;border:none;cursor:pointer;padding:7px;border-radius:9px;color:var(--ink-2);flex:0 0 auto}
-.hamburger:hover{background:var(--bg)}
-.hamburger svg{width:19px;height:19px;display:block}
-.page-title{flex:1 1 auto;min-width:0}
-.page-title h1{font-size:19px;font-weight:750;letter-spacing:-.3px;line-height:1.25}
-.page-title p{font-size:12px;color:var(--muted)}
+  /* ── HEADER ── */
+  .hero{ text-align:center; padding:0 0 12px; }
+  .logo{
+    width:66px; height:66px; margin:0 auto 8px;
+    border-radius:20px;
+    background:linear-gradient(150deg,#ff5fa2 0%,#f0326c 48%,#e11d48 100%);
+    box-shadow:0 8px 22px rgba(225,29,72,.28);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .logo svg{ width:39px; height:39px; display:block; }
+  .brand{
+    font-size:28px; font-weight:800; letter-spacing:-.6px;
+    line-height:1.1; margin:0 0 4px;
+  }
+  .status{
+    display:inline-flex; align-items:center; gap:8px;
+    font-size:14.5px; font-weight:600; color:var(--ink-2);
+  }
+  .dot{
+    width:9px; height:9px; border-radius:50%;
+    background:var(--ok); flex:none;
+    box-shadow:0 0 0 3px rgba(22,163,74,.15);
+  }
+  .dot.warn{ background:var(--warn); box-shadow:0 0 0 3px rgba(217,119,6,.15); }
+  .dot.bad { background:var(--bad);  box-shadow:0 0 0 3px rgba(220,38,38,.15); }
 
-.pill{
-  display:inline-flex;align-items:center;gap:7px;
-  padding:8px 15px;border-radius:99px;font-size:12.5px;font-weight:700;
-  background:var(--green-bg);color:#14532d;border:1px solid var(--green-line);
-  white-space:nowrap;
-}
-.pill.warn{background:var(--amber-bg);color:#78350f;border-color:var(--amber-line)}
-.pill.bad{background:var(--red-bg);color:#881337;border-color:var(--red-line)}
-.dot{width:8px;height:8px;border-radius:99px;background:var(--green);flex:0 0 8px}
-.pill.warn .dot{background:var(--amber);animation:blink 1.1s ease-in-out infinite}
-.pill.bad  .dot{background:var(--red)}
-@keyframes blink{50%{opacity:.3}}
+  /* ── INFO CARD ── */
+  .card{
+    background:var(--card);
+    border:1px solid var(--card-line);
+    border-radius:var(--r);
+    box-shadow:var(--shadow);
+    overflow:hidden;
+  }
+  .row{
+    display:flex; align-items:center; gap:14px;
+    padding:10px 18px;
+    border-bottom:1px solid var(--line);
+  }
+  .row:last-child{ border-bottom:0; }
+  .ico{
+    width:36px; height:36px; border-radius:10px; flex:none;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .ico svg{ width:20px; height:20px; }
+  .ico.pk{ background:#ffe3ee; color:#e11d63; }
+  .ico.ind{ background:#e6e8fd; color:#4338ca; }
+  .ico.pu{ background:#efe6fd; color:#7c3aed; }
+  .ico.gr{ background:#d9fbe6; color:#12924a; }
+  .ico.bl{ background:#dbeafe; color:#1d4ed8; }
+  .rlabel{ flex:1; font-size:15px; font-weight:600; color:var(--ink-2); }
+  .rval{
+    font-size:15px; font-weight:800; color:var(--ink);
+    text-align:right; max-width:52%;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .pill{
+    display:inline-flex; align-items:center; gap:7px;
+    background:#d9fbe6; color:#0f7a3d;
+    font-size:13.5px; font-weight:800;
+    padding:6px 13px; border-radius:999px;
+  }
+  .pill.warn{ background:#fef3c7; color:#92400e; }
+  .pill.bad { background:#fee2e2; color:#b91c1c; }
+  .pill i{ width:8px; height:8px; border-radius:50%; background:currentColor; }
 
-.chip{
-  display:flex;align-items:center;gap:10px;padding:7px 14px;
-  border:1px solid var(--line);border-radius:12px;background:var(--card);
-  max-width:230px;
-}
-.chip .ico{font-size:17px;flex:0 0 auto}
-.chip .txt{min-width:0}
-.chip b{display:block;font-size:12.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.chip span{display:block;font-size:10.5px;color:var(--muted);font-family:ui-monospace,Consolas,monospace}
+  /* ── PRINTER CARD ── */
+  .pcard{
+    margin-top:12px;
+    background:var(--pink-bg);
+    border:1px solid var(--pink-line);
+    border-radius:var(--r);
+    padding:14px 18px;
+    display:flex; align-items:center; gap:16px;
+  }
+  .ptitle{ display:flex; align-items:center; gap:12px; flex:none; }
+  .ptitle .ico{ background:#ffd9e6; color:#e11d63; }
+  .ptitle b{ font-size:17px; font-weight:800; letter-spacing:-.2px; }
+  .pgrid{ flex:1; display:grid; grid-template-columns:1fr 1fr; gap:14px; min-width:0; }
+  .pgrid label{
+    display:block; font-size:12px; font-weight:800;
+    color:#7c5866; margin:0 0 5px;
+  }
+  select{
+    width:100%; height:42px;
+    padding:0 34px 0 12px;
+    font-family:inherit; font-size:14px; font-weight:600; color:var(--ink);
+    background:#fff url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") no-repeat right 11px center;
+    background-size:16px;
+    border:1px solid #f0cfda; border-radius:11px;
+    -webkit-appearance:none; appearance:none;
+    cursor:pointer; text-overflow:ellipsis;
+  }
+  select:focus{ outline:none; border-color:var(--pink); box-shadow:0 0 0 3px rgba(236,72,153,.14); }
+  select:disabled{ opacity:.55; cursor:default; }
 
-.win-btns{display:flex;gap:2px;flex:0 0 auto}
-.win-btns button{background:none;border:none;cursor:pointer;padding:9px 13px;border-radius:8px;color:var(--ink-2)}
-.win-btns button:hover{background:var(--bg)}
-.win-btns button.close:hover{background:var(--pink);color:#fff}
-.win-btns svg{width:15px;height:15px;display:block;stroke-width:1.9}
+  /* ── BUTTONS ── */
+  .btns{ display:grid; grid-template-columns:1fr 1fr; gap:13px; margin-top:12px; }
+  .btn{
+    height:52px; border:0; border-radius:13px;
+    font-family:inherit; font-size:16px; font-weight:800; color:#fff;
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    cursor:pointer; transition:transform .12s, filter .12s;
+  }
+  .btn svg{ width:20px; height:20px; }
+  .btn:hover:not(:disabled){ filter:brightness(1.06); }
+  .btn:active:not(:disabled){ transform:translateY(1px); }
+  .btn:disabled{ opacity:.6; cursor:default; }
+  .btn.green { background:var(--green);  box-shadow:0 6px 16px rgba(22,163,74,.26); }
+  .btn.indigo{ background:var(--indigo); box-shadow:0 6px 16px rgba(59,50,207,.26); }
+  .spin{ animation:sp .9s linear infinite; }
+  @keyframes sp{ to{ transform:rotate(360deg); } }
 
-.content{flex:1 1 auto;overflow-y:auto;padding:18px;background:var(--bg)}
-.page{display:none;animation:fade .2s ease}
-.page.active{display:block}
-@keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+  .foot{
+    text-align:center; color:var(--muted);
+    font-size:12.5px; font-weight:600;
+    padding:10px 0 2px;
+  }
 
-.statusbar{
-  flex:0 0 auto;display:flex;align-items:center;gap:16px;
-  padding:9px 18px;border-top:1px solid var(--line);
-  font-size:11.5px;color:var(--muted);background:var(--card);
-}
-.statusbar .sb-r{margin-left:auto}
+  /* ── TOAST ── */
+  .toast{
+    position:fixed; left:50%; bottom:22px; transform:translate(-50%,140%);
+    background:#0b1220; color:#fff;
+    font-size:14px; font-weight:700;
+    padding:12px 20px; border-radius:12px;
+    box-shadow:0 12px 32px rgba(2,6,23,.3);
+    display:flex; align-items:center; gap:10px;
+    transition:transform .26s cubic-bezier(.2,.9,.3,1.2);
+    z-index:60; max-width:82%;
+  }
+  .toast.show{ transform:translate(-50%,0); }
+  .toast.ok  { background:#0f7a3d; }
+  .toast.err { background:#b91c1c; }
 
-/* ── CARDS ──────────────────────────────────────────────────── */
-.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:17px;box-shadow:var(--shadow)}
-.card-h{display:flex;align-items:center;gap:11px;margin-bottom:13px}
-.card-h .ci{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;font-size:16px;flex:0 0 34px}
-.card-h h3{font-size:14.5px;font-weight:700;letter-spacing:-.15px}
-.card-h p{font-size:11.5px;color:var(--muted)}
+  /* ══════════════════════════════════════════════════════════
+     UPGRADE (Demo → Paid) — CHHUPA HUA
+     Main screen par kabhi nahi dikhta. Sirf tray ke
+     "⚡ Change Demo ID to Paid Shop" se khulta hai, jo Python se
+     go('upgrade') call karta hai.
+     ══════════════════════════════════════════════════════════ */
+  #up{ display:none; position:fixed; inset:0; background:var(--bg); z-index:80; overflow:auto; }
+  body.upgrade #up{ display:block; }
+  body.upgrade .wrap{ display:none; }
+  .upw{ max-width:520px; margin:0 auto; padding:26px 22px; }
+  .uph{ text-align:center; margin-bottom:18px; }
+  .uph h2{ font-size:23px; font-weight:800; margin:0 0 6px; letter-spacing:-.4px; }
+  .uph p{ margin:0; color:var(--ink-2); font-size:14px; line-height:1.6; }
+  .fld{ margin-bottom:13px; }
+  .fld label{ display:block; font-size:12.5px; font-weight:800; color:var(--ink-2); margin-bottom:6px; }
+  .fld input{
+    width:100%; height:46px; padding:0 13px;
+    font-family:inherit; font-size:15px; font-weight:600; color:var(--ink);
+    border:1.5px solid #dfe3ee; border-radius:11px; background:#fff;
+  }
+  .fld input:focus{ outline:none; border-color:var(--indigo); box-shadow:0 0 0 3px rgba(59,50,207,.13); }
+  .btn.ghost{ background:#fff; color:var(--ink-2); border:1.5px solid #dfe3ee; box-shadow:none; }
+  .btn.wide{ width:100%; margin-top:4px; }
+  .kv{
+    display:flex; justify-content:space-between; gap:14px;
+    padding:11px 0; border-bottom:1px solid var(--line); font-size:14.5px;
+  }
+  .kv:last-child{ border-bottom:0; }
+  .kv span{ color:var(--ink-2); font-weight:600; }
+  .kv b{ font-weight:800; }
+  .note{
+    background:#fff7ed; border:1px solid #fed7aa; color:#9a3412;
+    border-radius:12px; padding:12px 14px; font-size:13px;
+    line-height:1.65; margin-bottom:14px;
+  }
+  .note.good{ background:#f0fdf4; border-color:#bbf7d0; color:#166534; }
+  .busy{ text-align:center; padding:40px 0; color:var(--ink-2); font-weight:700; }
 
-.grid{display:grid;gap:13px;margin-bottom:13px}
-.g4{grid-template-columns:repeat(4,1fr)}
-.g3{grid-template-columns:repeat(3,1fr)}
-.g2{grid-template-columns:repeat(2,1fr)}
-@media(max-width:1180px){.g4{grid-template-columns:repeat(2,1fr)}.g3{grid-template-columns:1fr 1fr}}
-@media(max-width:820px){.g4,.g3,.g2{grid-template-columns:1fr}}
-
-/* Demo banner */
-.demo-banner{
-  display:none;align-items:center;gap:16px;flex-wrap:wrap;
-  background:linear-gradient(115deg,#f3e8ff,#ede9fe 55%,#e0e7ff);
-  border:1px solid #ddd0fb;border-radius:var(--r-lg);padding:16px 18px;margin-bottom:13px;
-}
-body.is-demo .demo-banner{display:flex}
-.demo-banner .rocket{font-size:26px;flex:0 0 auto}
-.demo-banner .dtxt{flex:1 1 260px;min-width:0}
-.demo-banner h3{font-size:16px;font-weight:750;color:#5b21b6;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
-.demo-banner .tag{background:var(--violet);color:#fff;font-size:9.5px;font-weight:800;padding:3px 8px;border-radius:6px;letter-spacing:.6px}
-.demo-banner p{font-size:12px;color:#6d28d9;margin-top:3px;line-height:1.55}
-.demo-banner .dact{flex:0 0 auto;text-align:center}
-.btn-upgrade{
-  border:none;border-radius:12px;padding:13px 22px;cursor:pointer;font-family:inherit;
-  background:linear-gradient(135deg,#7c3aed,#5b21b6);color:#fff;font-size:13.5px;font-weight:750;
-  box-shadow:0 4px 16px rgba(124,58,237,.3);
-}
-.btn-upgrade:hover{filter:brightness(1.1);transform:translateY(-1px)}
-.demo-banner small{display:block;font-size:10.5px;color:#7c3aed;margin-top:7px}
-
-/* Hero */
-.hero{display:flex;align-items:stretch;gap:0;background:var(--green-bg);border:1px solid var(--green-line);
-  border-radius:var(--r-lg);overflow:hidden;margin-bottom:13px;flex-wrap:wrap}
-.hero.off{background:var(--red-bg);border-color:var(--red-line)}
-.hero.conn{background:var(--amber-bg);border-color:var(--amber-line)}
-.hero-l{display:flex;align-items:center;gap:14px;padding:18px 20px;flex:1 1 300px;min-width:0}
-.hero-badge{width:48px;height:48px;border-radius:99px;background:var(--green);color:#fff;
-  display:grid;place-items:center;font-size:24px;flex:0 0 48px}
-.hero.off .hero-badge{background:var(--red)}
-.hero.conn .hero-badge{background:var(--amber)}
-.hero-l h2{font-size:19px;font-weight:750;color:#14532d;letter-spacing:-.3px}
-.hero.off .hero-l h2{color:#881337}
-.hero.conn .hero-l h2{color:#78350f}
-.hero-l p{font-size:12.5px;color:var(--ink-2);margin-top:2px}
-.hero-r{display:flex;flex:2 1 420px;background:var(--card);border-left:1px solid var(--green-line)}
-.hero.off .hero-r{border-color:var(--red-line)}
-.hero.conn .hero-r{border-color:var(--amber-line)}
-.hero-cell{flex:1 1 0;padding:16px 15px;border-right:1px solid var(--line);min-width:0}
-.hero-cell:last-child{border-right:none}
-.hero-cell .lbl{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
-.hero-cell .val{font-size:13.5px;font-weight:700;margin-top:4px;display:flex;align-items:center;gap:6px;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.hero-cell .val.pink{color:var(--pink)}
-
-/* Stats */
-.stat{display:flex;flex-direction:column;gap:11px}
-.stat-top{display:flex;align-items:center;gap:12px}
-.stat-ico{width:44px;height:44px;border-radius:13px;display:grid;place-items:center;font-size:20px;flex:0 0 44px}
-.stat .lbl{font-size:11.5px;color:var(--muted);font-weight:650}
-.stat .num{font-family:"Segoe UI Variable Display",Inter,sans-serif;font-size:26px;font-weight:800;letter-spacing:-.8px;line-height:1.1}
-.stat .delta{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:6px}
-.stat .delta b{color:var(--green);font-weight:700}
-
-/* Status chips */
-.chips{display:flex;gap:9px;flex-wrap:wrap}
-.schip{
-  flex:1 1 105px;border:1.5px solid var(--line);border-radius:13px;padding:12px;
-  cursor:pointer;background:var(--card);text-align:left;font-family:inherit;transition:.14s;
-}
-.schip:hover{border-color:#cfd3dd;transform:translateY(-1px)}
-.schip b{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700}
-.schip span{display:block;font-size:10.5px;color:var(--muted);margin-top:3px;margin-left:22px}
-.schip.on.good{background:var(--green-bg);border-color:var(--green)}
-.schip.on.warn{background:var(--amber-bg);border-color:var(--amber)}
-.schip.on.bad {background:var(--red-bg);border-color:var(--red)}
-
-/* Buttons */
-.btn{
-  display:inline-flex;align-items:center;justify-content:center;gap:9px;
-  border:1.5px solid var(--line);background:var(--card);color:var(--ink);
-  border-radius:12px;padding:12px 16px;font-size:13px;font-weight:650;
-  cursor:pointer;font-family:inherit;transition:.14s;width:100%;
-}
-.btn:hover{border-color:#cfd3dd;background:#fbfbfc}
-.btn:active{transform:scale(.985)}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-.btn.primary{background:var(--pink);border-color:var(--pink);color:#fff}
-.btn.primary:hover{background:var(--pink-2);border-color:var(--pink-2)}
-.btn.ghost-pink{color:var(--pink);border-color:#ffd0dd}
-.btn.ghost-pink:hover{background:#fff5f8}
-.btn.sm{padding:9px 13px;font-size:12px}
-.btn .bi{font-size:15px}
-
-.qa{display:grid;grid-template-columns:1fr 1fr;gap:9px}
-
-/* Printer rows */
-.prow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
-.prow:last-of-type{border-bottom:none}
-.prow .pn{min-width:0}
-.prow .pn b{display:block;font-size:12.5px;font-weight:700}
-.prow .pn span{display:block;font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.tag-ok{background:var(--green-bg);color:#14532d;border:1px solid var(--green-line);
-  font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:99px;flex:0 0 auto}
-.tag-no{background:var(--red-bg);color:#881337;border:1px solid var(--red-line);
-  font-size:10.5px;font-weight:700;padding:4px 10px;border-radius:99px;flex:0 0 auto}
-
-/* Activity */
-.act{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px}
-.act:last-child{border-bottom:none}
-.act .ai{font-size:15px;flex:0 0 auto}
-.act .an{flex:1 1 auto;font-weight:650;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.act .at{font-size:11px;color:var(--muted);flex:0 0 auto}
-.act .as{font-size:11px;font-weight:700;color:var(--green);flex:0 0 auto}
-
-/* Forms */
-.field{margin-bottom:13px}
-.field label{display:block;font-size:11.5px;font-weight:700;color:var(--ink-2);margin-bottom:6px}
-.field input,.field select,.field textarea{
-  width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:11px;
-  font-size:13px;font-family:inherit;color:var(--ink);background:var(--card);
-  outline:none;transition:border-color .14s, box-shadow .14s;
-}
-.field input:focus,.field select:focus,.field textarea:focus{
-  border-color:var(--pink);box-shadow:0 0 0 3px rgba(255,46,99,.1)}
-.field input:disabled{background:var(--bg);color:var(--muted)}
-.field .hint{font-size:10.5px;color:var(--muted);margin-top:5px}
-.field textarea{resize:vertical;min-height:78px}
-
-.empty{padding:40px 20px;text-align:center;color:var(--muted)}
-.empty .ei{font-size:34px;margin-bottom:11px;opacity:.55}
-.empty p{font-size:13px}
-.skel{background:linear-gradient(90deg,#eef0f3 25%,#f7f8fa 50%,#eef0f3 75%);
-  background-size:200% 100%;animation:sk 1.3s infinite;border-radius:7px;height:13px}
-@keyframes sk{0%{background-position:200% 0}100%{background-position:-200% 0}}
-
-/* Toast */
-.toast{
-  position:fixed;bottom:22px;right:22px;z-index:900;
-  display:flex;align-items:center;gap:11px;
-  background:var(--ink);color:#fff;border-radius:13px;padding:13px 18px;
-  font-size:13px;font-weight:650;box-shadow:0 10px 34px rgba(0,0,0,.24);
-  transform:translateY(140%);transition:transform .3s cubic-bezier(.4,0,.2,1);
-  max-width:400px;
-}
-.toast.show{transform:none}
-.toast.ok{background:#14532d}
-.toast.err{background:#881337}
-
-/* Upgrade / conversion screen */
-.up-wrap{max-width:620px;margin:0 auto}
-.up-hero{background:linear-gradient(150deg,#f3e8ff,#ede9fe 60%,#e0e7ff);
-  border:1px solid #ddd0fb;border-radius:var(--r-lg);padding:26px;text-align:center;margin-bottom:15px}
-.up-hero .ic{font-size:38px;margin-bottom:9px}
-.up-hero h2{font-size:22px;font-weight:780;color:#5b21b6;letter-spacing:-.35px}
-.up-hero p{font-size:13px;color:#6d28d9;margin-top:6px;line-height:1.6}
-.up-steps{display:flex;align-items:center;gap:7px;justify-content:center;margin-bottom:15px;flex-wrap:wrap}
-.up-step{display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;color:var(--muted)}
-.up-step .n{width:23px;height:23px;border-radius:99px;background:var(--line);color:var(--muted);
-  display:grid;place-items:center;font-size:11px;font-weight:800}
-.up-step.on .n{background:var(--violet);color:#fff}
-.up-step.on{color:var(--violet)}
-.up-step.done .n{background:var(--green);color:#fff}
-.up-step.done{color:var(--green)}
-.up-arrow{color:#cfd3dd;font-size:13px}
-.cur-box{background:#f8f7f5;border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:13px}
-.cur-box .lbl{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px}
-.cur-box .val{font-size:15px;font-weight:800;font-family:ui-monospace,Consolas,monospace;margin-top:3px}
-.cur-box .st{font-size:11.5px;color:#92400e;font-weight:700;margin-top:5px}
-.ok-box{background:var(--green-bg);border:1px solid var(--green-line);border-radius:12px;padding:15px;margin-bottom:13px}
-.ok-box .t{font-size:13.5px;font-weight:800;color:#14532d;display:flex;align-items:center;gap:8px;margin-bottom:9px}
-.warn-box{background:var(--amber-bg);border:1px solid var(--amber-line);border-radius:12px;padding:13px;
-  font-size:12px;color:#78350f;line-height:1.6;margin-bottom:13px}
-.kv{display:flex;justify-content:space-between;gap:12px;padding:6px 0;font-size:12.5px}
-.kv span{color:var(--muted)}
-.kv b{font-weight:750;text-align:right;word-break:break-all}
-.spin{width:38px;height:38px;border:3px solid #ede9fe;border-top-color:var(--violet);
-  border-radius:99px;animation:spin .8s linear infinite;margin:0 auto 13px}
-@keyframes spin{to{transform:rotate(360deg)}}
-.up-foot{text-align:center;font-size:11px;color:var(--muted);margin-top:13px}
-
-/* Modal */
-.modal{position:fixed;inset:0;z-index:1000;background:rgba(18,19,26,.55);
-  display:none;align-items:center;justify-content:center;padding:22px;backdrop-filter:blur(3px)}
-.modal.open{display:flex}
-.modal-box{background:var(--card);border-radius:20px;padding:26px;max-width:460px;width:100%;
-  box-shadow:0 22px 64px rgba(0,0,0,.3);animation:pop .22s cubic-bezier(.34,1.4,.64,1)}
-@keyframes pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
-.modal-box h3{font-size:18px;font-weight:750;margin-bottom:7px}
-.modal-box p{font-size:13px;color:var(--ink-2);line-height:1.6;margin-bottom:17px}
-.modal-acts{display:flex;gap:9px}
-.modal-acts .btn{width:auto;flex:1 1 0}
+  @media (max-width:720px){
+    .pcard{ flex-direction:column; align-items:stretch; gap:12px; }
+    .pgrid{ grid-template-columns:1fr; }
+    .btns{ grid-template-columns:1fr; }
+  }
 </style>
 </head>
 <body>
 
-<div class="shell">
-  <!-- ═══ SIDEBAR ═══ -->
-  <aside class="sidebar">
-    <div class="brand">
-      <div class="brand-mark">
-        <!-- QR Se Print brand mark (from the official logo) -->
-        <img src="data:image/png;base64,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" alt="QR Se Print">
-      </div>
-      <div class="brand-text"><b>QR Se Print</b><span>Print Agent</span></div>
+<div class="wrap">
+
+  <div class="hero">
+    <div class="logo">
+      <svg viewBox="0 0 48 48" fill="none" aria-hidden="true">
+        <rect x="7"  y="6"  width="12" height="12" rx="2.5" fill="#fff"/>
+        <rect x="11" y="10" width="4"  height="4"  fill="#f0326c"/>
+        <rect x="29" y="6"  width="12" height="12" rx="2.5" fill="#fff"/>
+        <rect x="33" y="10" width="4"  height="4"  fill="#f0326c"/>
+        <rect x="7"  y="22" width="6"  height="6"  rx="1.4" fill="#fff"/>
+        <rect x="16" y="22" width="4"  height="4"  rx="1"   fill="#fff"/>
+        <path d="M11 33h26a3 3 0 0 1 3 3v5a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3v-5a3 3 0 0 1 3-3z" fill="#14121c"/>
+        <rect x="15" y="36" width="18" height="9" rx="1.6" fill="#fff"/>
+        <rect x="18" y="39" width="12" height="1.8" rx=".9" fill="#f0326c"/>
+      </svg>
     </div>
+    <h1 class="brand">QR Se Print</h1>
+    <div class="status"><i class="dot" id="sDot"></i><span id="sTxt">Connecting…</span></div>
+  </div>
 
-    <nav class="nav" id="nav"></nav>
-
-    <div class="side-foot">
-      <div class="upgrade-card">
-        <b>⚡ Ready to go live?</b>
-        <p>Upgrade this demo installation to your paid shop in 2 minutes.</p>
-        <button onclick="openUpgrade()">Change Demo ID to Paid Shop →</button>
+  <div class="card">
+    <div class="row">
+      <div class="ico pk">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v11h16V9"/><path d="M9 20v-6h6v6"/></svg>
       </div>
-
-      <div class="agent-box">
-        <div class="row1"><span class="dot" id="sbDot"></span><span id="sbState">Agent Online</span></div>
-        <div class="sub" id="sbSub">All systems running smoothly</div>
-        <hr>
-        <div class="lbl">Shop ID</div>
-        <div class="val">
-          <span id="sbShopId">—</span>
-          <button class="copy-btn" onclick="copyShopId()" title="Copy Shop ID">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-            </svg>
-          </button>
-        </div>
-        <hr>
-        <div class="lbl">Version</div>
-        <div class="val" id="sbVersion">—</div>
-      </div>
-
-      <button class="collapse-btn" onclick="toggleCollapse()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 18l-6-6 6-6"/></svg>
-        <span>Collapse Menu</span>
-      </button>
+      <div class="rlabel">Shop Name</div>
+      <div class="rval" id="vName">—</div>
     </div>
-  </aside>
-
-  <!-- ═══ MAIN ═══ -->
-  <main class="main">
-    <header class="topbar">
-      <button class="hamburger" onclick="toggleCollapse()" title="Toggle menu">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
-      </button>
-      <div class="page-title"><h1 id="pgTitle">Overview</h1><p id="pgSub">Dashboard &amp; quick status</p></div>
-
-      <div class="pill" id="topPill"><span class="dot"></span><span id="topPillTxt">Print Agent Online</span></div>
-
-      <div class="chip">
-        <span class="ico">🏪</span>
-        <span class="txt"><b id="topShopName">—</b><span id="topShopId">—</span></span>
+    <div class="row">
+      <div class="ico ind">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="11" r="2.2"/>
+          <path d="M6 16.2c.7-1.3 1.8-2 3-2s2.3.7 3 2"/><path d="M15 10h4M15 13.5h3"/></svg>
       </div>
-
-      <div class="win-btns">
-        <button onclick="winMinimize()" title="Minimize">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/></svg>
-        </button>
-        <button onclick="winMaximize()" title="Maximize">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/></svg>
-        </button>
-        <button class="close" onclick="winClose()" title="Close to tray — the agent keeps printing">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
-        </button>
+      <div class="rlabel">Shop ID</div>
+      <div class="rval" id="vId">—</div>
+    </div>
+    <div class="row">
+      <div class="ico pu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="4.5"/><path d="M8.6 8.4l3.4 7.2 3.4-7.2"/></svg>
       </div>
-    </header>
-
-    <div class="content" id="content"></div>
-
-    <footer class="statusbar">
-      <span id="sbConn">● Connected to server</span>
-      <span id="sbSync">Last sync: —</span>
-      <span class="sb-r">© QR Se Print · All rights reserved</span>
-    </footer>
-  </main>
-</div>
-
-<div class="toast" id="toast"><span id="toastIco">✓</span><span id="toastMsg"></span></div>
-
-<div class="modal" id="modal">
-  <div class="modal-box">
-    <h3 id="mTitle"></h3><p id="mBody"></p>
-    <div class="modal-acts">
-      <button class="btn" onclick="closeModal()" id="mCancel">Cancel</button>
-      <button class="btn primary" id="mOk">Confirm</button>
+      <div class="rlabel">Version</div>
+      <div class="rval" id="vVer">—</div>
+    </div>
+    <div class="row">
+      <div class="ico gr">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2.5 9.2a15 15 0 0 1 19 0"/><path d="M5.5 12.6a10.5 10.5 0 0 1 13 0"/>
+          <path d="M8.6 16a6 6 0 0 1 6.8 0"/><circle cx="12" cy="19.3" r="1.1" fill="currentColor" stroke="none"/></svg>
+      </div>
+      <div class="rlabel">Connected to Server</div>
+      <div class="rval"><span class="pill" id="vConn"><i></i>…</span></div>
+    </div>
+    <div class="row">
+      <div class="ico bl">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/><path d="M12 7.2V12l3.2 1.9"/></svg>
+      </div>
+      <div class="rlabel">Last Sync</div>
+      <div class="rval" id="vSync">—</div>
     </div>
   </div>
+
+  <div class="pcard">
+    <div class="ptitle">
+      <div class="ico">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M6 9V3.8h12V9"/><rect x="3" y="9" width="18" height="7.5" rx="2.2"/>
+          <path d="M6.5 16.5h11v4.2h-11z"/></svg>
+      </div>
+      <b>Select Printer</b>
+    </div>
+    <div class="pgrid">
+      <div>
+        <label for="selBw">Black &amp; White Printer</label>
+        <select id="selBw" onchange="onPrinterChange()"><option>Loading…</option></select>
+      </div>
+      <div>
+        <label for="selColor">Color Printer</label>
+        <select id="selColor" onchange="onPrinterChange()"><option>Loading…</option></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="btns">
+    <button class="btn green" id="btnSync" onclick="doSync()">
+      <svg id="icoSync" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M20.5 4.5V10H15"/></svg>
+      <span>Sync Now</span>
+    </button>
+    <button class="btn indigo" id="btnRef" onclick="doRefreshPrinters()">
+      <svg id="icoRef" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M20.5 4.5V10H15"/></svg>
+      <span>Refresh Printer List</span>
+    </button>
+  </div>
+
+  <div class="foot">© QR Se Print — Print Agent</div>
 </div>
+
+<!-- CHHUPA HUA: sirf tray se khulta hai -->
+<div id="up"><div class="upw" id="upBody"></div></div>
+
+<div class="toast" id="toast"><span id="toastIco">i</span><span id="toastMsg"></span></div>
 
 <script>
 /* ══════════════════════════════════════════════════════════════
-   BRIDGE
-   Har privileged call Python ke through jaata hai (pywebview.api).
-   Agent token / admin token kabhi is JS me nahi aata — sirf Python
-   ke paas rehta hai. Browser me kholo to demo data dikhta hai
-   taaki design test kiya ja sake.
-   ══════════════════════════════════════════════════════════════ */
-const HAS_PY = typeof window.pywebview !== 'undefined';
+   BRIDGE — har privileged kaam Python karta hai.
+   Token kabhi is JS me nahi aata.
 
-async function py(fn, ...args){
-  if(!HAS_PY) return mockCall(fn, args);
+   ZAROORI: pywebview `window.pywebview.api` ko ASYNC inject karta
+   hai. Isliye "bridge hai ya nahi" ye CALL ke waqt poochhte hain,
+   parse ke waqt nahi. Pehle ek purane build me ye const tha —
+   wo hamesha false capture ho jaata tha aur panel ka har call
+   chupchaap demo data par chala jaata tha.
+   ══════════════════════════════════════════════════════════════ */
+function hasPy(){ return !!(window.pywebview && window.pywebview.api); }
+
+async function py(fn){
+  var args = Array.prototype.slice.call(arguments, 1);
+  if(!hasPy()) return mock(fn);
   try{
-    if(!window.pywebview || !window.pywebview.api || !window.pywebview.api[fn]){
-      throw new Error('This build of the panel does not support: ' + fn);
-    }
-    return await window.pywebview.api[fn](...args);
+    if(!window.pywebview.api[fn]) throw new Error('Is build me ye available nahi: ' + fn);
+    return await window.pywebview.api[fn].apply(null, args);
   }catch(e){
     console.error('bridge', fn, e);
     return { ok:false, error:(e && e.message) ? e.message : String(e) };
   }
 }
 
-function mockCall(fn){
-  const S = {
-    get_state:{ ok:true, shopId:'SHOP_ECB1AB8A', shopName:'Mahato Net Cafe', shopType:'paid',
-      connection:'online', version:'2.0', latestVersion:'2.0', updateAvailable:false,
-      printerBw:'Canon G2010 series', printerColor:'Canon G2010 series',
-      printerBwReady:true, printerColorReady:true, lastSync:'10:45:32 AM' },
-    get_stats:{ ok:true, todayPrints:6, todayEarnings:135, totalOrders:166, totalEarnings:4754,
-      prevPrints:4, prevEarnings:90, shopOpen:true, supply:'ok',
-      activity:[{id:'#168',ago:'2 mins ago',status:'Completed'},
-                {id:'#167',ago:'4 mins ago',status:'Completed'},
-                {id:'#166',ago:'7 mins ago',status:'Completed'}] },
-    get_settings:{ ok:true, name:'Mahato Net Cafe', phone:'9999999999', email:'shop@example.com',
-      address:'Baliapur, Dhanbad, Jharkhand', printer_model:'Canon G2010 series',
-      price_bw:5, price_color:10 },
-    get_printers:{ ok:true, printers:['Canon G2010 series','Microsoft Print to PDF','OneNote'] },
-    get_qr:{ ok:true, qrUrl:'https://qrseprint.in/print/SHOP_ECB1AB8A', qrCode:'' }
+/* Browser me kholo to design test ho sake — exe me kabhi nahi chalta */
+function mock(fn){
+  var S = {
+    get_state:{ ok:true, shopId:'SHOP_ECB1AB8A', shopName:'Mahato Net Cafe',
+      shopType:'paid', connection:'online', version:'2.3', latestVersion:'2.3',
+      updateAvailable:false, printerBw:'Canon G2010 series',
+      printerColor:'Canon G2010 series' },
+    get_printers:{ ok:true, printers:['Canon G2010 series','EPSON L130 Series',
+      'HP LaserJet M1005','Microsoft Print to PDF'] }
   };
   return Promise.resolve(S[fn] || { ok:true, mock:true });
 }
 
-/* ── STATE ── */
-let ST = {}, STATS = {}, currentPage='overview', refreshTimer=null;
-
-const PAGES = [
-  ['overview','Overview','Dashboard & quick status','home'],
-  ['shop','Shop Settings','Your shop details','store'],
-  ['printer','Printer','Printer selection & status','printer'],
-  ['pricing','Pricing','Per-page rates','rupee'],
-  ['payment','Payment','How customers pay you','card'],
-  ['advanced','Advanced Printing','Photo, resume, duplex & more','sliders'],
-  ['qr','QR & Downloads','Your QR code and files','qr'],
-  ['support','Support','Get help fast','help'],
-  ['updates','Updates','Software version','download']
-];
-
-const ICONS = {
-  home:'<path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/>',
-  store:'<path d="M3 9l1.5-5h15L21 9"/><path d="M4 9v12h16V9"/><path d="M9 21v-6h6v6"/>',
-  printer:'<path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 17h12v4H6z"/>',
-  rupee:'<path d="M6 4h12M6 9h12M15 4c0 5-4 5-9 5l9 10"/>',
-  card:'<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
-  sliders:'<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h10M18 18h2"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="16" cy="18" r="2"/>',
-  qr:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v3M14 20h6"/>',
-  help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 113.5 2.3c-.6.3-1 .9-1 1.7v.5"/><path d="M12 17h.01"/>',
-  download:'<path d="M12 3v12"/><path d="M7 11l5 5 5-5"/><path d="M4 21h16"/>'
-};
-
-const UPGRADE_PAGE = ['upgrade','Upgrade to Paid Shop','Connect your paid Shop ID','rocket'];
-
-function buildNav(){
-  document.getElementById('nav').innerHTML = PAGES.map(function(p){
-    return '<button class="nav-item'+(p[0]===currentPage?' active':'')+'" data-p="'+p[0]+'" onclick="go(\''+p[0]+'\')" title="'+p[1]+'">'
-      + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">'+ICONS[p[3]]+'</svg>'
-      + '<span class="nav-label">'+p[1]+'</span></button>';
-  }).join('');
-}
-
-function go(id){
-  const pg = (id==='upgrade') ? UPGRADE_PAGE : PAGES.find(function(p){return p[0]===id});
-  if(!pg) return;
-  if(id==='upgrade'){ UP={step:1}; }      // हर बार fresh start
-  currentPage = id;
-  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.toggle('active', n.dataset.p===id); });
-  document.getElementById('pgTitle').textContent = pg[1];
-  document.getElementById('pgSub').textContent   = pg[2];
-  render();
-}
-
 /* ── HELPERS ── */
+function $(id){ return document.getElementById(id); }
 function esc(v){ return String(v==null?'':v).replace(/[&<>"']/g, function(c){
   return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
-function money(n){ return '₹' + Number(n||0).toLocaleString('en-IN'); }
 
-let toastT=null;
+var toastT = null;
 function toast(msg, kind){
-  const el=document.getElementById('toast');
-  document.getElementById('toastIco').textContent = kind==='err'?'✕':(kind==='ok'?'✓':'ℹ');
-  document.getElementById('toastMsg').textContent = msg;
-  el.className='toast show '+(kind||'');
-  clearTimeout(toastT); toastT=setTimeout(function(){ el.className='toast '+(kind||''); }, kind==='err'?5200:3600);
-}
-function confirmBox(title, body, okLabel, onOk){
-  document.getElementById('mTitle').textContent=title;
-  document.getElementById('mBody').textContent=body;
-  const ok=document.getElementById('mOk'); ok.textContent=okLabel||'Confirm';
-  ok.onclick=function(){ closeModal(); onOk&&onOk(); };
-  document.getElementById('modal').classList.add('open');
-}
-function closeModal(){ document.getElementById('modal').classList.remove('open'); }
-
-function toggleCollapse(){ document.body.classList.toggle('collapsed'); }
-async function copyShopId(){
-  try{ await navigator.clipboard.writeText(ST.shopId||''); toast('Shop ID copied','ok'); }
-  catch(e){ toast('Could not copy','err'); }
+  var el = $('toast');
+  $('toastIco').textContent = kind==='err' ? '✕' : (kind==='ok' ? '✓' : 'i');
+  $('toastMsg').textContent = msg;
+  el.className = 'toast show ' + (kind||'');
+  clearTimeout(toastT);
+  toastT = setTimeout(function(){ el.className = 'toast ' + (kind||''); },
+                      kind==='err' ? 5200 : 3200);
 }
 
-/* ── WINDOW ── */
-function winMinimize(){ py('win_minimize'); }
-function winMaximize(){ py('win_maximize'); }
-function winClose(){ py('win_close'); }   // hide to tray — never exits
-
-/* ══ RENDER ══ */
-function render(){
-  const c=document.getElementById('content');
-  const F={ overview:pageOverview, shop:pageShop, printer:pagePrinter, pricing:pagePricing,
-            payment:pagePayment, advanced:pageAdvanced, qr:pageQR, support:pageSupport,
-            updates:pageUpdates, upgrade:pageUpgrade };
-  c.innerHTML = '<div class="page active">'+(F[currentPage]||pageOverview)()+'</div>';
-  const after={ shop:loadShop, printer:loadPrinters, pricing:loadPricing,
-                payment:loadPayment, advanced:loadAdvanced, qr:loadQR };
-  if(after[currentPage]) after[currentPage]();
+function spin(on, btnId, icoId){
+  var b = $(btnId), i = $(icoId);
+  b.disabled = !!on;
+  if(i) i.classList.toggle('spin', !!on);
 }
 
-/* ── OVERVIEW ── */
-function pageOverview(){
-  const conn = ST.connection||'connecting';
-  const heroCls = conn==='online'?'':(conn==='offline'?' off':' conn');
-  const heroIco = conn==='online'?'✓':(conn==='offline'?'!':'…');
-  const heroTtl = conn==='online'?'Print Agent Online':(conn==='offline'?'Print Agent Offline':'Connecting…');
-  const heroSub = conn==='online' ? 'Your shop is ready to receive print jobs.'
-                : conn==='offline' ? 'Not connected. Click Reconnect to Server below.'
-                : 'Trying to reach the server…';
-  const s=STATS||{};
-  const dP=(s.todayPrints||0)-(s.prevPrints||0), dE=(s.todayEarnings||0)-(s.prevEarnings||0);
+/* ── STATE ── */
+var ST = {}, PRINTERS = [], lastSyncAt = 0, busy = false;
 
-  return ''
-  + '<div class="demo-banner">'
-  +   '<span class="rocket">🚀</span>'
-  +   '<div class="dtxt"><h3>You are using Demo Version <span class="tag">DEMO</span></h3>'
-  +     '<p>Experience every feature with QR Se Print Demo. When you are ready, upgrade to your Paid Shop in 2 minutes.</p></div>'
-  +   '<div class="dact"><button class="btn-upgrade" onclick="openUpgrade()">Change Demo ID to Paid Shop →</button>'
-  +     '<small>🔒 No reinstallation. No data loss.</small></div>'
-  + '</div>'
-
-  + '<div class="hero'+heroCls+'">'
-  +   '<div class="hero-l"><div class="hero-badge">'+heroIco+'</div>'
-  +     '<div><h2>'+heroTtl+'</h2><p>'+heroSub+'</p></div></div>'
-  +   '<div class="hero-r">'
-  +     cell('Shop ID', esc(ST.shopId||'—'))
-  +     cell('Shop Name', esc(ST.shopName||'—'))
-  +     cell('Printer', esc(ST.printerBw||'Not set'))
-  +     cell('Software Version', 'v'+esc(ST.version||'—')+(ST.updateAvailable?'':' (Latest)'), 'pink')
-  +   '</div>'
-  + '</div>'
-
-  + '<div class="grid g4">'
-  +   stat('🖨️','#f3e8ff','Today\u2019s Prints', s.todayPrints||0, (dP>=0?'+':'')+dP+' from yesterday')
-  +   stat('₹','#ffedd5','Today\u2019s Earnings', money(s.todayEarnings), (dE>=0?'+':'')+money(Math.abs(dE))+' from yesterday')
-  +   stat('🛍️','#dbeafe','Total Orders', s.totalOrders||0, 'All time orders')
-  +   stat('💰','#dcfce7','Overall Earnings', money(s.totalEarnings), 'All time earnings')
-  + '</div>'
-
-  + '<div class="grid g3">'
-  +   card('🏪','#f3e8ff','Shop Status','Control your shop availability',
-        '<div class="schip on '+(s.shopOpen?'good':'bad')+'" style="cursor:default">'
-      +   '<b><span class="dot" style="background:'+(s.shopOpen?'var(--green)':'var(--red)')+'"></span>'+(s.shopOpen?'Shop Open':'Shop Closed')+'</b>'
-      +   '<span>'+(s.shopOpen?'Customers can place orders':'Customers cannot order right now')+'</span></div>'
-      + '<button class="btn '+(s.shopOpen?'ghost-pink':'primary')+'" style="margin-top:11px" onclick="toggleShop()">'
-      +   (s.shopOpen?'⏸ Close Shop':'▶ Open Shop')+'</button>')
-
-  +   card('🖨️','#dbeafe','Ink / Paper Status','Shown to your customers',
-        '<div class="chips">'
-      +   supply('ok','✅','All Good','Everything OK','good')
-      +   supply('ink','⚠️','Low on Ink','Needs refill soon','warn')
-      +   supply('paper','⛔','Out of Paper','Add paper','bad')
-      + '</div>')
-
-  +   card('🔄','#e0e7ff','Software Update', ST.updateAvailable?'A new version is available':'You are on the latest version',
-        ST.updateAvailable
-        ? '<div style="font-size:13px;font-weight:700;margin-bottom:11px">Version v'+esc(ST.latestVersion)+' available</div>'
-          +'<button class="btn primary" onclick="doUpdate()">⬇ Download &amp; Install</button>'
-        : '<div style="display:flex;align-items:center;justify-content:space-between;gap:10px">'
-          +'<div><div style="font-size:13.5px;font-weight:700">Version v'+esc(ST.version||'—')+' (Latest)</div>'
-          +'<div style="font-size:11.5px;color:var(--muted)">No updates available</div></div>'
-          +'<div style="width:34px;height:34px;border-radius:99px;background:var(--green-bg);color:var(--green);display:grid;place-items:center;font-size:17px">✓</div></div>'
-          +'<button class="btn sm" style="margin-top:11px" onclick="checkUpdate()">Check for Update</button>')
-  + '</div>'
-
-  + '<div class="grid g3">'
-  +   card('🖨️','#e0e7ff','Printer Information','Connected printer details',
-        prow('B&amp;W Printer', ST.printerBw, ST.printerBwReady)
-      + prow('Color Printer', ST.printerColor, ST.printerColorReady)
-      + '<button class="btn sm ghost-pink" style="margin-top:11px" onclick="go(\'printer\')">⚙ Manage Printers</button>')
-
-  +   card('⚡','#fef9c3','Quick Actions','Frequently used',
-        '<div class="qa">'
-      +   qbtn('🔌','Reconnect','reconnect()')
-      +   qbtn('📋','View Logs','py(\'open_logs\')')
-      +   qbtn('💬','Contact Admin','py(\'contact_admin\')')
-      +   qbtn('🔄','Check Update','checkUpdate()')
-      +   qbtn('🖨️','Test Print','testPrint()')
-      +   qbtn('🔑','Change Shop ID','changeShopId()')
-      + '</div>')
-
-  +   card('🕐','#f1f5f9','Recent Activity','Live activity feed',
-        (s.activity&&s.activity.length)
-        ? s.activity.map(function(a){
-            return '<div class="act"><span class="ai">🖨️</span><span class="an">Print Job '+esc(a.id)+'</span>'
-                 + '<span class="at">'+esc(a.ago)+'</span><span class="as">'+esc(a.status)+'</span></div>';
-          }).join('')
-        : '<div class="empty"><div class="ei">📭</div><p>No activity yet today</p></div>')
-  + '</div>';
+/* "Now" / "12s ago" / "3 min ago" — design me "Now" likha hai, aur
+   asli baat bhi yahi hai: agent abhi-abhi server se baat kar chuka. */
+function syncText(){
+  if(!lastSyncAt) return '—';
+  var s = Math.round((Date.now() - lastSyncAt) / 1000);
+  if(s < 10)   return 'Now';
+  if(s < 60)   return s + 's ago';
+  var m = Math.round(s / 60);
+  return m + (m === 1 ? ' min ago' : ' min ago');
 }
 
-function cell(l,v,cls){ return '<div class="hero-cell"><div class="lbl">'+l+'</div><div class="val '+(cls||'')+'">'+v+'</div></div>'; }
-function stat(ico,bg,lbl,num,delta){
-  return '<div class="card stat"><div class="stat-top">'
-    + '<div class="stat-ico" style="background:'+bg+'">'+ico+'</div>'
-    + '<div><div class="lbl">'+lbl+'</div><div class="num">'+num+'</div></div></div>'
-    + '<div class="delta">'+esc(delta)+'</div></div>';
-}
-function card(ico,bg,t,sub,body){
-  return '<div class="card"><div class="card-h"><div class="ci" style="background:'+bg+'">'+ico+'</div>'
-    + '<div><h3>'+t+'</h3><p>'+sub+'</p></div></div>'+body+'</div>';
-}
-function prow(n,v,ok){
-  return '<div class="prow"><div class="pn"><b>'+n+'</b><span>'+esc(v||'Not selected')+'</span></div>'
-    + '<span class="'+(ok?'tag-ok':'tag-no')+'">'+(ok?'Ready':'Not set')+'</span></div>';
-}
-function qbtn(i,l,fn){ return '<button class="btn sm" onclick="'+fn+'"><span class="bi">'+i+'</span>'+l+'</button>'; }
-function supply(key,ico,t,s,cls){
-  const on=(STATS.supply||'ok')===key;
-  return '<button class="schip'+(on?' on '+cls:'')+'" onclick="setSupply(\''+key+'\')"><b>'+ico+' '+t+'</b><span>'+s+'</span></button>';
+function paint(){
+  $('vName').textContent = ST.shopName || '—';
+  $('vId').textContent   = ST.shopId   || '—';
+
+  var v = ST.version ? ('v' + ST.version) : '—';
+  $('vVer').textContent = ST.updateAvailable
+    ? (v + ' → v' + (ST.latestVersion || '?') + ' available')
+    : (ST.version ? v + ' (Latest)' : v);
+
+  var conn = ST.connection || 'connecting';
+  var pill = $('vConn'), dot = $('sDot'), txt = $('sTxt');
+  pill.className = 'pill' + (conn==='online' ? '' : (conn==='offline' ? ' bad' : ' warn'));
+  pill.innerHTML = '<i></i>' + (conn==='online' ? 'Yes' : (conn==='offline' ? 'No' : '…'));
+  dot.className  = 'dot'  + (conn==='online' ? '' : (conn==='offline' ? ' bad' : ' warn'));
+  txt.textContent = conn==='online' ? 'Print Agent Online'
+                  : (conn==='offline' ? 'Print Agent Offline' : 'Connecting…');
+
+  $('vSync').textContent = syncText();
 }
 
-/* ── SETTINGS PAGES ── */
-function formCard(title,sub,ico,bg,body,saveFn){
-  return card(ico,bg,title,sub, body
-    + '<button class="btn primary" style="margin-top:6px" onclick="'+saveFn+'">💾 Save Settings</button>');
-}
-function fld(id,label,val,type,hint,dis){
-  return '<div class="field"><label for="'+id+'">'+label+'</label>'
-    + '<input id="'+id+'" type="'+(type||'text')+'" value="'+esc(val==null?'':val)+'"'+(dis?' disabled':'')+'>'
-    + (hint?'<div class="hint">'+hint+'</div>':'')+'</div>';
-}
-
-function pageShop(){
-  return '<div class="grid g2">'
-    + formCard('Shop Details','These appear to your customers','🏪','#f3e8ff',
-        '<div id="shopForm"><div class="skel" style="height:150px"></div></div>','saveShop')
-    + card('ℹ️','#e0e7ff','About These Settings','How they are used',
-        '<p style="font-size:12.5px;color:var(--ink-2);line-height:1.7">'
-      + 'These are the same settings as your web dashboard — they are saved to the same place, so changing them here '
-      + 'updates everywhere instantly.<br><br>Your <b>shop name</b> and <b>address</b> are shown to customers when they scan your QR code. '
-      + 'Your <b>phone</b> and <b>email</b> are used for support and receipts.</p>')
-    + '</div>';
-}
-function pagePricing(){
-  return '<div class="grid g2">'
-    + formCard('Print Rates','What you charge per page','₹','#ffedd5',
-        '<div id="priceForm"><div class="skel" style="height:110px"></div></div>','savePricing')
-    + card('💡','#fef9c3','Pricing Tips','Set rates that work',
-        '<p style="font-size:12.5px;color:var(--ink-2);line-height:1.7">'
-      + 'Rates apply per page, per copy. A 10-page document at ₹5 costs the customer ₹50.<br><br>'
-      + 'Advanced rates for 4×6 photos, resumes and duplex are on the <b>Advanced Printing</b> page.</p>')
-    + '</div>';
-}
-function pagePrinter(){
-  return '<div class="grid g2">'
-    + card('🖨️','#dbeafe','Printer Selection','Which printer handles which job',
-        '<div id="printerForm"><div class="skel" style="height:150px"></div></div>'
-      + '<button class="btn primary" style="margin-top:6px" onclick="savePrinters()">💾 Save Printers</button>')
-    + card('🔌','#dcfce7','Printer Status','Live from this PC',
-        '<div id="printerStatus">'+prow('B&amp;W Printer',ST.printerBw,ST.printerBwReady)
-      + prow('Color Printer',ST.printerColor,ST.printerColorReady)+'</div>'
-      + '<button class="btn sm" style="margin-top:11px" onclick="refreshPrinters()">🔄 Refresh Printer List</button>'
-      + '<button class="btn sm" style="margin-top:8px" onclick="testPrint()">🖨️ Send Test Print</button>')
-    + '</div>';
-}
-function pagePayment(){
-  return card('💳','#dcfce7','Payment Settings','How customers pay you',
-      '<div id="payForm"><div class="skel" style="height:150px"></div></div>'
-    + '<button class="btn primary" style="margin-top:6px" onclick="savePayment()">💾 Save Payment Settings</button>'
-    + '<div class="hint" style="margin-top:11px">🔒 Your payment keys are never shown in full and are never written to the log file. '
-    + 'Leave a field blank to keep the existing value.</div>');
-}
-function pageAdvanced(){
-  return '<div id="advBox">'+card('🎛️','#f3e8ff','Advanced Printing','4×6 photo, resume, duplex &amp; big size',
-      '<div class="skel" style="height:180px"></div>')+'</div>';
-}
-function pageQR(){
-  return '<div class="grid g2">'
-    + card('📱','#f3e8ff','Your Shop QR Code','Customers scan this to print',
-        '<div id="qrBox" style="text-align:center;padding:12px"><div class="skel" style="height:190px"></div></div>')
-    + card('⬇️','#dbeafe','Downloads','Files you may need',
-        '<button class="btn" onclick="py(\'download_qr\')">🖼️ Download QR Code</button>'
-      + '<div style="height:9px"></div><button class="btn" onclick="py(\'open_url\',\'/agent\')">💻 Download Latest Software</button>'
-      + '<div style="height:9px"></div><button class="btn" onclick="py(\'open_url\',\'/setup-guide\')">📖 Setup Guide</button>'
-      + '<div style="height:9px"></div><button class="btn" onclick="py(\'open_url\',\'/admin\')">🌐 Open Web Dashboard</button>')
-    + '</div>';
-}
-function pageSupport(){
-  return '<div class="grid g2">'
-    + card('💬','#dcfce7','Get Help','We reply on WhatsApp fastest',
-        '<div class="field"><label>Your Shop ID</label><input value="'+esc(ST.shopId||'')+'" disabled></div>'
-      + '<div class="field"><label for="supMsg">What is the problem?</label>'
-      + '<textarea id="supMsg" placeholder="Describe the issue in a line or two…"></textarea></div>'
-      + '<button class="btn primary" onclick="sendSupport()">💬 Contact Admin on WhatsApp</button>')
-    + card('🛠️','#fef9c3','Try These First','Fixes most problems',
-        '<button class="btn" onclick="reconnect()">🔌 Reconnect to Server</button>'
-      + '<div style="height:9px"></div><button class="btn" onclick="py(\'open_logs\')">📋 View Logs</button>'
-      + '<div style="height:9px"></div><button class="btn" onclick="refreshPrinters()">🔄 Refresh Printers</button>'
-      + '<div style="height:9px"></div><button class="btn" onclick="testPrint()">🖨️ Send Test Print</button>'
-      + '<p style="font-size:12px;color:var(--muted);margin-top:13px;line-height:1.7">'
-      + 'If printing has stopped, <b>Reconnect to Server</b> fixes it most of the time — you do not need to close the software.</p>')
-    + '</div>';
-}
-function pageUpdates(){
-  return card('⬇️','#e0e7ff','Software Update','Keep your agent current',
-      '<div class="grid g2" style="margin-bottom:13px">'
-    + '<div style="background:var(--bg);border-radius:13px;padding:15px"><div class="lbl" style="font-size:10.5px;color:var(--muted);font-weight:700">CURRENT VERSION</div>'
-    + '<div style="font-size:23px;font-weight:800;margin-top:3px">v'+esc(ST.version||'—')+'</div></div>'
-    + '<div style="background:var(--bg);border-radius:13px;padding:15px"><div class="lbl" style="font-size:10.5px;color:var(--muted);font-weight:700">LATEST VERSION</div>'
-    + '<div style="font-size:23px;font-weight:800;margin-top:3px">v'+esc(ST.latestVersion||ST.version||'—')+'</div></div>'
-    + '</div>'
-    + (ST.updateAvailable
-        ? '<button class="btn primary" onclick="doUpdate()">⬇ Download &amp; Install v'+esc(ST.latestVersion)+'</button>'
-        : '<div style="background:var(--green-bg);border:1px solid var(--green-line);border-radius:13px;padding:15px;font-size:13px;font-weight:650;color:#14532d">✓ You are running the latest version.</div>'
-          +'<button class="btn" style="margin-top:11px" onclick="checkUpdate()">🔄 Check for Update</button>'));
+/* ── PRINTERS ── */
+function fillPrinters(){
+  [['selBw', ST.printerBw], ['selColor', ST.printerColor]].forEach(function(pair){
+    var sel = $(pair[0]), cur = pair[1] || '';
+    var html = '<option value="">— Windows ka default printer —</option>';
+    var seen = false;
+    PRINTERS.forEach(function(p){
+      if(p === cur) seen = true;
+      html += '<option value="' + esc(p) + '">' + esc(p) + '</option>';
+    });
+    // Shop ne jo printer set kiya hai wo abhi list me na mile (band hai /
+    // driver hata diya) to bhi use dikhao — warna chup-chaap default par
+    // chala jaata aur owner ko pata bhi nahi chalta.
+    if(cur && !seen){
+      html += '<option value="' + esc(cur) + '">' + esc(cur) + '  (abhi nahi mila)</option>';
+    }
+    sel.innerHTML = html;
+    sel.value = cur;
+    sel.disabled = false;
+  });
 }
 
-/* ── LOADERS ── */
-async function loadShop(){
-  const r = await py('get_settings');
-  const b = document.getElementById('shopForm'); if(!b) return;
-  if(!r.ok) return b.innerHTML = '<div class="empty"><div class="ei">⚠️</div><p>'+esc(r.error||'Could not load')+'</p></div>';
-  b.innerHTML = fld('f_name','Shop Name',r.name)
-    + fld('f_phone','Phone',r.phone,'tel')
-    + fld('f_email','Email',r.email,'email')
-    + fld('f_address','Address',r.address)
-    + fld('f_printer_model','Printer Model',r.printer_model,'text','Shown to customers as the printer you use');
-}
-async function loadPricing(){
-  const r = await py('get_settings');
-  const b = document.getElementById('priceForm'); if(!b) return;
-  if(!r.ok) return b.innerHTML = '<div class="empty"><div class="ei">⚠️</div><p>'+esc(r.error||'Could not load')+'</p></div>';
-  b.innerHTML = fld('f_price_bw','Black &amp; White — per page (₹)',r.price_bw,'number')
-    + fld('f_price_color','Color — per page (₹)',r.price_color,'number');
-}
 async function loadPrinters(){
-  const r = await py('get_printers');
-  const b = document.getElementById('printerForm'); if(!b) return;
-  if(!r.ok || !r.printers) return b.innerHTML='<div class="empty"><div class="ei">🖨️</div><p>No printers found on this PC</p></div>';
-  const opts=function(sel){ return r.printers.map(function(p){
-    return '<option value="'+esc(p)+'"'+(p===sel?' selected':'')+'>'+esc(p)+'</option>'; }).join(''); };
-  b.innerHTML = '<div class="field"><label for="f_pbw">B&amp;W Printer</label><select id="f_pbw">'+opts(ST.printerBw)+'</select></div>'
-    + '<div class="field"><label for="f_pcol">Color Printer</label><select id="f_pcol">'+opts(ST.printerColor)+'</select></div>'
-    + '<div class="hint">Only one printer in the shop? Select the same one for both.</div>';
+  var r = await py('get_printers');
+  PRINTERS = (r && r.ok && r.printers) ? r.printers : [];
+  fillPrinters();
 }
-async function loadPayment(){
-  const r = await py('get_settings');
-  const b = document.getElementById('payForm'); if(!b) return;
-  if(!r.ok) return b.innerHTML='<div class="empty"><div class="ei">⚠️</div><p>'+esc(r.error||'Could not load')+'</p></div>';
-  const mode=r.payment_mode||'both', gw=r.payment_gateway||'';
-  b.innerHTML = '<div class="field"><label for="f_mode">Payment Mode</label><select id="f_mode">'
-    + '<option value="both"'+(mode==='both'?' selected':'')+'>Online + Counter</option>'
-    + '<option value="online_only"'+(mode==='online_only'?' selected':'')+'>Online Only</option>'
-    + '<option value="counter_only"'+(mode==='counter_only'?' selected':'')+'>Counter Only</option></select></div>'
-    + '<div class="field"><label for="f_gw">Payment Gateway</label><select id="f_gw">'
-    + '<option value=""'+(!gw?' selected':'')+'>None (counter only)</option>'
-    + '<option value="razorpay"'+(gw==='razorpay'?' selected':'')+'>Razorpay</option>'
-    + '<option value="cashfree"'+(gw==='cashfree'?' selected':'')+'>Cashfree</option></select></div>'
-    + '<div class="field"><label for="f_key">API Key ID</label><input id="f_key" type="text" placeholder="'
-    + (r.hasKeys?'•••••••• (saved — leave blank to keep)':'Enter your key ID')+'"></div>'
-    + '<div class="field"><label for="f_secret">API Secret</label><input id="f_secret" type="password" placeholder="'
-    + (r.hasKeys?'•••••••• (saved — leave blank to keep)':'Enter your secret')+'"></div>';
-}
-async function loadAdvanced(){
-  const r = await py('get_settings');
-  const b = document.getElementById('advBox'); if(!b) return;
-  if(!r.ok) return;
-  if(!r.advanced_unlocked){
-    b.innerHTML = card('🔒','#f1f5f9','Advanced Printing','Not unlocked on this shop',
-      '<p style="font-size:12.5px;color:var(--ink-2);line-height:1.7">Advanced Printing adds 4×6 passport photo sheets, '
-    + 'the Resume Maker, A3 / big-size printing and duplex.<br><br>It is not unlocked for this shop yet.</p>'
-    + '<button class="btn primary" style="margin-top:11px" onclick="py(\'open_url\',\'/admin\')">Unlock in Web Dashboard →</button>');
-    return;
+
+async function onPrinterChange(){
+  if(busy) return;
+  var bw = $('selBw').value, cl = $('selColor').value;
+  busy = true;
+  var r = await py('save_printers', bw, cl);
+  busy = false;
+  if(r && r.ok){
+    ST.printerBw = bw; ST.printerColor = cl;
+    toast('Printer save ho gaya', 'ok');
+  }else{
+    toast((r && r.error) || 'Printer save nahi hua', 'err');
+    fillPrinters();          // server ne nahi liya — purani value wapas dikhao
   }
-  b.innerHTML = card('🎛️','#f3e8ff','Advanced Printing','Photo, resume, duplex &amp; big size',
-      '<p style="font-size:12.5px;color:var(--ink-2);line-height:1.7;margin-bottom:13px">'
-    + 'Advanced Printing is <b>unlocked</b> on this shop. These options have many linked prices and printer mappings, '
-    + 'so they are managed in your web dashboard — the panel opens it for you with one click, already signed in.</p>'
-    + '<button class="btn primary" onclick="py(\'open_url\',\'/admin\')">🎛️ Open Advanced Settings →</button>');
-}
-async function loadQR(){
-  const r = await py('get_qr');
-  const b = document.getElementById('qrBox'); if(!b) return;
-  if(!r.ok) return b.innerHTML='<div class="empty"><div class="ei">⚠️</div><p>Could not load QR</p></div>';
-  b.innerHTML = (r.qrCode ? '<img src="'+esc(r.qrCode)+'" alt="Shop QR code" style="width:190px;height:190px;border-radius:13px;border:1px solid var(--line)">'
-                          : '<div class="empty"><div class="ei">📱</div><p>QR not available offline</p></div>')
-    + '<div style="font-size:11.5px;color:var(--muted);margin-top:11px;word-break:break-all">'+esc(r.qrUrl||'')+'</div>';
 }
 
 /* ── ACTIONS ── */
-async function saveShop(){
-  const g=function(id){ const e=document.getElementById(id); return e?e.value.trim():''; };
-  if(!g('f_name')) return toast('Shop name cannot be empty','err');
-  const r = await py('save_settings', { name:g('f_name'), phone:g('f_phone'), email:g('f_email'),
-                                        address:g('f_address'), printer_model:g('f_printer_model') });
-  r.ok ? toast('Saved successfully','ok') : toast(r.error||'Could not save changes','err');
-  if(r.ok) refresh();
-}
-async function savePricing(){
-  const bw=parseFloat((document.getElementById('f_price_bw')||{}).value);
-  const col=parseFloat((document.getElementById('f_price_color')||{}).value);
-  if(!(bw>=0)||!(col>=0)) return toast('Enter valid prices','err');
-  const r = await py('save_settings', { price_bw:bw, price_color:col });
-  r.ok ? toast('Prices saved','ok') : toast(r.error||'Could not save','err');
-}
-async function savePrinters(){
-  const bw=(document.getElementById('f_pbw')||{}).value, col=(document.getElementById('f_pcol')||{}).value;
-  const r = await py('save_printers', bw, col);
-  r.ok ? toast('Printers saved','ok') : toast(r.error||'Could not save','err');
-  if(r.ok) refresh();
-}
-async function savePayment(){
-  const g=function(id){ const e=document.getElementById(id); return e?e.value.trim():''; };
-  const r = await py('save_payment', { payment_mode:g('f_mode'), payment_gateway:g('f_gw'),
-                                       key:g('f_key'), secret:g('f_secret') });
-  r.ok ? toast('Payment settings saved','ok') : toast(r.error||'Could not save','err');
-}
-async function refreshPrinters(){ toast('Refreshing printers…'); const r=await py('refresh_printers');
-  r.ok?toast('Printer list updated','ok'):toast(r.error||'Failed','err'); render(); }
-let _reconnecting = false;
-async function reconnect(){
-  // Do baar dabane se do request na jaayein
-  if(_reconnecting){ toast('Already reconnecting — thoda ruko'); return; }
-  _reconnecting = true;
-
-  // Har Reconnect button ko "busy" dikha do (Quick Actions + Support page)
-  const btns = Array.from(document.querySelectorAll('button')).filter(function(b){
-    return /Reconnect/i.test(b.textContent||''); });
-  const old = btns.map(function(b){ return b.innerHTML; });
-  btns.forEach(function(b){ b.disabled = true; b.innerHTML = '<span class="bi">⏳</span>Connecting…'; });
-
-  // Status turant 🟡 kar do taaki dikhe ki kaam ho raha hai
-  ST.connection = 'connecting';
-  const pill = document.getElementById('topPill');
-  if(pill){ pill.className = 'pill warn'; }
-  const pt = document.getElementById('topPillTxt');
-  if(pt) pt.textContent = 'Connecting…';
-
-  toast('Reconnecting to server…');
-  const r = await py('reconnect');
-
-  btns.forEach(function(b,i){ b.disabled = false; b.innerHTML = old[i]; });
-  _reconnecting = false;
-
-  if(r && r.connected){
-    toast('✓ Connected to server' + (r.printer ? ' · ' + r.printer : ''), 'ok');
-  } else {
-    toast('✕ ' + ((r && r.error) || 'Connect nahi ho paya'), 'err');
-  }
+async function doSync(){
+  spin(true, 'btnSync', 'icoSync');
+  var r = await py('sync_now');
   await refresh();
-}
-async function testPrint(){ const r=await py('test_print');
-  r.ok?toast('Test print sent to printer','ok'):toast(r.error||'Test print failed','err'); }
-async function checkUpdate(){ toast('Checking for updates…'); const r=await py('check_update');
-  if(r.ok&&r.updateAvailable){ ST.updateAvailable=true; ST.latestVersion=r.latestVersion;
-    toast('Version v'+r.latestVersion+' available','ok'); render(); }
-  else toast('You are on the latest version','ok'); }
-function doUpdate(){ confirmBox('Install update?',
-  'The agent will download v'+(ST.latestVersion||'')+' and restart. Printing pauses for about a minute.',
-  'Download & Install', function(){ py('do_update'); toast('Downloading update…'); }); }
-function toggleShop(){ const opening=!STATS.shopOpen;
-  confirmBox(opening?'Open shop?':'Close shop?',
-    opening?'Customers will be able to place print orders again.':'Customers will not be able to place orders until you open it again.',
-    opening?'Open Shop':'Close Shop', async function(){
-      const r=await py('set_shop_open', opening);
-      if(r.ok){ STATS.shopOpen=opening; toast(opening?'Shop is now open':'Shop is now closed','ok'); render(); }
-      else toast(r.error||'Could not change','err'); }); }
-async function setSupply(k){ const r=await py('set_supply', k);
-  if(r.ok){ STATS.supply=k; render(); toast('Status updated','ok'); } else toast(r.error||'Failed','err'); }
-async function sendSupport(){ const m=(document.getElementById('supMsg')||{}).value||'';
-  await py('contact_admin', m); toast('Opening WhatsApp…','ok'); }
-function changeShopId(){ confirmBox('Change Shop ID?',
-  'The agent will disconnect from this shop and ask for a new Shop ID. Printing stops until a new ID is entered.',
-  'Change Shop ID', function(){ py('change_shop_id'); }); }
-function openUpgrade(){ go('upgrade'); }
-
-/* ══ DEMO → PAID CONVERSION ══
-   5 steps, mockup ke hisaab se:
-   1 Enter  →  2 Verifying  →  3 Verified  →  4 Confirm  →  5 Done          */
-let UP = { step:1 };
-
-function upSteps(n){
-  const names=['Enter ID','Verify','Confirm','Done'];
-  const at=[1,2,4,5];
-  return '<div class="up-steps">' + names.map(function(nm,i){
-    const cls = n>at[i] ? 'done' : (n===at[i]||(n===3&&at[i]===2) ? 'on' : '');
-    return (i?'<span class="up-arrow">→</span>':'')
-      + '<div class="up-step '+cls+'"><span class="n">'+(n>at[i]?'✓':(i+1))+'</span>'+nm+'</div>';
-  }).join('') + '</div>';
+  spin(false, 'btnSync', 'icoSync');
+  if(r && r.ok) toast('Server se sync ho gaya', 'ok');
+  else          toast((r && r.error) || 'Server tak nahi pahunche', 'err');
 }
 
-function pageUpgrade(){
-  if(ST.shopType!=='demo'){
-    return '<div class="up-wrap">'+card('✅','#dcfce7','Already a Paid Shop','No upgrade needed',
-      '<p style="font-size:13px;color:var(--ink-2);line-height:1.7">This installation is already connected to your paid shop '
-      + '<b>'+esc(ST.shopName||'')+'</b> ('+esc(ST.shopId||'')+').</p>'
-      + '<button class="btn primary" style="margin-top:13px" onclick="go(\'overview\')">← Back to Overview</button>')+'</div>';
-  }
-
-  const head = '<div class="up-hero"><div class="ic">🚀</div>'
-    + '<h2>Upgrade to Your Paid Shop</h2>'
-    + '<p>Already using QR Se Print Demo?<br>Connect your paid Shop ID to continue with your shop.</p></div>'
-    + upSteps(UP.step);
-
-  const cur = '<div class="cur-box"><div class="lbl">Current Demo Shop</div>'
-    + '<div class="val">'+esc(ST.shopId||'')+'</div>'
-    + '<div class="st">🟡 Demo Version</div></div>';
-
-  let body;
-  if(UP.step===1){
-    body = cur
-      + '<div class="field"><label for="upId">Paid Shop ID</label>'
-      + '<input id="upId" type="text" placeholder="SHOP_XXXXXXXX" autocomplete="off" spellcheck="false"></div>'
-      + '<div class="field"><label for="upPw">Shop Password</label>'
-      + '<input id="upPw" type="password" placeholder="Your shop dashboard password" autocomplete="off">'
-      + '<div class="hint">🔒 Same password you use to log in to your web dashboard. '
-      + 'We ask for it so nobody else can connect your shop to their PC.</div></div>'
-      + '<button class="btn primary" onclick="upVerify()">Verify Paid Shop ID →</button>';
-  }
-  else if(UP.step===2){
-    body = '<div class="card" style="text-align:center;padding:34px"><div class="spin"></div>'
-      + '<div style="font-size:14px;font-weight:700">Verifying your Paid Shop ID…</div>'
-      + '<div style="font-size:12px;color:var(--muted);margin-top:5px">This takes a moment</div></div>';
-  }
-  else if(UP.step===3){
-    body = '<div class="ok-box"><div class="t">✅ Paid Shop Verified</div>'
-      + '<div class="kv"><span>Shop Name</span><b>'+esc(UP.shopName||'')+'</b></div>'
-      + '<div class="kv"><span>Shop ID</span><b>'+esc(UP.shopId||'')+'</b></div>'
-      + (UP.planType?'<div class="kv"><span>Plan</span><b>'+esc(UP.planType)+'</b></div>':'')
-      + '</div>'
-      + (UP.alreadyLinked
-          ? '<div class="warn-box">⚠️ Another PC is already connected to this shop. Continuing will move the '
-            + 'connection to <b>this</b> PC, and the other PC will stop receiving print jobs.</div>' : '')
-      + '<button class="btn primary" onclick="UP.step=4;render()">Switch to Paid Shop →</button>'
-      + '<div style="height:9px"></div><button class="btn" onclick="UP={step:1};render()">← Use a different Shop ID</button>';
-  }
-  else if(UP.step===4){
-    body = '<div class="card"><h3 style="font-size:16px;font-weight:750;margin-bottom:7px">Switch to Paid Shop?</h3>'
-      + '<p style="font-size:12.5px;color:var(--ink-2);line-height:1.65;margin-bottom:13px">'
-      + 'Your current demo installation will be connected to this paid shop. '
-      + 'Your demo will end and any pending demo print jobs will be cancelled.</p>'
-      + '<div class="cur-box" style="margin-bottom:9px"><div class="lbl">Current (Demo)</div>'
-      + '<div class="val">'+esc(ST.shopId||'')+'</div></div>'
-      + '<div class="cur-box" style="background:#f5f3ff;border-color:#ddd0fb;margin-bottom:15px">'
-      + '<div class="lbl" style="color:var(--violet)">New (Paid Shop)</div>'
-      + '<div class="val" style="color:var(--violet)">'+esc(UP.shopId||'')+'</div></div>'
-      + '<div style="display:flex;gap:9px">'
-      + '<button class="btn" onclick="UP.step=3;render()">Cancel</button>'
-      + '<button class="btn primary" onclick="upSwitch()">Switch Now</button></div></div>';
-  }
-  else {
-    body = '<div class="ok-box" style="text-align:center;padding:24px">'
-      + '<div style="font-size:34px;margin-bottom:9px">🎉</div>'
-      + '<div style="font-size:18px;font-weight:780;color:#14532d">You are all set!</div>'
-      + '<p style="font-size:12.5px;color:var(--ink-2);margin-top:6px;line-height:1.6">'
-      + 'Your QR Se Print installation is now connected to your paid shop.</p></div>'
-      + '<div class="card"><div class="kv"><span>Shop Name</span><b>'+esc(UP.shopName||'')+'</b></div>'
-      + '<div class="kv"><span>Shop ID</span><b>'+esc(UP.shopId||'')+'</b></div></div>'
-      + '<div style="height:11px"></div>'
-      + '<button class="btn primary" onclick="go(\'overview\')">Open Dashboard →</button>';
-  }
-
-  return '<div class="up-wrap">'+head+body
-    + '<div class="up-foot">Demo → Paid conversion is one-time and cannot be undone.</div></div>';
-}
-
-async function upVerify(){
-  const id=(document.getElementById('upId')||{}).value||'';
-  const pw=(document.getElementById('upPw')||{}).value||'';
-  if(!id.trim())  return toast('Please enter your paid Shop ID','err');
-  if(!pw)         return toast('Please enter your shop password','err');
-  UP.step=2; render();
-  const r = await py('verify_paid_shop', id.trim(), pw);
-  if(!r.ok){ UP={step:1}; render(); return toast(r.error||'Verification failed','err'); }
-  UP = { step:3, shopId:r.shopId, shopName:r.shopName, planType:r.planType, alreadyLinked:r.alreadyLinked };
-  render(); toast('Paid Shop verified','ok');
-}
-
-async function upSwitch(){
-  UP.step=2; render();
-  const r = await py('convert_to_paid');
-  if(!r.ok){ UP.step=3; render(); return toast(r.error||'Switch failed','err'); }
-  UP = { step:5, shopId:r.shopId, shopName:r.shopName };
-  render(); toast('Connected to your paid shop','ok');
-  await refresh();                      // sidebar/banner turant update
-  document.body.classList.remove('is-demo');
+async function doRefreshPrinters(){
+  spin(true, 'btnRef', 'icoRef');
+  var r = await py('refresh_printers');
+  await loadPrinters();
+  spin(false, 'btnRef', 'icoRef');
+  if(r && r.ok) toast(PRINTERS.length + ' printer mile', 'ok');
+  else          toast((r && r.error) || 'Printer list nahi mili', 'err');
 }
 
 /* ── REFRESH ── */
 async function refresh(){
-  const s = await py('get_state');
+  var s = await py('get_state');
   if(s && s.ok){
     ST = s;
-    document.body.classList.toggle('is-demo', s.shopType==='demo');
-    document.getElementById('topShopName').textContent = s.shopName||'—';
-    document.getElementById('topShopId').textContent   = s.shopId||'—';
-    document.getElementById('sbShopId').textContent    = s.shopId||'—';
-    document.getElementById('sbVersion').textContent   = 'v'+(s.version||'—')+(s.updateAvailable?'':' (Latest)');
-    const conn=s.connection||'connecting';
-    const pill=document.getElementById('topPill');
-    pill.className='pill'+(conn==='online'?'':(conn==='offline'?' bad':' warn'));
-    document.getElementById('topPillTxt').textContent =
-      conn==='online'?'Print Agent Online':(conn==='offline'?'Print Agent Offline':'Connecting…');
-    document.getElementById('sbState').textContent =
-      conn==='online'?'Agent Online':(conn==='offline'?'Agent Offline':'Connecting…');
-    document.getElementById('sbDot').style.background =
-      conn==='online'?'var(--green)':(conn==='offline'?'var(--red)':'var(--amber)');
-    document.getElementById('sbSub').textContent =
-      conn==='online'?'All systems running smoothly':(conn==='offline'?'Click Reconnect to Server':'Trying to reach the server…');
-    document.getElementById('sbConn').textContent =
-      conn==='online'?'● Connected to server':(conn==='offline'?'● Offline':'● Connecting…');
-    if(s.lastSync) document.getElementById('sbSync').textContent='Last sync: '+s.lastSync;
+    if((s.connection || '') === 'online') lastSyncAt = Date.now();
+    paint();
   }
-  const st = await py('get_stats');
-  if(st && st.ok) STATS = st;
-  if(currentPage==='overview') render();
 }
 
-window.addEventListener('pywebviewready', function(){ boot(); });
-function boot(){ buildNav(); refresh(); clearInterval(refreshTimer); refreshTimer=setInterval(refresh, 15000); }
-document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeModal(); });
-if(!HAS_PY) setTimeout(boot, 60);      // browser preview
-setTimeout(function(){ if(!ST.shopId) boot(); }, 1200);   // safety if the ready event is missed
+/* ══════════════════════════════════════════════════════════════
+   UPGRADE (Demo → Paid) — chhupa hua page
+
+   Python se aata hai:  window.evaluate_js("go('upgrade')")
+   Isliye go() global hona ZAROORI hai — agent_panel.py ka
+   _goto_pending_page() aur open_upgrade() dono isi ko call karte hain.
+   ══════════════════════════════════════════════════════════════ */
+var UP = { step:1 };
+
+function go(id){
+  if(id === 'upgrade'){ UP = { step:1 }; document.body.classList.add('upgrade'); upRender(); }
+  else                { document.body.classList.remove('upgrade'); }
+}
+function upClose(){ document.body.classList.remove('upgrade'); refresh(); }
+
+function upRender(){
+  var h = '';
+  if(UP.step === 1){
+    h = '<div class="uph"><h2>Demo se Paid Shop</h2>'
+      + '<p>Apni <b>paid Shop ID</b> aur password daalo. Yahi agent usi shop par '
+      + 'chalne lagega — na reinstall, na restart.</p></div>'
+      + '<div class="fld"><label>Paid Shop ID</label>'
+      + '<input id="upId" placeholder="SHOP_XXXXXXXX" autocomplete="off" spellcheck="false"></div>'
+      + '<div class="fld"><label>Shop Password</label>'
+      + '<input id="upPw" type="password" placeholder="••••••" autocomplete="off"></div>'
+      + '<button class="btn indigo wide" onclick="upVerify()">Verify karo</button>'
+      + '<div style="height:10px"></div>'
+      + '<button class="btn ghost wide" onclick="upClose()">Wapas</button>';
+  }
+  else if(UP.step === 2){
+    h = '<div class="busy">Ek minute… server se baat ho rahi hai</div>';
+  }
+  else if(UP.step === 3){
+    h = '<div class="uph"><h2>Shop mil gayi</h2><p>Sahi shop hai? Confirm karo.</p></div>'
+      + '<div class="card" style="padding:4px 16px;margin-bottom:14px">'
+      + '<div class="kv"><span>Shop Name</span><b>' + esc(UP.shopName || '') + '</b></div>'
+      + '<div class="kv"><span>Shop ID</span><b>' + esc(UP.shopId || '') + '</b></div>'
+      + (UP.planType ? '<div class="kv"><span>Plan</span><b>' + esc(UP.planType) + '</b></div>' : '')
+      + '</div>'
+      + (UP.alreadyLinked
+          ? '<div class="note">Is shop par pehle se ek doosra computer juda hai. '
+            + 'Aage badhoge to wo PC hat jayega aur printing IS PC par aa jayegi.</div>'
+          : '')
+      + '<button class="btn indigo wide" onclick="upSwitch()">Paid Shop par switch karo</button>'
+      + '<div style="height:10px"></div>'
+      + '<button class="btn ghost wide" onclick="UP={step:1};upRender()">← Doosri Shop ID</button>';
+  }
+  else if(UP.step === 5){
+    h = '<div class="uph"><h2>Ho gaya 🎉</h2>'
+      + '<p>Ye agent ab aapki paid shop par chal raha hai.</p></div>'
+      + '<div class="card" style="padding:4px 16px;margin-bottom:14px">'
+      + '<div class="kv"><span>Shop Name</span><b>' + esc(UP.shopName || '') + '</b></div>'
+      + '<div class="kv"><span>Shop ID</span><b>' + esc(UP.shopId || '') + '</b></div></div>'
+      + (UP.warning ? '<div class="note">' + esc(UP.warning) + '</div>'
+                    : '<div class="note good">Printing chalu hai. Kuch aur karne ki zaroorat nahi.</div>')
+      + '<button class="btn green wide" onclick="upClose()">Theek hai</button>';
+  }
+  $('upBody').innerHTML = h;
+}
+
+async function upVerify(){
+  var id = ($('upId') || {}).value || '';
+  var pw = ($('upPw') || {}).value || '';
+  if(!id.trim()) return toast('Paid Shop ID daalo', 'err');
+  if(!pw)        return toast('Shop password daalo', 'err');
+  UP.step = 2; upRender();
+  var r = await py('verify_paid_shop', id.trim(), pw);
+  if(!r || !r.ok){ UP = { step:1 }; upRender(); return toast((r && r.error) || 'Verify nahi hua', 'err'); }
+  UP = { step:3, shopId:r.shopId, shopName:r.shopName,
+         planType:r.planType, alreadyLinked:r.alreadyLinked };
+  upRender();
+}
+
+async function upSwitch(){
+  var keep = UP;
+  UP = { step:2 }; upRender();
+  var r = await py('convert_to_paid');
+  if(!r || !r.ok){ UP = keep; UP.step = 3; upRender(); return toast((r && r.error) || 'Switch fail hua', 'err'); }
+  UP = { step:5, shopId:r.shopId, shopName:r.shopName, warning:r.warning };
+  upRender();
+  await refresh();
+}
+
+/* ── BOOT ── */
+async function boot(){
+  await refresh();
+  await loadPrinters();
+  // State har 6s, aur "Last Sync" ka text har second (warna wo jama rehta hai)
+  setInterval(refresh, 6000);
+  setInterval(function(){ if(!document.body.classList.contains('upgrade')) $('vSync').textContent = syncText(); }, 1000);
+}
+
+window.addEventListener('pywebviewready', boot);
+// Browser me kholo to 'pywebviewready' kabhi fire nahi hota — tab bhi
+// design dikhna chahiye, isliye ye fallback.
+setTimeout(function(){ if(!hasPy()) boot(); }, 700);
 </script>
 </body>
 </html>
