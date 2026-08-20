@@ -938,12 +938,14 @@ input,select,textarea{border:1.5px solid #e3e5ec;border-radius:12px;
       <div style="background:linear-gradient(135deg,#1a1a22,#2b1f3d);border-radius:16px;padding:16px 17px;margin-bottom:16px;">
         <label style="font-size:12.5px;font-weight:800;color:#ffd22e;display:block;margin-bottom:6px;">🤝 Agent Base Price</label>
         <p style="font-size:11.5px;color:#c9ccd6;line-height:1.65;margin-bottom:11px;">
-          Agents ke liye alag floor price. Khaali/0 rakho to agent ka price bhi normal Offer Price
-          (upar wala) se hi shuru hoga. Yahan value dogi (jaise 699) to har agent ka <b style="color:#fff;">apna link
-          isi price se start hoga</b> — agent apna price isse upar hi badha sakta hai, apna margin ban jata hai.
-          Registration ka charge bhi isi price se hoga.
+          Agent ke link par <b style="color:#fff;">sirf Pro aur Premium</b> dikhte hain — Starter nahi.
+          Har plan ka apna floor price hai: agent uske <b style="color:#fff;">neeche nahi bech sakta</b>,
+          upar chahe jitna rakhe (wahi uska margin hai). Khaali/0 rakhoge to us plan ka normal price hi floor banega.
         </p>
+        <label style="font-size:11px;color:#9aa0ab;font-weight:700;display:block;margin-bottom:5px;">💎 PRO — AGENT FLOOR (₹)</label>
         <input type="number" id="agentBasePriceInput" min="0" placeholder="0 = Offer Price jaisa hi" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid rgba(255,210,46,.4);border-radius:10px;font-size:18px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#ffd22e;background:rgba(255,255,255,.06);">
+        <label style="font-size:11px;color:#9aa0ab;font-weight:700;display:block;margin:14px 0 5px;">👑 PREMIUM — AGENT FLOOR (₹)</label>
+        <input type="number" id="agentPremiumBaseInput" min="0" placeholder="0 = Premium ka normal price" oninput="updatePreview()" style="width:100%;padding:11px 13px;border:1.5px solid rgba(255,210,46,.4);border-radius:10px;font-size:18px;font-weight:700;font-family:'Plus Jakarta Sans',sans-serif;color:#ffd22e;background:rgba(255,255,255,.06);">
         <div id="agentBasePreviewLine" style="margin-top:10px;font-size:12px;color:#9aa0ab;"></div>
       </div>
 
@@ -2020,6 +2022,22 @@ function advFeatRender(){
     +   'placeholder="Ye feature shop ke liye kya karta hai — <b>bold</b> chalega" '
     +   'style="width:100%;box-sizing:border-box;font-size:12.5px;line-height:1.7;padding:10px;border:1.5px solid #ddd6fe;border-radius:9px;resize:vertical;">'
     +   advFeatEsc(f.desc) + '</textarea>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:9px;">'
+    +   '<div><label style="font-size:10.5px;color:#6b6870;font-weight:700;">FEATURE ID — badlo mat!</label>'
+    +     '<input value="' + advFeatEsc(f.id || '') + '" onchange="advFeatSet(' + i + ',\'id\',this.value)" '
+    +     'placeholder="jaise poster" style="width:100%;box-sizing:border-box;padding:8px;border:1.5px solid #e2ddd6;border-radius:8px;font-family:monospace;font-size:12px;"></div>'
+    +   '<div><label style="font-size:10.5px;color:#6b6870;font-weight:700;">₹ PRICE (0 = default)</label>'
+    +     '<input type="number" min="0" value="' + (f.price || 0) + '" onchange="advFeatSet(' + i + ',\'price\',parseInt(this.value)||0)" '
+    +     (f.core !== false ? 'disabled ' : '')
+    +     'style="width:100%;box-sizing:border-box;padding:8px;border:1.5px solid #e2ddd6;border-radius:8px;font-size:13px;font-weight:700;"></div>'
+    + '</div>'
+    + '<label style="display:flex;align-items:center;gap:7px;margin-top:9px;font-size:12px;font-weight:700;color:#166534;cursor:pointer;">'
+    +   '<input type="checkbox" ' + (f.core !== false ? 'checked' : '') + ' onchange="advFeatSet(' + i + ',\'core\',this.checked); advFeatRender();"> '
+    +   'Base Advance pack ka hissa (₹199 / Pro / Premium me included)'
+    + '</label>'
+    + (f.core === false ? '<div style="margin-top:7px;font-size:11px;color:#92400e;line-height:1.6;background:#fffbeb;border:1px solid #fcd34d;border-radius:9px;padding:8px 10px;">'
+        + '⚠️ Ye <b>add-on</b> hai. Starter aur Pro walon ko ₹' + (f.price || 49) + ' dena hoga. '
+        + '<b>Premium walon ko apne aap mil jayega</b> — unse kuch nahi liya jayega.</div>' : '')
     + '<label style="display:flex;align-items:center;gap:7px;margin-top:8px;font-size:12px;font-weight:700;color:#92400e;cursor:pointer;">'
     +   '<input type="checkbox" ' + (f.isNew ? 'checked' : '') + ' onchange="advFeatSet(' + i + ',\'isNew\',this.checked)"> '
     +   'NAYA badge lagao'
@@ -2034,7 +2052,13 @@ function advFeatRender(){
 }
 
 function advFeatSet(i, k, v){ if(_advFeats[i]) _advFeats[i][k] = v; }
-function advFeatAdd(){ _advFeats.push({icon:'✨',title:'',desc:'',isNew:true}); advFeatRender(); }
+function advFeatAdd(){
+  // Naya feature default me ADD-ON hai (core:false) — warna wo sabhi
+  // purane Starter/Pro walon ko muft chala jaata, jabki unhone uska
+  // paisa nahi diya. Premium walon ko phir bhi apne aap milega.
+  _advFeats.push({id:'',icon:'✨',title:'',desc:'',core:false,price:0,isNew:true});
+  advFeatRender();
+}
 function advFeatDel(i){
   if(!confirm('Ye feature list se hata dein?')) return;
   _advFeats.splice(i,1); advFeatRender();
@@ -2068,6 +2092,13 @@ async function advFeatLoad(){
 async function advFeatSave(){
   const empty = _advFeats.filter(f => !String(f.title||'').trim());
   if (empty.length) return alert('❌ Har feature ka naam bharo (ya use hata do)');
+  // ID par ownership tiki hai — khaali ya duplicate hui to "kis shop ke
+  // paas kaun sa feature hai" ka poora hisaab bigad jayega.
+  const noId = _advFeats.filter(f => !String(f.id||'').trim());
+  if (noId.length) return alert('❌ Har feature ki ID bharo (chhote akshar, jaise: poster)');
+  const ids = _advFeats.map(f => String(f.id).trim().toLowerCase());
+  const dup = ids.filter((x,i) => ids.indexOf(x) !== i);
+  if (dup.length) return alert('❌ Do feature ki ID ek jaisi hai: ' + dup[0]);
   const btn = document.getElementById('advFeatSaveBtn');
   if(btn){ btn.disabled = true; btn.textContent = '⏳ Save ho raha hai...'; }
   try{
@@ -3536,6 +3567,8 @@ async function loadPanel() {
       document.getElementById('monthlyActualInput').value = feeData.monthlyActualPrice || 0;
       document.getElementById('advancedActualInput').value = feeData.advancedActualPrice || 0;
       document.getElementById('agentBasePriceInput').value = feeData.agentBasePriceIsSet ? feeData.agentBasePrice : 0;
+    document.getElementById('agentPremiumBaseInput').value = feeData.agentPremiumBasePrice || 0;
+      document.getElementById('agentPremiumBaseInput').value = feeData.agentPremiumBasePrice || 0;
       document.getElementById('wlLicenseFeeInput').value = feeData.wlLicenseFee || 25000;
       document.getElementById('wlLicenseActualInput').value = feeData.wlLicenseActual || 0;
       document.getElementById('wlBasePriceInput').value = feeData.wlBasePrice || 0;
@@ -3777,6 +3810,7 @@ async function updateSetupFee() {
         monthlyActualPrice: document.getElementById('monthlyActualInput').value,
         advancedActualPrice: document.getElementById('advancedActualInput').value,
         agentBasePrice: document.getElementById('agentBasePriceInput').value,
+        agentPremiumBasePrice: document.getElementById('agentPremiumBaseInput').value,
         wlLicenseFee: document.getElementById('wlLicenseFeeInput').value,
         wlLicenseActual: document.getElementById('wlLicenseActualInput').value,
         wlBasePrice: document.getElementById('wlBasePriceInput').value,

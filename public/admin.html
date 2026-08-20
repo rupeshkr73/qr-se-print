@@ -1384,7 +1384,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
                na aaye to bhi page khaali na dikhe). -->
           <div id="advFeatureList" class="advFeatures"></div>
 
-          <div class="advNote">
+          <div class="advNote" id="advOwnNote">
             <span>💡</span>
             <div>Ye saare option ek hi unlock me aate hain. Unlock ke baad har feature ko apne hisaab se on/off kar sakte ho, aur har ek ka apna rate set kar sakte ho.</div>
           </div>
@@ -1525,6 +1525,16 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
 .advPayBtn:hover{transform:translateY(-2px)}
 .advPayBtn:active{transform:translateY(0) scale(.99)}
 .advPayNote{text-align:center;font-size:11px;color:#9b9690;margin:10px 0 0;line-height:1.6}
+/* Feature ka apna status — mila hua / pack me / ₹49 me le lo */
+.advFeat-right{flex:none;display:flex;align-items:center}
+.advFeat.is-locked{opacity:.72;background:#fafafa;border-color:#e4e4e7}
+.advOwn{font-size:11px;font-weight:800;border-radius:9px;padding:6px 10px;white-space:nowrap}
+.advOwn-yes{background:#dcfce7;color:#166534}
+.advOwn-lock{background:#f4f4f5;color:#71717a}
+.advOwn-buy{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;cursor:pointer;
+  box-shadow:0 4px 12px rgba(217,119,6,.3);transition:transform .15s}
+.advOwn-buy:hover{transform:translateY(-1px)}
+.advNote-good{background:#f0fdf4;border-color:#bbf7d0;color:#166534}
   </style>
 
         <div class="form-group full">
@@ -2545,6 +2555,9 @@ async function loadAdminPanel() {
     loadInsights();
     initShopLogo(shop);
     applyAdvancedLock(shop);
+    // Unlocked shop ko sales pitch nahi, apne feature ka status dikhna
+    // chahiye — kaun sa mila hua hai aur kaun sa ₹49 me le sakte hain.
+    refreshAdvView(shop);
     loadAdvancedFee();
     shopPaused = !!shop.paused; shopSupply = shop.supply_warning || '';
     renderStatusUI();
@@ -2737,6 +2750,113 @@ async function savePaymentSettings() {
 }
 
 // ══════════════════════════════════════════════════════════════
+//  PER-FEATURE OWNERSHIP
+//  Pehle sab kuch ek `advanced_unlocked` boolean par tha. Ab har
+//  feature alag hai: core pack (₹199 / Pro / Premium) me jo aate hain
+//  wo ek saath, aur baad me aane wale naye feature ₹49 me alag.
+//  Premium walon ko kuch kharidna nahi padta — unhe sab milta hai.
+// ══════════════════════════════════════════════════════════════
+let _featState = null;
+
+async function loadFeatureState() {
+  try {
+    const r = await fetch('/api/admin/features',
+      { headers: { 'Authorization': 'Bearer ' + authToken } });
+    if (!r.ok) return null;
+    _featState = await r.json();
+    return _featState;
+  } catch (e) { return null; }
+}
+
+/** Unlocked shop ke liye — har feature ka apna card, locked ke liye lock badge. */
+function renderOwnedFeatures() {
+  const box = document.getElementById('advFeatureList');
+  if (!box || !_featState) return;
+  const st = _featState;
+
+  box.innerHTML = st.features.map(f => {
+    const owned = f.owned;
+    const cls = 'advFeat' + (owned ? '' : ' is-locked') + (f.isNew && !owned ? ' is-new' : '');
+    let right = '';
+    if (owned) {
+      right = '<span class="advOwn advOwn-yes">✓ Mila hua</span>';
+    } else if (st.allIncluded) {
+      right = '<span class="advOwn advOwn-yes">✓ Premium me shaamil</span>';
+    } else if (f.core) {
+      right = '<span class="advOwn advOwn-lock">🔒 Pack me</span>';
+    } else {
+      right = '<button class="advOwn advOwn-buy" onclick="unlockOneFeature(\'' +
+        f.id + '\')">🔓 ₹' + f.price + ' me lo</button>';
+    }
+    return '<div class="' + cls + '">'
+      + '<div class="advFeat-ico">' + escHtml(f.icon || '✨') + '</div>'
+      + '<div class="advFeat-body">'
+      +   '<div class="advFeat-title">' + escHtml(f.title || '')
+      +     (f.isNew ? '<span class="advFeat-new">NAYA</span>' : '') + '</div>'
+      +   '<div class="advFeat-desc">' + (f.desc || '') + '</div>'
+      + '</div>'
+      + '<div class="advFeat-right">' + right + '</div>'
+      + '</div>';
+  }).join('');
+
+  const note = document.getElementById('advOwnNote');
+  if (note) {
+    if (st.allIncluded) {
+      note.innerHTML = '👑 <b>Premium</b> — aaj ke bhi, aage aane wale bhi. '
+        + 'Koi bhi naya advance feature apne aap mil jayega, dobara paisa nahi.';
+      note.className = 'advNote advNote-good';
+    } else {
+      const locked = st.features.filter(f => !f.owned && !f.core).length;
+      note.innerHTML = locked
+        ? '💡 Naye feature aapke plan me shaamil nahi hain — har ek ₹' + st.addonFee
+          + ' me alag se le sakte ho. <b>Premium</b> me ye sab hamesha free milte hain.'
+        : '💡 Har feature ko apne hisaab se on/off kar sakte ho, aur har ek ka apna rate set kar sakte ho.';
+      note.className = 'advNote';
+    }
+  }
+}
+
+/** ₹49 wala single-feature unlock. */
+async function unlockOneFeature(featureId) {
+  const f = (_featState && _featState.features || []).find(x => x.id === featureId);
+  if (!f) return;
+  if (!confirm('"' + f.title + '" ko ₹' + f.price + ' me unlock karein?\n\nEk baar ka payment — lifetime.')) return;
+  try {
+    const r = await fetch('/api/admin/feature/create-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+      body: JSON.stringify({ featureId })
+    });
+    const d = await r.json();
+    if (!r.ok) return alert('❌ ' + (d.error || 'Order nahi bana'));
+
+    const rzp = new Razorpay({
+      key: d.keyId, amount: d.amount, currency: 'INR',
+      name: 'QR Se Print', description: d.featureTitle,
+      order_id: d.orderId,
+      handler: async function (resp) {
+        const v = await fetch('/api/admin/feature/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + authToken },
+          body: JSON.stringify(resp)
+        });
+        const vd = await v.json();
+        if (v.ok && vd.success) {
+          alert('✅ Unlock ho gaya — ' + d.featureTitle);
+          await loadFeatureState();
+          renderOwnedFeatures();
+        } else {
+          alert('❌ ' + (vd.error || 'Verify nahi hua') +
+                '\n\nPaisa kata ho to ghabrao mat — support se baat karo, unlock kar denge.');
+        }
+      },
+      theme: { color: '#7c3aed' }
+    });
+    rzp.open();
+  } catch (e) { alert('❌ ' + e.message); }
+}
+
+// ══════════════════════════════════════════════════════════════
 //  ADVANCE FEATURE LIST
 //  Superadmin se aati hai (/api/advance-features). Naya feature
 //  add karna ho to wahin se — yahan code chhune ki zaroorat nahi.
@@ -2777,6 +2897,14 @@ function renderAdvFeatures(list) {
 function escHtml(s) {
   return String(s == null ? '' : s)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Unlocked shop ho to ownership wali list, warna sales list. */
+async function refreshAdvView(shop) {
+  const unlocked = shop && shop.advanced_unlocked;
+  if (!unlocked) return;            // sales view pehle se render ho chuki
+  const st = await loadFeatureState();
+  if (st) renderOwnedFeatures();
 }
 
 async function loadAdvFeatures() {
