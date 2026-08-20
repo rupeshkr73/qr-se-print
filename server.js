@@ -1798,8 +1798,7 @@ app.get('/api/agent/commissions', verifyToken, async (req, res) => {
 app.post('/api/agent/onboard', verifyToken, async (req, res) => {
   try {
     const me = await pool.query(
-      'SELECT is_agent, agent_blocked, agent_price, agent_premium_price, demo FROM shops WHERE id=$1',
-      [req.shopId]);
+      'SELECT is_agent, agent_blocked, demo FROM shops WHERE id=$1', [req.shopId]);
     // Demo account sab kuch DEKH sakta hai, par shop onboard nahi kar sakta.
     // Frontend par bhi gate hai — ye doosri layer hai taaki koi seedha
     // API call karke bhi na nikal jaye.
@@ -1828,17 +1827,19 @@ app.post('/api/agent/onboard', verifyToken, async (req, res) => {
     let agPlan = normalizePlan(req.body.plan);
     if (!PLANS_BY_CHANNEL.agent.includes(agPlan)) agPlan = 'pro';
 
-    // Har plan ka apna agent floor. Agent ne apna upar wala price rakha ho
-    // to wahi lagta hai, warna floor. (agent_price / agent_premium_price
-    // purane markup system ke column hain -- set na ho to 0 aate hain.)
+    // Har plan ka apna agent floor -- aur bas WAHI.
+    //
+    // Agent ka apna markup KHATAM hai (PUT /api/agent/price ab 410 deta
+    // hai, status me can_set_price:false). Par purani shops ki row me
+    // `agent_price` abhi bhi pada hai -- Mahato Net Cafe me 1799. Pehle
+    // yahan `agent_price > floor ? agent_price : floor` tha, isliye form
+    // par Rs 799 dikhta tha aur shop Rs 1799 par ban jaati thi.
+    // Ab jo superadmin ne set kiya, wahi lagta hai.
     const agFloor = agPlan === 'premium'
       ? await getAgentPremiumBasePrice()
       : await getAgentBasePrice();
-    const agOwnPrice = agPlan === 'premium'
-      ? (me.rows[0].agent_premium_price || 0)
-      : (me.rows[0].agent_price || 0);
     const base = agFloor;
-    const sold = agOwnPrice > agFloor ? agOwnPrice : agFloor;
+    const sold = agFloor;
 
     // Baaki details — normal registration jaisi hi
     const printerModel = String(req.body.printer_model || '').trim().slice(0,120);
@@ -3276,11 +3277,12 @@ async function resolveRef(ref) {
 
 // Kisi ref ke hisaab se one-time setup price (agent ne badhaya ho to wahi)
 async function priceForRef(ref) {
+  // NOTE: is function ko abhi koi call nahi karta. Pehle isme bhi
+  // `agent_price > base` wala markup tha — wahi bug jo ref link par
+  // Rs 1799 kara raha tha. Agar kal koi ise use kare to wo bug dobara
+  // na aa jaye, isliye yahan bhi hata diya.
   const base = await getSetupFeeAmount();
   const s = await resolveRef(ref);
-  if (s && s.is_agent && s.agent_price && s.agent_price > base) {
-    return { price: s.agent_price, base, agent: s };
-  }
   return { price: base, base, agent: s || null };
 }
 
@@ -5187,10 +5189,12 @@ app.get('/api/setup-fee/current', async (req, res) => {
     if (req.query.ref) {
       const s = await resolveRef(req.query.ref);
       if (s && s.is_agent) {
+        // Sirf floor. Purana `agent_price` (markup) ab nahi ginta --
+        // us feature ko band kiye jaane ke baad bhi wo column reh gaya
+        // tha aur chup-chaap customer ka price badha raha tha.
         const agentBase = await getAgentBasePrice();
-        const agentPrice = (s.agent_price && s.agent_price > agentBase) ? s.agent_price : agentBase;
-        out.offerPrice = agentPrice;
-        out.amount = agentPrice;
+        out.offerPrice = agentBase;
+        out.amount = agentBase;
         out.agentRef = req.query.ref;
         out.agentName = s.name;
         // Agent ke link par SIRF Pro aur Premium. Starter sabse sasta
@@ -5198,14 +5202,12 @@ app.get('/api/setup-fee/current', async (req, res) => {
         // agent channel me nahi bechte.
         out.plans = filterPlansForChannel(out.plans, 'agent');
         // Agent ke dono plan ka apna floor hai.
-        if (out.plans.pro && agentPrice > out.plans.pro.fee) {
-          out.plans.pro = { ...out.plans.pro, fee: agentPrice, actual: 0 };
+        if (out.plans.pro && agentBase > out.plans.pro.fee) {
+          out.plans.pro = { ...out.plans.pro, fee: agentBase, actual: 0 };
         }
         const agentPremBase = await getAgentPremiumBasePrice();
-        const agentPremPrice = (s.agent_premium_price && s.agent_premium_price > agentPremBase)
-          ? s.agent_premium_price : agentPremBase;
-        if (out.plans.premium && agentPremPrice > out.plans.premium.fee) {
-          out.plans.premium = { ...out.plans.premium, fee: agentPremPrice, actual: 0 };
+        if (out.plans.premium && agentPremBase > out.plans.premium.fee) {
+          out.plans.premium = { ...out.plans.premium, fee: agentPremBase, actual: 0 };
         }
       }
     }
@@ -5287,14 +5289,16 @@ app.post('/api/shop/register', async (req, res) => {
       const agentBase = await getAgentBasePrice();
       // Agent ka apna price sirf Pro ka floor hai. Premium ka apna
       // (upar wala) price rehta hai — warna agent Premium sasta bech deta.
+      // Dono plan ka apna agent floor — aur bas wahi. Purana
+      // `agent_price` / `agent_premium_price` (markup) ab price me nahi
+      // ginte; wo feature band ho chuka hai par column reh gaye the.
       if (plan === 'pro') {
-        oneTimePrice = (refShop.agent_price && refShop.agent_price > agentBase) ? refShop.agent_price : agentBase;
+        oneTimePrice = agentBase;
         onetimeBaseForRecord = agentBase;
       } else {
         // Premium ka apna agent-floor hai — Pro wale se alag.
         const premBase = await getAgentPremiumBasePrice();
-        oneTimePrice = (refShop.agent_premium_price && refShop.agent_premium_price > premBase)
-          ? refShop.agent_premium_price : premBase;
+        oneTimePrice = premBase;
         onetimeBaseForRecord = premBase;
       }
     }
