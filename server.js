@@ -1064,6 +1064,20 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS paid_until TIMESTAMP;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS renewal_order_id VARCHAR(200) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS advanced_unlocked BOOLEAN DEFAULT false;
+      -- Kaun se advance feature is shop ne liye hain (feature id ki list).
+      -- advanced_unlocked ab bhi rehta hai (purana code use karta hai),
+      -- par asli sach yahi column hai. Premium walon ki list dekhi nahi
+      -- jaati — unhe poora catalog milta hai.
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS owned_features TEXT[] DEFAULT '{}';
+      -- Agent ab do plan bechta hai (Pro + Premium). agent_price Pro ka
+      -- hai; Premium ka apna alag, warna agent Premium Pro ke rate par
+      -- bech deta.
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS agent_premium_price INTEGER DEFAULT 0;
+      -- ₹49 wale single-feature order ke liye. Verify ke waqt client ke
+      -- bheje featureId par bharosa nahi karte — order banate waqt jo
+      -- maanga tha, yahin se padhte hain.
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS feature_order_id  VARCHAR(64) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS feature_order_fid VARCHAR(40) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS advanced_order_id VARCHAR(200) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_4x6_4 INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_4x6_6 INTEGER DEFAULT 0;
@@ -1339,7 +1353,9 @@ async function initDB() {
     await pool.query(`INSERT INTO system_settings (key,value) VALUES
       ('plan_starter_fee','599'), ('plan_starter_actual','2999'),
       ('plan_pro_fee','899'),     ('plan_pro_actual','2999'),
-      ('plan_premium_fee','999'), ('plan_premium_actual','2999')
+      ('plan_premium_fee','999'), ('plan_premium_actual','2999'),
+      -- Naye (non-core) advance feature ka default price
+      ('addon_feature_fee','49')
       ON CONFLICT DO NOTHING`);
     // One-time flip: jo installs pehle se chal rahe hain unme ye key '0'
     // padi hai. Ise EK BAAR '1' karo, phir kabhi mat chhedo — warna
@@ -1927,6 +1943,12 @@ app.post('/api/superadmin/shop/:shopId/unlock-advanced', verifySuperAdmin, async
     const r = await pool.query(
       "UPDATE shops SET advanced_unlocked=true WHERE id=$1 RETURNING id, name",
       [req.params.shopId]);
+    // Manual unlock bhi core pack deta hai — warna superadmin se
+    // khola gaya shop me feature-wise ownership khaali reh jaati.
+    {
+      const catalog = await getAdvanceFeatures();
+      await grantFeatures(req.params.shopId, coreFeatureIds(catalog));
+    }
     if (!r.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
     console.log(`Superadmin FREE advanced unlock: ${req.params.shopId}`);
     res.json({ success: true });
@@ -2694,16 +2716,112 @@ app.get('/api/printer-models', (req, res) => {
 //  Shape: [{ icon, title, desc, isNew }]
 //  desc me halka HTML (<b>) allowed hai — likhne wala superadmin hi hai.
 // ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+//  FEATURE ENTITLEMENT — kis shop ke paas kaun sa advance feature hai
+//
+//  `advanced_unlocked` boolean ab bhi hai (purana code use karta hai),
+//  par asli sach `owned_features` me hai — feature id ki list.
+//
+//  Premium ki list DEKHI HI NAHI JAATI: unhe catalog me jo bhi hai, aaj
+//  ka bhi aur kal ka bhi, sab milta hai. Isi se "aane wale saare feature
+//  free" ka waada apne aap poora hota hai — naya feature add karte hi
+//  sabhi Premium shops ko mil jaata hai, koi script chalane ki zaroorat
+//  nahi.
+// ══════════════════════════════════════════════════════════════
+
+/** Har feature ka `id` stable hona chahiye — usi se ownership judi hai. */
+function normalizeFeature(f, i) {
+  const id = String(f.id || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '')
+             || ('feat' + i);
+  return {
+    id,
+    icon:  String(f.icon  || '✨').slice(0, 8),
+    title: String(f.title || '').slice(0, 90).trim(),
+    desc:  String(f.desc  || '').slice(0, 600).trim(),
+    // core = base Advance pack ka hissa (₹199 wala / Pro-Premium me included).
+    // core=false = baad me aaya naya feature, uska apna price lagta hai.
+    core:  f.core !== false,
+    price: Math.max(0, parseInt(f.price) || 0),
+    isNew: !!f.isNew
+  };
+}
+
+/** Base pack ke feature — ₹199 me / Pro-Premium ke saath ye sab milte hain. */
+function coreFeatureIds(catalog) {
+  return catalog.filter(f => f.core).map(f => f.id);
+}
+
+/** Naye (add-on) feature ka price. 0 ya set na ho to global default. */
+async function addonFeaturePrice(feature) {
+  if (feature && feature.price > 0) return feature.price;
+  return await getAddonFeeDefault();
+}
+
+async function getAddonFeeDefault() {
+  try {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key='addon_feature_fee'");
+    return Math.max(1, parseInt(r.rows[0]?.value) || 49);
+  } catch (e) { return 49; }
+}
+
+/**
+ * Shop ke paas asal me kaun se feature hain.
+ * Premium ke liye poora catalog — chahe owned_features khaali hi ho.
+ */
+function ownedFeatureIds(shop, catalog) {
+  if (!shop) return [];
+  if (shop.plan_type === 'premium') return catalog.map(f => f.id);
+  const own = Array.isArray(shop.owned_features) ? shop.owned_features : [];
+  // Purani shops jinhone ₹199 diya tha unke paas owned_features khaali hai
+  // par advanced_unlocked=true hai — unhe core pack maana jaata hai.
+  if (!own.length && shop.advanced_unlocked) return coreFeatureIds(catalog);
+  return own;
+}
+
+function shopOwnsFeature(shop, featureId, catalog) {
+  return ownedFeatureIds(shop, catalog).indexOf(featureId) !== -1;
+}
+
+/**
+ * Shop ko feature de do. Premium par kuch karne ki zaroorat nahi —
+ * unka hisaab plan se hi nikalta hai.
+ */
+async function grantFeatures(shopId, ids) {
+  if (!ids || !ids.length) return;
+  await pool.query(
+    `UPDATE shops
+        SET owned_features = ARRAY(SELECT DISTINCT unnest(COALESCE(owned_features,'{}'::text[]) || $2::text[])),
+            advanced_unlocked = true
+      WHERE id = $1`,
+    [shopId, ids]);
+}
+
+async function revokeFeatures(shopId, ids) {
+  if (!ids || !ids.length) return;
+  await pool.query(
+    `UPDATE shops
+        SET owned_features = ARRAY(SELECT x FROM unnest(COALESCE(owned_features,'{}'::text[])) x
+                                    WHERE NOT (x = ANY($2::text[])))
+      WHERE id = $1`,
+    [shopId, ids]);
+  // Ek bhi feature na bache to legacy flag bhi off — warna purana code
+  // samajhta rahega ki advance khula hua hai.
+  await pool.query(
+    `UPDATE shops SET advanced_unlocked = false
+      WHERE id = $1 AND COALESCE(array_length(owned_features,1),0) = 0
+        AND plan_type <> 'premium'`, [shopId]);
+}
+
 const DEFAULT_ADVANCE_FEATURES = [
-  { icon: '📷', title: '4×6 Passport Photos',
+  { id: 'photo4x6', core: true, icon: '📷', title: '4×6 Passport Photos',
     desc: 'Customer photo bhejta hai — 4, 6, 8 ya 10 ki sheet khud ban kar photo printer se nikalti hai, cutting lines ke saath. Layout aur printer routing sab automatic.' },
-  { icon: '📝', title: 'Resume Maker',
+  { id: 'resume', core: true, icon: '📝', title: 'Resume Maker',
     desc: 'Customer QR se hi 6 design me resume banata hai aur form khud bharta hai. Aap sirf print dete ho — naya kaam, bina kuch seekhe.' },
-  { icon: '📐', title: 'A3 / A2 / A1 — Bade Size',
+  { id: 'bigsize', core: true, icon: '📐', title: 'A3 / A2 / A1 — Bade Size',
     desc: 'Naksha, project chart, banner. Har bade size ka apna printer aur apna rate set kar sakte ho — A3 printer hai to ye kaam aapke paas hi rahega.' },
-  { icon: '🗒️', title: 'Mini Print — ek sheet par 16 pages tak',
+  { id: 'mini', core: true, icon: '🗒️', title: 'Mini Print — ek sheet par 16 pages tak',
     desc: 'Notes, question paper, syllabus — customer 2/4/6/8/9/12/16 pages ek hi A4 par chhapwa sakta hai. Student season me sabse zyada chalne wala option.' },
-  { icon: '📄', title: 'Duplex — Dono Side Print',
+  { id: 'duplex', core: true, icon: '📄', title: 'Duplex — Dono Side Print',
     desc: 'Double-side print ka alag rate rakho. Auto-duplex printer nahi hai to manual mode — system khud bolta hai "page palto".' }
 ];
 
@@ -2714,13 +2832,139 @@ async function getAdvanceFeatures() {
     const parsed = JSON.parse(r.rows[0].value);
     // Khaali array save ho gaya ho to default hi behtar hai — warna
     // shop ko bilkul khaali box dikhega.
-    return (Array.isArray(parsed) && parsed.length) ? parsed : DEFAULT_ADVANCE_FEATURES;
+    if (!Array.isArray(parsed) || !parsed.length) return DEFAULT_ADVANCE_FEATURES;
+    // Purane save me `id` nahi tha — normalizeFeature index se bana
+    // deta hai, par uspar ownership tikana theek nahi. Isliye jinke
+    // paas id nahi hai unhe default catalog ke id se milate hain.
+    return parsed.map((f, i) => normalizeFeature(
+      f.id ? f : { ...f, id: (DEFAULT_ADVANCE_FEATURES[i] || {}).id }, i));
   } catch (e) {
     return DEFAULT_ADVANCE_FEATURES;
   }
 }
 
 // Shop ka Advance tab yahi padhta hai — public, koi auth nahi
+// ══════════════════════════════════════════════════════════════
+//  ADD-ON FEATURE UNLOCK (₹49) — ek feature, ek payment
+//
+//  Starter/Pro walon ke liye. Premium yahan aata hi nahi — unhe har
+//  naya feature apne aap milta hai, isliye order banane se pehle hi
+//  rok dete hain.
+// ══════════════════════════════════════════════════════════════
+app.post('/api/admin/feature/create-order', verifyToken, async (req, res) => {
+  try {
+    if (!OWNER_RAZORPAY_KEY_ID || !OWNER_RAZORPAY_KEY_SECRET)
+      return res.status(500).json({ error: 'Owner Razorpay configured nahi' });
+
+    const featureId = String(req.body.featureId || '').trim();
+    const catalog = await getAdvanceFeatures();
+    const feature = catalog.find(f => f.id === featureId);
+    if (!feature) return res.status(404).json({ error: 'Ye feature exist nahi karta' });
+
+    const sh = await pool.query(
+      'SELECT plan_type, advanced_unlocked, owned_features FROM shops WHERE id=$1', [req.shopId]);
+    if (!sh.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
+    const shop = sh.rows[0];
+
+    if (shop.plan_type === 'premium')
+      return res.status(400).json({ error: 'Premium me ye pehle se shaamil hai' });
+    if (shopOwnsFeature(shop, featureId, catalog))
+      return res.status(400).json({ error: 'Ye feature aapke paas pehle se hai' });
+    // core pack alag se bikta hai (₹199 wala), ek-ek karke nahi
+    if (feature.core)
+      return res.status(400).json({ error: 'Ye Advance pack ka hissa hai — poora pack unlock karo' });
+
+    const fee = await addonFeaturePrice(feature);
+    const orderData = JSON.stringify({
+      amount: fee * 100, currency: 'INR',
+      receipt: 'ft_' + req.shopId.slice(-6) + '_' + Date.now().toString().slice(-6),
+      notes: { shopId: req.shopId, kind: 'feature_unlock', featureId }
+    });
+    const auth = Buffer.from(`${OWNER_RAZORPAY_KEY_ID}:${OWNER_RAZORPAY_KEY_SECRET}`).toString('base64');
+    const order = await new Promise((resolve, reject) => {
+      const r = https.request({
+        hostname: 'api.razorpay.com', path: '/v1/orders', method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Basic ' + auth,
+                   'Content-Length': Buffer.byteLength(orderData) }
+      }, resp => { let d=''; resp.on('data',c=>d+=c);
+                   resp.on('end',()=>{ try{ resolve(JSON.parse(d)); }catch(e){ reject(e); } }); });
+      r.on('error', reject); r.write(orderData); r.end();
+    });
+    if (!order || !order.id) return res.status(500).json({ error: 'Order nahi bana' });
+
+    // order id shop par rakho — verify me isi se milaan hoga
+    await pool.query('UPDATE shops SET feature_order_id=$1, feature_order_fid=$2 WHERE id=$3',
+      [order.id, featureId, req.shopId]);
+    res.json({ orderId: order.id, amount: fee * 100, keyId: OWNER_RAZORPAY_KEY_ID,
+               fee, featureTitle: feature.title });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/feature/verify', verifyToken, async (req, res) => {
+  try {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature)
+      return res.status(400).json({ error: 'Payment details adhoore hain' });
+
+    const expected = crypto.createHmac('sha256', OWNER_RAZORPAY_KEY_SECRET)
+      .update(razorpay_order_id + '|' + razorpay_payment_id).digest('hex');
+    if (expected !== razorpay_signature)
+      return res.status(400).json({ error: 'Payment verify nahi hua' });
+
+    // Sirf wahi feature do jo order banate waqt maanga tha — client ke
+    // bheje hue featureId par bharosa nahi karte.
+    const sh = await pool.query(
+      'SELECT feature_order_id, feature_order_fid FROM shops WHERE id=$1', [req.shopId]);
+    const row = sh.rows[0];
+    if (!row || row.feature_order_id !== razorpay_order_id)
+      return res.status(400).json({ error: 'Order match nahi hua' });
+
+    const featureId = row.feature_order_fid;
+    await grantFeatures(req.shopId, [featureId]);
+    await pool.query("UPDATE shops SET feature_order_id='', feature_order_fid='' WHERE id=$1",
+      [req.shopId]);
+
+    const catalog = await getAdvanceFeatures();
+    const feature = catalog.find(f => f.id === featureId);
+    const fee = await addonFeaturePrice(feature);
+    try {
+      await pool.query(
+        `INSERT INTO platform_payments (shop_id, shop_name, amount, payment_id, order_id, gateway, kind)
+         SELECT id, name, $2, $3, $4, 'razorpay', 'feature_unlock' FROM shops WHERE id=$1`,
+        [req.shopId, fee, razorpay_payment_id, razorpay_order_id]);
+    } catch (e) { /* record na bane to bhi unlock rukna nahi chahiye */ }
+
+    log(`Feature unlocked: ${featureId} | shop ${req.shopId} | ₹${fee}`);
+    res.json({ success: true, featureId });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Shop ko apne feature ka status chahiye — kaun sa mila, kaun sa kharidna hai
+app.get('/api/admin/features', verifyToken, async (req, res) => {
+  try {
+    const catalog = await getAdvanceFeatures();
+    const sh = await pool.query(
+      'SELECT plan_type, advanced_unlocked, owned_features FROM shops WHERE id=$1', [req.shopId]);
+    if (!sh.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
+    const shop = sh.rows[0];
+    const owned = ownedFeatureIds(shop, catalog);
+    const addonFee = await getAddonFeeDefault();
+
+    res.json({
+      plan: shop.plan_type || 'starter',
+      // Premium walon ko kabhi kuch kharidna nahi padta
+      allIncluded: shop.plan_type === 'premium',
+      addonFee,
+      features: await Promise.all(catalog.map(async f => ({
+        id: f.id, icon: f.icon, title: f.title, desc: f.desc,
+        core: f.core, isNew: f.isNew,
+        owned: owned.indexOf(f.id) !== -1,
+        price: f.core ? 0 : await addonFeaturePrice(f)
+      })))
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/advance-features', async (req, res) => {
   res.json({ features: await getAdvanceFeatures() });
 });
@@ -2896,13 +3140,35 @@ async function getWlLicenseActual() {
   } catch(e) { return 0; }
 }
 
+/**
+ * Agent ke liye Premium ka floor. Pro ka floor getAgentBasePrice() hai.
+ * Set na ho to Premium ka apna public price — taaki agent Premium ko
+ * Pro ke rate par na bech de.
+ */
+async function getAgentPremiumBasePrice() {
+  try {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key='agent_base_price_premium'");
+    const v = parseInt(r.rows[0]?.value) || 0;
+    if (v > 0) return v;
+  } catch (e) {}
+  return (await getPlanPricing()).premium.fee;
+}
+
+/** Channel ka floor kis plan par lagega — wahi plan ka public price. */
+async function channelFloorPlan(channel) {
+  const plans = await getPlanPricing();
+  // agent ka sabse sasta plan Pro hai, wl ka Starter
+  return channel === 'wl' ? plans.starter.fee : plans.pro.fee;
+}
+
 async function getWlBasePrice() {
   try {
     const r = await pool.query("SELECT value FROM system_settings WHERE key='wl_base_price'");
     const v = parseInt(r.rows[0]?.value) || 0;
     if (v > 0) return v;
   } catch(e) {}
-  return await getSetupFeeAmount();
+  // White-label sirf Starter bechta hai — uska floor Starter ka price.
+  return (await getPlanPricing()).starter.fee;
 }
 
 // slug: sirf chhote akshar, number aur dash
@@ -4887,10 +5153,15 @@ app.get('/api/setup-fee/current', async (req, res) => {
         // hai — uspar agent ka commission nikalta hi nahi, isliye wo
         // agent channel me nahi bechte.
         out.plans = filterPlansForChannel(out.plans, 'agent');
-        // Agent ka apna price Pro ka floor ban jaata hai. Uske neeche
-        // nahi ja sakta, par Premium ka apna (upar wala) price rehta hai.
+        // Agent ke dono plan ka apna floor hai.
         if (out.plans.pro && agentPrice > out.plans.pro.fee) {
           out.plans.pro = { ...out.plans.pro, fee: agentPrice, actual: 0 };
+        }
+        const agentPremBase = await getAgentPremiumBasePrice();
+        const agentPremPrice = (s.agent_premium_price && s.agent_premium_price > agentPremBase)
+          ? s.agent_premium_price : agentPremBase;
+        if (out.plans.premium && agentPremPrice > out.plans.premium.fee) {
+          out.plans.premium = { ...out.plans.premium, fee: agentPremPrice, actual: 0 };
         }
       }
     }
@@ -4976,8 +5247,11 @@ app.post('/api/shop/register', async (req, res) => {
         oneTimePrice = (refShop.agent_price && refShop.agent_price > agentBase) ? refShop.agent_price : agentBase;
         onetimeBaseForRecord = agentBase;
       } else {
-        oneTimePrice = Math.max(planPricing[plan].fee, agentBase);
-        onetimeBaseForRecord = agentBase;
+        // Premium ka apna agent-floor hai — Pro wale se alag.
+        const premBase = await getAgentPremiumBasePrice();
+        oneTimePrice = (refShop.agent_premium_price && refShop.agent_premium_price > premBase)
+          ? refShop.agent_premium_price : premBase;
+        onetimeBaseForRecord = premBase;
       }
     }
 
@@ -5249,7 +5523,8 @@ async function getAgentBasePrice() {
     const v = parseInt(r.rows[0]?.value) || 0;
     if (v > 0) return v;
   } catch(e) {}
-  return await getSetupFeeAmount();
+  // Set na ho to Pro ka apna price — agent ka sabse sasta plan wahi hai.
+  return (await getPlanPricing()).pro.fee;
 }
 
 // Shop ka subscription zinda hai? onetime = hamesha; monthly = paid_until check
@@ -5337,9 +5612,18 @@ async function activateShop(shopId, paymentId) {
       [shopId]);
     // Pro aur Premium me Advance Feature payment ke saath hi khul jaata
     // hai — shop owner ko alag se ₹199 nahi dena padta.
-    await pool.query(
-      "UPDATE shops SET advanced_unlocked=true WHERE id=$1 AND plan_type IN ('pro','premium')",
-      [shopId]);
+    // Pro aur Premium me core Advance pack payment ke saath hi khul
+    // jaata hai. Premium ko owned_features me daalne ki zaroorat nahi
+    // (uska hisaab plan se nikalta hai) par daal dene se koi nuksan
+    // bhi nahi — aage plan badle to record bacha rehta hai.
+    {
+      const planRow = await pool.query('SELECT plan_type FROM shops WHERE id=$1', [shopId]);
+      const pt = planRow.rows[0]?.plan_type;
+      if (pt === 'pro' || pt === 'premium') {
+        const catalog = await getAdvanceFeatures();
+        await grantFeatures(shopId, coreFeatureIds(catalog));
+      }
+    }
     console.log(`Setup fee paid: ${shopId} | Payment: ${paymentId}`);
 
     // Ledger me record karo — superadmin ko yahi dikhta hai.
@@ -5485,6 +5769,13 @@ app.post('/api/admin/advanced/verify', verifyToken, async (req, res) => {
     const r = await pool.query(
       "UPDATE shops SET advanced_unlocked=true, advanced_order_id='' WHERE id=$1 AND advanced_order_id=$2 RETURNING id",
       [req.shopId, razorpay_order_id]);
+    // Legacy flag ke saath core pack bhi de do — ab asli sach
+    // owned_features me hai. Iske bina Pro/Premium ka farak lagu
+    // nahi hota aur naye feature ki ownership pata nahi chalti.
+    {
+      const catalog = await getAdvanceFeatures();
+      await grantFeatures(req.shopId, coreFeatureIds(catalog));
+    }
     if (r.rows.length) {
       console.log('Advanced unlocked:', req.shopId, razorpay_payment_id);
       // PEHLE ye paisa kahin record hi nahi hota tha — sirf console.log.
@@ -5663,7 +5954,7 @@ app.get('/api/shop/:shopId/demo-status', async (req, res) => {
 app.get('/api/shop/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,price_a3_bw,price_a3_color,price_a2_bw,price_a2_color,price_a1_bw,price_a1_color,shop_notice,advanced_active,shop_logo,adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,adv_mini_active FROM shops WHERE id=$1',
+      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,price_a3_bw,price_a3_color,price_a2_bw,price_a2_color,price_a1_bw,price_a1_color,shop_notice,advanced_active,shop_logo,adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,adv_mini_active,plan_type,owned_features FROM shops WHERE id=$1',
       [req.params.shopId]
     );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
@@ -5753,7 +6044,7 @@ app.get('/api/admin/profile', verifyToken, async (req, res) => {
               (agent_token IS NOT NULL) AS agent_bound,
               GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (demo_expires_at - NOW()))))::bigint AS demo_seconds_left,
               plan_type,paid_until,advanced_unlocked,advanced_active,
-              adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,adv_mini_active,shop_notice,shop_logo,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,price_a3_bw,price_a3_color,price_a2_bw,price_a2_color,price_a1_bw,price_a1_color,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
+              adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,adv_mini_active,owned_features,shop_notice,shop_logo,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,price_a3_bw,price_a3_color,price_a2_bw,price_a2_color,price_a1_bw,price_a1_color,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
               email,payment_gateway,razorpay_key_id,cashfree_app_id,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
               CASE WHEN cashfree_secret_key != '' THEN true ELSE false END as has_cashfree_secret
@@ -8251,6 +8542,7 @@ app.get('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
       monthlyActualPrice: await getMonthlyActualFee(),
       advancedActualPrice: await getAdvancedActualFee(),
       agentBasePrice: await getAgentBasePrice(),
+      agentPremiumBasePrice: await getAgentPremiumBasePrice(),
       wlLicenseFee: await getWlLicenseFee(),
       wlLicenseActual: await getWlLicenseActual(),
       wlBasePrice: await getWlBasePrice(),
@@ -8357,16 +8649,36 @@ app.put('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
     if (req.body.wlBasePrice !== undefined && req.body.wlBasePrice !== '') {
       const wbp = parseInt(req.body.wlBasePrice, 10);
       if (isNaN(wbp) || wbp < 0) return res.status(400).json({ error: 'Valid White Label base price daalo' });
-      if (wbp > 0 && wbp < newOfferPrice) {
-        return res.status(400).json({ error: 'White Label base price, Offer Price se kam nahi ho sakta' });
+      // PEHLE yahan global Offer Price (999) se compare hota tha, isliye
+      // 599 daalna namumkin tha. White-label sirf STARTER bechta hai,
+      // to uska floor Starter ka price hona chahiye.
+      const wlFloor = await channelFloorPlan('wl');
+      if (wbp > 0 && wbp < wlFloor) {
+        return res.status(400).json({
+          error: `White Label base price Starter ke price (₹${wlFloor}) se kam nahi ho sakta` });
       }
       await pool.query("UPDATE system_settings SET value=$1 WHERE key='wl_base_price'", [String(wbp)]);
     }
     if (req.body.agentBasePrice !== undefined && req.body.agentBasePrice !== '') {
       const abp = parseInt(req.body.agentBasePrice);
       if (isNaN(abp) || abp < 0) return res.status(400).json({ error: 'Valid Agent Base Price daalo' });
-      if (abp > 0 && abp < newOfferPrice) return res.status(400).json({ error: 'Agent Base Price, Offer Price se kam nahi ho sakta' });
+      // Agent ka sabse sasta plan Pro hai — floor wahi.
+      const agFloor = await channelFloorPlan('agent');
+      if (abp > 0 && abp < agFloor) return res.status(400).json({
+        error: `Agent Base Price Pro ke price (₹${agFloor}) se kam nahi ho sakta` });
       await pool.query("UPDATE system_settings SET value=$1 WHERE key='agent_base_price'", [String(abp)]);
+    }
+
+    // Agent ka Premium floor — alag, kyunki agent ab do plan bechta hai
+    if (req.body.agentPremiumBasePrice !== undefined && req.body.agentPremiumBasePrice !== '') {
+      const apb = parseInt(req.body.agentPremiumBasePrice);
+      if (isNaN(apb) || apb < 0) return res.status(400).json({ error: 'Valid Agent Premium Base Price daalo' });
+      const premFloor = (await getPlanPricing()).premium.fee;
+      if (apb > 0 && apb < premFloor) return res.status(400).json({
+        error: `Agent Premium Base Price, Premium ke price (₹${premFloor}) se kam nahi ho sakta` });
+      await pool.query(
+        `INSERT INTO system_settings (key,value) VALUES ('agent_base_price_premium',$1)
+         ON CONFLICT (key) DO UPDATE SET value=$1`, [String(apb)]);
     }
 
     // Festival Offer — banner + countdown (One-Time price ke saath homepage par)
