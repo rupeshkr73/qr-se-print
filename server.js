@@ -1060,6 +1060,15 @@ async function initDB() {
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS price_color_duplex INTEGER DEFAULT 0;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS printer_name_4x6 VARCHAR(300) DEFAULT '';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS printer_name_a3 VARCHAR(300) DEFAULT '';
+      -- ---- DUPLEX: apna printer + per-mode on/off ----
+      -- Bahut shops me duplex sirf EK printer kar paata hai (ya sirf B&W
+      -- wala). Pehle duplex hamesha B&W/Color wale printer par jaata tha
+      -- aur customer ko dono mode par dikhta tha -- jis printer me duplex
+      -- tha hi nahi, wahan order aakar phans jaata tha.
+      -- Default TRUE hai, isliye purani shops ka behaviour bilkul nahi badalta.
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS printer_name_duplex VARCHAR(300) DEFAULT '';
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS duplex_bw_enabled BOOLEAN DEFAULT true;
+      ALTER TABLE shops ADD COLUMN IF NOT EXISTS duplex_color_enabled BOOLEAN DEFAULT true;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS plan_type VARCHAR(12) DEFAULT 'onetime';
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS paid_until TIMESTAMP;
       ALTER TABLE shops ADD COLUMN IF NOT EXISTS renewal_order_id VARCHAR(200) DEFAULT '';
@@ -1666,6 +1675,19 @@ app.get('/api/agent/status', verifyToken, async (req, res) => {
     if (!r.rows.length) return res.status(404).json({ error: 'Shop nahi mila' });
     const s = r.rows[0];
     const base = await getAgentBasePrice();  // agent ka apna floor, public price nahi
+    // ---- AGENT KE PAAS DO PLAN HAIN: Pro aur Premium ----
+    // Superadmin dono ka alag floor set karta hai (Setup Fee page par
+    // "PRO - AGENT FLOOR" aur "PREMIUM - AGENT FLOOR"). Ref-link wala
+    // registration flow dono ko pehle se support karta hai, par ye status
+    // API sirf Pro wala floor lautati thi -- isliye agent ke dashboard par
+    // hamesha EK hi option dikhta tha. Ab dono jaate hain.
+    const premiumBase = await getAgentPremiumBasePrice();
+    const agentPlans = [
+      { id: 'pro',     label: 'Pro',     price: base,
+        advance: planIncludesAdvance('pro') },
+      { id: 'premium', label: 'Premium', price: premiumBase,
+        advance: planIncludesAdvance('premium') }
+    ];
 
     let stats = { total: 0, paid: 0, pending: 0, demo: 0 };
     if (s.is_agent) {
@@ -1686,6 +1708,10 @@ app.get('/api/agent/status', verifyToken, async (req, res) => {
       blocked: !!s.agent_blocked,
       // price/markup ka concept khatam — sab ek hi rate par bechte hain
       price: base, base_price: base, max_price: 0, can_set_price: false,
+      // Naya: dono plan ki list + Premium ka floor. Upar wale purane field
+      // waise ke waise hain, isliye koi purana panel nahi tootega.
+      plans: agentPlans,
+      premium_base_price: premiumBase,
       commission_per_shop: AGENT_COMMISSION,
       flat_commission: true,
       bonus_every: 0, bonus_amount: 0,
@@ -1772,7 +1798,8 @@ app.get('/api/agent/commissions', verifyToken, async (req, res) => {
 app.post('/api/agent/onboard', verifyToken, async (req, res) => {
   try {
     const me = await pool.query(
-      'SELECT is_agent, agent_blocked, agent_price, demo FROM shops WHERE id=$1', [req.shopId]);
+      'SELECT is_agent, agent_blocked, agent_price, agent_premium_price, demo FROM shops WHERE id=$1',
+      [req.shopId]);
     // Demo account sab kuch DEKH sakta hai, par shop onboard nahi kar sakta.
     // Frontend par bhi gate hai — ye doosri layer hai taaki koi seedha
     // API call karke bhi na nikal jaye.
@@ -1791,10 +1818,27 @@ app.post('/api/agent/onboard', verifyToken, async (req, res) => {
     if (!name) return res.status(400).json({ error: 'Shop ka naam zaroori hai' });
     if (!/^\d{10}$/.test(phone)) return res.status(400).json({ error: 'Sahi 10 digit mobile number daalo' });
 
-    // Agent ka apna markup khatam — shop ko wahi price milta hai jo
-    // superadmin ne set kiya hai. Agent ko har paid shop par flat ₹100.
-    const base = await getSetupFeeAmount();
-    const sold = base;
+    // ---- KAUNSA PLAN ----
+    // Agent ke channel par sirf Pro aur Premium bikte hain (Starter nahi) --
+    // bilkul wahi niyam jo ref-link wale registration par lagta hai.
+    // Pehle ye endpoint plan poochta hi nahi tha: har shop 'onetime' ban
+    // jaati thi aur price PUBLIC setup fee se aata tha, agent ke floor se
+    // nahi. Isliye superadmin do floor set karta tha par agent ko onboard
+    // form par ek hi option dikhta tha.
+    let agPlan = normalizePlan(req.body.plan);
+    if (!PLANS_BY_CHANNEL.agent.includes(agPlan)) agPlan = 'pro';
+
+    // Har plan ka apna agent floor. Agent ne apna upar wala price rakha ho
+    // to wahi lagta hai, warna floor. (agent_price / agent_premium_price
+    // purane markup system ke column hain -- set na ho to 0 aate hain.)
+    const agFloor = agPlan === 'premium'
+      ? await getAgentPremiumBasePrice()
+      : await getAgentBasePrice();
+    const agOwnPrice = agPlan === 'premium'
+      ? (me.rows[0].agent_premium_price || 0)
+      : (me.rows[0].agent_price || 0);
+    const base = agFloor;
+    const sold = agOwnPrice > agFloor ? agOwnPrice : agFloor;
 
     // Baaki details — normal registration jaisi hi
     const printerModel = String(req.body.printer_model || '').trim().slice(0,120);
@@ -1816,13 +1860,13 @@ app.post('/api/agent/onboard', verifyToken, async (req, res) => {
     await pool.query(
       `INSERT INTO shops (id,name,address,phone,printer_model,price_bw,price_color,payment_mode,
          password_hash,setup_paid,setup_amount,plan_type,referred_by,onboarded_by,base_price_at_signup,sold_price)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,false,$10,'onetime',$11,$11,$12,$13)`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,false,$10,$14,$11,$11,$12,$13)`,
       [shopId, name, address, phone, printerModel,
        Number.isInteger(priceBw) && priceBw > 0 ? priceBw : 5,
        Number.isInteger(priceColor) && priceColor > 0 ? priceColor : 10,
-       finalMode, passwordHash, sold, req.shopId, base, sold]);
+       finalMode, passwordHash, sold, req.shopId, base, sold, agPlan]);
 
-    res.json({ success: true, shopId, password, amount: sold,
+    res.json({ success: true, shopId, password, amount: sold, plan: agPlan,
       pay_url: `${BASE_URL}/setup-payment/${shopId}` });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
@@ -5954,7 +5998,7 @@ app.get('/api/shop/:shopId/demo-status', async (req, res) => {
 app.get('/api/shop/:shopId', async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,price_a3_bw,price_a3_color,price_a2_bw,price_a2_color,price_a1_bw,price_a1_color,shop_notice,advanced_active,shop_logo,adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,adv_mini_active,plan_type,owned_features FROM shops WHERE id=$1',
+      'SELECT id,name,address,printer_model,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,payment_gateway,razorpay_key_id,qr_code,setup_paid,paused,supply_warning,demo,demo_expires_at,duplex_mode,duplex_bw_enabled,duplex_color_enabled,plan_type,paid_until,advanced_unlocked,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,price_a3_bw,price_a3_color,price_a2_bw,price_a2_color,price_a1_bw,price_a1_color,shop_notice,advanced_active,shop_logo,adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,adv_mini_active,plan_type,owned_features FROM shops WHERE id=$1',
       [req.params.shopId]
     );
     if (!r.rows.length) return res.status(404).json({ error:'Shop not found' });
@@ -6044,7 +6088,7 @@ app.get('/api/admin/profile', verifyToken, async (req, res) => {
               (agent_token IS NOT NULL) AS agent_bound,
               GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (demo_expires_at - NOW()))))::bigint AS demo_seconds_left,
               plan_type,paid_until,advanced_unlocked,advanced_active,
-              adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,adv_mini_active,owned_features,shop_notice,shop_logo,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,price_a3_bw,price_a3_color,price_a2_bw,price_a2_color,price_a1_bw,price_a1_color,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
+              adv_legal_active,adv_resume_active,adv_4x6_active,adv_a3_active,adv_mini_active,owned_features,shop_notice,shop_logo,price_4x6_4,price_4x6_6,price_4x6_8,price_4x6_10,price_resume_color,price_resume_bw,price_a3_bw,price_a3_color,price_a2_bw,price_a2_color,price_a1_bw,price_a1_color,printer_model,printer_name_bw,printer_name_color,printer_name_4x6,printer_name_a3,printer_name_duplex,duplex_bw_enabled,duplex_color_enabled,price_bw,price_color,price_bw_duplex,price_color_duplex,payment_mode,qr_code,created_at,paused,supply_warning,duplex_mode,
               email,payment_gateway,razorpay_key_id,cashfree_app_id,
               CASE WHEN razorpay_key_secret != '' THEN true ELSE false END as has_razorpay_secret,
               CASE WHEN cashfree_secret_key != '' THEN true ELSE false END as has_cashfree_secret
@@ -6176,6 +6220,19 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
         await pool.query('UPDATE shops SET printer_name_4x6=$1 WHERE id=$2', [req.body.printer_name_4x6.slice(0,300), req.shopId]);
       if (typeof req.body.printer_name_a3 === 'string')
         await pool.query('UPDATE shops SET printer_name_a3=$1 WHERE id=$2', [req.body.printer_name_a3.slice(0,300), req.shopId]);
+      // Duplex ka apna printer. Khaali = purana behaviour (B&W/Color wala hi).
+      if (typeof req.body.printer_name_duplex === 'string')
+        await pool.query('UPDATE shops SET printer_name_duplex=$1 WHERE id=$2', [req.body.printer_name_duplex.slice(0,300), req.shopId]);
+      // Duplex kis mode par chalu hai -- B&W aur Color alag-alag.
+      // Field bheji hi nahi = purani value waise ki waisi (partial update safe).
+      for (const [dKey, dCol] of [['duplex_bw_enabled','duplex_bw_enabled'],
+                                  ['duplex_color_enabled','duplex_color_enabled']]) {
+        if (req.body[dKey] !== undefined) {
+          const dOn = (req.body[dKey] === true || req.body[dKey] === 'true' ||
+                       req.body[dKey] === 1 || req.body[dKey] === '1');
+          await pool.query(`UPDATE shops SET ${dCol}=$1 WHERE id=$2`, [dOn, req.shopId]);
+        }
+      }
       // Advance pricing (4x6 sheet: 4/6/8/10-photo; resume: color/bw)
       for (const [key, col] of [['price_4x6_4','price_4x6_4'],['price_4x6_6','price_4x6_6'],
                                 ['price_4x6_8','price_4x6_8'],['price_4x6_10','price_4x6_10'],
@@ -6194,6 +6251,36 @@ app.put('/api/admin/settings', verifyToken, async (req, res) => {
     const pcld = parsePrice(req.body.price_color_duplex);
     if (pbwd !== null) await pool.query('UPDATE shops SET price_bw_duplex=$1 WHERE id=$2', [pbwd, req.shopId]);
     if (pcld !== null) await pool.query('UPDATE shops SET price_color_duplex=$1 WHERE id=$2', [pcld, req.shopId]);
+
+    // ==============================================================
+    // SHOP OPEN/CLOSE + SUPPLY -- Desktop Panel yahin bhejta hai
+    //
+    // Website ye do cheezein /api/shop/pause aur /api/shop/supply-warning
+    // par bhejti hai, par Desktop Panel (agent_panel.py) inhe SETTINGS ke
+    // saath bhejta hai. Yahan inka koi handler tha hi nahi: server
+    // { success:true } lauta deta tha, DB me kuch likhta NAHI tha, aur
+    // panel refresh par purani value wapas padh leta tha -- isliye panel
+    // ka "Shop Open/Close" dabate hi wapas apni jagah chala jaata tha,
+    // jabki website se wahi kaam theek chalta tha.
+    //
+    // Ye handler server par hone se HAR pehle se installed agent turant
+    // theek ho jaata hai -- kisi shop ko naya .exe bhejne ki zaroorat nahi.
+    if (req.body.paused !== undefined) {
+      const isPaused = (req.body.paused === true || req.body.paused === 'true' ||
+                        req.body.paused === 1 || req.body.paused === '1');
+      await pool.query('UPDATE shops SET paused=$1 WHERE id=$2', [isPaused, req.shopId]);
+    }
+    if (req.body.supply_warning !== undefined) {
+      // Panel ki apni bhasha ('ok'|'ink'|'paper') aur DB ki bhasha
+      // (''|'low_ink'|'no_paper') -- dono accept karo. Koi anjaan value
+      // aaye to poora save fail karne ke bajaye sirf isi field ko chhod do.
+      const SUPPLY_MAP = { ok: '', '': '', ink: 'low_ink', low_ink: 'low_ink',
+                           paper: 'no_paper', no_paper: 'no_paper' };
+      const wNew = SUPPLY_MAP[String(req.body.supply_warning || '')];
+      if (wNew !== undefined) {
+        await pool.query('UPDATE shops SET supply_warning=$1 WHERE id=$2', [wNew, req.shopId]);
+      }
+    }
     res.json({ success: true, shop: r.rows[0] });
   } catch(err) { res.status(500).json({ error: err.message }); }
 });
@@ -6899,9 +6986,19 @@ app.post('/api/payment/online/create', async (req, res) => {
     // copies zabardasti 1 (warna owner ko har copy pe front/back popup
     // jhelna padta aur pages mix ho jate)
     let finalDuplex = false;
-    let dupShop = await pool.query('SELECT duplex_mode FROM shops WHERE id=$1', [job.shop_id]);
+    let dupShop = await pool.query(
+      'SELECT duplex_mode, duplex_bw_enabled, duplex_color_enabled FROM shops WHERE id=$1',
+      [job.shop_id]);
     const shopDuplexMode = dupShop.rows.length ? (dupShop.rows[0].duplex_mode || '') : '';
-    if (req.body.duplex === true && shopDuplexMode) finalDuplex = true;
+    // Owner duplex ko sirf B&W ya sirf Color par chalu rakh sakta hai
+    // (aksar duplex ek hi printer par hota hai). Column NULL ho -- yaani
+    // purani row jise migration ne abhi chhua nahi -- to ON hi maano,
+    // taaki kisi chalu shop ka duplex chup-chaap band na ho jaye.
+    const dupRow    = dupShop.rows[0] || {};
+    const dupBwOk   = dupRow.duplex_bw_enabled !== false;
+    const dupClOk   = dupRow.duplex_color_enabled !== false;
+    const dupModeOk = finalColorMode === 'color' ? dupClOk : dupBwOk;
+    if (req.body.duplex === true && shopDuplexMode && dupModeOk) finalDuplex = true;
     const finalCopies = parseInt(copies) || job.copies;
     const finalPages = parseInt(totalPages) || job.total_pages;
     // Manual duplex par copies HAMESHA 1 — print bhi aur BILL bhi (warna
@@ -7233,9 +7330,19 @@ app.post('/api/payment/counter', async (req, res) => {
     // copies zabardasti 1 (warna owner ko har copy pe front/back popup
     // jhelna padta aur pages mix ho jate)
     let finalDuplex = false;
-    let dupShop = await pool.query('SELECT duplex_mode FROM shops WHERE id=$1', [job.shop_id]);
+    let dupShop = await pool.query(
+      'SELECT duplex_mode, duplex_bw_enabled, duplex_color_enabled FROM shops WHERE id=$1',
+      [job.shop_id]);
     const shopDuplexMode = dupShop.rows.length ? (dupShop.rows[0].duplex_mode || '') : '';
-    if (req.body.duplex === true && shopDuplexMode) finalDuplex = true;
+    // Owner duplex ko sirf B&W ya sirf Color par chalu rakh sakta hai
+    // (aksar duplex ek hi printer par hota hai). Column NULL ho -- yaani
+    // purani row jise migration ne abhi chhua nahi -- to ON hi maano,
+    // taaki kisi chalu shop ka duplex chup-chaap band na ho jaye.
+    const dupRow    = dupShop.rows[0] || {};
+    const dupBwOk   = dupRow.duplex_bw_enabled !== false;
+    const dupClOk   = dupRow.duplex_color_enabled !== false;
+    const dupModeOk = finalColorMode === 'color' ? dupClOk : dupBwOk;
+    if (req.body.duplex === true && shopDuplexMode && dupModeOk) finalDuplex = true;
     const finalCopies = parseInt(copies) || job.copies;
     const finalPages = parseInt(totalPages) || job.total_pages;
     // Manual duplex par copies HAMESHA 1 — print bhi aur BILL bhi (warna
@@ -7483,7 +7590,8 @@ app.get('/api/jobs/pending/:shopId', verifyAgent, async (req, res) => {
        RETURNING j.id,j.file_name,j.file_url,j.file_public_id,j.file_type,j.copies,j.color_mode,
                  j.total_pages,j.selected_pages,j.amount,j.payment_method,j.created_at,j.duplex,
                  j.paper_size,j.orientation,
-                 s.printer_name_bw,s.printer_name_color,s.printer_name_4x6,s.printer_name_a3,s.duplex_mode`,
+                 s.printer_name_bw,s.printer_name_color,s.printer_name_4x6,s.printer_name_a3,
+                 s.printer_name_duplex,s.duplex_mode`,
       [req.params.shopId, String(ORPHAN_RECLAIM_SEC)]
     );
     if (r.rows.length) {
@@ -8658,6 +8766,23 @@ app.put('/api/superadmin/setup-fee', verifySuperAdmin, async (req, res) => {
           error: `White Label base price Starter ke price (₹${wlFloor}) se kam nahi ho sakta` });
       }
       await pool.query("UPDATE system_settings SET value=$1 WHERE key='wl_base_price'", [String(wbp)]);
+
+      // ---- AB YE SABHI PARTNERS PAR LAGU HOTA HAI ----
+      // whitelabels.base_price har partner ke REGISTRATION ke waqt ka
+      // SNAPSHOT hai. Isliye pehle yahan price badalne par purane partner
+      // ko apne wl-admin me wahi purana base dikhta rehta tha -- superadmin
+      // me Rs 649 aur partner ke login me Rs 599. Ab base sabka exactly
+      // wahi ho jaata hai jo yahan set kiya gaya.
+      //
+      // shop_price (partner apni shops ko jis rate par bechta hai) sirf tab
+      // uthaya jaata hai jab wo naye base se NEECHE reh gaya ho -- warna
+      // partner apne hi base se sasta bech raha hota. Jo pehle se upar hai,
+      // uska margin waise ka waisa chhod dete hain.
+      const wlSync = await pool.query('UPDATE whitelabels SET base_price=$1', [wbp]);
+      const wlLift = await pool.query(
+        'UPDATE whitelabels SET shop_price=$1 WHERE COALESCE(shop_price,0) < $1', [wbp]);
+      console.log(`White Label base price -> Rs ${wbp} | ${wlSync.rowCount} partner(s) synced, ` +
+                  `${wlLift.rowCount} ka shop price bhi upar uthaya gaya`);
     }
     if (req.body.agentBasePrice !== undefined && req.body.agentBasePrice !== '') {
       const abp = parseInt(req.body.agentBasePrice);

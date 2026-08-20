@@ -1191,10 +1191,21 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
              shop par flat ₹100 milta hai. -->
         <div class="card">
           <h2 style="font-family:'Plus Jakarta Sans',sans-serif;font-size:17px;margin-bottom:6px;">🏷️ Shop Registration Price</h2>
-          <p style="font-size:12.5px;color:#6b6870;line-height:1.7;margin-bottom:4px;">
-            Shop ka price <b>₹<span id="agBase">—</span></b> hai — ye sabke liye ek hi rehta hai.
-            Aapko har paid shop par <b style="color:#166534;">flat ₹100</b> commission milta hai.
+          <p style="font-size:12.5px;color:#6b6870;line-height:1.7;margin-bottom:9px;">
+            Aapke link par <b>do plan</b> chalte hain — Starter nahi.
+            Har plan ka apna price hai, aur aapko har paid shop par
+            <b style="color:#166534;">flat ₹100</b> commission milta hai.
           </p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;">
+            <div style="background:#f7f7f9;border:1.5px solid #e2ddd6;border-radius:11px;padding:11px 13px;">
+              <div style="font-size:11px;font-weight:800;color:#6b6870;letter-spacing:.3px;">💎 PRO</div>
+              <div style="font-size:19px;font-weight:800;margin-top:2px;">₹<span id="agBase">—</span></div>
+            </div>
+            <div style="background:#fff7ed;border:1.5px solid #fdba74;border-radius:11px;padding:11px 13px;">
+              <div style="font-size:11px;font-weight:800;color:#9a3412;letter-spacing:.3px;">👑 PREMIUM</div>
+              <div style="font-size:19px;font-weight:800;color:#9a3412;margin-top:2px;">₹<span id="agBasePremium">—</span></div>
+            </div>
+          </div>
         </div>
 
         <div class="card">
@@ -1218,6 +1229,30 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
           </p>
           <div id="agOnErr" style="display:none;background:#fee2e2;border:1.5px solid #fecaca;color:#991b1b;border-radius:10px;padding:10px;font-size:12.5px;margin-bottom:10px;"></div>
           <div id="agOnOk" style="display:none;background:#f0fdf4;border:1.5px solid #bbf7d0;color:#166534;border-radius:12px;padding:14px;font-size:13px;line-height:1.9;margin-bottom:10px;"></div>
+          <style>
+            .agPlanOpt{background:#fff;border:2px solid #e2ddd6;border-radius:12px;padding:11px 12px;
+                       cursor:pointer;transition:.15s;text-align:center;}
+            .agPlanOpt:hover{border-color:#c9c3ba;}
+            .agPlanOpt.sel{border-color:#ff2e63;background:#fff5f7;box-shadow:0 3px 10px rgba(255,46,99,.14);}
+            .agPlanName{font-size:13px;font-weight:800;}
+            .agPlanPrice{font-size:19px;font-weight:800;margin-top:2px;}
+            .agPlanNote{font-size:10px;color:#9b9690;margin-top:3px;line-height:1.4;}
+            .agPlanOpt.sel .agPlanPrice{color:#ff2e63;}
+          </style>
+          <label style="display:block;font-size:11.5px;font-weight:800;color:#6b6870;margin:0 0 5px;">KAUNSA PLAN?</label>
+          <div id="agPlanPick" style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px;">
+            <div class="agPlanOpt sel" data-plan="pro" onclick="agentPickPlan('pro')">
+              <div class="agPlanName">💎 Pro</div>
+              <div class="agPlanPrice">₹<span id="agPlanProPrice">—</span></div>
+              <div class="agPlanNote">Advance Feature included</div>
+            </div>
+            <div class="agPlanOpt" data-plan="premium" onclick="agentPickPlan('premium')">
+              <div class="agPlanName">👑 Premium</div>
+              <div class="agPlanPrice">₹<span id="agPlanPremPrice">—</span></div>
+              <div class="agPlanNote">Sab kuch + aage ke naye feature</div>
+            </div>
+          </div>
+
           <label style="display:block;font-size:11.5px;font-weight:800;color:#6b6870;margin:0 0 5px;">SHOP KI DETAILS</label>
           <input id="agOnName" placeholder="Shop ka naam *" style="width:100%;padding:12px;border:1.5px solid #e2ddd6;border-radius:11px;font-size:14px;box-sizing:border-box;margin-bottom:9px;">
           <input id="agOnPhone" type="tel" maxlength="10" placeholder="Mobile number (10 digit) *" style="width:100%;padding:12px;border:1.5px solid #e2ddd6;border-radius:11px;font-size:14px;box-sizing:border-box;margin-bottom:9px;">
@@ -1558,6 +1593,44 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
             <option value="manual">✋ Manual Duplex — front ke baad popup, page palat ke back print</option>
           </select>
           <p style="font-size:11px;color:#c2410c;margin:4px 0 0;">⚠️ Duplex ke liye Print Agent v10+ chahiye — pehle agent update karo, tabhi ye enable karna.</p>
+        </div>
+        <div class="form-group full" id="duplexExtraRow" style="display:none;background:#f5f3ff;border:1.5px solid #ddd6fe;border-radius:12px;padding:12px;margin-top:4px;">
+          <label style="color:#6d28d9;">🖨️ Duplex kis printer se nikle?</label>
+          <select id="setPrinterDuplex">
+            <option value="">— Nahi hai / B&amp;W-Color wala hi use karo —</option>
+          </select>
+          <p style="font-size:11px;color:#6b6870;margin:4px 0 12px;line-height:1.55;">
+            Aksar dono side ka kaam sirf <b>ek hi printer</b> kar paata hai. Wahi printer yahan chuno —
+            duplex order sidha usi par jaayega. <b>Khaali chhodoge</b> to duplex bhi normal
+            B&amp;W/Color wale printer par hi jayega (pehle jaisa).
+            4×6 photo aur A3/A2/A1 jobs apne printer par hi jaati rahengi.
+          </p>
+
+          <label style="color:#6d28d9;">Duplex kaunse print par chalu ho?</label>
+          <p style="font-size:11px;color:#6b6870;margin:4px 0 10px;line-height:1.55;">
+            Jise <b>OFF</b> karoge, customer ko us mode par Dual-Side ka option <b>dikhega hi nahi</b>.
+          </p>
+          <div class="adv-mod" id="dupBwRow">
+            <div class="adv-mod-txt">
+              <div class="adv-mod-title">⚫ Black &amp; White Duplex</div>
+              <div class="adv-mod-desc">B&amp;W print par dono side ka option</div>
+            </div>
+            <label class="adv-sw">
+              <input type="checkbox" id="setDuplexBw" onchange="syncDuplexSwitches()">
+              <span class="adv-sw-track"></span><span class="adv-sw-knob"></span>
+            </label>
+          </div>
+          <div class="adv-mod" id="dupColorRow">
+            <div class="adv-mod-txt">
+              <div class="adv-mod-title">🌈 Color Duplex</div>
+              <div class="adv-mod-desc">Color print par dono side ka option</div>
+            </div>
+            <label class="adv-sw">
+              <input type="checkbox" id="setDuplexColor" onchange="syncDuplexSwitches()">
+              <span class="adv-sw-track"></span><span class="adv-sw-knob"></span>
+            </label>
+          </div>
+          <div id="duplexSwitchNote" style="font-size:11.5px;font-weight:700;margin-top:10px;"></div>
         </div>
         <div class="form-group full" id="duplexPricesRow" style="display:none;background:#faf5ff;border:1.5px solid #e9d5ff;border-radius:12px;padding:12px;margin-top:4px;">
           <label style="color:#7c3aed;">💰 Duplex Prices (per page — dono side milaake)</label>
@@ -2524,7 +2597,7 @@ async function loadAdminPanel() {
     const _i = document.getElementById('qrShopId');   if (_i) _i.textContent = shop.id || '—';
 
     await loadPrinterModelsAdmin(shop.printer_model);
-    await loadColorPrinterDropdowns(shop.printer_name_bw, shop.printer_name_color, shop.printer_name_4x6, shop.printer_name_a3);
+    await loadColorPrinterDropdowns(shop.printer_name_bw, shop.printer_name_color, shop.printer_name_4x6, shop.printer_name_a3, shop.printer_name_duplex);
     document.getElementById('setDuplexMode').value = shop.duplex_mode || '';
     document.getElementById('setPrice4x6_4').value = shop.price_4x6_4 || '';
     document.getElementById('setPrice4x6_6').value = shop.price_4x6_6 || '';
@@ -2540,6 +2613,15 @@ async function loadAdminPanel() {
     updateBigPriceHint();
     document.getElementById('setPriceBwDuplex').value    = shop.price_bw_duplex    || '';
     document.getElementById('setPriceColorDuplex').value = shop.price_color_duplex || '';
+    // Duplex kis mode par chalu hai. Column abhi bana hi ho (purani shop) to
+    // undefined aata hai — tab ON hi maano, warna kisi chalu shop ka duplex
+    // page kholte hi band dikhne lagta.
+    {
+      const dbw = document.getElementById('setDuplexBw');
+      const dcl = document.getElementById('setDuplexColor');
+      if (dbw) dbw.checked = shop.duplex_bw_enabled    !== false;
+      if (dcl) dcl.checked = shop.duplex_color_enabled !== false;
+    }
     toggleDuplexPrices();
     currentShopId = shop.id;
     loadStats(shop.id);
@@ -2591,18 +2673,20 @@ async function loadPrinterModelsAdmin(currentModel) {
   } catch(e) {}
 }
 
-async function loadColorPrinterDropdowns(currentBW, currentColor, current4x6, currentA3) {
+async function loadColorPrinterDropdowns(currentBW, currentColor, current4x6, currentA3, currentDuplex) {
   const bwSelect = document.getElementById('setPrinterBW');
   const colorSelect = document.getElementById('setPrinterColor');
   const p4x6Select = document.getElementById('setPrinter4x6');
   const a3Select = document.getElementById('setPrinterA3');
+  const duplexSelect = document.getElementById('setPrinterDuplex');
   try {
     const res = await fetch('/api/admin/printers', { headers: { 'Authorization': 'Bearer ' + authToken } });
     const data = await res.json();
     const printers = data.printers || [];
 
-    const currents = [currentBW, currentColor, current4x6, currentA3];
-    [bwSelect, colorSelect, p4x6Select, a3Select].forEach((select, idx) => {
+    const currents = [currentBW, currentColor, current4x6, currentA3, currentDuplex];
+    [bwSelect, colorSelect, p4x6Select, a3Select, duplexSelect].forEach((select, idx) => {
+      if (!select) return;   // purana cached page — duplex wala select na ho to skip
       const currentValue = currents[idx];
       // "System Default Printer" wala option already HTML mein hai, baaki options yahan add karte hain
       printers.forEach(name => {
@@ -2712,6 +2796,36 @@ async function loadAdminBroadcast() {
 function toggleDuplexPrices(){
   const on = !!document.getElementById('setDuplexMode').value;
   document.getElementById('duplexPricesRow').style.display = on ? 'block' : 'none';
+  const extra = document.getElementById('duplexExtraRow');
+  if (extra) extra.style.display = on ? 'block' : 'none';
+  syncDuplexSwitches();
+}
+
+// Duplex ke B&W / Color switch — dikhne wala rang aur neeche ka note.
+// Save hone wali asli value checkbox me hi rehti hai; ye sirf UI hai.
+function syncDuplexSwitches(){
+  const dbw = document.getElementById('setDuplexBw');
+  const dcl = document.getElementById('setDuplexColor');
+  const note = document.getElementById('duplexSwitchNote');
+  if (!dbw || !dcl) return;
+  const bwRow = document.getElementById('dupBwRow');
+  const clRow = document.getElementById('dupColorRow');
+  if (bwRow) bwRow.classList.toggle('on', dbw.checked);
+  if (clRow) clRow.classList.toggle('on', dcl.checked);
+  if (!note) return;
+  if (dbw.checked && dcl.checked) {
+    note.textContent = '✅ Customer ko B&W aur Color, dono par Dual-Side ka option dikhega';
+    note.style.color = '#16a34a';
+  } else if (dbw.checked) {
+    note.textContent = '⚫ Dual-Side sirf B&W par dikhega — Color par nahi';
+    note.style.color = '#b45309';
+  } else if (dcl.checked) {
+    note.textContent = '🌈 Dual-Side sirf Color par dikhega — B&W par nahi';
+    note.style.color = '#b45309';
+  } else {
+    note.textContent = '⚠️ Dono OFF hain — customer ko Dual-Side ka option kahin nahi dikhega';
+    note.style.color = '#dc2626';
+  }
 }
 
 // ===== PAYMENT SETUP TAB =====
@@ -3196,6 +3310,18 @@ async function loadAgent() {
     // kar sakta) — isliye optional chaining se set karte hain.
     const _set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
     _set('agBase', d.base_price);
+    // Agent ke do plan — Pro aur Premium. Purana server sirf ek price
+    // bhejta tha, isliye plans[] na aaye to dono jagah wahi ek price
+    // chala jaata hai — page phir bhi theek dikhta hai.
+    const _plans = Array.isArray(d.plans) ? d.plans : [];
+    const _pro   = _plans.find(x => x.id === 'pro');
+    const _prem  = _plans.find(x => x.id === 'premium');
+    const _proPrice  = _pro  ? _pro.price  : (d.base_price || 0);
+    const _premPrice = _prem ? _prem.price : (d.premium_base_price || d.base_price || 0);
+    _set('agBasePremium',   _premPrice);
+    _set('agPlanProPrice',  _proPrice);
+    _set('agPlanPremPrice', _premPrice);
+    agentPickPlan(_agPlan);
     document.getElementById('agUpi').value   = d.upi || '';
     document.getElementById('agLink').value  = d.link || '';
     renderAgentPayouts();
@@ -3206,6 +3332,16 @@ async function loadAgent() {
     if (nav) nav.style.display = 'none';
   }
 }
+// Onboard form me kaunsa plan chuna hua hai. Default Pro — agent ka
+// sabse sasta plan wahi hai (Starter agent channel par bikta hi nahi).
+let _agPlan = 'pro';
+function agentPickPlan(plan) {
+  _agPlan = (plan === 'premium') ? 'premium' : 'pro';
+  document.querySelectorAll('#agPlanPick .agPlanOpt').forEach(el => {
+    el.classList.toggle('sel', el.getAttribute('data-plan') === _agPlan);
+  });
+}
+
 function renderAgentPayouts() {
   const box = document.getElementById('agPayouts');
   if (!box || !_ag) return;
@@ -3274,6 +3410,7 @@ async function agentOnboard() {
         price_bw: parseFloat(document.getElementById('agOnBw').value),
         price_color: parseFloat(document.getElementById('agOnColor').value),
         password: document.getElementById('agOnPass').value,
+        plan: _agPlan,
         payment_mode: 'counter_only'
       })
     });
@@ -3283,6 +3420,7 @@ async function agentOnboard() {
     ok.innerHTML = `<b>✅ Shop ban gayi!</b><br>
       <b>Shop ID:</b> ${_agE(d.shopId)}<br>
       <b>Password:</b> ${_agE(d.password)}<br>
+      <b>Plan:</b> ${d.plan === 'premium' ? '👑 Premium' : '💎 Pro'}<br>
       <b>Amount:</b> ₹${d.amount}<br><br>
       <span style="color:#92400e;">⚠️ Ye Shop ID aur password abhi note kar lo — dobara nahi dikhega.</span><br><br>
       <a href="${_agE(d.pay_url)}" target="_blank" style="display:inline-block;background:#16a34a;color:#fff;padding:11px 18px;border-radius:10px;font-weight:800;text-decoration:none;">💳 Ab Payment Karo ›</a>`;
@@ -4036,6 +4174,11 @@ async function saveSettings() {
     printer_name_color: document.getElementById('setPrinterColor').value,
       printer_name_4x6: document.getElementById('setPrinter4x6').value,
       printer_name_a3: document.getElementById('setPrinterA3').value,
+      printer_name_duplex: (document.getElementById('setPrinterDuplex') || {}).value || '',
+      duplex_bw_enabled: !document.getElementById('setDuplexBw') ||
+                          document.getElementById('setDuplexBw').checked,
+      duplex_color_enabled: !document.getElementById('setDuplexColor') ||
+                             document.getElementById('setDuplexColor').checked,
       price_4x6_4: document.getElementById('setPrice4x6_4').value,
       price_4x6_6: document.getElementById('setPrice4x6_6').value,
       price_4x6_8: document.getElementById('setPrice4x6_8').value,

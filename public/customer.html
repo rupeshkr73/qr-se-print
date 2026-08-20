@@ -902,7 +902,8 @@ const shopId = location.pathname.split('/').pop();
 // ═══════════════════════════════════════════════
 let state = {
   priceBW: 5, priceColor: 10,
-  colorMode: 'bw', copies: 1, duplex: false, shopDuplexMode: '', priceBwDuplex: 0, priceColorDuplex: 0, paperSize: 'a4', orientation: 'portrait', service: 'doc', photoCount: 0,
+  colorMode: 'bw', copies: 1, duplex: false, shopDuplexMode: '', priceBwDuplex: 0, priceColorDuplex: 0,
+  duplexBwOn: true, duplexColorOn: true, paperSize: 'a4', orientation: 'portrait', service: 'doc', photoCount: 0,
   jobId: null,
   shopPaymentMode: 'both', shopGateway: '', razorpayKeyId: '',
   onlineAllowed: false, counterAllowed: true,
@@ -1059,10 +1060,11 @@ async function init() {
     checkResumeHandoff();
     state.priceBwDuplex    = parseFloat(shop.price_bw_duplex)    || 0;
     state.priceColorDuplex = parseFloat(shop.price_color_duplex) || 0;
-    if (state.shopDuplexMode) {
-      const dr = document.getElementById('duplexRow');
-      if (dr) dr.style.display = 'block';
-    }
+    // Shop ne duplex ko kis mode par chalu rakha hai. Field aayi hi na ho
+    // (purana server / purani shop) to ON hi maano — purana behaviour.
+    state.duplexBwOn    = shop.duplex_bw_enabled    !== false;
+    state.duplexColorOn = shop.duplex_color_enabled !== false;
+    updateDuplexVisibility();
     document.getElementById('shopName').textContent = shop.name;
     document.getElementById('shopAddr').textContent = '📍 ' + (shop.address || '');
     document.getElementById('priceBWBadge').textContent = `B&W: ₹${shop.price_bw}/page`;
@@ -3669,10 +3671,36 @@ function toggleDuplex() {
   updateSummary();
 }
 
+// Dual-Side ka card sirf tab dikhta hai jab shop ne duplex chalu rakha ho
+// AUR abhi jo mode chuna hai (B&W ya Color) us par duplex allowed ho.
+// Owner Advance Feature me dono ko alag-alag on/off kar sakta hai, kyunki
+// aksar duplex sirf ek hi printer par chalta hai.
+function updateDuplexVisibility() {
+  const row = document.getElementById('duplexRow');
+  if (!row) return;
+  const allowed = !!state.shopDuplexMode &&
+    (state.colorMode === 'color' ? state.duplexColorOn !== false
+                                 : state.duplexBwOn    !== false);
+  row.style.display = allowed ? 'block' : 'none';
+
+  // Card chhup gaya par duplex pehle se chuna hua tha — to use band bhi
+  // karo. Warna customer ko dikhta kuch nahi aur bill/print me duplex laga
+  // reh jaata. Server bhi aise order ko duplex nahi maanta, isliye yahin
+  // saaf kar dena hi sahi hai.
+  if (!allowed && state.duplex) {
+    state.duplex = false;
+    const card = document.getElementById('optDuplex');
+    if (card) card.classList.remove('sel');
+    const note = document.getElementById('duplexCopyNote');
+    if (note) note.style.display = 'none';
+  }
+}
+
 function setColorMode(mode) {
   state.colorMode = mode;
   document.getElementById('optBW').classList.toggle('sel', mode === 'bw');
   document.getElementById('optColor').classList.toggle('sel', mode === 'color');
+  updateDuplexVisibility();
   updatePriceSummary();
 }
 function changeCopies(delta) {
