@@ -6,7 +6,7 @@
 <title>QR Se Print — Print Agent</title>
 <!--
   ══════════════════════════════════════════════════════════════
-  QR SE PRINT — DESKTOP PANEL  (v2.3)
+  QR SE PRINT — DESKTOP PANEL  (v2.4)
 
   Ye panel JAAN-BOOJH KAR chhota hai. Pehle isme 9 page the (Shop
   Settings, Pricing, Payment, Advanced, QR, Support, Updates...) —
@@ -173,10 +173,12 @@
   select:disabled{ opacity:.55; cursor:default; }
 
   /* ── BUTTONS ── */
-  .btns{ display:grid; grid-template-columns:1fr 1fr; gap:13px; margin-top:12px; }
+  /* Ab teen button hain, isliye font thoda chhota — warna "Refresh Printer
+     List" 900px window me toot kar do line me chala jaata hai. */
+  .btns{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:11px; margin-top:12px; }
   .btn{
     height:52px; border:0; border-radius:13px;
-    font-family:inherit; font-size:16px; font-weight:800; color:#fff;
+    font-family:inherit; font-size:14.5px; font-weight:800; color:#fff;
     display:flex; align-items:center; justify-content:center; gap:10px;
     cursor:pointer; transition:transform .12s, filter .12s;
   }
@@ -186,13 +188,28 @@
   .btn:disabled{ opacity:.6; cursor:default; }
   .btn.green { background:var(--green);  box-shadow:0 6px 16px rgba(22,163,74,.26); }
   .btn.indigo{ background:var(--indigo); box-shadow:0 6px 16px rgba(59,50,207,.26); }
+  /* Save ka rang gulabi hai — wahi rang jo upar "Select Printer" card ka
+     hai. Isse aankh ko turant samajh aata hai ki ye button us card se juda
+     hai. Do hare button ek saath confuse karte. */
+  .btn.rose  { background:#e11d63;      box-shadow:0 6px 16px rgba(225,29,99,.26); }
+
+  /* Demo -> Paid — sirf demo shop par dikhta hai */
+  .btn.amber { background:linear-gradient(135deg,#f59e0b,#d97706); color:#fff;
+               box-shadow:0 6px 16px rgba(217,119,6,.28); }
+  #demoRow{ display:none; margin-top:9px; }
+  body.is-demo #demoRow{ display:block; }
+  #demoRow .btn{ width:100%; height:43px; font-size:13.5px; }
+  #demoRow p{
+    margin:5px 2px 0; font-size:11px; line-height:1.45;
+    color:#92400e; text-align:center; font-weight:600;
+  }
   .spin{ animation:sp .9s linear infinite; }
   @keyframes sp{ to{ transform:rotate(360deg); } }
 
   .foot{
     text-align:center; color:var(--muted);
     font-size:12.5px; font-weight:600;
-    padding:10px 0 2px;
+    padding:8px 0 2px;
   }
 
   /* ── TOAST ── */
@@ -204,7 +221,11 @@
     box-shadow:0 12px 32px rgba(2,6,23,.3);
     display:flex; align-items:center; gap:10px;
     transition:transform .26s cubic-bezier(.2,.9,.3,1.2);
-    z-index:60; max-width:82%;
+    /* Upgrade page (#up) ka z-index 80 hai. Pehle toast 60 par tha,
+       isliye upgrade screen par HAR error toast overlay ke PEECHE chhup
+       jaata tha — shop owner ko sirf form wapas aata dikhta tha aur
+       wajah kabhi pata nahi chalti thi. */
+    z-index:200; max-width:82%;
   }
   .toast.show{ transform:translate(-50%,0); }
   .toast.ok  { background:#0f7a3d; }
@@ -247,8 +268,17 @@
   }
   .note.good{ background:#f0fdf4; border-color:#bbf7d0; color:#166534; }
   .busy{ text-align:center; padding:40px 0; color:var(--ink-2); font-weight:700; }
+  /* Upgrade form par error TOAST se nahi, yahin dikhta hai — toast 5 second
+     me chala jaata hai aur shop owner ko dobara padhne ka mauka nahi milta. */
+  #upErr{
+    display:none; margin-bottom:13px;
+    background:#fef2f2; border:1.5px solid #fecaca; color:#b91c1c;
+    border-radius:12px; padding:11px 14px;
+    font-size:13px; font-weight:700; line-height:1.6;
+  }
+  #upErr.show{ display:block; }
 
-  @media (max-width:720px){
+  @media (max-width:820px){
     .pcard{ flex-direction:column; align-items:stretch; gap:12px; }
     .pgrid{ grid-template-columns:1fr; }
     .btns{ grid-template-columns:1fr; }
@@ -344,6 +374,12 @@
   </div>
 
   <div class="btns">
+    <button class="btn rose" id="btnSave" onclick="doSave()">
+      <svg id="icoSave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+        <path d="M17 21v-8H7v8"/><path d="M7 3v5h8"/></svg>
+      <span>Save Printer</span>
+    </button>
     <button class="btn green" id="btnSync" onclick="doSync()">
       <svg id="icoSync" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
         <path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M20.5 4.5V10H15"/></svg>
@@ -354,6 +390,17 @@
         <path d="M20.5 12a8.5 8.5 0 1 1-2.5-6"/><path d="M20.5 4.5V10H15"/></svg>
       <span>Refresh Printer List</span>
     </button>
+  </div>
+
+  <!-- Sirf DEMO shop par dikhta hai (body.is-demo). Paid shop ke liye
+       panel bilkul waisa hi rehta hai jaisa design me tha. -->
+  <div id="demoRow">
+    <button class="btn amber" onclick="go('upgrade')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M13 2 4.5 13.5H11l-1 8.5 8.5-11.5H12l1-8.5z"/></svg>
+      <span>Demo se Paid Shop par jao</span>
+    </button>
+    <p>Ye demo Shop ID hai. Paid Shop ID daal kar isi PC par turant switch karo.</p>
   </div>
 
   <div class="foot">© QR Se Print — Print Agent</div>
@@ -393,7 +440,7 @@ async function py(fn){
 function mock(fn){
   var S = {
     get_state:{ ok:true, shopId:'SHOP_ECB1AB8A', shopName:'Mahato Net Cafe',
-      shopType:'paid', connection:'online', version:'2.3', latestVersion:'2.3',
+      shopType:'demo', connection:'online', version:'2.4', latestVersion:'2.4',
       updateAvailable:false, printerBw:'Canon G2010 series',
       printerColor:'Canon G2010 series' },
     get_printers:{ ok:true, printers:['Canon G2010 series','EPSON L130 Series',
@@ -439,6 +486,10 @@ function syncText(){
 }
 
 function paint(){
+  // Demo hai ya paid — SERVER batata hai (get_state -> shopType).
+  // Shop ID ke text se guess nahi karte.
+  document.body.classList.toggle('is-demo', (ST.shopType || '') === 'demo');
+
   $('vName').textContent = ST.shopName || '—';
   $('vId').textContent   = ST.shopId   || '—';
 
@@ -502,6 +553,29 @@ async function onPrinterChange(){
 }
 
 /* ── ACTIONS ── */
+/* Save button.
+
+   Asli save dropdown badalte hi ho chuka hota hai (onPrinterChange).
+   Ye button uske upar PAKKA jawab dene ke liye hai: wahi selection
+   dobara server ko bhejta hai aur uske jawab par bolta hai.
+
+   Sirf "save ho chuka hai" likh dena aasan tha, par jhooth ho sakta tha
+   — auto-save ke waqt net gaya ho to shop owner ko pata hi nahi chalta.
+   Isliye ye sach me server se confirm karta hai. Dobara bhejna safe hai. */
+async function doSave(){
+  spin(true, 'btnSave', 'icoSave');
+  var bw = $('selBw').value, cl = $('selColor').value;
+  var r = await py('save_printers', bw, cl);
+  spin(false, 'btnSave', 'icoSave');
+  if(r && r.ok){
+    ST.printerBw = bw; ST.printerColor = cl;
+    toast('Printer save ho gaya — server par yahi set hai', 'ok');
+  }else{
+    toast((r && r.error) || 'Save nahi hua — net check karo', 'err');
+    fillPrinters();          // server ne nahi liya — purani value wapas
+  }
+}
+
 async function doSync(){
   spin(true, 'btnSync', 'icoSync');
   var r = await py('sync_now');
@@ -551,8 +625,10 @@ function upRender(){
     h = '<div class="uph"><h2>Demo se Paid Shop</h2>'
       + '<p>Apni <b>paid Shop ID</b> aur password daalo. Yahi agent usi shop par '
       + 'chalne lagega — na reinstall, na restart.</p></div>'
+      + '<div id="upErr" class="' + (UP.err ? 'show' : '') + '">' + esc(UP.err || '') + '</div>'
       + '<div class="fld"><label>Paid Shop ID</label>'
-      + '<input id="upId" placeholder="SHOP_XXXXXXXX" autocomplete="off" spellcheck="false"></div>'
+      + '<input id="upId" placeholder="SHOP_XXXXXXXX" autocomplete="off" spellcheck="false" value="'
+      + esc(UP.lastId || '') + '"></div>'
       + '<div class="fld"><label>Shop Password</label>'
       + '<input id="upPw" type="password" placeholder="••••••" autocomplete="off"></div>'
       + '<button class="btn indigo wide" onclick="upVerify()">Verify karo</button>'
@@ -597,7 +673,15 @@ async function upVerify(){
   if(!pw)        return toast('Shop password daalo', 'err');
   UP.step = 2; upRender();
   var r = await py('verify_paid_shop', id.trim(), pw);
-  if(!r || !r.ok){ UP = { step:1 }; upRender(); return toast((r && r.error) || 'Verify nahi hua', 'err'); }
+  if(!r || !r.ok){
+    // Error form me hi rakho (toast chala jaata hai), aur Shop ID wapas
+    // bhar do taaki dobara poora type na karna pade.
+    UP = { step:1, err:(r && r.error) || 'Verify nahi hua — net check karo',
+           lastId:id.trim() };
+    upRender();
+    toast(UP.err, 'err');
+    return;
+  }
   UP = { step:3, shopId:r.shopId, shopName:r.shopName,
          planType:r.planType, alreadyLinked:r.alreadyLinked };
   upRender();
@@ -607,10 +691,15 @@ async function upSwitch(){
   var keep = UP;
   UP = { step:2 }; upRender();
   var r = await py('convert_to_paid');
-  if(!r || !r.ok){ UP = keep; UP.step = 3; upRender(); return toast((r && r.error) || 'Switch fail hua', 'err'); }
+  if(!r || !r.ok){
+    UP = { step:1, err:(r && r.error) || 'Switch fail hua', lastId:(keep && keep.shopId) || '' };
+    upRender();
+    toast(UP.err, 'err');
+    return;
+  }
   UP = { step:5, shopId:r.shopId, shopName:r.shopName, warning:r.warning };
   upRender();
-  await refresh();
+  await refresh();          // ab shopType 'paid' aayega -> demo button khud hat jayega
 }
 
 /* ── BOOT ── */
