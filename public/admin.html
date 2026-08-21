@@ -895,7 +895,7 @@ table th{font-family:'Inter',sans-serif !important;font-weight:700 !important}
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
           <!-- Sirf tab dikhta hai jab super admin ne update notes likhe hon -->
           <button id="wiuBtn1" onclick="openWhatsNew()" style="display:none;background:#fff;color:#166534;border:1.5px solid #86efac;border-radius:12px;padding:12px 16px;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap;font-family:'Inter',sans-serif;">📝 What's in Update</button>
-          <button onclick="downloadEasyInstaller()" style="background:#16a34a;color:#fff;border:none;border-radius:12px;padding:12px 18px;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap;">⬇️ Download & Install</button>
+          <button id="dlInstallBtn" onclick="downloadEasyInstaller()" style="background:#16a34a;color:#fff;border:none;border-radius:12px;padding:12px 18px;font-weight:800;font-size:13px;cursor:pointer;white-space:nowrap;">⬇️ Download & Install</button>
         </div>
       </div>
     </div>
@@ -2628,6 +2628,7 @@ async function loadAdminPanel() {
     loadJobs();    // loadReferral hata diya gaya
     loadBreakdown();
     loadAgentVersion();
+    initUpdateBuddy();          // robot -> "Download & Install" par ishara
     renderSubscription(shop);
     initSupport(shop);
     initDemoUpgrade(shop);
@@ -4277,5 +4278,257 @@ function logout() {
 </script>
 <script src="/i18n.js" defer></script>
   <script src="/i18n-extra.js" defer></script>
+
+<!-- ══════════════════════════════════════════════════════════════
+     UPDATE BUDDY — robot jo "Download & Install" par ishara karta hai
+     Demo aur paid, dono shop owner ko dikhta hai. 20 second baad khud
+     chala jaata hai. Image: public/robot.png (na mile to kuch nahi dikhta).
+     ══════════════════════════════════════════════════════════════ -->
+<style>
+#qspBuddy{
+  position:fixed; z-index:400; pointer-events:none;
+  opacity:0; transform:translateX(46px) scale(.92);
+  transition:opacity .55s ease, transform .55s cubic-bezier(.2,.9,.3,1.25);
+  will-change:transform,opacity;
+}
+#qspBuddy.in{ opacity:1; transform:translateX(0) scale(1); }
+#qspBuddy.out{ opacity:0; transform:translateX(46px) scale(.92); }
+
+#qspBuddyImg{
+  display:block; width:100%; height:auto;
+  filter:drop-shadow(0 14px 26px rgba(15,23,42,.22));
+  cursor:pointer; pointer-events:auto;
+  animation:qspFloat 3.4s ease-in-out infinite;
+  transform-origin:60% 80%;
+}
+/* Halka upar-neeche + button ki taraf jhukna. PNG me ungli alag se hila
+   nahi sakte, isliye poora robot thoda jhukta hai — wahi "ishara" lagta hai. */
+@keyframes qspFloat{
+  0%,100%{ transform:translateY(0)    rotate(0deg); }
+  25%    { transform:translateY(-7px) rotate(-3.5deg); }
+  50%    { transform:translateY(-2px) rotate(0deg); }
+  75%    { transform:translateY(-9px) rotate(-2deg); }
+}
+#qspBuddy.flip #qspBuddyImg{ animation-name:qspFloatFlip; }
+@keyframes qspFloatFlip{
+  0%,100%{ transform:scaleX(-1) translateY(0)    rotate(0deg); }
+  25%    { transform:scaleX(-1) translateY(-7px) rotate(-3.5deg); }
+  50%    { transform:scaleX(-1) translateY(-2px) rotate(0deg); }
+  75%    { transform:scaleX(-1) translateY(-9px) rotate(-2deg); }
+}
+
+#qspBubble{
+  position:absolute; left:50%; bottom:100%; translate:-50% -12px;
+  width:230px; pointer-events:auto; cursor:pointer;
+  background:#0b1220; color:#fff;
+  font-family:'Inter',system-ui,sans-serif;
+  font-size:12.5px; font-weight:700; line-height:1.55;
+  padding:11px 14px; border-radius:14px; text-align:center;
+  box-shadow:0 12px 30px rgba(2,6,23,.28);
+  opacity:0; transform:translateY(8px) scale(.9);
+  transition:opacity .4s ease, transform .4s cubic-bezier(.2,.9,.3,1.4);
+}
+#qspBuddy.talk #qspBubble{ opacity:1; transform:translateY(0) scale(1); }
+#qspBubble::after{           /* neeche ki nok — robot ki taraf */
+  content:''; position:absolute; left:50%; top:100%; translate:-50% 0;
+  border:8px solid transparent; border-top-color:#0b1220;
+}
+
+/* Button par dhyaan khinchne wala halka green halo */
+#dlInstallBtn.qsp-ping{ animation:qspPing 1.7s ease-out infinite; }
+@keyframes qspPing{
+  0%  { box-shadow:0 0 0 0   rgba(22,163,74,.55); }
+  70% { box-shadow:0 0 0 14px rgba(22,163,74,0); }
+  100%{ box-shadow:0 0 0 0   rgba(22,163,74,0); }
+}
+
+/* Chhoti screen par jagah hi nahi — robot bilkul nahi aata */
+@media (max-width:1100px){ #qspBuddy{ display:none !important; } }
+
+/* Jinhone Windows me animation band kar rakhi hai, unke liye sirf sthir robot */
+@media (prefers-reduced-motion:reduce){
+  #qspBuddyImg{ animation:none !important; }
+  #dlInstallBtn.qsp-ping{ animation:none !important; }
+  #qspBuddy,#qspBubble{ transition:opacity .3s ease !important; }
+}
+</style>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   UPDATE BUDDY
+
+   Robot ki jagah button se JOD kar nikaali jaati hai — isliye layout
+   badle, window resize ho ya page scroll ho, ungli hamesha
+   "Download & Install" par hi rehti hai.
+   ══════════════════════════════════════════════════════════════ */
+(function(){
+  var SHOW_MS   = 20000;                 // 20 second baad khud chala jayega
+  var W         = 168;                   // robot ki chaudai (px)
+  var FINGER_X  = 0.26, FINGER_Y = 0.30; // ungli image me kahan hai (anupaat)
+  var MIN_WIDTH = 1100;
+
+  var el = null, imgEl = null, hideT = null, rafT = null, alive = false;
+
+  function btn(){ return document.getElementById('dlInstallBtn'); }
+
+  function build(){
+    if (el) return el;
+    el = document.createElement('div');
+    el.id = 'qspBuddy';
+    el.style.width = W + 'px';
+    el.innerHTML =
+      '<div id="qspBubble">Download and run This Software for QR Se Print</div>' +
+      '<img id="qspBuddyImg" alt="" src="robot.png">';
+    document.body.appendChild(el);
+
+    imgEl = document.getElementById('qspBuddyImg');
+    // Image na mile to poora robot hata do — broken icon kabhi nahi dikhega
+    imgEl.onerror = function(){ destroy(); };
+
+    // Click par download SHURU nahi karte (galti se lag sakta hai) —
+    // button tak le jaate hain aur use chamka dete hain.
+    function poke(){
+      var b = btn(); if (!b) return;
+      b.scrollIntoView({ behavior:'smooth', block:'center' });
+      b.classList.add('qsp-ping');
+      b.style.outline = '3px solid rgba(22,163,74,.5)';
+      setTimeout(function(){ b.style.outline = ''; }, 1400);
+    }
+    imgEl.addEventListener('click', poke);
+    document.getElementById('qspBubble').addEventListener('click', poke);
+    return el;
+  }
+
+  /* place() ab teen me se ek jawab deta hai:
+       'ok'    -> jagah mil gayi, robot wahin rakh diya
+       'away'  -> button abhi screen par nahi (scroll ho gaya) ya jagah nahi
+                  -> robot chhupa do PAR dekhte raho, wapas aane par phir dikhega
+       'retry' -> button ka layout abhi bana hi nahi -> is baar chhod do
+       'gone'  -> button hi gayab -> ab band karo
+
+     Pehle ye sirf true/false deta tha aur ek bhi 0-size tick par robot
+     HAMESHA ke liye mar jaata tha. Aur scroll karke button bahar chala
+     jaye to robot khaali jagah par ishara karta reh jaata tha. */
+  function place(){
+    var b = btn();
+    if (!el || !b) return 'gone';
+    var r = b.getBoundingClientRect();
+    if (r.width === 0 && r.height === 0) return 'retry';   // layout abhi baaki
+
+    // Button screen se bahar nikal gaya — ishara karne ka matlab hi nahi
+    if (r.bottom < 40 || r.top > window.innerHeight - 40) return 'away';
+
+    var h = (imgEl && imgEl.naturalHeight && imgEl.naturalWidth)
+      ? W * (imgEl.naturalHeight / imgEl.naturalWidth) : W;
+
+    // Ungli ko button ke thoda neeche-daayen rakho — wo upar-baayen ishara
+    // karti hai, isliye nazar seedhi button par jaati hai.
+    var left = (r.right + 58) - FINGER_X * W;
+    var top  = (r.bottom + 26) - FINGER_Y * h;
+    var flip = false;
+
+    // Daayen jagah na ho to baayen taraf, robot palat kar
+    if (left + W > window.innerWidth - 10){
+      flip = true;
+      left = (r.left - 58) - (1 - FINGER_X) * W;
+    }
+    if (left < 10) return 'away';                      // dono taraf jagah nahi
+    if (top < 6 || top + h > window.innerHeight - 6) return 'away';
+
+    el.classList.toggle('flip', flip);
+    el.style.left = Math.round(left) + 'px';
+    el.style.top  = Math.round(top) + 'px';
+    return 'ok';
+  }
+
+  function paint(on){
+    if (!el) return;
+    if (on){ el.classList.remove('out'); el.classList.add('in'); }
+    else   { el.classList.remove('in');  el.classList.add('out'); }
+  }
+
+  var misses = 0;
+  function track(){
+    if (!alive) return;
+    var st = place();
+    if (st === 'gone'){ hide(); return; }
+    if (st === 'retry'){
+      // Thoda sabr — layout banne me kuch frame lag sakte hain
+      if (++misses > 25){ hide(); return; }
+    } else {
+      misses = 0;
+      paint(st === 'ok');
+    }
+    rafT = setTimeout(track, 120);
+  }
+
+  function onOverview(){
+    var ov = document.querySelector('[data-sect="overview"]');
+    return !!(ov && ov.classList.contains('show'));
+  }
+
+  function show(){
+    if (window.innerWidth < MIN_WIDTH) return;
+    if (!onOverview()) return;
+    if (!btn()) return;
+    build();
+    if (!el) return;
+    var st = place();
+    if (st === 'gone') return;
+
+    alive = true; misses = 0;
+    // requestAnimationFrame JAAN-BOOJH KAR nahi. Agar dashboard background
+    // tab me khula ho to browser rAF rok deta hai — tab robot kabhi fade-in
+    // hi nahi hota. Forced reflow se browser pehli state (opacity 0) register
+    // kar leta hai, phir class lagte hi transition chal padti hai.
+    if (st === 'ok'){ void el.offsetWidth; paint(true); }
+    setTimeout(function(){ if (el && alive) el.classList.add('talk'); }, 480);
+    var b = btn(); if (b) b.classList.add('qsp-ping');
+
+    clearTimeout(hideT);
+    hideT = setTimeout(hide, SHOW_MS);
+    track();
+  }
+
+  function hide(){
+    alive = false;
+    clearTimeout(hideT);
+    if (rafT) { clearTimeout(rafT); rafT = null; }
+    var b = btn(); if (b) b.classList.remove('qsp-ping');
+    if (!el) return;
+    el.classList.remove('talk', 'in');
+    el.classList.add('out');
+  }
+
+  function destroy(){
+    hide();
+    if (el && el.parentNode) el.parentNode.removeChild(el);
+    el = null; imgEl = null;
+  }
+
+  window.addEventListener('resize', function(){
+    if (!alive) return;
+    if (window.innerWidth < MIN_WIDTH) hide(); else { var st = place(); if (st !== 'retry') paint(st === 'ok'); }
+  });
+
+  // Dashboard load hone ke baad thoda ruk kar — taaki layout jam jaye
+  window.initUpdateBuddy = function(){
+    setTimeout(show, 900);
+  };
+
+  // Overview chhoda to robot bhi gaya. navTo ko lapet rahe hain taaki
+  // uske apne code me kuch badalna na pade.
+  var origNav = window.navTo;
+  if (typeof origNav === 'function'){
+    window.navTo = function(sect){
+      // finally me hide karte hain — agar navTo khud kabhi throw kare to
+      // bhi robot atka nahi rehna chahiye.
+      try { return origNav.apply(this, arguments); }
+      finally { if (sect !== 'overview') hide(); }
+    };
+  }
+})();
+</script>
+
 </body>
 </html>
