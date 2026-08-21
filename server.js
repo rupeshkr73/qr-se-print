@@ -3957,8 +3957,32 @@ function agentTokenFromReq(req) {
 
 async function verifyAgent(req, res, next) {
   try {
-    const shopId = req.params.shopId;
+    // shopId ya to URL me hota hai (/api/jobs/pending/:shopId) ya BODY me
+    // (/api/agent/verify-paid-shop, /api/agent/convert-to-paid).
+    //
+    // Pehle sirf req.params padha jaata tha, isliye Demo -> Paid wale dono
+    // route HAMESHA 400 "shopId missing" dete the -- request endpoint tak
+    // pahunchti hi nahi thi. Yaani demo se paid banne ka flow kabhi chala
+    // hi nahi, na panel se na tray se.
+    //
+    // Body se lena utna hi surakshit hai: neeche wahi agent_token check
+    // hota hai, to bina sahi token ke kisi aur shop ka data nahi milta.
+    let shopId = req.params.shopId
+              || (req.body && (req.body.shopId || req.body.demoShopId));
+
+    // convert-to-paid sirf `ticket` bhejta hai (Shop ID uske andar hai).
+    // Ticket hum khud sign karte hain, isliye usme se demoShopId lena
+    // surakshit hai -- aur asli suraksha to neeche ka agent_token check hai:
+    // convert wahi kar sakta hai jiske paas us demo shop ka agent token ho.
+    if (!shopId && req.body && req.body.ticket) {
+      try {
+        const t = jwt.verify(String(req.body.ticket), JWT_SECRET);
+        if (t && t.act === 'demo-convert') shopId = t.demoShopId;
+      } catch (e) { /* galat/expire ticket -- neeche 400 mil jayega */ }
+    }
     if (!shopId) return res.status(400).json({ error: 'shopId missing' });
+    // Endpoint ise seedha use kar sake (req.params hamesha nahi hota)
+    req.agentShopId = shopId;
     const r = await pool.query('SELECT agent_token FROM shops WHERE id=$1', [shopId]);
     if (!r.rows.length) return res.status(404).json({ error: 'Shop not found' });
 
@@ -7675,7 +7699,8 @@ app.get('/api/jobs/:shopId/:jobId/download-url', verifyAgent, async (req, res) =
 app.post('/api/agent/verify-paid-shop', verifyAgent, async (req, res) => {
   const ip = clientIp(req);
   try {
-    const demoShopId = String(req.params.shopId || req.body.demoShopId || '').trim();
+    const demoShopId = String(req.agentShopId || req.params.shopId
+                              || req.body.demoShopId || '').trim();
     const paidShopId = String(req.body.paidShopId || '').trim().toUpperCase();
     const password   = String(req.body.password || '');
 
@@ -7748,7 +7773,12 @@ function _convertFail(ip, shopId, reason) {
 app.post('/api/agent/convert-to-paid', verifyAgent, async (req, res) => {
   const client = await pool.connect();
   try {
-    const demoShopId = String(req.params.shopId || '').trim();
+    // Pehle yahan `req.params.shopId` tha -- par is route me koi :shopId
+    // param hai hi nahi, to ye HAMESHA khaali aata tha aur neeche wala
+    // check hamesha fail hota tha ("Verification does not match this
+    // installation"). verifyAgent ab shopId nikaal kar req.agentShopId
+    // me rakh deta hai (params / body / ticket -- jo mile).
+    const demoShopId = String(req.agentShopId || req.params.shopId || '').trim();
     let payload;
     try {
       payload = jwt.verify(String(req.body.ticket || ''), JWT_SECRET);
