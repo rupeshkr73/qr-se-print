@@ -71,11 +71,11 @@ AUTO_RECONNECT_NOTIFY_GAP = 600  # 10 min
 # Isliye khaali waqt me dheere check karo — par job aate hi turant 5s par
 # wapas aa jao, taaki print me deri na ho.
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 33           # INTERNAL counter — server ke agent_version se compare hota hai.
+VERSION            = 34           # INTERNAL counter — server ke agent_version se compare hota hai.
                                   # Ye sirf badhta hai (29 → 30 → 31...). Isko kabhi
                                   # "2.0" mat banao: purane v27/v28/v29 agents integer
                                   # compare karte hain, warna woh update lena band kar denge.
-VERSION_LABEL      = "2.3"        # Jo sab jagah DIKHTA hai: 2.0 → 2.1 ... 2.10 → 3.0
+VERSION_LABEL      = "2.4"        # Jo sab jagah DIKHTA hai: 2.0 → 2.1 ... 2.10 → 3.0
 REMOTE_VERSION_LABEL = None       # Server ka latest label — update check par bhar jaata hai
 REMOTE_VERSION_INT = 0            # Server ka internal build number (integer compare ke liye)
 SUPPORT_WA         = "918404832414"  # Admin WhatsApp (shop-login Support jaisa) — Contact Admin isi par khulega
@@ -339,10 +339,15 @@ def _powershell_input(prompt, title="QR Se Print"):
     part of Windows itself and always works.
     """
     try:
+        # PowerShell ki single-quoted string me ' ko '' likhna padta hai.
+        # Bina iske kal koi prompt me apostrophe daal de (jaise "shop's ID")
+        # to poori command toot jaati aur box khaali aata.
+        _p = str(prompt).replace("'", "''")
+        _t = str(title).replace("'", "''")
         ps = (
             "Add-Type -AssemblyName Microsoft.VisualBasic;"
             "[Microsoft.VisualBasic.Interaction]::InputBox("
-            f"'{prompt}','{title}','')"
+            f"'{_p}','{_t}','')"
         )
         out = subprocess.run(
             ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
@@ -354,12 +359,340 @@ def _powershell_input(prompt, title="QR Se Print"):
         return ""
 
 
+def _ps_shop_login(head, title="QR Se Print"):
+    """
+    Ek hi Windows dialog me Shop ID aur PASSWORD poochho.
+
+    InputBox se ye kaam nahi ho sakta - usme password dots me nahi
+    chhupta. Isliye PowerShell se ek chhota WinForms box banate hain.
+    WinForms har Windows par .NET ke saath pehle se hota hai.
+
+    Returns (shop_id, password) ya None (cancel / fail).
+    """
+    ps1 = None
+    try:
+        import tempfile
+        script = """
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$f = New-Object System.Windows.Forms.Form
+$f.Text = '__TITLE__'
+$f.Size = New-Object System.Drawing.Size(440,260)
+$f.StartPosition = 'CenterScreen'
+$f.FormBorderStyle = 'FixedDialog'
+$f.MaximizeBox = $false
+$f.MinimizeBox = $false
+$f.TopMost = $true
+$lh = New-Object System.Windows.Forms.Label
+$lh.Text = '__HEAD__'
+$lh.Location = New-Object System.Drawing.Point(16,14)
+$lh.Size = New-Object System.Drawing.Size(400,36)
+$f.Controls.Add($lh)
+$l1 = New-Object System.Windows.Forms.Label
+$l1.Text = 'Paid Shop ID'
+$l1.Location = New-Object System.Drawing.Point(16,58)
+$l1.Size = New-Object System.Drawing.Size(400,18)
+$f.Controls.Add($l1)
+$t1 = New-Object System.Windows.Forms.TextBox
+$t1.Location = New-Object System.Drawing.Point(16,78)
+$t1.Size = New-Object System.Drawing.Size(400,24)
+$f.Controls.Add($t1)
+$l2 = New-Object System.Windows.Forms.Label
+$l2.Text = 'Shop Password'
+$l2.Location = New-Object System.Drawing.Point(16,112)
+$l2.Size = New-Object System.Drawing.Size(400,18)
+$f.Controls.Add($l2)
+$t2 = New-Object System.Windows.Forms.TextBox
+$t2.Location = New-Object System.Drawing.Point(16,132)
+$t2.Size = New-Object System.Drawing.Size(400,24)
+$t2.UseSystemPasswordChar = $true
+$f.Controls.Add($t2)
+$ok = New-Object System.Windows.Forms.Button
+$ok.Text = 'Aage badho'
+$ok.Location = New-Object System.Drawing.Point(226,178)
+$ok.Size = New-Object System.Drawing.Size(90,30)
+$ok.DialogResult = [System.Windows.Forms.DialogResult]::OK
+$f.Controls.Add($ok)
+$cn = New-Object System.Windows.Forms.Button
+$cn.Text = 'Cancel'
+$cn.Location = New-Object System.Drawing.Point(326,178)
+$cn.Size = New-Object System.Drawing.Size(90,30)
+$cn.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+$f.Controls.Add($cn)
+$f.AcceptButton = $ok
+$f.CancelButton = $cn
+$f.Add_Shown({$f.Activate(); $t1.Focus()})
+if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+  [Console]::Out.WriteLine($t1.Text)
+  [Console]::Out.WriteLine($t2.Text)
+}
+"""
+        # Text ko script me daalte waqt quote todna nahi chahiye
+        script = script.replace("__TITLE__", str(title).replace("'", "''"))
+        script = script.replace("__HEAD__", str(head).replace("'", "''"))
+
+        fd, ps1 = tempfile.mkstemp(suffix=".ps1")
+        with os.fdopen(fd, "w", encoding="utf-8-sig") as f:
+            f.write(script)
+
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive",
+             "-ExecutionPolicy", "Bypass", "-File", ps1],
+            capture_output=True, text=True, timeout=600,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+
+        lines = (out.stdout or "").splitlines()
+        if len(lines) < 2:
+            return None                      # Cancel dabaya ya box hi nahi khula
+        sid = lines[0].strip().upper()
+        pwd = lines[1]                       # password ko strip MAT karo
+        if not sid or not pwd:
+            return None
+        return (sid, pwd)
+    except Exception as e:
+        log(f"Shop login dialog fail: {e}", "WARN")
+        return None
+    finally:
+        try:
+            if ps1 and os.path.exists(ps1):
+                os.remove(ps1)
+        except Exception:
+            pass
+
+
+def convert_demo_to_paid_native():
+    """
+    Demo -> Paid, bina desktop panel ke.
+
+    Jis PC par WebView2 nahi hai wahan panel khulta hi nahi, aur pehle
+    is wajah se demo shop kabhi paid ban hi nahi sakti thi. Ye wahi do
+    server endpoint use karta hai jo panel karta hai, isliye dono taraf
+    ek hi niyam chalte hain.
+    """
+    try:
+        creds = _ps_shop_login(
+            "Apni PAID Shop ID aur password daalo.\n"
+            "Yahi agent usi shop par chalne lagega.")
+        if not creds:
+            return
+        pid, pwd = creds
+
+        # ── Step 1: verify (yahan kuch badalta NAHI) ──
+        try:
+            r = requests.post(
+                f"{SERVER_URL}/api/agent/verify-paid-shop",
+                headers=auth_headers(), timeout=25,
+                json={"paidShopId": pid, "password": pwd, "demoShopId": SHOP_ID})
+            d = r.json() if r.content else {}
+        except Exception as e:
+            _msgbox(f"Server tak nahi pahunche.\n\n{e}", "QR Se Print", 0x10)
+            return
+
+        if r.status_code != 200 or not d.get("success"):
+            _msgbox(d.get("error") or f"Verify nahi hua ({r.status_code})",
+                    "QR Se Print", 0x10)
+            return
+
+        ticket = d.get("ticket")
+        shop_name = d.get("shopName") or pid
+
+        # ── Step 2: confirm ──
+        warn = ("\n\nIs shop par pehle se ek doosra computer juda hai.\n"
+                "Aage badhoge to wo PC hat jayega aur printing IS PC par aa jayegi."
+                ) if d.get("alreadyLinked") else ""
+        ans = _native_yesno(
+            f"Shop mil gayi:\n"
+            f"\n"
+            f"   Name  :   {shop_name}\n"
+            f"   ID    :   {d.get('shopId') or pid}\n"
+            f"   Plan  :   {d.get('planType') or '-'}"
+            f"{warn}\n"
+            f"\n"
+            f"Yes  =  Isi shop par switch karo\n"
+            f"No   =  Rehne do",
+            "QR Se Print - Confirm")
+        if ans is not True:
+            return
+
+        # ── Step 3: switch ──
+        try:
+            r2 = requests.post(
+                f"{SERVER_URL}/api/agent/convert-to-paid",
+                headers=auth_headers(), timeout=30, json={"ticket": ticket})
+            d2 = r2.json() if r2.content else {}
+        except Exception as e:
+            _msgbox(f"Switch ke waqt server tak nahi pahunche.\n\n{e}",
+                    "QR Se Print", 0x10)
+            return
+
+        if r2.status_code != 200 or not d2.get("success"):
+            _msgbox(d2.get("error") or f"Switch fail hua ({r2.status_code})",
+                    "QR Se Print", 0x10)
+            return
+
+        new_id = d2.get("shopId")
+        switched = switch_shop_id_live(new_id)
+        if not switched:
+            _msgbox("Shop server par to jud gayi, par is PC par Shop ID lag "
+                    f"nahi payi.\n\nTray se 'Change Shop ID' dabao aur ye daalo:\n\n{new_id}",
+                    "QR Se Print", 0x30)
+            return
+
+        extra = ""
+        if switched == "memory-only":
+            extra = ("\n\nDhyan do: Shop ID is PC par save nahi ho payi. "
+                     f"Restart ke baad dobara poochhe to ye daalna:\n{new_id}")
+
+        log(f"Demo -> paid shop {new_id} (Windows dialog se)")
+        _msgbox(f"Ho gaya!\n\nAb ye agent aapki paid shop par chal raha hai.\n\n"
+                f"   {d2.get('shopName') or new_id}\n   {new_id}{extra}",
+                "QR Se Print")
+    except Exception as e:
+        log(f"Demo->paid (native) fail: {e}", "ERROR")
+        try:
+            _msgbox(f"Kuch galat ho gaya:\n\n{e}", "QR Se Print", 0x10)
+        except Exception:
+            pass
+
+
+def _ps_input_big(head, sub, label, hint, title="QR Se Print"):
+    """
+    Ek line ka input, par BADA aur saaf.
+
+    VisualBasic ka InputBox (jo _powershell_input use karta hai) chhota
+    hota hai aur uska font/size badla hi nahi ja sakta -- naye shop owner
+    ko sabse pehle wahi dikhta tha, aur bahut purana lagta tha.
+    Ye WinForms wala box wahi tareeka hai jo _ps_shop_login me chal raha
+    hai, isliye koi nayi nirbharta nahi.
+
+    Returns: type kiya hua text, ya "" (cancel / box hi na bane).
+    """
+    ps1 = None
+    try:
+        import tempfile
+
+        def q(v):
+            return str(v).replace("'", "''")
+
+        script = """
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$f = New-Object System.Windows.Forms.Form
+$f.Text = '__TITLE__'
+$f.Size = New-Object System.Drawing.Size(560,340)
+$f.StartPosition = 'CenterScreen'
+$f.FormBorderStyle = 'FixedDialog'
+$f.MaximizeBox = $false
+$f.MinimizeBox = $false
+$f.TopMost = $true
+$f.BackColor = [System.Drawing.Color]::White
+
+$h = New-Object System.Windows.Forms.Label
+$h.Text = '__HEAD__'
+$h.Font = New-Object System.Drawing.Font('Segoe UI',17,[System.Drawing.FontStyle]::Bold)
+$h.Location = New-Object System.Drawing.Point(28,26)
+$h.Size = New-Object System.Drawing.Size(500,32)
+$f.Controls.Add($h)
+
+$s = New-Object System.Windows.Forms.Label
+$s.Text = '__SUB__'
+$s.Font = New-Object System.Drawing.Font('Segoe UI',10.5)
+$s.ForeColor = [System.Drawing.ColorTranslator]::FromHtml('#475569')
+$s.Location = New-Object System.Drawing.Point(28,62)
+$s.Size = New-Object System.Drawing.Size(500,24)
+$f.Controls.Add($s)
+
+$l = New-Object System.Windows.Forms.Label
+$l.Text = '__LABEL__'
+$l.Font = New-Object System.Drawing.Font('Segoe UI',10,[System.Drawing.FontStyle]::Bold)
+$l.Location = New-Object System.Drawing.Point(28,106)
+$l.Size = New-Object System.Drawing.Size(500,20)
+$f.Controls.Add($l)
+
+$t = New-Object System.Windows.Forms.TextBox
+$t.Font = New-Object System.Drawing.Font('Consolas',14)
+$t.Location = New-Object System.Drawing.Point(28,130)
+$t.Size = New-Object System.Drawing.Size(496,34)
+$f.Controls.Add($t)
+
+$n = New-Object System.Windows.Forms.Label
+$n.Text = '__HINT__'
+$n.Font = New-Object System.Drawing.Font('Segoe UI',9.5)
+$n.ForeColor = [System.Drawing.ColorTranslator]::FromHtml('#64748b')
+$n.Location = New-Object System.Drawing.Point(28,174)
+$n.Size = New-Object System.Drawing.Size(500,40)
+$f.Controls.Add($n)
+
+$ok = New-Object System.Windows.Forms.Button
+$ok.Text = 'Shuru karo'
+$ok.Font = New-Object System.Drawing.Font('Segoe UI',11,[System.Drawing.FontStyle]::Bold)
+$ok.Size = New-Object System.Drawing.Size(160,44)
+$ok.Location = New-Object System.Drawing.Point(194,232)
+$ok.DialogResult = [System.Windows.Forms.DialogResult]::OK
+$f.Controls.Add($ok)
+
+$cn = New-Object System.Windows.Forms.Button
+$cn.Text = 'Cancel'
+$cn.Font = New-Object System.Drawing.Font('Segoe UI',11)
+$cn.Size = New-Object System.Drawing.Size(160,44)
+$cn.Location = New-Object System.Drawing.Point(364,232)
+$cn.DialogResult = [System.Windows.Forms.DialogResult]::Cancel
+$f.Controls.Add($cn)
+
+$f.AcceptButton = $ok
+$f.CancelButton = $cn
+$f.Add_Shown({$f.Activate(); $t.Focus()})
+if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+  [Console]::Out.WriteLine($t.Text)
+}
+"""
+        for k, v in (("__TITLE__", title), ("__HEAD__", head), ("__SUB__", sub),
+                     ("__LABEL__", label), ("__HINT__", hint)):
+            script = script.replace(k, q(v))
+
+        fd, ps1 = tempfile.mkstemp(suffix=".ps1")
+        with os.fdopen(fd, "w", encoding="utf-8-sig") as fh:
+            fh.write(script)
+
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive",
+             "-ExecutionPolicy", "Bypass", "-File", ps1],
+            capture_output=True, text=True, timeout=600,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+
+        lines = (out.stdout or "").splitlines()
+        return lines[0].strip() if lines else ""
+    except Exception as e:
+        log(f"Bada input box fail ({e}) - purane InputBox par ja rahe hain", "WARN")
+        return None                      # None = "try nahi hua", "" = cancel
+    finally:
+        try:
+            if ps1 and os.path.exists(ps1):
+                os.remove(ps1)
+        except Exception:
+            pass
+
+
+def _ask_shop_id_once():
+    """Shop ID poochho — pehle bada box, na bane to purana InputBox."""
+    v = _ps_input_big(
+        head="QR Se Print me aapka swagat hai",
+        sub="Shuru karne ke liye apni Shop ID daalo",
+        label="Shop ID",
+        hint="Ye ID registration ke baad dashboard par milti hai.\n"
+             "Nahi mil rahi? qrseprint.in/admin par login karke dekho.",
+        title="QR Se Print - Setup")
+    if v is not None:
+        return v
+    # PowerShell ka WinForms nahi chala - purana chhota box hi sahi
+    return _powershell_input(
+        "Paste your Shop ID (you got it after registering on the dashboard)")
+
+
 def _shop_id_without_tkinter():
     """Fallback first-run setup when tkinter is unusable."""
     for _ in range(3):
-        value = _powershell_input(
-            "Paste your Shop ID (you got it after registering on the dashboard)"
-        ).strip().upper()
+        value = (_ask_shop_id_once() or "").strip().upper()
         if not value:
             break
         try:
@@ -433,81 +766,18 @@ def _shop_id_without_tkinter():
 
 def show_shop_id_prompt():
     """
-    .exe ka first-run setup: ek chhota Tkinter window kholo jisme
-    customer apna Shop ID paste kar sake. Confirm hone par config
-    file mein save ho jaata hai, future runs mein yeh popup nahi aayega.
+    Pehli baar chalne par Shop ID poochho — Windows ke apne dialog se.
 
-    Agar Tkinter kisi reason se available na ho (rare), console input
-    fallback use karte hain (sirf agar console attached hai, warna fail).
+    PEHLE YAHAN TKINTER KA WINDOW THA, aur wahi sabse khatarnak jagah thi:
+    kai .exe build me Tcl ka data (init.tcl) nahi jaata. Tab ye window
+    banti hi nahi thi, resolve_shop_id() ko khaali string milti thi aur
+    agent `sys.exit(1)` kar deta tha — yaani naya install kabhi chalu hi
+    nahi hota, aur log me sirf Tcl ki galti dikhti thi.
+
+    PowerShell ka InputBox Windows ka apna hissa hai — na bundle karna
+    padta hai, na kabhi missing hota hai.
     """
-    # NOTE: catching Exception, not just ImportError. When the .exe is built
-    # without the Tcl runtime, "import tkinter" SUCCEEDS and the failure only
-    # appears later as TclError. ImportError alone would miss that and crash.
-    try:
-        import tkinter as tk
-        from tkinter import messagebox
-        _probe = tk.Tk()          # prove Tcl really works before relying on it
-        _probe.destroy()
-    except Exception as e:
-        log(f"⚠️  Tkinter unusable ({e}) — using the PowerShell prompt instead", "WARN")
-        return _shop_id_without_tkinter()
-
-    result = {"shop_id": None}
-
-    def on_submit():
-        value = entry.get().strip().upper()
-        if not value:
-            messagebox.showerror("Error", "Shop ID daalo!")
-            return
-        # Server se verify karo — typo waala Shop ID save ho gaya to agent
-        # hamesha nonexistent shop poll karta rahega, "waiting" dikhata
-        # rahega, aur kabhi print nahi karega — debug karna nightmare.
-        # timeout 30s: Render free tier sleep se 30-60s mein jaagta hai.
-        status_lbl.config(text="⏳ Verifying Shop ID...")
-        root.update()
-        try:
-            r = requests.get(f"{SERVER_URL}/api/shop/{value}", timeout=30)
-            if r.status_code == 404:
-                status_lbl.config(text="❌ This Shop ID was not found on the server — please check it")
-                return
-            # 200/403/500 sab pe aage badho — shop exist karta hai ya
-            # server issue hai, dono case mein ID save karna theek hai
-        except requests.exceptions.Timeout:
-            status_lbl.config(text="⏳ Server is waking up — try again in 30 seconds")
-            return
-        except Exception:
-            # Offline/net issue — verify skip, save kar do (fail-open)
-            pass
-        result["shop_id"] = value
-        root.destroy()
-
-    root = tk.Tk()
-    root.title("QR Se Print - Setup")
-    root.geometry("420x290")
-    root.resizable(False, False)
-    try:
-        root.attributes('-topmost', True)
-    except Exception:
-        pass
-
-    tk.Label(root, text="QR Se Print Setup", font=("Segoe UI", 16, "bold"), pady=10).pack()
-    tk.Label(root, text="Paste your Shop ID\n(you received it after registering on the dashboard)",
-             font=("Segoe UI", 10), pady=5).pack()
-
-    entry = tk.Entry(root, font=("Segoe UI", 12), justify="center", width=29)
-    entry.pack(pady=10)
-    entry.focus()
-
-    tk.Button(root, text="Start", font=("Segoe UI", 11, "bold"),
-              bg="#ff4d1c", fg="white", padx=20, pady=8, command=on_submit).pack(pady=6)
-
-    status_lbl = tk.Label(root, text="", font=("Segoe UI", 9), fg="#b45309")
-    status_lbl.pack(pady=(0, 8))
-
-    root.bind('<Return>', lambda e: on_submit())
-    root.mainloop()
-
-    return result["shop_id"]
+    return _shop_id_without_tkinter()
 
 def resolve_shop_id():
     """
@@ -1650,10 +1920,14 @@ def _show_demo_expired_popup():
     try:
         import ctypes
         r = ctypes.windll.user32.MessageBoxW(None,
-            "Your 2-hour demo has ended!\n\n"
-            "Liked it? Register to get your own permanent Shop ID:\n"
+            # Avdhi JAAN-BOOJH KAR nahi likhte. Superadmin ise 15 minute
+            # se 24 ghante ke beech kabhi bhi badal sakta hai, aur server
+            # sirf "demo_expired" bhejta hai -- kitni der thi, ye nahi.
+            # Pehle yahan "2-hour" hardcoded tha, jo galat dikhta tha.
+            "Aapka demo khatam ho gaya!\n\n"
+            "Pasand aaya? Register karke apni permanent Shop ID lo:\n"
             f"{SERVER_URL}/register\n\n"
-            "Pressing OK will open the registration page.",
+            "OK dabate hi registration page khul jayega.",
             "QR Se Print — Demo Ended", 0x40 | 0x1)  # OK/Cancel + info icon
         if r == 1:  # OK
             os.startfile(f"{SERVER_URL}/register")
@@ -1737,71 +2011,29 @@ def _open_register(plan):
 
 
 def _show_demo_upgrade_popup():
-    """Two plan buttons + Dismiss. Falls back to MessageBox if tkinter fails."""
+    """
+    Demo reminder — Windows ka apna dialog.
+
+    Pehle ye tkinter ka do-button wala window tha (Monthly / Lifetime).
+    MessageBox me utne button nahi ho sakte, isliye ab ek Yes/No hai:
+    Yes dabate hi registration page browser me khul jaata hai, jahan
+    saare plan waise hi dikhte hain. Ek extra click, par ye kabhi
+    fail nahi hota.
+    """
     try:
-        import tkinter as tk
-        root = tk.Tk()
-        root.title("QR Se Print — Demo")
-        root.attributes("-topmost", True)
-        root.resizable(False, False)
-        w, h = 430, 330
-        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
-        root.geometry(f"{w}x{h}+{sw - w - 20}+{sh - h - 70}")
-        root.configure(bg="white")
-
-        head = tk.Frame(root, bg="#ff3b6b", height=76)
-        head.pack(fill="x")
-        head.pack_propagate(False)
-        tk.Label(head, text="\u23f3  Demo Is Running", bg="#ff3b6b", fg="white",
-                 font=("Segoe UI", 14, "bold")).pack(pady=(14, 0))
-        tk.Label(head, text="Choose a plan — otherwise printing will stop",
-                 bg="#ff3b6b", fg="white", font=("Segoe UI", 9)).pack()
-
-        tk.Label(root, text="Your shop is currently running on a demo Shop ID.\n"
-                            "Choose one plan to continue:",
-                 bg="white", fg="#2b2b31", font=("Segoe UI", 10), justify="center").pack(pady=(16, 12))
-
-        btns = tk.Frame(root, bg="white")
-        btns.pack(pady=(0, 6))
-
-        def pick(plan):
-            _open_register(plan)
-            try:
-                root.destroy()
-            except Exception:
-                pass
-
-        tk.Button(btns, text="\U0001F4C5  Monthly Plan", width=17, height=2,
-                  bg="#ffffff", fg="#2b2b31", font=("Segoe UI", 10, "bold"),
-                  relief="solid", bd=1, cursor="hand2",
-                  command=lambda: pick("monthly")).grid(row=0, column=0, padx=6)
-        tk.Button(btns, text="\u297E  Lifetime Plan", width=17, height=2,
-                  bg="#ff3b6b", fg="white", font=("Segoe UI", 10, "bold"),
-                  relief="flat", bd=0, cursor="hand2",
-                  command=lambda: pick("onetime")).grid(row=0, column=1, padx=6)
-
-        tk.Label(root, text="Pressing the button opens new shop registration in your browser",
-                 bg="white", fg="#9b9690", font=("Segoe UI", 8)).pack(pady=(10, 0))
-
-        tk.Button(root, text="Not now — Dismiss", bg="white", fg="#9b9690",
-                  font=("Segoe UI", 9), relief="flat", bd=0, cursor="hand2",
-                  command=root.destroy).pack(pady=(12, 0))
-
-        root.after(120000, lambda: root.destroy())   # 2 min baad khud band
-        root.mainloop()
-    except Exception:
-        try:
-            import ctypes
-            r = ctypes.windll.user32.MessageBoxW(
-                None,
-                "Your shop is currently running on a DEMO Shop ID.\n\n"
-                "Choose the Monthly or Lifetime plan to continue.\n\n"
-                "Pressing OK will open the registration page.",
-                "QR Se Print — Demo", 0x40 | 0x1)
-            if r == 1:
-                _open_register("onetime")
-        except Exception:
-            pass
+        ans = _native_yesno(
+            "DEMO SHOP ID\n"
+            "\n"
+            "Aapki shop abhi DEMO Shop ID par chal rahi hai.\n"
+            "Demo khatam hote hi printing ruk jayegi.\n"
+            "\n"
+            "Yes  =  Plan dekho (browser me khulega)\n"
+            "No   =  Abhi nahi",
+            "QR Se Print - Demo")
+        if ans is True:
+            _open_register("onetime")
+    except Exception as e:
+        log(f"Demo popup nahi khul paya: {e}", "WARN")
 
 
 def demo_reminder_loop():
@@ -1872,144 +2104,26 @@ def mark_failed(job_id, reason=""):
 # popup ki technical dikkat business nahi rokni chahiye.
 # ══════════════════════════════════════════════════════════════════
 def ask_backside():
-    """Manual duplex: front pages print ho gaye — owner se pucho back side
-    ready hai? tkinter popup, fail par ctypes MessageBox (win32 core,
-    virtually kabhi fail nahi hota). Dono fail (impossible-adjacent) to
-    True — evens print karo, worst case alag sheets par niklenge."""
-    if not tk_usable():
-        return _ask_backside_native()
-    try:
-        import tkinter as tk
-        result = {"ok": None}
-        root = tk.Tk()
-        root.title("QR Se Print — Back Side")
-        root.attributes("-topmost", True)
-        root.resizable(False, False)
-        w, h = 380, 240
-        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
-        root.geometry(f"{w}x{h}+{sw - w - 20}+{sh - h - 80}")
-        root.configure(bg="white")
-        tk.Label(root, text="📄 Front Side Printed!", font=("Segoe UI", 13, "bold"),
-                 bg="white").pack(pady=(18, 4))
-        tk.Label(root, text="Now put the printed pages back into the printer tray\n"
-                            "(with the blank side facing the print head).\n"
-                            "Then press the button below — the back side will print.",
-                 font=("Segoe UI", 10), bg="white", fg="#444", justify="center").pack(pady=4)
-        btns = tk.Frame(root, bg="white"); btns.pack(pady=12)
-        def _ok(): result["ok"] = True; root.destroy()
-        def _no(): result["ok"] = False; root.destroy()
-        tk.Button(btns, text="🖨️ Print The Back Side Now", font=("Segoe UI", 10, "bold"),
-                  bg="#16a34a", fg="white", padx=14, pady=8, bd=0, cursor="hand2",
-                  command=_ok).pack(side="left", padx=6)
-        tk.Button(btns, text="❌ Rehne Do", font=("Segoe UI", 10, "bold"),
-                  bg="#9ca3af", fg="white", padx=14, pady=8, bd=0, cursor="hand2",
-                  command=_no).pack(side="left", padx=6)
-        root.mainloop()
-        if result["ok"] is None:
-            return False  # X se band = back side cancel
-        return result["ok"]
-    except Exception:
-        try:
-            import ctypes
-            r = ctypes.windll.user32.MessageBoxW(None,
-                "Front side printed!\n\nPut the pages back into the printer,\n"
-                "then press OK — the back side will print.\n(Cancel = skip the back side)",
-                "QR Se Print — Back Side", 0x40 | 0x1)
-            return r == 1
-        except Exception:
-            log("⚠️ Back-side popup + MessageBox dono fail — evens seedha print", "WARN")
-            return True
+    """
+    Manual duplex: front side chhap gaya — ab owner se poochho ki page
+    palat kar tray me rakh diya ya nahi.
+
+    Windows ka apna dialog. Pehle yahan tkinter ka window tha jo Tcl na
+    hone par nahi khulta tha; tab evens seedhe chhap jaate the aur alag
+    sheet par nikal kar kagaz barbaad hota tha.
+    """
+    return _ask_backside_native()
 
 def ask_approval(job):
-    # Tcl kaam hi nahi kar raha to bekar me Tk() banane ki koshish
-    # mat karo - seedha Windows ke apne dialog par jao.
-    if not tk_usable():
-        return _ask_approval_native(job)
-    try:
-        import tkinter as tk
+    """
+    Counter order ka approval — Windows ka apna dialog.
 
-        color  = job.get("color_mode", "bw")
-        copies = job.get("copies", 1)
-        pages  = job.get("total_pages", 1)
-        sel    = job.get("selected_pages", "")
-        amount = job.get("amount", 0)
-        fname  = job.get("file_name", "file")
-        # Server ka created_at (ISO/UTC) -> local time
-        tstr = ""
-        try:
-            from datetime import datetime, timezone
-            raw = job.get("created_at", "")
-            if raw:
-                dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
-                tstr = dt.astimezone().strftime("%I:%M %p")
-        except Exception:
-            tstr = ""
-
-        result = {"ok": None}
-        root = tk.Tk()
-        root.title("QR Se Print — Counter Order")
-        root.attributes("-topmost", True)
-        root.resizable(False, False)
-        # Bottom-right corner (tray ke paas)
-        w, h = 360, 300
-        sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
-        root.geometry(f"{w}x{h}+{sw - w - 20}+{sh - h - 80}")
-        root.configure(bg="white")
-
-        tk.Label(root, text="🪙 Counter Payment Order", font=("Segoe UI", 13, "bold"),
-                 bg="white").pack(pady=(16, 2))
-        tk.Label(root, text="The customer will pay cash at the counter — approve this print?",
-                 font=("Segoe UI", 9), bg="white", fg="#666").pack()
-
-        box = tk.Frame(root, bg="#f6f4ff", padx=14, pady=10)
-        box.pack(fill="x", padx=16, pady=10)
-        mode_txt = "🌈 COLOR" if color == "color" else "⚫ B&W"
-        pages_txt = f"{pages} page" + ("s" if pages != 1 else "")
-        if sel:
-            pages_txt += f" (pages: {sel})"
-        rows = [
-            ("Print", f"{mode_txt}  •  {pages_txt}  •  {copies} cop{'ies' if copies!=1 else 'y'}"),
-            ("Amount", f"₹{amount}  (to be collected at the counter)"),
-            ("File", fname[:38]),
-        ]
-        if tstr:
-            rows.append(("Time", tstr))
-        for k, v in rows:
-            r = tk.Frame(box, bg="#f6f4ff"); r.pack(fill="x", pady=2)
-            tk.Label(r, text=k, font=("Segoe UI", 9, "bold"), bg="#f6f4ff",
-                     width=8, anchor="w").pack(side="left")
-            tk.Label(r, text=v, font=("Segoe UI", 9), bg="#f6f4ff",
-                     anchor="w", wraplength=240, justify="left").pack(side="left")
-
-        btns = tk.Frame(root, bg="white"); btns.pack(pady=6)
-        def _ok():
-            result["ok"] = True; root.destroy()
-        def _no():
-            result["ok"] = False; root.destroy()
-        tk.Button(btns, text="✅ Approve & Print", font=("Segoe UI", 10, "bold"),
-                  bg="#16a34a", fg="white", padx=16, pady=8, bd=0,
-                  cursor="hand2", command=_ok).pack(side="left", padx=6)
-        tk.Button(btns, text="❌ Deny", font=("Segoe UI", 10, "bold"),
-                  bg="#dc2929", fg="white", padx=22, pady=8, bd=0,
-                  cursor="hand2", command=_no).pack(side="left", padx=6)
-        tk.Label(root, text="Denying will cancel the order and delete the file",
-                 font=("Segoe UI", 8), bg="white", fg="#999").pack()
-
-        root.mainloop()
-
-        if result["ok"] is None:
-            # Window band ki bina choose kiye (X) — kuch mat karo abhi,
-            # job 'printing' claim mein hai; 10-min cleanup requeue karega
-            # aur agla poll dobara popup dikhayega
-            return None
-        return result["ok"]
-    except Exception as e:
-        # PEHLE yahan seedha `return True` tha - popup fail hote hi
-        # job chup-chaap approve ho jaata tha aur log me "Owner
-        # approved" likh jaata tha. Paise ka gate aise hi bina kisi
-        # ko pata chale mar gaya tha.
-        log(f"Approval popup fail ({e}) - Windows dialog par ja rahe hain", "WARN")
-        return _ask_approval_native(job)
+    Ye gate PAISE ka hai: customer counter par cash dega, isliye owner ki
+    haan ke bina print nahi jaana chahiye. Pehle yahan tkinter ka window
+    tha aur Tcl fail hone par log me sirf "Approval popup fail" aata tha.
+    Ab seedha wahi dialog jo har Windows par chalta hai.
+    """
+    return _ask_approval_native(job)
 
 def process_job(job):
     """
@@ -2299,14 +2413,31 @@ def is_demo_shop():
 
 
 def open_upgrade_panel(icon=None, item=None):
-    """Tray ka '⚡ Change Demo ID to Paid Shop'."""
-    if PANEL is None:
-        _msgbox("Please open Settings to upgrade your demo to a paid shop.", "QR Se Print")
-        return
+    """
+    Tray ka '⚡ Change Demo ID to Paid Shop'.
+
+    Panel ki window bani ho to wahi (sundar) flow. Na bani ho — jaise un
+    PC par jahan WebView2 nahi hai — to Windows ke apne dialog se wahi
+    kaam. Pehle yahan sirf "Please open Settings..." likha aata tha,
+    jabki Settings bhi khulti hi nahi thi; demo shop wahin atak jaati thi.
+    """
+    panel_up = False
     try:
-        PANEL.open_panel(page="upgrade")
-    except Exception as e:
-        log(f"Upgrade panel failed: {e}", "ERROR")
+        panel_up = (PANEL is not None
+                    and getattr(PANEL, "_window", None) is not None)
+    except Exception:
+        panel_up = False
+
+    if panel_up:
+        try:
+            PANEL.open_panel(page="upgrade")
+            return
+        except Exception as e:
+            log(f"Upgrade page nahi khula ({e}) — Windows dialog par ja rahe hain",
+                "WARN")
+
+    # Alag thread me — tray ka menu callback block nahi hona chahiye
+    threading.Thread(target=convert_demo_to_paid_native, daemon=True).start()
 
 
 def open_panel(icon=None, item=None):
@@ -2484,35 +2615,203 @@ def _msgbox(text, title="QR Se Print", flags=0x40):
 
 
 # ══════════════════════════════════════════════════════════════
-#  TCL-PROOF DIALOGS
+#  WINDOWS KE APNE DIALOG
 #
-#  Problem jo aaya tha: exe me tkinter ka MODULE to bundle tha, par
-#  uska Tcl DATA (init.tcl waghairah) nahi. Aise me `import tkinter`
-#  SAFAL hota hai aur galti sirf tab dikhti hai jab tk.Tk() banate ho
-#  ("Can't find a usable init.tcl"). Isliye sirf ImportError pakadna
-#  kaafi nahi - poora Tk() banakar dekhna padta hai.
+#  Agent ka HAR popup ab yahin se banta hai - user32 ka MessageBoxW aur
+#  PowerShell ka WinForms box. Koi tkinter nahi.
 #
-#  Ye probe EK BAAR chalta hai, phir jawab yaad rakhta hai.
+#  Kyun: pehle popup tkinter se bante the. Exe me tkinter ka MODULE to
+#  chala jaata tha par uska Tcl DATA (init.tcl waghairah) nahi. Tab
+#  `import tkinter` SAFAL hota tha aur galti sirf tk.Tk() par dikhti thi:
+#      "Can't find a usable init.tcl"
+#  Shop ke log me yahi aaya tha, aur sabse bura ye tha ki Shop ID wala
+#  pehla popup bhi nahi khulta - matlab naya install chalu hi nahi hota.
+#
+#  MessageBoxW Windows ka apna hissa hai. Na bundle karna padta hai,
+#  na kabhi missing hota hai.
 # ══════════════════════════════════════════════════════════════
-_TK_STATE = None          # None = check nahi hua, True/False = pata hai
 
 
-def tk_usable():
-    """Tcl/Tk sach me chalta hai? Ek baar probe, phir cached."""
-    global _TK_STATE
-    if _TK_STATE is not None:
-        return _TK_STATE
+
+
+# ══════════════════════════════════════════════════════════════
+#  BADA DIALOG  (PowerShell + WinForms)
+#
+#  MessageBoxW chhota hai aur uska font badla nahi ja sakta. Dukaan par
+#  approval popup din me dozens baar dikhta hai aur counter se padhna
+#  padta hai — isliye uske liye apna, bada dialog banate hain.
+#
+#  Ye SIRF dikhne ka upgrade hai. PowerShell na chale to _native_yesno()
+#  chup-chaap purane MessageBoxW par gir jaata hai, isliye bharosa utna
+#  hi rehta hai jitna pehle tha.
+# ══════════════════════════════════════════════════════════════
+_PS_DIALOG_OK = None          # None = abhi try nahi kiya, False = kaam nahi karta
+
+
+def _ps_dialog(title, big, sub, rows, yes_label=None, no_label=None,
+               accent="#16a34a", timeout=600):
+    """
+    Bada dialog dikhao.
+
+    title      : window ka naam
+    big        : sabse upar bada text (jaise "Rs 150") — khaali bhi ho sakta hai
+    sub        : bade text ke neeche ek line
+    rows       : [(label, value), ...] — monospace me, column seedhe
+    yes_label  : Yes button ka text. None = sirf ek OK button
+    no_label   : No button ka text
+
+    Returns True (yes/ok) / False (no) / None (dialog bana hi nahi)
+    """
+    global _PS_DIALOG_OK
+    if _PS_DIALOG_OK is False:
+        return None                       # pehle fail ho chuka — time mat kharab karo
+
+    ps1 = None
     try:
-        import tkinter as _tk
-        _probe = _tk.Tk()          # asli test - import kaafi nahi hota
-        _probe.withdraw()
-        _probe.destroy()
-        _TK_STATE = True
+        import tempfile
+
+        def q(v):                          # PowerShell ki single-quote string
+            return str(v).replace("'", "''")
+
+        # Rows ko monospace ke liye pad karo — tab PowerShell me nahi banate,
+        # Python me hi seedhe kar dete hain.
+        pad = max([len(str(a)) for a, _ in rows] or [0])
+        body = "\n".join("%s  %s" % (str(a).ljust(pad), b) for a, b in rows)
+
+        height = 210 + (len(rows) * 22) + (46 if big else 0) + (22 if sub else 0)
+        two = yes_label is not None and no_label is not None
+
+        script = """
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+$f = New-Object System.Windows.Forms.Form
+$f.Text = '__TITLE__'
+$f.Size = New-Object System.Drawing.Size(540,__H__)
+$f.StartPosition = 'CenterScreen'
+$f.FormBorderStyle = 'FixedDialog'
+$f.MaximizeBox = $false
+$f.MinimizeBox = $false
+$f.TopMost = $true
+$f.BackColor = [System.Drawing.Color]::White
+$y = 18
+__BIG__
+__SUB__
+__BODY__
+$btnY = __H__ - 108
+if (__TWO__) {
+  $b1 = New-Object System.Windows.Forms.Button
+  $b1.Text = '__YES__'
+  $b1.Font = New-Object System.Drawing.Font('Segoe UI',11,[System.Drawing.FontStyle]::Bold)
+  $b1.Size = New-Object System.Drawing.Size(170,46)
+  $b1.Location = New-Object System.Drawing.Point(150,$btnY)
+  $b1.DialogResult = [System.Windows.Forms.DialogResult]::Yes
+  $f.Controls.Add($b1)
+  $b2 = New-Object System.Windows.Forms.Button
+  $b2.Text = '__NO__'
+  $b2.Font = New-Object System.Drawing.Font('Segoe UI',11)
+  $b2.Size = New-Object System.Drawing.Size(170,46)
+  $b2.Location = New-Object System.Drawing.Point(330,$btnY)
+  $b2.DialogResult = [System.Windows.Forms.DialogResult]::No
+  $f.Controls.Add($b2)
+  $f.AcceptButton = $b1
+  $f.CancelButton = $b2
+} else {
+  $b1 = New-Object System.Windows.Forms.Button
+  $b1.Text = '__YES__'
+  $b1.Font = New-Object System.Drawing.Font('Segoe UI',11,[System.Drawing.FontStyle]::Bold)
+  $b1.Size = New-Object System.Drawing.Size(170,46)
+  $b1.Location = New-Object System.Drawing.Point(330,$btnY)
+  $b1.DialogResult = [System.Windows.Forms.DialogResult]::OK
+  $f.Controls.Add($b1)
+  $f.AcceptButton = $b1
+}
+$f.Add_Shown({$f.Activate()})
+$r = $f.ShowDialog()
+if ($r -eq [System.Windows.Forms.DialogResult]::No) { [Console]::Out.WriteLine('NO') }
+else { [Console]::Out.WriteLine('YES') }
+"""
+        big_ps = ""
+        if big:
+            big_ps = ("$lb = New-Object System.Windows.Forms.Label\n"
+                      "$lb.Text = '%s'\n"
+                      "$lb.Font = New-Object System.Drawing.Font('Segoe UI',26,"
+                      "[System.Drawing.FontStyle]::Bold)\n"
+                      "$lb.ForeColor = [System.Drawing.ColorTranslator]::FromHtml('%s')\n"
+                      "$lb.Location = New-Object System.Drawing.Point(24,$y)\n"
+                      "$lb.Size = New-Object System.Drawing.Size(480,44)\n"
+                      "$f.Controls.Add($lb)\n"
+                      "$y = $y + 46\n" % (q(big), q(accent)))
+        sub_ps = ""
+        if sub:
+            sub_ps = ("$ls = New-Object System.Windows.Forms.Label\n"
+                      "$ls.Text = '%s'\n"
+                      "$ls.Font = New-Object System.Drawing.Font('Segoe UI',10.5)\n"
+                      "$ls.ForeColor = [System.Drawing.ColorTranslator]::FromHtml('#475569')\n"
+                      "$ls.Location = New-Object System.Drawing.Point(24,$y)\n"
+                      "$ls.Size = New-Object System.Drawing.Size(480,22)\n"
+                      "$f.Controls.Add($ls)\n"
+                      "$y = $y + 24\n" % q(sub))
+        # PowerShell ki DOUBLE-quoted string me ` $ aur " teeno ka apna
+        # matlab hota hai. File ka naam kuch bhi ho sakta hai (jaise
+        # "bill $500.pdf") — bina escape kiye PowerShell $500 ko variable
+        # samajh kar khaali kar deta aur dialog adhoora dikhta.
+        def psq(v):
+            return (str(v).replace("`", "``").replace("$", "`$")
+                    .replace('"', '`"').replace("\n", "`r`n"))
+
+        body_ps = ("$lt = New-Object System.Windows.Forms.Label\n"
+                   "$lt.Text = \"%s\"\n"
+                   "$lt.Font = New-Object System.Drawing.Font('Consolas',11)\n"
+                   "$lt.ForeColor = [System.Drawing.ColorTranslator]::FromHtml('#0f172a')\n"
+                   "$lt.Location = New-Object System.Drawing.Point(24,$y)\n"
+                   "$lt.Size = New-Object System.Drawing.Size(480,%d)\n"
+                   "$f.Controls.Add($lt)\n"
+                   % (psq(body), len(rows) * 22 + 8))
+
+        script = (script
+                  .replace("__TITLE__", q(title))
+                  .replace("__H__", str(height))
+                  .replace("__BIG__", big_ps)
+                  .replace("__SUB__", sub_ps)
+                  .replace("__BODY__", body_ps)
+                  .replace("__TWO__", "$true" if two else "$false")
+                  .replace("__YES__", q(yes_label or "OK"))
+                  .replace("__NO__", q(no_label or "")))
+
+        fd, ps1 = tempfile.mkstemp(suffix=".ps1")
+        with os.fdopen(fd, "w", encoding="utf-8-sig") as fh:
+            fh.write(script)
+
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive",
+             "-ExecutionPolicy", "Bypass", "-File", ps1],
+            capture_output=True, text=True, timeout=timeout,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+
+        ans = (out.stdout or "").strip().upper()
+        if ans.endswith("YES"):
+            _PS_DIALOG_OK = True
+            return True
+        if ans.endswith("NO"):
+            _PS_DIALOG_OK = True
+            return False
+        # Kuch bhi nahi aaya — matlab dialog bana hi nahi
+        if _PS_DIALOG_OK is None:
+            _PS_DIALOG_OK = False
+            log("Bada dialog nahi ban paya - ab MessageBox use hoga "
+                f"({(out.stderr or '')[:120]})", "WARN")
+        return None
     except Exception as e:
-        log(f"Tkinter/Tcl is build me kaam nahi kar raha ({e}) - "
-            f"Windows ke apne dialog use honge", "WARN")
-        _TK_STATE = False
-    return _TK_STATE
+        if _PS_DIALOG_OK is None:
+            _PS_DIALOG_OK = False
+            log(f"Bada dialog fail ({e}) - ab MessageBox use hoga", "WARN")
+        return None
+    finally:
+        try:
+            if ps1 and os.path.exists(ps1):
+                os.remove(ps1)
+        except Exception:
+            pass
 
 
 # MessageBoxW ke flags (winuser.h)
@@ -2547,11 +2846,13 @@ def _native_yesno(text, title="QR Se Print"):
 
 def _ask_approval_native(job):
     """
-    Counter order ka approval, Tcl ke bina.
+    Counter order ka approval box.
 
-    Dikhne me tkinter wale window jitna sundar nahi, par ye KABHI fail
-    nahi hota - aur paise wale gate ka chup-chaap khul jaana isse bahut
-    zyada bura hai.
+    Formatting par dhyan diya gaya hai kyunki ye popup dukaan par din me
+    dozens baar dikhta hai. MessageBox proportional font use karta hai,
+    isliye space se column banane ki koshish bekar hai — har cheez apni
+    line par, label ke baad colon. Sabse upar AMOUNT, kyunki counter par
+    wahi ek number chahiye hota hai.
     """
     color  = job.get("color_mode", "bw")
     copies = job.get("copies", 1)
@@ -2560,29 +2861,64 @@ def _ask_approval_native(job):
     amount = job.get("amount", 0)
     fname  = job.get("file_name", "file")
 
-    mode_txt  = "COLOR" if color == "color" else "B&W"
-    pages_txt = f"{pages} page" + ("s" if pages != 1 else "")
-    if sel:
-        pages_txt += f" (pages: {sel})"
-    cop_txt = "ies" if copies != 1 else "y"
+    # Server ka created_at (ISO/UTC) -> PC ka local time.
+    # Ye pehle sirf tkinter wale popup me dikhta tha; native me chhoot
+    # gaya tha. Counter par "kaunsa order" pehchanne me kaam aata hai.
+    tstr = ""
+    try:
+        from datetime import datetime
+        raw = job.get("created_at", "")
+        if raw:
+            dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+            tstr = dt.astimezone().strftime("%I:%M %p")
+    except Exception:
+        tstr = ""
 
-    text = (
-        "COUNTER PAYMENT ORDER\n"
-        "The customer will pay cash at the counter.\n"
-        "\n"
-        f"Print   :  {mode_txt}  -  {pages_txt}  -  {copies} cop{cop_txt}\n"
-        f"Amount  :  Rs {amount}   (collect at the counter)\n"
-        f"File    :  {str(fname)[:44]}\n"
-        "\n"
-        "Yes  =  Approve and print\n"
-        "No   =  Deny (order cancel, file delete)"
-    )
-    ans = _native_yesno(text, "QR Se Print - Counter Order")
+    mode_txt = "COLOR" if color == "color" else "B&W"
+    cop_txt  = f"{copies} copy" if copies == 1 else f"{copies} copies"
+    pg_txt   = f"{pages} page" if pages == 1 else f"{pages} pages"
+
+    lines = [
+        "COUNTER PAYMENT ORDER",
+        "Customer counter par cash dega.",
+        "",
+        f"Amount   :   Rs {amount}",
+        f"Print    :   {mode_txt}  -  {pg_txt}  x  {cop_txt}",
+    ]
+    if sel:
+        lines.append(f"Pages    :   {sel}")
+    lines.append(f"File     :   {str(fname)[:44]}")
+    if tstr:
+        lines.append(f"Time     :   {tstr}")
+    lines += [
+        "",
+        "Yes  =  Approve karke print karo",
+        "No   =  Deny - order cancel, file delete",
+    ]
+
+    # Pehle BADA dialog. Na bane to wahi purana MessageBox — bharosa
+    # utna hi, bas dikhne me behtar.
+    rows = [("Print", f"{mode_txt}  -  {pg_txt}  x  {cop_txt}")]
+    if sel:
+        rows.append(("Pages", str(sel)))
+    rows.append(("File", str(fname)[:44]))
+    if tstr:
+        rows.append(("Time", tstr))
+
+    ans = _ps_dialog(
+        "QR Se Print - Counter Order",
+        big=f"Rs {amount}",
+        sub="Customer counter par cash dega",
+        rows=rows,
+        yes_label="Approve aur Print",
+        no_label="Deny (cancel)")
 
     if ans is None:
-        # Dono dialog systems fail - Windows par practically impossible.
-        # Agar phir bhi ho jaye to print ROKNA bhi galat hai (dukaan band
-        # ho jayegi), isliye print jaari - par LOUD, chupchaap nahi.
+        ans = _native_yesno("\n".join(lines), "QR Se Print - Counter Order")
+
+    if ans is None:
+        # Dialog kisi bhi tarah nahi khula. Print ROKNA bhi galat hai
+        # (dukaan hi band ho jayegi), isliye jaari - par LOUD, chupchaap nahi.
         log("Approval dialog kisi bhi tarike se nahi khul paya - job print "
             "ja raha hai BINA approval ke. Agent ek baar restart karke dekho.",
             "ERROR")
@@ -2595,7 +2931,19 @@ def _ask_approval_native(job):
 
 
 def _ask_backside_native():
-    """Back-side prompt bina Tcl ke."""
+    """Back-side prompt — pehle bada dialog, fallback MessageBox."""
+    ans = _ps_dialog(
+        "QR Se Print - Back Side",
+        big="Front side ho gaya",
+        sub="Ab dono side wala print poora karte hain",
+        rows=[("Karo", "Chhape hue page wapas tray me rakho"),
+              ("Kaise", "Khaali side print head ki taraf"),
+              ("Phir", "Neeche wala button dabao")],
+        yes_label="Back side print karo",
+        no_label="Rehne do")
+    if ans is not None:
+        return ans
+
     ans = _native_yesno(
         "FRONT SIDE PRINTED\n"
         "\n"
@@ -2619,6 +2967,9 @@ def bundle_selfcheck():
     (kyunki us PC par SumatraPDF alag se install tha) aur kisi ko pata hi
     nahi chalta ki bundle khaali hai - jab tak kisi naye PC par sab fail
     na ho jaye.
+
+    Tcl/Tk ka check yahan se hata diya gaya hai — ab koi popup Tk use
+    karta hi nahi, sab Windows ke apne dialog par hain.
     """
     frozen = bool(getattr(sys, 'frozen', False) or globals().get('__compiled__'))
     if not frozen:
@@ -2648,12 +2999,8 @@ def bundle_selfcheck():
             log("BUNDLE  SumatraPDF : MISSING - na bundle me, na is PC par. "
                 "Print kaam nahi karega!", "ERROR")
 
-    # -- Tcl/Tk --
-    if tk_usable():
-        log("BUNDLE  Tcl/Tk     : OK - popup window normal dikhenge")
-    else:
-        log("BUNDLE  Tcl/Tk     : BUNDLE ME NAHI - Windows ke simple dialog "
-            "use honge. Kaam sab chalega, bas dikhne me basic.", "WARN")
+    # -- Popup --
+    log("BUNDLE  Popup     : Windows ke apne dialog (Tcl/Tk ki zaroorat nahi)")
 
     # -- Desktop panel --
     if get_bundled_resource_path('agent_panel.html'):
@@ -2708,96 +3055,15 @@ def _manual_update_headless():
 
 
 def _manual_update_ui():
-    try:
-        import tkinter as tk
-        from tkinter import ttk
+    """
+    Tray ka "Check for Update".
 
-        root = tk.Tk()
-        root.title("QR Se Print — Update Check")
-        root.attributes('-topmost', True)
-        root.resizable(False, False)
-        root.geometry("380x190")
-        frame = tk.Frame(root, bg='white')
-        frame.pack(fill='both', expand=True)
-
-        title = tk.Label(frame, text="🔍 Checking for updates...",
-                         font=('Segoe UI', 12, 'bold'), bg='white')
-        title.pack(pady=(22, 4))
-        sub = tk.Label(frame, text=f"Currently installed: v{VERSION_LABEL}",
-                       font=('Segoe UI', 10), bg='white', fg='#666')
-        sub.pack()
-        bar = ttk.Progressbar(frame, length=300, mode='determinate')
-        pct_lbl = tk.Label(frame, text="", font=('Segoe UI', 10, 'bold'), bg='white')
-        close_btn = tk.Button(frame, text="Close", font=('Segoe UI', 10),
-                              command=root.destroy)
-        root.update()
-
-        # 1) Version check
-        remote = get_remote_version()
-        if remote is None:
-            title.config(text="⚠️ Could not get the version from the server")
-            sub.config(text="Check your internet or the server, then try again")
-            close_btn.pack(pady=14)
-            root.mainloop()
-            return
-        if remote <= VERSION:
-            title.config(text="✅ You have the latest version")
-            sub.config(text=f"Installed v{VERSION_LABEL} = Server v{remote_label_or(remote)}")
-            close_btn.pack(pady=14)
-            root.mainloop()
-            return
-
-        # 2) Naya version mila — download with %
-        title.config(text=f"🔄 New version available: v{VERSION_LABEL} → v{remote_label_or(remote)}")
-        sub.config(text="Downloading...")
-        bar.pack(pady=(14, 4))
-        pct_lbl.pack()
-        root.update()
-
-        def on_progress(pct, mb):
-            if pct is not None:
-                bar['value'] = pct
-                pct_lbl.config(text=f"{pct}%  ({mb:.1f} MB)")
-            else:
-                bar.config(mode='indeterminate')
-                pct_lbl.config(text=f"{mb:.1f} MB downloaded...")
-            root.update()
-
-        try:
-            installer_path, err = download_installer(on_progress)
-        except Exception as e:
-            installer_path, err = None, str(e)
-
-        if err:
-            title.config(text="❌ Update download fail")
-            sub.config(text=err[:60])
-            log(f"❌ Manual update: {err}", "ERROR")
-            close_btn.pack(pady=10)
-            root.mainloop()
-            return
-
-        # 3) Install + restart
-        bar['value'] = 100
-        pct_lbl.config(text="100%")
-        title.config(text=f"✅ Installing v{remote}...")
-        sub.config(text="The agent will restart itself — the new version will show in the tray")
-        root.update()
-        time.sleep(1.5)
-        root.destroy()
-        run_installer_and_exit(installer_path)
-    except Exception as e:
-        # Tkinter/Tcl missing in this .exe build (classic symptom:
-        # "Can't find a usable init.tcl"). Do not dump that at the shop owner —
-        # run the same update without a window instead.
-        log(f"⚠️  Update window unavailable ({e}) — running update without UI", "WARN")
-        _manual_update_headless()
-        return
-        try:
-            import ctypes
-            ctypes.windll.user32.MessageBoxW(None,
-                f"Update check error: {e}", "QR Se Print", 0x10)
-        except Exception:
-            pass
+    Pehle yahan tkinter ka progress window tha aur Tcl fail hone par
+    shop owner ko "Can't find a usable init.tcl" jaisi line dikh jaati
+    thi. Ab seedha bina-window wala update chalta hai — har step par
+    Windows ka apna message box aata hai.
+    """
+    _manual_update_headless()
 
 def update_checker_loop():
     """Background thread — checks for a new version every UPDATE_CHECK_INTERVAL seconds"""
