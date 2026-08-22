@@ -71,11 +71,11 @@ AUTO_RECONNECT_NOTIFY_GAP = 600  # 10 min
 # Isliye khaali waqt me dheere check karo — par job aate hi turant 5s par
 # wapas aa jao, taaki print me deri na ho.
 UPDATE_CHECK_INTERVAL = 3600    # Auto-update check karne ka interval (1 ghanta)
-VERSION            = 34           # INTERNAL counter — server ke agent_version se compare hota hai.
+VERSION            = 35           # INTERNAL counter — server ke agent_version se compare hota hai.
                                   # Ye sirf badhta hai (29 → 30 → 31...). Isko kabhi
                                   # "2.0" mat banao: purane v27/v28/v29 agents integer
                                   # compare karte hain, warna woh update lena band kar denge.
-VERSION_LABEL      = "2.4"        # Jo sab jagah DIKHTA hai: 2.0 → 2.1 ... 2.10 → 3.0
+VERSION_LABEL      = "2.5"        # Jo sab jagah DIKHTA hai: 2.0 → 2.1 ... 2.10 → 3.0
 REMOTE_VERSION_LABEL = None       # Server ka latest label — update check par bhar jaata hai
 REMOTE_VERSION_INT = 0            # Server ka internal build number (integer compare ke liye)
 SUPPORT_WA         = "918404832414"  # Admin WhatsApp (shop-login Support jaisa) — Contact Admin isi par khulega
@@ -114,6 +114,295 @@ def _pin_ca_bundle():
         pass  # certifi hi nahi mila — requests apne default par chalega
 
 _pin_ca_bundle()
+
+# ══════════════════════════════════════════════════════════════════
+# _MEI SURVIVAL KIT — onefile ka temp folder chalte-chalte ud sakta hai
+#
+# 22 Aug 2026 ko yahi hua: agent 09:12 par chala, 09:18 par kisi cheez ne
+# uske _MEI18802 folder ko recursive delete kar diya. Sirf wahi .pyd/.dll
+# bache jo us waqt process me load the (Windows unhe lock rakhta hai).
+# base_library.zip, Crypto\, SumatraPDF.exe, agent_panel.html — sab ud gaye.
+# Do error nikle:
+#   * "Bada dialog fail (... base_library.zip)"          -> naya import hi na ho saka
+#   * "Cannot load native module 'Crypto.Util._cpuid_c'" -> har page-range job crash
+#
+# Ilaaj teen parat me — koi ek fail ho to baaki bacha lete hain:
+#   1. _pin_base_library()    : base_library.zip ki apni copy APPDATA me, aur
+#      sys.path me _MEI wali entry ki JAGAH wahi lagao.
+#   2. _mirror_bundled_files(): SumatraPDF.exe / panel HTML / icon ki copy
+#      APPDATA me — get_bundled_resource_path() wahan bhi dhoondhta hai.
+#   3. _preload_fragile()     : Crypto + PyPDF2 + codecs SHURU me hi import kar
+#      lo. Ek baar load hone par module sys.modules me aur .pyd Windows ki
+#      memory me map ho jaati hai — file delete ho jaye to bhi chalti rehti hai.
+#
+# _MEI salaamat rehne par ye teeno bilkul harmless hain (bas ek copy zyada).
+# ══════════════════════════════════════════════════════════════════
+_RUNTIME_DIR = os.path.join(_APPDATA_DIR, "runtime")
+_EARLY_NOTES = []          # log() abhi bana nahi hai — startup par flush hota hai
+
+
+def _early(msg, level="INFO"):
+    """Startup ke wo notes jo log() ban-ne se pehle likhne padte hain."""
+    _EARLY_NOTES.append((level, msg))
+
+
+def _mei_dir():
+    """onefile ka extraction folder. onedir / .py mode me None."""
+    return getattr(sys, "_MEIPASS", None)
+
+
+def _same_file(a, b):
+    try:
+        sa, sb = os.stat(a), os.stat(b)
+        return sa.st_size == sb.st_size and int(sa.st_mtime) == int(sb.st_mtime)
+    except Exception:
+        return False
+
+
+def _pin_base_library():
+    """
+    base_library.zip me Python ki stdlib ka wo hissa hai jo abhi tak import
+    nahi hua — jaise encodings.cp1252, jo subprocess ka text output padhte
+    waqt PEHLI BAAR lagta hai. _MEI ud jaye to har naya import
+    "FileNotFoundError: ...base_library.zip" deta hai.
+
+    Isliye uski ek copy APPDATA me rakh kar sys.path ki entry hi badal dete
+    hain — uske baad Python _MEI wali file ko haath hi nahi lagata.
+    """
+    mei = _mei_dir()
+    if not mei:
+        return
+    src = os.path.join(mei, "base_library.zip")
+    if not os.path.exists(src):
+        return
+    try:
+        os.makedirs(_RUNTIME_DIR, exist_ok=True)
+        dst = os.path.join(_RUNTIME_DIR, "base_library.zip")
+        if not _same_file(src, dst):
+            shutil.copy2(src, dst)
+        if not os.path.exists(dst):
+            return                       # copy hi nahi bani — kuch mat chhedo
+        target = os.path.normcase(os.path.abspath(src))
+        swapped = False
+        for i, p in enumerate(list(sys.path)):
+            try:
+                if os.path.normcase(os.path.abspath(p)) == target:
+                    sys.path[i] = dst
+                    swapped = True
+            except Exception:
+                continue
+        if not swapped:
+            sys.path.insert(0, dst)
+        # zipimport ka purana cache hata do, warna wahi mari hui file khulegi
+        for k in list(sys.path_importer_cache):
+            try:
+                if os.path.normcase(os.path.abspath(k)) == target:
+                    sys.path_importer_cache.pop(k, None)
+            except Exception:
+                continue
+        # ── Sirf sys.path badalna KAAFI NAHI HAI ──
+        # `encodings`, `collections`, `re` — teeno package interpreter ke
+        # startup par hi import ho jaate hain, aur inka __path__ SEEDHA _MEI
+        # wali zip ke andar point karta hai. Inka koi bhi lazy submodule
+        # (jaise encodings.utf_8_sig) sys.path dekhta hi NAHI — sirf apne
+        # package ka __path__ dekhta hai. Isliye unhe bhi nayi copy par
+        # mod dena padta hai.
+        moved = 0
+        for _m in list(sys.modules.values()):
+            try:
+                pth = getattr(_m, "__path__", None)
+                if not pth or isinstance(pth, str):
+                    continue
+                old_list = list(pth)
+                new_list = [(dst + p[len(src):])
+                            if os.path.normcase(p).startswith(os.path.normcase(src))
+                            else p
+                            for p in old_list]
+                if new_list != old_list:
+                    _m.__path__ = new_list
+                    moved += 1
+            except Exception:
+                continue
+        _early("base_library.zip pinned -> %s (%d package repointed)" % (dst, moved))
+    except Exception as e:
+        _early("base_library pin fail (%s) - _MEI wali copy hi chalegi" % e, "WARN")
+
+
+# _MEI se nikaal kar APPDATA me rakhne wali files. Ye Python module nahi hain,
+# isliye inhe "preload" nahi kiya ja sakta — copy hi ek raasta hai.
+_MIRROR_FILES = ("SumatraPDF.exe", "agent_panel.html", "qrseprint.ico",
+                 "SumatraPDF-settings.txt")
+
+
+def _mirror_bundled_files():
+    """Zaroori bundle files ki pakki copy APPDATA me."""
+    mei = _mei_dir()
+    if not mei:
+        return
+    try:
+        os.makedirs(_RUNTIME_DIR, exist_ok=True)
+    except Exception as e:
+        _early("runtime folder nahi bana (%s)" % e, "WARN")
+        return
+    for name in _MIRROR_FILES:
+        src = os.path.join(mei, name)
+        if not os.path.exists(src):
+            continue
+        dst = os.path.join(_RUNTIME_DIR, name)
+        try:
+            if not _same_file(src, dst):
+                shutil.copy2(src, dst)
+        except Exception as e:
+            # Purani copy chal rahi ho (SumatraPDF khula ho) to copy fail
+            # ho sakti hai — us haalat me wahi purani copy kaam de degi.
+            _early("mirror %s fail (%s)" % (name, e), "WARN")
+
+
+# Ye module job ke waqt PEHLI BAAR import hote the. Tab tak _MEI ud chuka ho
+# to job crash ho jaata tha. Ab shuruaat me hi memory me le aate hain.
+_CRITICAL_PRELOAD = (
+    "Crypto.Util._cpu_features", "Crypto.Util.Padding", "Crypto.Util.strxor",
+    "Crypto.Util.number", "Crypto.Cipher.AES", "Crypto.Cipher.ARC4",
+    "Crypto.Hash.MD5", "Crypto.Hash.SHA256",
+    "PyPDF2",
+)
+# Inka na milna ghaatak nahi — mil jayen to aur mazboot ho jaata hai.
+_OPTIONAL_PRELOAD = (
+    "ctypes", "ctypes.wintypes", "traceback", "tempfile", "winreg",
+    "socket", "webbrowser", "certifi", "win32print", "PIL.Image",
+)
+
+
+def _preload_fragile():
+    """
+    Ek baar module import ho jaye to wo sys.modules me reh jaata hai aur uski
+    .pyd Windows ki memory me map ho jaati hai. Uske baad file delete ho bhi
+    jaye to code chalta rehta hai. Isliye risk wale saare module yahin,
+    shuruaat me, load kar lete hain — jab _MEI poora salaamat hai.
+    """
+    missing = []
+    for mod in _CRITICAL_PRELOAD:
+        try:
+            __import__(mod)
+        except Exception as e:
+            missing.append("%s [%s: %s]" % (mod, type(e).__name__, str(e)[:90]))
+    for mod in _OPTIONAL_PRELOAD:
+        try:
+            __import__(mod)
+        except Exception:
+            pass
+    # ── SAARE CODEC ──
+    # Codec base_library.zip me rehte hain aur PEHLI BAAR tab load hote hain
+    # jab zaroorat padti hai — jaise subprocess ka text output padhna ya
+    # "utf-8-sig" me file likhna. Tab tak _MEI saaf ho chuka ho to
+    # "FileNotFoundError: ...base_library.zip" aata tha (screenshot wala
+    # "Bada dialog fail"). Ab sabhi abhi load kar lete hain — ye ~100 chhoti
+    # .pyc hain, aadhe second se bhi kam lagta hai.
+    codec_names = set()
+    try:
+        # 1. Sabse pakka source: zip me jo encodings/*.pyc hain wahi
+        import zipfile
+        _zp = os.path.join(_RUNTIME_DIR, "base_library.zip")
+        if not os.path.exists(_zp):
+            _mp = _mei_dir()
+            _zp = os.path.join(_mp, "base_library.zip") if _mp else ""
+        if _zp and os.path.exists(_zp):
+            with zipfile.ZipFile(_zp) as _zf:
+                for _n in _zf.namelist():
+                    if _n.startswith("encodings/") and _n.endswith(".pyc"):
+                        _b = _n[len("encodings/"):-4].split(".")[0]
+                        if _b and _b != "__init__":
+                            codec_names.add(_b)
+    except Exception:
+        pass
+    try:
+        # 2. Fallback — alias table se (isme utf_8_sig NAHI hota, isliye
+        #    neeche wali list bhi zaroori hai)
+        import encodings.aliases
+        codec_names.update(encodings.aliases.aliases.values())
+    except Exception:
+        pass
+    # 3. Jinka koi alias nahi hai par kaam me aate hain
+    codec_names.update(("utf_8", "utf_8_sig", "utf_16", "utf_16_le", "utf_16_be",
+                        "utf_32", "ascii", "latin_1", "mbcs", "oem", "cp1252",
+                        "cp437", "cp850", "idna", "unicode_escape",
+                        "raw_unicode_escape", "punycode", "hex_codec"))
+    for _c in codec_names:
+        try:
+            __import__("encodings." + _c)
+        except Exception:
+            pass
+    # Console / locale ka apna encoding bhi pakka kar lo
+    try:
+        import codecs, locale
+        for probe in (locale.getpreferredencoding(False),
+                      getattr(sys.stdout, "encoding", None),
+                      getattr(sys.stderr, "encoding", None)):
+            if probe:
+                try:
+                    codecs.lookup(probe)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+    if missing:
+        _early("Preload FAIL -> " + " | ".join(missing), "ERROR")
+    else:
+        _early("Preload OK - %d zaroori module + %d codec memory me"
+               % (len(_CRITICAL_PRELOAD), len(codec_names)))
+    return not missing
+
+
+def _mei_intact():
+    """_MEI folder ki nishani files abhi bhi hain ya nahi."""
+    mei = _mei_dir()
+    if not mei:
+        return True                      # onedir / .py mode — sawaal hi nahi
+    for probe in ("base_library.zip", "SumatraPDF.exe"):
+        try:
+            if not os.path.exists(os.path.join(mei, probe)):
+                return False
+        except Exception:
+            return False
+    return True
+
+
+_MEI_WARNED = False
+_MEI_LAST_CHECK = 0.0
+
+
+def _mei_watch():
+    """
+    Har 5 minute me ek nazar: _MEI folder salaamat hai ya nahi.
+
+    Khud koi ilaaj nahi karta — ilaaj upar wali teen parat pehle hi kar chuki
+    hain. Ye sirf EK BAAR log me saaf-saaf likh deta hai, taaki agli baar ye
+    dikkat ghanta bhar dhoondhni na pade.
+    """
+    global _MEI_WARNED, _MEI_LAST_CHECK
+    if _MEI_WARNED:
+        return
+    now = time.time()
+    if now - _MEI_LAST_CHECK < 300:
+        return
+    _MEI_LAST_CHECK = now
+    try:
+        if _mei_intact():
+            return
+        _MEI_WARNED = True
+        log("⚠️  Agent ka temp folder (%s) kisi ne saaf kar diya hai." % _mei_dir(),
+            "WARN")
+        log("   Printing chalti rahegi — zaroori files ki copy %s me rakhi hai."
+            % _RUNTIME_DIR, "WARN")
+        log("   Fursat me agent band karke dobara chalu kar lena.", "WARN")
+    except Exception:
+        pass
+
+
+_pin_base_library()
+_mirror_bundled_files()
+_preload_fragile()
+
 LOCAL_VERSION_FILE = os.path.join(_APPDATA_DIR, "agent_version.txt")
 SHOP_CONFIG_FILE   = os.path.join(_APPDATA_DIR, "shop_config.txt")
 APPROVAL_CONFIG    = os.path.join(_APPDATA_DIR, "approval_mode.txt")
@@ -432,8 +721,13 @@ if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
         script = script.replace("__HEAD__", str(head).replace("'", "''"))
 
         fd, ps1 = tempfile.mkstemp(suffix=".ps1")
-        with os.fdopen(fd, "w", encoding="utf-8-sig") as f:
-            f.write(script)
+        # BOM khud likh rahe hain (b"\xef\xbb\xbf") - "utf-8-sig" CODEC use
+        # karne se bachne ke liye. Wo codec base_library.zip me rehta hai aur
+        # PEHLI BAAR theek yahin load hota tha; _MEI saaf ho chuka ho to yahi
+        # line "FileNotFoundError: ...base_library.zip" deti thi - screenshot
+        # wala "Bada dialog fail" isi se aaya tha.
+        with os.fdopen(fd, "wb") as f:
+            f.write(b"\xef\xbb\xbf" + script.encode("utf-8"))
 
         out = subprocess.run(
             ["powershell", "-NoProfile", "-NonInteractive",
@@ -651,8 +945,13 @@ if ($f.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
             script = script.replace(k, q(v))
 
         fd, ps1 = tempfile.mkstemp(suffix=".ps1")
-        with os.fdopen(fd, "w", encoding="utf-8-sig") as fh:
-            fh.write(script)
+        # BOM khud likh rahe hain (b"\xef\xbb\xbf") - "utf-8-sig" CODEC use
+        # karne se bachne ke liye. Wo codec base_library.zip me rehta hai aur
+        # PEHLI BAAR theek yahin load hota tha; _MEI saaf ho chuka ho to yahi
+        # line "FileNotFoundError: ...base_library.zip" deti thi - screenshot
+        # wala "Bada dialog fail" isi se aaya tha.
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(b"\xef\xbb\xbf" + script.encode("utf-8"))
 
         out = subprocess.run(
             ["powershell", "-NoProfile", "-NonInteractive",
@@ -1335,28 +1634,48 @@ def extract_selected_pages(pdf_path, selected_pages_str, total_pages=None):
     # dete hain kyunki ye real-world "ajeeb" PDFs (scanner apps, govt
     # portals, non-UTF8 metadata) ko zyada gracefully handle karta hai.
     # PyPDF2 3.x abhi bhi kaam karta hai isliye fallback rakha hai.
+    # ── PDF library ──
+    #
+    # YAHAN 22 Aug 2026 WALA CRASH THA. Pehle yahan `except ImportError` tha.
+    # PyPDF2 khulte waqt pycryptodome ki .pyd load karta hai; wo file na mile
+    # to pycryptodome **OSError** uthata hai, ImportError nahi
+    # (Crypto/Util/_raw_api.py -> raise OSError("Cannot load native module...")).
+    # ImportError-only handler use pakadta hi nahi tha, aur ye imports neeche
+    # wale bade try/except ke BAHAR hain — isliye exception seedha
+    # process_job() tak pahunch kar "Job crashed" ban jaata tha, aur
+    # print_file() ka SumatraPDF page-range fallback kabhi chala hi nahi.
+    #
+    # Ab har exception pakadte hain. Library na mile to None lautate hain,
+    # jispar print_file() SumatraPDF se seedha page range chhaap deta hai.
     PdfReader = None
     PdfWriter = None
-    try:
-        from pypdf import PdfReader, PdfWriter
-    except ImportError:
+    _pdf_err = None
+    for _modname in ("pypdf", "PyPDF2"):
         try:
-            from PyPDF2 import PdfReader, PdfWriter
-        except ImportError:
+            _m = __import__(_modname, fromlist=["PdfReader", "PdfWriter"])
+            PdfReader, PdfWriter = _m.PdfReader, _m.PdfWriter
+            break
+        except Exception as e:          # ImportError + OSError (gayab .pyd) dono
+            _pdf_err = e
+
+    if PdfReader is None:
+        # Script mode me library SACH ME missing ho sakti hai — wahan install
+        # karna theek hai. Do shart:
+        #   * .exe me pip hota hi nahi, isliye wahan koshish bekaar
+        #   * OSError ka matlab hai library hai par uski .pyd nahi mili —
+        #     usme pip install se kuch nahi hota, sirf 10 second jaate hain
+        if (not is_running_as_exe()) and isinstance(_pdf_err, ImportError):
             log("⚠️  pypdf/PyPDF2 not found! Installing...", "WARN")
             os.system("pip install pypdf pycryptodome --quiet")
             try:
                 from pypdf import PdfReader, PdfWriter
             except Exception as e:
                 log(f"❌ pypdf installation also failed: {e}", "ERROR")
-                return None
-
-    # PyCryptodome missing hone se aane wala specific error pre-emptively fix karo
-    try:
-        import Crypto  # noqa
-    except ImportError:
-        log("⚠️  PyCryptodome not found — installing (required for encrypted PDFs)", "WARN")
-        os.system("pip install pycryptodome --quiet")
+                PdfReader = None
+        if PdfReader is None:
+            log(f"⚠️  PDF library load nahi hui ({_pdf_err}) — "
+                f"page range ab SumatraPDF se nikalega", "WARN")
+            return None
 
     try:
         page_numbers = [int(p.strip()) for p in selected_pages_str.split(',') if p.strip()]
@@ -1462,6 +1781,11 @@ def get_bundled_resource_path(filename):
     meipass = getattr(sys, '_MEIPASS', None)
     if meipass:
         candidates.append(os.path.join(meipass, filename))
+
+    # 1b. APPDATA mirror — startup par _mirror_bundled_files() ne yahan copy
+    #     rakhi thi. _MEI folder ud jaye (22 Aug wala case) to print aur panel
+    #     isi copy se chalte rehte hain.
+    candidates.append(os.path.join(_RUNTIME_DIR, filename))
 
     # 2. Compiled exe ke saath wala folder (Nuitka standalone / PyInstaller onedir)
     #    Nuitka __compiled__ set karta hai, PyInstaller sys.frozen
@@ -1777,6 +2101,19 @@ def print_file(filepath, copies=1, color_mode="bw", selected_pages="", printer_n
         success = print_pdf_sumatra(print_path, copies, color_mode, printer_name, extra=_mix(), scale_mode=_scale)
         return success
 
+    except Exception as e:
+        # Pehle yahan sirf try/finally tha — koi bhi anokha exception seedha
+        # process_job() tak jaakar "Job crashed" banta tha. Ab yahin rok kar
+        # False lautate hain: job saaf-saaf "failed" mark hota hai, agent
+        # chalta rehta hai, aur log me asli wajah dikhti hai.
+        log(f"❌ Print error: {type(e).__name__}: {e}", "ERROR")
+        try:
+            import traceback
+            log("   " + traceback.format_exc().strip().replace("\n", " | ")[-400:], "ERROR")
+        except Exception:
+            pass
+        return False
+
     finally:
         if converted_pdf and os.path.exists(converted_pdf):
             try:
@@ -2071,7 +2408,12 @@ def _report_with_retry(url, payload, job_id, what):
             if r.status_code == 200:
                 if attempt > 1:
                     log(f"✅ {what} report delivered on attempt {attempt} ({job_id})")
-                return True
+                # Server ka jawab bhi lauta rahe hain — usi se pata chalta hai
+                # ki customer ki file abhi delete hui ya pehle ho chuki thi.
+                try:
+                    return True, (r.json() or {})
+                except Exception:
+                    return True, {}
             log(f"⚠️ {what} report HTTP {r.status_code} (koshish {attempt}/6)", "WARN")
         except Exception as e:
             log(f"⚠️ {what} report fail (koshish {attempt}/6): {e}", "WARN")
@@ -2079,7 +2421,31 @@ def _report_with_retry(url, payload, job_id, what):
             time.sleep(10)
     log(f"❌ {what} report failed after 6 attempts — job {job_id} "
         f"will stay stuck on the server (the server clears it in 10 minutes)", "ERROR")
-    return False
+    return False, {}
+
+def _log_server_file(ok, data):
+    """
+    Customer ki file server par se hati ya nahi — ye log me pehle aata hi
+    nahi tha. Sirf "Local file deleted" dikhta tha, aur wo IS PC ka temp hai.
+    Customer ki asli file server par hoti hai.
+
+    Server /api/jobs/complete (aur /failed) par wo file apni taraf se delete
+    karta hai aur DB me file_deleted=true likhta hai. Isliye 200 mila =
+    wo kaam ho chuka. `already:true` matlab pehle hi ho chuka tha.
+    """
+    try:
+        if not ok:
+            log("⚠️  Server tak report nahi pahunchi — customer ki file abhi "
+                "server par ho sakti hai (server 10 min me khud saaf karta hai)", "WARN")
+            return False
+        if isinstance(data, dict) and data.get("already"):
+            log("☁️  Server: customer ki file pehle hi delete ho chuki thi")
+        else:
+            log("☁️  Server se customer ki file delete ho gayi")
+        return True
+    except Exception:
+        return bool(ok)
+
 
 def mark_complete(job_id):
     # Pehle local record, phir server report. Agar report ke beech me
@@ -2089,11 +2455,775 @@ def mark_complete(job_id):
     except Exception as e:
         log(f"Could not record processed job: {e}", "WARN")
     log(f"✅ Job {job_id} complete! Reporting to the server...")
-    _report_with_retry(f"{SERVER_URL}/api/jobs/complete/{job_id}", {}, job_id, "Complete")
+    ok, data = _report_with_retry(
+        f"{SERVER_URL}/api/jobs/complete/{job_id}", {}, job_id, "Complete")
+    return _log_server_file(ok, data)
+
 
 def mark_failed(job_id, reason=""):
-    _report_with_retry(f"{SERVER_URL}/api/jobs/failed/{job_id}", {"reason": reason}, job_id, "Failed")
+    ok, data = _report_with_retry(
+        f"{SERVER_URL}/api/jobs/failed/{job_id}", {"reason": reason}, job_id, "Failed")
+    # Deny/fail par bhi server apni file saaf karta hai — wahi likho
+    return _log_server_file(ok, data)
 
+
+# ══════════════════════════════════════════════════════════════
+#  LIVE JOB WINDOW  —  ek job, ek window, saara kaam saamne
+#
+#  Purana approval popup ONE-SHOT tha: PowerShell chalao, jawab lo, band.
+#  Uske baad kuch dikhaya hi nahi ja sakta tha — Python `subprocess.run`
+#  par ruka rehta tha aur khuli hui window me kuch bhejne ka raasta nahi tha.
+#
+#  Ab ulta hai:
+#    * window Popen se chalti hai (Python rukta NAHI)
+#    * Python ek chhoti JSON state file likhta hai
+#    * window har 320ms wahi file padh kar khud ko refresh karti hai
+#    * button dabane par window ek result file likhti hai, Python padh leta hai
+#
+#  Dikhne ke liye WPF (XAML) use kiya hai, WinForms nahi. WinForms me rounded
+#  card / shadow / chip sab haath se GDI+ me banane padte aur kinare fate hue
+#  dikhte. WPF Windows ka apna hissa hai (koi download nahi) aur ye sab usme
+#  built-in hai.
+#
+#  NIYAM WAHI PURANA: ye window kisi bhi wajah se na chale to printing
+#  RUKNI NAHI CHAHIYE. Har call try/except me hai, aur approval ke liye
+#  purana MessageBox raasta jyon ka tyon zinda hai.
+# ══════════════════════════════════════════════════════════════
+
+_JOBWIN_DIR = os.path.join(_APPDATA_DIR, "jobwin")
+_JOBWIN_PS1 = os.path.join(_RUNTIME_DIR, "job_window.ps1")
+_JOBWIN_OK = None          # None = abhi try nahi kiya, False = ye PC nahi chala paya
+
+# Step ka haal
+_ST_WAIT = "wait"          # abhi baari nahi aayi
+_ST_RUN = "run"            # chal raha hai (ghoomta hua gola)
+_ST_DONE = "done"          # ho gaya (hara tick)
+_ST_FAIL = "fail"          # nahi hua (laal cross)
+_ST_SKIP = "skip"          # is job me lagta hi nahi (dash)
+
+# Segoe MDL2 Assets ke icon (Windows 10/11 me pehle se hote hain).
+_IC_FILE = "E7C3"      # page (folded corner)
+_IC_CARD = "E8C7"      # payment card
+_IC_USER = "E77B"      # contact
+_IC_CLOCK = "E823"     # clock
+_IC_PRINT = "E749"     # printer
+_IC_CLOUD = "E753"     # cloud
+_IC_TRASH = "E74D"     # delete
+_IC_TICK = "E73E"      # check
+_IC_CROSS = "E711"     # cancel
+_IC_DASH = "E738"      # remove (skip ke liye)
+
+
+_JOBWIN_XAML = r'''<Window
+  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+  Title="QR Se Print" Height="472" Width="400"
+  WindowStartupLocation="Manual" ResizeMode="NoResize" ShowActivated="False"
+  ShowInTaskbar="True" Topmost="True" Background="#FFFFFF"
+  FontFamily="Segoe UI" UseLayoutRounding="True" SnapsToDevicePixels="True">
+  <Window.Resources>
+    <Style x:Key="Chip" TargetType="Border">
+      <Setter Property="Width" Value="30"/>
+      <Setter Property="Height" Value="30"/>
+      <Setter Property="CornerRadius" Value="9"/>
+    </Style>
+    <Style x:Key="Glyph" TargetType="TextBlock">
+      <Setter Property="FontFamily" Value="Segoe MDL2 Assets, Segoe UI Symbol"/>
+      <Setter Property="FontSize" Value="13"/>
+      <Setter Property="HorizontalAlignment" Value="Center"/>
+      <Setter Property="VerticalAlignment" Value="Center"/>
+    </Style>
+    <Style x:Key="Btn" TargetType="Button">
+      <Setter Property="Height" Value="34"/>
+      <Setter Property="FontSize" Value="12"/>
+      <Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="bd" CornerRadius="8" Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True">
+                <Setter TargetName="bd" Property="Opacity" Value="0.86"/>
+              </Trigger>
+              <Trigger Property="IsEnabled" Value="False">
+                <Setter TargetName="bd" Property="Opacity" Value="0.45"/>
+              </Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Window.Resources>
+
+  <Grid>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="*"/>
+      <RowDefinition Height="Auto"/>
+      <RowDefinition Height="Auto"/>
+    </Grid.RowDefinitions>
+
+    <!-- HEADER -->
+    <Border x:Name="HeadCard" Grid.Row="0" Padding="12,9,12,9" Background="#FFFBEB"
+            BorderBrush="#F3E8D0" BorderThickness="0,0,0,1">
+      <Grid>
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <Border x:Name="HeadChip" Grid.Column="0" Width="34" Height="34" CornerRadius="10"
+                Background="#FDE68A" VerticalAlignment="Top">
+          <TextBlock x:Name="HeadIcon" Style="{StaticResource Glyph}" FontSize="16"
+                     Foreground="#B45309" Text="&#xE8C7;"/>
+        </Border>
+
+        <StackPanel Grid.Column="1" Margin="9,0,6,0">
+          <TextBlock x:Name="HeadTitle" Text="Cash Mode" FontSize="13" FontWeight="Bold"
+                     Foreground="#B45309" TextTrimming="CharacterEllipsis"/>
+          <TextBlock x:Name="HeadJob" Text="-" FontSize="10" Foreground="#78716C"
+                     Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+          <TextBlock x:Name="HeadFile" Text="-" FontSize="10" Foreground="#1C1917"
+                     Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+          <TextBlock x:Name="HeadAmt" Text="-" FontSize="10" Foreground="#1C1917"
+                     FontWeight="SemiBold" Margin="0,2,0,0" TextTrimming="CharacterEllipsis"/>
+        </StackPanel>
+
+        <Border x:Name="BadgeBox" Grid.Column="2" CornerRadius="7" Padding="8,5,8,5"
+                Background="#FFFFFF" BorderBrush="#F59E0B" BorderThickness="1"
+                VerticalAlignment="Top" MinWidth="76">
+          <StackPanel>
+            <TextBlock x:Name="BadgeTop" Text="ACCEPTED" FontSize="10" FontWeight="Bold"
+                       Foreground="#B45309" HorizontalAlignment="Center"/>
+            <TextBlock x:Name="BadgeSub" Text="Now Printing" FontSize="9"
+                       Foreground="#78716C" HorizontalAlignment="Center" Margin="0,1,0,0"
+                       TextTrimming="CharacterEllipsis"/>
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Border>
+
+    <!-- STEPS -->
+    <StackPanel x:Name="Steps" Grid.Row="1" Margin="12,8,12,0">
+      <!--ROWS-->
+    </StackPanel>
+
+    <!-- BUTTONS -->
+    <Grid Grid.Row="2" Margin="12,4,12,9">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="*"/>
+        <ColumnDefinition Width="8"/>
+        <ColumnDefinition Width="*"/>
+      </Grid.ColumnDefinitions>
+      <Button x:Name="BtnA" Grid.Column="0" Style="{StaticResource Btn}"
+              Background="#16A34A" BorderBrush="#15803D" Visibility="Collapsed">
+        <TextBlock x:Name="BtnAText" Text="Approve" Foreground="White" FontWeight="Bold"
+                   FontSize="12"/>
+      </Button>
+      <Button x:Name="BtnB" Grid.Column="2" Style="{StaticResource Btn}"
+              Background="#FFFFFF" BorderBrush="#D6D3D1">
+        <TextBlock x:Name="BtnBText" Text="Close" Foreground="#1C1917" FontWeight="SemiBold"
+                   FontSize="12"/>
+      </Button>
+    </Grid>
+
+    <!-- STATUS -->
+    <Border Grid.Row="3" Background="#FAFAF9" BorderBrush="#E7E5E4" BorderThickness="0,1,0,0"
+            Padding="12,6,12,6">
+      <Grid>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
+          <TextBlock Text="Agent :" FontSize="10" Foreground="#57534E"/>
+          <TextBlock x:Name="AgentTxt" Text="Online" FontSize="10" FontWeight="SemiBold"
+                     Foreground="#16A34A" Margin="4,0,4,0"/>
+          <Ellipse x:Name="AgentDot" Width="7" Height="7" Fill="#16A34A" VerticalAlignment="Center"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+          <TextBlock Text="Server :" FontSize="10" Foreground="#57534E"/>
+          <TextBlock x:Name="SrvTxt" Text="Connected" FontSize="10" FontWeight="SemiBold"
+                     Foreground="#16A34A" Margin="4,0,4,0"/>
+          <Ellipse x:Name="SrvDot" Width="7" Height="7" Fill="#16A34A" VerticalAlignment="Center"/>
+        </StackPanel>
+      </Grid>
+    </Border>
+  </Grid>
+</Window>'''
+
+
+# Ek step ki row. 6 baar dohrayi jaati hai (index 0..5).
+_JOBWIN_ROW = r'''
+      <Grid Name="RowG__I__" Margin="0,0,0,0">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="*"/>
+          <ColumnDefinition Width="Auto"/>
+          <ColumnDefinition Width="24"/>
+        </Grid.ColumnDefinitions>
+        <Grid Grid.Column="0" Width="30" Height="44">
+          <Rectangle Name="RowLine__I__" Width="2" Fill="#E7E5E4" Height="14"
+                     VerticalAlignment="Bottom" HorizontalAlignment="Center"/>
+          <Border Name="RowChip__I__" Style="{StaticResource Chip}" Background="#F5F5F4"
+                  VerticalAlignment="Top">
+            <TextBlock Name="RowIcon__I__" Style="{StaticResource Glyph}"
+                       Foreground="#A8A29E" Text="&#xE7C3;"/>
+          </Border>
+        </Grid>
+        <TextBlock Name="RowLbl__I__" Grid.Column="1" Text="-" FontSize="11.5"
+                   Foreground="#292524" VerticalAlignment="Top" Margin="9,8,4,0"
+                   TextTrimming="CharacterEllipsis"/>
+        <TextBlock Name="RowTime__I__" Grid.Column="2" Text="" FontSize="9.5"
+                   Foreground="#78716C" VerticalAlignment="Top" Margin="0,9,6,0"/>
+        <Grid Grid.Column="3" VerticalAlignment="Top" Margin="0,7,0,0">
+          <TextBlock Name="RowMark__I__" Style="{StaticResource Glyph}" FontSize="13"
+                     Foreground="#16A34A" Text="&#xE73E;" Visibility="Collapsed"/>
+          <Canvas Name="RowSpin__I__" Width="16" Height="16" Visibility="Collapsed">
+            <Ellipse Width="14" Height="14" Canvas.Left="1" Canvas.Top="1"
+                     Stroke="#DBEAFE" StrokeThickness="2.5"/>
+            <Path Stroke="#2563EB" StrokeThickness="2.5" StrokeStartLineCap="Round"
+                  Data="M 8,1 A 7,7 0 0 1 15,8">
+              <Path.RenderTransform>
+                <RotateTransform x:Name="Rot__I__" CenterX="8" CenterY="8" Angle="0"/>
+              </Path.RenderTransform>
+            </Path>
+          </Canvas>
+        </Grid>
+      </Grid>'''
+
+
+# PowerShell ka driver. Ye sirf "renderer" hai — koi business logic nahi.
+# Saara faisla Python leta hai aur state file me likh deta hai.
+_JOBWIN_PS = r'''param([string]$State, [string]$Result, [string]$XamlFile)
+$ErrorActionPreference = 'Stop'
+
+# BOM ke BINA. [Text.Encoding]::UTF8 file ke aage EF BB BF lagata hai, aur
+# Python ka .strip() use hata nahi paata — isse "reject" kabhi match hi nahi
+# hota tha aur har reject "window band ho gayi" ban jaata tha.
+$Utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+
+function Fail($m) {
+  try { [IO.File]::WriteAllText($Result, "ERROR:$m", $Utf8NoBom) } catch {}
+  exit 1
+}
+
+if (-not (Get-Command ConvertFrom-Json -ErrorAction SilentlyContinue)) { Fail 'no-json' }
+
+try {
+  Add-Type -AssemblyName PresentationFramework, PresentationCore, WindowsBase, System.Xaml
+} catch { Fail 'no-wpf' }
+
+try {
+  [xml]$xdoc = [IO.File]::ReadAllText($XamlFile, [Text.Encoding]::UTF8)
+  $rdr = New-Object System.Xml.XmlNodeReader $xdoc
+  $win = [Windows.Markup.XamlReader]::Load($rdr)
+} catch { Fail ('xaml:' + $_.Exception.Message) }
+
+$bc = New-Object System.Windows.Media.BrushConverter
+function B([string]$hex) { try { return $bc.ConvertFromString($hex) } catch { return $null } }
+function G([string]$hex) { try { return [string][char][Convert]::ToInt32($hex,16) } catch { return '' } }
+
+$C = @{}
+foreach ($n in @('HeadCard','HeadChip','HeadIcon','HeadTitle','HeadJob','HeadFile','HeadAmt',
+                 'BadgeBox','BadgeTop','BadgeSub','BtnA','BtnAText','BtnB','BtnBText',
+                 'AgentTxt','AgentDot','SrvTxt','SrvDot')) { $C[$n] = $win.FindName($n) }
+for ($i = 0; $i -lt 6; $i++) {
+  foreach ($p in @('RowG','RowLine','RowChip','RowIcon','RowLbl','RowTime','RowMark','RowSpin','Rot')) {
+    $C["$p$i"] = $win.FindName("$p$i")
+  }
+}
+
+$script:decided = $false
+$script:idA = ''
+$script:idB = 'close'
+$script:closeAt = $null
+$script:lastRaw = ''
+
+function Send([string]$v) {
+  if ($script:decided) { return }
+  $script:decided = $true
+  try { [IO.File]::WriteAllText($Result, $v, $Utf8NoBom) } catch {}
+}
+
+$C['BtnA'].Add_Click({ Send $script:idA; $C['BtnA'].IsEnabled = $false })
+$C['BtnB'].Add_Click({
+  if ($script:idB -eq 'close') { $win.Close() }
+  else { Send $script:idB; $C['BtnB'].IsEnabled = $false }
+})
+$win.Add_Closing({ Send 'CLOSED' })
+
+function Apply($s) {
+  if ($s.title)  { $C['HeadTitle'].Text = [string]$s.title }
+  if ($s.job_id) { $C['HeadJob'].Text  = [string]$s.job_id }
+  if ($s.file)   { $C['HeadFile'].Text = [string]$s.file }
+  if ($s.amount) { $C['HeadAmt'].Text  = [string]$s.amount }
+  if ($s.accent) {
+    $a = B $s.accent
+    if ($a) { $C['HeadTitle'].Foreground = $a; $C['HeadIcon'].Foreground = $a
+              $C['BadgeTop'].Foreground = $a; $C['BadgeBox'].BorderBrush = $a }
+  }
+  if ($s.bg)      { $x = B $s.bg;      if ($x) { $C['HeadCard'].Background = $x } }
+  if ($s.chip_bg) { $x = B $s.chip_bg; if ($x) { $C['HeadChip'].Background = $x } }
+  if ($s.icon)    { $C['HeadIcon'].Text = G $s.icon }
+  if ($s.badge_top -ne $null) { $C['BadgeTop'].Text = [string]$s.badge_top }
+  if ($s.badge_sub -ne $null) { $C['BadgeSub'].Text = [string]$s.badge_sub }
+
+  $n = 0
+  if ($s.steps) { $n = @($s.steps).Count }
+  for ($i = 0; $i -lt 6; $i++) {
+    if ($i -ge $n) { $C["RowG$i"].Visibility = 'Collapsed'; continue }
+    $C["RowG$i"].Visibility = 'Visible'
+    $st = @($s.steps)[$i]
+    $C["RowLbl$i"].Text  = [string]($i + 1) + '. ' + [string]$st.label
+    $C["RowTime$i"].Text = [string]$st.time
+    $C["RowIcon$i"].Text = G $st.icon
+    if ($i -lt ($n - 1)) { $C["RowLine$i"].Visibility = 'Visible' }
+    else { $C["RowLine$i"].Visibility = 'Collapsed' }
+
+    $mark = $C["RowMark$i"]
+    $spin = $C["RowSpin$i"]
+    switch ([string]$st.state) {
+      'done' {
+        $mark.Text = G 'E73E'
+        $mark.Foreground = B '#16A34A'
+        $mark.Visibility = 'Visible'
+        $spin.Visibility = 'Collapsed'
+        $x = B $st.chip; if ($x) { $C["RowChip$i"].Background = $x }
+        $x = B $st.fg;   if ($x) { $C["RowIcon$i"].Foreground = $x }
+        $C["RowLbl$i"].Foreground = B '#292524'
+      }
+      'fail' {
+        $mark.Text = G 'E711'
+        $mark.Foreground = B '#DC2626'
+        $mark.Visibility = 'Visible'
+        $spin.Visibility = 'Collapsed'
+        $C["RowChip$i"].Background = B '#FEE2E2'
+        $C["RowIcon$i"].Foreground = B '#DC2626'
+        $C["RowLbl$i"].Foreground = B '#292524'
+      }
+      'run' {
+        $mark.Visibility = 'Collapsed'
+        $spin.Visibility = 'Visible'
+        $x = B $st.chip; if ($x) { $C["RowChip$i"].Background = $x }
+        $x = B $st.fg;   if ($x) { $C["RowIcon$i"].Foreground = $x }
+        $C["RowLbl$i"].Foreground = B '#292524'
+      }
+      'skip' {
+        $mark.Text = G 'E738'
+        $mark.Foreground = B '#A8A29E'
+        $mark.Visibility = 'Visible'
+        $spin.Visibility = 'Collapsed'
+        $C["RowChip$i"].Background = B '#F5F5F4'
+        $C["RowIcon$i"].Foreground = B '#D6D3D1'
+        $C["RowLbl$i"].Foreground = B '#A8A29E'
+      }
+      default {
+        $mark.Visibility = 'Collapsed'
+        $spin.Visibility = 'Collapsed'
+        $C["RowChip$i"].Background = B '#F5F5F4'
+        $C["RowIcon$i"].Foreground = B '#A8A29E'
+        $C["RowLbl$i"].Foreground = B '#A8A29E'
+      }
+    }
+  }
+
+  if ($s.btn_a -and $s.btn_a.id) {
+    $script:idA = [string]$s.btn_a.id
+    $C['BtnAText'].Text = [string]$s.btn_a.text
+    $x = B $s.btn_a.bg; if ($x) { $C['BtnA'].Background = $x }
+    $x = B $s.btn_a.bd; if ($x) { $C['BtnA'].BorderBrush = $x }
+    $x = B $s.btn_a.fg; if ($x) { $C['BtnAText'].Foreground = $x }
+    $C['BtnA'].Visibility = 'Visible'
+    if ($script:decided) { $C['BtnA'].IsEnabled = $false }
+  } else { $C['BtnA'].Visibility = 'Collapsed' }
+
+  if ($s.btn_b -and $s.btn_b.id) {
+    $script:idB = [string]$s.btn_b.id
+    $C['BtnBText'].Text = [string]$s.btn_b.text
+    $x = B $s.btn_b.bg; if ($x) { $C['BtnB'].Background = $x }
+    $x = B $s.btn_b.bd; if ($x) { $C['BtnB'].BorderBrush = $x }
+    $x = B $s.btn_b.fg; if ($x) { $C['BtnBText'].Foreground = $x }
+  }
+
+  if ($s.agent) {
+    $C['AgentTxt'].Text = [string]$s.agent
+    $x = B $s.agent_c; if ($x) { $C['AgentTxt'].Foreground = $x; $C['AgentDot'].Fill = $x }
+  }
+  if ($s.server) {
+    $C['SrvTxt'].Text = [string]$s.server
+    $x = B $s.server_c; if ($x) { $C['SrvTxt'].Foreground = $x; $C['SrvDot'].Fill = $x }
+  }
+
+  if ($s.close_in -ne $null -and $script:closeAt -eq $null) {
+    $script:closeAt = (Get-Date).AddSeconds([double]$s.close_in)
+  }
+}
+
+$script:tick = 0
+$script:angle = 0.0
+$timer = New-Object System.Windows.Threading.DispatcherTimer
+$timer.Interval = [TimeSpan]::FromMilliseconds(80)
+$timer.Add_Tick({
+  $script:angle = ($script:angle + 32) % 360
+  for ($i = 0; $i -lt 6; $i++) {
+    $r = $C["Rot$i"]
+    if ($r -ne $null) { $r.Angle = $script:angle }
+  }
+  $script:tick++
+  if (($script:tick % 4) -eq 0) {
+    try {
+      $raw = [IO.File]::ReadAllText($State, [Text.Encoding]::UTF8)
+      if ($raw -and $raw -ne $script:lastRaw) {
+        $script:lastRaw = $raw
+        Apply ($raw | ConvertFrom-Json)
+      }
+    } catch { }
+  }
+  if ($script:closeAt -ne $null) {
+    $left = [int][Math]::Ceiling(($script:closeAt - (Get-Date)).TotalSeconds)
+    if ($left -le 0) { $timer.Stop(); $win.Close() }
+    else { $C['BtnBText'].Text = "Close ($left)" }
+  }
+})
+
+try {
+  $raw0 = [IO.File]::ReadAllText($State, [Text.Encoding]::UTF8)
+  $script:lastRaw = $raw0
+  Apply ($raw0 | ConvertFrom-Json)
+} catch { }
+
+# Taskbar ko chhod kar, neeche-daayein kone me. WorkArea taskbar hata kar
+# hi milta hai, isliye window uske upar kabhi nahi chadhti.
+try {
+  $wa = [System.Windows.SystemParameters]::WorkArea
+  $win.Left = $wa.Right - $win.Width - 14
+  $win.Top  = $wa.Bottom - $win.Height - 14
+} catch {
+  $win.WindowStartupLocation = 'CenterScreen'
+}
+# Activate() jaan-boojh kar hata diya — jis app me aap type kar rahe ho
+# uska focus ye window nahi chheenegi. Topmost hai, isliye dikhti phir bhi hai.
+$win.Add_Closed({ try { $timer.Stop() } catch {} })
+$timer.Start()
+$win.ShowDialog() | Out-Null
+Send 'CLOSED'
+exit 0
+'''
+
+
+def _jobwin_write_assets():
+    """
+    .ps1 aur .xaml ko APPDATA me likh do (ek hi baar, ya badalne par).
+
+    _MEI ke bajaye APPDATA isliye — wahi jagah hai jo saaf nahi hoti
+    ([[_MEI survival kit]] wali baat).
+    """
+    os.makedirs(_RUNTIME_DIR, exist_ok=True)
+    os.makedirs(_JOBWIN_DIR, exist_ok=True)
+    rows = "".join(_JOBWIN_ROW.replace("__I__", str(i)) for i in range(6))
+    xaml = _JOBWIN_XAML.replace("      <!--ROWS-->", rows)
+    for path, body in ((_JOBWIN_PS1, _JOBWIN_PS),
+                       (_JOBWIN_PS1[:-4] + ".xaml", xaml)):
+        try:
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as fh:
+                    if fh.read() == body:
+                        continue
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(body)
+        except Exception as e:
+            log(f"Job window asset likh nahi paye ({e})", "WARN")
+            return False
+    return True
+
+
+class JobWindow:
+    """
+    Ek job ki live window.
+
+    Istemaal:
+        w = JobWindow(job); w.open()
+        w.step(1, _ST_DONE); w.push()
+        ans = w.decide(timeout=600)     # "approve" / "reject" / None
+        ...
+        w.done_and_close()
+
+    Har method chup-chaap fail hoti hai. Window na chale to printing par
+    koi asar nahi padta — sirf ye window nahi dikhti.
+    """
+
+    def __init__(self, job):
+        self.job = job or {}
+        self.proc = None
+        self.alive = False
+        jid = str(self.job.get("id", "job"))
+        safe = "".join(c for c in jid if c.isalnum() or c in "-_")[:60] or "job"
+        self.state_file = os.path.join(_JOBWIN_DIR, safe + ".json")
+        self.result_file = os.path.join(_JOBWIN_DIR, safe + ".result")
+        self._decided = None
+        self.s = self._initial_state()
+
+    # ── state banao ──
+    def _initial_state(self):
+        j = self.job
+        counter = j.get("payment_method") == "counter"
+        color = "Color" if j.get("color_mode") == "color" else "B&W"
+        copies = j.get("copies", 1) or 1
+        pages = j.get("total_pages", 1) or 1
+        sel = j.get("selected_pages", "")
+        bits = ["%d Page%s" % (pages, "" if pages == 1 else "s"), color,
+                "Copies: %d" % copies]
+        if sel:
+            bits.append("Pages: %s" % sel)
+        steps = [
+            {"label": "File Received", "icon": _IC_FILE,
+             "chip": "#DBEAFE", "fg": "#2563EB", "state": _ST_WAIT, "time": ""},
+            {"label": "Waiting for Admin" if counter else "Payment Verified",
+             "icon": _IC_CLOCK if counter else _IC_CARD,
+             "chip": "#FEF3C7" if counter else "#DCFCE7",
+             "fg": "#B45309" if counter else "#16A34A",
+             "state": _ST_WAIT, "time": ""},
+            {"label": "Now Printing", "icon": _IC_PRINT,
+             "chip": "#EDE9FE", "fg": "#7C3AED", "state": _ST_WAIT, "time": ""},
+            # NOTE: order jaan-boojh kar aisa hai — code me local temp PEHLE
+            # delete hoti hai, phir server ko complete bheja jaata hai.
+            # Mockup me ulta tha; yahan wahi likha hai jo SACH me hota hai.
+            {"label": "Local Temp File Deleting", "icon": _IC_TRASH,
+             "chip": "#CFFAFE", "fg": "#0891B2", "state": _ST_WAIT, "time": ""},
+            {"label": "File Deleting from Server", "icon": _IC_CLOUD,
+             "chip": "#E0E7FF", "fg": "#4F46E5", "state": _ST_WAIT, "time": ""},
+            {"label": "Job Completed", "icon": _IC_TICK,
+             "chip": "#DCFCE7", "fg": "#16A34A", "state": _ST_WAIT, "time": ""},
+        ]
+        if counter:
+            head = {"title": "Cash Mode", "accent": "#B45309", "bg": "#FFFBEB",
+                    "chip_bg": "#FDE68A", "icon": _IC_CARD,
+                    "badge_top": "WAITING", "badge_sub": "Owner ki haan chahiye"}
+        else:
+            head = {"title": "Online Mode - Paid", "accent": "#16A34A", "bg": "#F0FDF4",
+                    "chip_bg": "#BBF7D0", "icon": _IC_CARD,
+                    "badge_top": "PAID", "badge_sub": "Auto Print"}
+        st = {"job_id": str(j.get("id", "-"))[:30],
+              "file": str(j.get("file_name", "file"))[:38],
+              "amount": "Rs %s  |  %s" % (j.get("amount", 0), " | ".join(bits)),
+              "steps": steps, "btn_a": None,
+              "btn_b": {"id": "close", "text": "Close", "bg": "#FFFFFF",
+                        "bd": "#D6D3D1", "fg": "#1C1917"},
+              "agent": "Online", "agent_c": "#16A34A",
+              "server": "Connected", "server_c": "#16A34A",
+              "close_in": None}
+        st.update(head)
+        return st
+
+    # ── chhoti madad ──
+    def _now(self):
+        return datetime.now().strftime("%I:%M:%S %p").lstrip("0")
+
+    def step(self, n, state, label=None, stamp=True, icon=None):
+        """Step n (1..6) ka haal badlo. push() abhi bhi karna padta hai."""
+        try:
+            s = self.s["steps"][n - 1]
+            s["state"] = state
+            if label:
+                s["label"] = label
+            if icon:
+                s["icon"] = icon
+            if stamp and state in (_ST_DONE, _ST_FAIL, _ST_RUN) and not s["time"]:
+                s["time"] = self._now()
+            elif stamp and state in (_ST_DONE, _ST_FAIL):
+                s["time"] = self._now()
+        except Exception:
+            pass
+        return self
+
+    def head(self, **kw):
+        try:
+            self.s.update(kw)
+        except Exception:
+            pass
+        return self
+
+    def buttons(self, a=None, b=None):
+        try:
+            self.s["btn_a"] = a
+            if b:
+                self.s["btn_b"] = b
+        except Exception:
+            pass
+        return self
+
+    def push(self):
+        """State file ko atomically likho (poori state, har baar)."""
+        if not self.alive:
+            return
+        try:
+            tmp = self.state_file + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump(self.s, fh)
+            for _ in range(4):
+                try:
+                    os.replace(tmp, self.state_file)
+                    return
+                except OSError:
+                    time.sleep(0.03)
+            # 4 koshish ke baad bhi nahi hua — chhod do. Agli push me poori
+            # state dobara jayegi, isliye kuch khota nahi.
+            try:
+                os.unlink(tmp)
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+    # ── window chalu / band ──
+    def open(self):
+        global _JOBWIN_OK
+        if _JOBWIN_OK is False:
+            return False
+        try:
+            if not _jobwin_write_assets():
+                _JOBWIN_OK = False
+                return False
+            for p in (self.state_file, self.result_file):
+                try:
+                    if os.path.exists(p):
+                        os.unlink(p)
+                except Exception:
+                    pass
+            self.alive = True
+            self.push()
+            self.proc = subprocess.Popen(
+                ["powershell", "-NoProfile", "-NonInteractive", "-STA",
+                 "-ExecutionPolicy", "Bypass", "-File", _JOBWIN_PS1,
+                 self.state_file, self.result_file,
+                 _JOBWIN_PS1[:-4] + ".xaml"],
+                env=_child_env(), close_fds=True,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+            return True
+        except Exception as e:
+            self.alive = False
+            _JOBWIN_OK = False
+            log(f"Live job window nahi khul paya ({e}) - purana popup use hoga", "WARN")
+            return False
+
+    def _read_result(self):
+        """
+        Button ka jawab padho.
+
+        DHYAAN: yahan "utf-8-sig" use kiya hai aur upar se \ufeff bhi hata rahe
+        hain. Wajah — PowerShell ka [Text.Encoding]::UTF8 file ke aage BOM
+        laga deta tha, aur Python ka .strip() BOM ko whitespace nahi maanta.
+        Isliye "reject" kabhi bhi "reject" ke barabar nahi hota tha aur har
+        Reject "window band ho gayi" ban kar job wapas queue me chala jaata tha.
+        Ab .ps1 BOM likhta hi nahi, par purani window chal rahi ho to bhi
+        sambhal jaye — isliye dono taraf se band.
+        """
+        try:
+            if os.path.exists(self.result_file):
+                with open(self.result_file, "r", encoding="utf-8-sig") as fh:
+                    v = fh.read()
+                v = v.replace("\ufeff", "").strip()
+                if v:
+                    return v
+        except Exception:
+            pass
+        return None
+
+    def decide(self, timeout=600):
+        """
+        Owner ke button ka intezaar.
+        "approve" / "reject" / None (window band ho gayi ya chali hi nahi).
+        """
+        global _JOBWIN_OK
+        if not self.alive:
+            return None
+        end = time.time() + timeout
+        while time.time() < end:
+            v = self._read_result()
+            if v:
+                if v.startswith("ERROR"):
+                    _JOBWIN_OK = False
+                    self.alive = False
+                    log(f"Live job window is PC par nahi chala ({v[:60]}) - "
+                        f"purana popup use hoga", "WARN")
+                    return None
+                if v == "CLOSED":
+                    self._decided = None
+                    return None
+                self._decided = v
+                return v
+            if self.proc is not None and self.proc.poll() is not None:
+                # PowerShell bina jawab diye mar gaya
+                v = self._read_result()
+                if not v or v.startswith("ERROR"):
+                    _JOBWIN_OK = False
+                    self.alive = False
+                    return None
+                return v
+            time.sleep(0.15)
+        log("Live job window par 10 min tak koi jawab nahi aaya", "WARN")
+        return None
+
+    def done_and_close(self, seconds=8):
+        """Aakhri state bhejo aur window ko khud band hone do."""
+        try:
+            self.s["close_in"] = seconds
+            self.push()
+        except Exception:
+            pass
+        self.alive = False
+
+    def kill(self):
+        try:
+            if self.proc is not None and self.proc.poll() is None:
+                self.proc.terminate()
+        except Exception:
+            pass
+        self.alive = False
+        for p in (self.state_file, self.result_file):
+            try:
+                if os.path.exists(p):
+                    os.unlink(p)
+            except Exception:
+                pass
+
+    def fail_rest(self, msg="Job Failed"):
+        """
+        Jo step baaki reh gaye unhe band karo aur window ko vida do.
+
+        Ye process_job() ke `finally` se chalta hai, isliye job kisi bhi
+        raaste se nikle — download fail, server refuse, ya exception —
+        window kabhi adhoori nahi latki rahegi.
+        """
+        try:
+            for s in self.s["steps"]:
+                if s["state"] == _ST_RUN:
+                    s["state"] = _ST_FAIL
+                    s["time"] = self._now()
+                elif s["state"] == _ST_WAIT:
+                    s["state"] = _ST_SKIP
+            last = self.s["steps"][-1]
+            last["state"] = _ST_FAIL
+            last["label"] = msg
+            last["time"] = self._now()
+            self.head(badge_top="FAILED", badge_sub=str(msg)[:26],
+                      accent="#DC2626", bg="#FEF2F2", chip_bg="#FECACA")
+            self.buttons(a=None, b=_BTN_CLOSE)
+            self.done_and_close(12)
+        except Exception:
+            pass
+
+
+# Jab koi faisla nahi lena — sirf "Close".
+_BTN_CLOSE = {"id": "close", "text": "Close", "bg": "#FFFFFF",
+              "bd": "#D6D3D1", "fg": "#1C1917"}
+
+# Abhi jo job chal rahi hai uski window. process_job() ke finally me
+# saaf hoti hai, isliye kisi bhi raaste se nikalne par window band ho
+# jaati hai. Jobs ek-ek karke chalte hain (print_loop me sequential),
+# isliye ek hi kaafi hai.
+_CURRENT_JOBWIN = None
 
 # ══════════════════════════════════════════════════════════════════
 # COUNTER-PAYMENT APPROVAL POPUP
@@ -2131,6 +3261,7 @@ def process_job(job):
     finally me cleanup — chahe print safal ho, fail ho, ya exception aaye —
     job ID kabhi "abhi chal raha hai" list me atki nahi rahegi.
     """
+    global _CURRENT_JOBWIN
     job_id = job.get("id", "unknown")
     try:
         return _process_job_inner(job)
@@ -2142,6 +3273,16 @@ def process_job(job):
             pass
     finally:
         _inflight_jobs.discard(job_id)
+        # Job kisi bhi raaste se nikli ho — download fail, server refuse,
+        # ya exception — live window adhoori latki nahi rehni chahiye.
+        _w = _CURRENT_JOBWIN
+        _CURRENT_JOBWIN = None
+        if _w is not None:
+            try:
+                if _w.alive:
+                    _w.fail_rest()
+            except Exception:
+                pass
 
 
 def _process_job_inner(job):
@@ -2209,17 +3350,77 @@ def _process_job_inner(job):
         f"BW-printer='{printer_name_bw or 'default'}' | Color-printer='{printer_name_color or 'default'}' | "
         f"target='{target_printer or 'DEFAULT PRINTER'}'")
 
+    # ── LIVE JOB WINDOW ──
+    # Ek job, ek window. Na khule to sab kuch bilkul pehle jaisa chalta hai
+    # (purana MessageBox approval + log) — printing kabhi nahi rukti.
+    global _CURRENT_JOBWIN
+    win = JobWindow(job)
+    if not win.open():
+        win = None
+    _CURRENT_JOBWIN = win
+    if win:
+        win.step(1, _ST_DONE).push()
+
     if job.get("payment_method") == "counter" and approval_enabled():
         update_tray_status("Counter order — waiting for approval")
-        ans = ask_approval(job)
+
+        ans = None
+        if win:
+            win.step(2, _ST_RUN)
+            win.head(badge_top="WAITING", badge_sub="Aapki haan ka intezaar")
+            win.buttons(
+                a={"id": "approve", "text": "Approve aur Print",
+                   "bg": "#16A34A", "bd": "#15803D", "fg": "#FFFFFF"},
+                b={"id": "reject", "text": "Reject Job",
+                   "bg": "#FFFFFF", "bd": "#FCA5A5", "fg": "#DC2626"})
+            win.push()
+            got = win.decide(timeout=600)
+            if got == "approve":
+                ans = True
+            elif got == "reject":
+                ans = False
+            elif not win.alive:
+                # Window is PC par chal hi nahi payi — purana raasta
+                win = None
+                _CURRENT_JOBWIN = None
+                ans = ask_approval(job)
+        else:
+            ans = ask_approval(job)
+
         if ans is None:
             log(f"⏸️ Approval window closed without a response — job {job_id} will come back later")
+            if win:
+                win.kill()
+                _CURRENT_JOBWIN = None
             return
         if ans is False:
             log(f"❌ Owner ne DENY kiya — job {job_id} cancel")
-            mark_failed(job_id, "Shop owner ne counter order deny kiya")
+            if win:
+                win.head(title="Cash Mode - Denied", accent="#DC2626", bg="#FEF2F2",
+                         chip_bg="#FECACA", badge_top="DENIED", badge_sub="Job Rejected")
+                win.step(2, _ST_FAIL, label="Admin Denied", icon=_IC_CROSS)
+                win.step(3, _ST_SKIP, stamp=False)
+                win.step(4, _ST_SKIP, stamp=False)
+                win.step(5, _ST_RUN)
+                win.buttons(a=None, b=_BTN_CLOSE)
+                win.push()
+            _srv_ok = mark_failed(job_id, "Shop owner ne counter order deny kiya")
+            if win:
+                win.step(5, _ST_DONE if _srv_ok else _ST_FAIL)
+                win.step(6, _ST_FAIL, label="Job Rejected")
+                win.done_and_close()
+                _CURRENT_JOBWIN = None
             return
         log(f"✅ Owner approved — job {job_id} is printing")
+        if win:
+            win.head(title="Cash Mode - Accepted", badge_top="ACCEPTED",
+                     badge_sub="Now Printing")
+            win.step(2, _ST_DONE, label="Admin Accepted", icon=_IC_USER)
+            win.buttons(a=None, b=_BTN_CLOSE)
+            win.push()
+    elif win:
+        # Online-paid job (ya approval band hai) — paisa pehle hi aa chuka
+        win.step(2, _ST_DONE).push()
 
     log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     log(f"📄 Job: {job_id}")
@@ -2264,10 +3465,17 @@ def _process_job_inner(job):
         _dup_pages = len([p for p in str(selected_pages).replace(' ', '').split(',') if p])
     else:
         _dup_pages = int(job.get("total_pages", 1) or 1)
+    if win:
+        win.step(3, _ST_RUN).push()
+
     success = print_file(filepath, copies, color, selected_pages, target_printer,
                          duplex_on=_dup_on, duplex_mode=_dup_mode, duplex_pages=_dup_pages,
                          paper_size=job.get("paper_size", "a4") or "a4",
                          total_pages=job.get("total_pages", 0))
+
+    if win:
+        win.step(3, _ST_DONE if success else _ST_FAIL)
+        win.step(4, _ST_RUN).push()
 
     try:
         time.sleep(3)
@@ -2277,18 +3485,51 @@ def _process_job_inner(job):
     except:
         pass
 
+    if win:
+        win.step(4, _ST_DONE)
+        win.step(5, _ST_RUN).push()
+
     if success:
-        mark_complete(job_id)
+        _srv_ok = mark_complete(job_id)
         log(f"🎉 Job {job_id} DONE!")
+        if win:
+            win.step(5, _ST_DONE if _srv_ok else _ST_FAIL)
+            win.step(6, _ST_DONE, label="Job Completed")
+            win.head(badge_sub="Ho gaya")
+            win.done_and_close()
+            _CURRENT_JOBWIN = None
     else:
         mark_failed(job_id, "Print failed")
         log(f"❌ Job {job_id} failed!", "ERROR")
+        if win:
+            win.step(5, _ST_DONE)
+            win.fail_rest("Print Failed")
+            _CURRENT_JOBWIN = None
 
 def check_dependencies():
     if is_running_as_exe():
-        # .exe build mein sab kuch already bundled hai (PyInstaller ne pack kiya hai)
-        log("🔍 Checking dependencies... (.exe mode — everything is bundled)")
-        log("✅ Pillow, win32print, PyPDF2, PyCryptodome, pystray — sab ready (bundled)")
+        # Pehle yahan sirf ek hardcoded line chhapti thi: "sab ready (bundled)".
+        # Wo JHOOTH tha — kuch check hota hi nahi tha. 22 Aug ko Crypto ki .pyd
+        # gayab thi aur log phir bhi "ready" likh raha tha, isliye asli wajah
+        # pakadne me bahut waqt laga. Ab sach me import karke dekhte hain.
+        log("🔍 Checking dependencies... (.exe mode)")
+        ok, bad = [], []
+        for label, mod in (("Pillow", "PIL.Image"),
+                           ("win32print", "win32print"),
+                           ("PyPDF2", "PyPDF2"),
+                           ("PyCryptodome", "Crypto.Cipher.AES"),
+                           ("pystray", "pystray")):
+            try:
+                __import__(mod)
+                ok.append(label)
+            except Exception as e:
+                bad.append("%s (%s)" % (label, type(e).__name__))
+        if ok:
+            log("✅ " + ", ".join(ok) + " — ready (bundled)")
+        if bad:
+            log("❌ Bundle me dikkat: " + ", ".join(bad), "ERROR")
+            log("   Agent band karke dobara chalu karo — bundle wapas khul jayega.",
+                "ERROR")
         return
 
     log("🔍 Dependencies check...")
@@ -2646,6 +3887,7 @@ def _msgbox(text, title="QR Se Print", flags=0x40):
 #  hi rehta hai jitna pehle tha.
 # ══════════════════════════════════════════════════════════════
 _PS_DIALOG_OK = None          # None = abhi try nahi kiya, False = kaam nahi karta
+_PS_DIALOG_FAILS = 0          # lagatar kitni baar fail hua (3 par hamesha ke liye band)
 
 
 def _ps_dialog(title, big, sub, rows, yes_label=None, no_label=None,
@@ -2662,7 +3904,7 @@ def _ps_dialog(title, big, sub, rows, yes_label=None, no_label=None,
 
     Returns True (yes/ok) / False (no) / None (dialog bana hi nahi)
     """
-    global _PS_DIALOG_OK
+    global _PS_DIALOG_OK, _PS_DIALOG_FAILS
     if _PS_DIALOG_OK is False:
         return None                       # pehle fail ho chuka — time mat kharab karo
 
@@ -2779,8 +4021,13 @@ else { [Console]::Out.WriteLine('YES') }
                   .replace("__NO__", q(no_label or "")))
 
         fd, ps1 = tempfile.mkstemp(suffix=".ps1")
-        with os.fdopen(fd, "w", encoding="utf-8-sig") as fh:
-            fh.write(script)
+        # BOM khud likh rahe hain (b"\xef\xbb\xbf") - "utf-8-sig" CODEC use
+        # karne se bachne ke liye. Wo codec base_library.zip me rehta hai aur
+        # PEHLI BAAR theek yahin load hota tha; _MEI saaf ho chuka ho to yahi
+        # line "FileNotFoundError: ...base_library.zip" deti thi - screenshot
+        # wala "Bada dialog fail" isi se aaya tha.
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(b"\xef\xbb\xbf" + script.encode("utf-8"))
 
         out = subprocess.run(
             ["powershell", "-NoProfile", "-NonInteractive",
@@ -2802,9 +4049,18 @@ else { [Console]::Out.WriteLine('YES') }
                 f"({(out.stderr or '')[:120]})", "WARN")
         return None
     except Exception as e:
+        # Pehle EK fail par hi bada dialog HAMESHA ke liye band ho jaata tha.
+        # 22 Aug ko _MEI saaf hone se ek FileNotFoundError aaya aur poore din
+        # chhota MessageBox hi dikhta raha. Ab teen baar fail hone par hi band
+        # karte hain — taaki ek gadbad saara din kharab na kare.
         if _PS_DIALOG_OK is None:
-            _PS_DIALOG_OK = False
-            log(f"Bada dialog fail ({e}) - ab MessageBox use hoga", "WARN")
+            _PS_DIALOG_FAILS += 1
+            log(f"Bada dialog fail ({e}) - is baar MessageBox use hoga "
+                f"[{_PS_DIALOG_FAILS}/3]", "WARN")
+            if _PS_DIALOG_FAILS >= 3:
+                _PS_DIALOG_OK = False
+                log("Bada dialog teen baar fail - ab hamesha MessageBox hi chalega",
+                    "WARN")
         return None
     finally:
         try:
@@ -2971,6 +4227,15 @@ def bundle_selfcheck():
     Tcl/Tk ka check yahan se hata diya gaya hai — ab koi popup Tk use
     karta hi nahi, sab Windows ke apne dialog par hain.
     """
+    # Startup ke wo notes jo log() ban-ne se PEHLE likhe gaye the
+    # (base_library pin, mirror, preload) — ab log me daal do.
+    try:
+        while _EARLY_NOTES:
+            lvl, msg = _EARLY_NOTES.pop(0)
+            log("BOOT    " + msg, lvl)
+    except Exception:
+        pass
+
     frozen = bool(getattr(sys, 'frozen', False) or globals().get('__compiled__'))
     if not frozen:
         log("Bundle check skip - ye sirf .exe build ke liye hai (abhi script mode)")
@@ -3008,6 +4273,18 @@ def bundle_selfcheck():
     else:
         log("BUNDLE  Panel HTML : BUNDLE ME NAHI - desktop panel nahi khulega "
             "(printing normal chalegi)", "WARN")
+
+    # -- Survival kit --
+    try:
+        have = [n for n in _MIRROR_FILES
+                if os.path.exists(os.path.join(_RUNTIME_DIR, n))]
+        log("BUNDLE  Safe copy : %d/%d files -> %s"
+            % (len(have), len(_MIRROR_FILES), _RUNTIME_DIR))
+        if not _mei_intact():
+            log("BUNDLE  Temp folder : SAAF HO CHUKA HAI - safe copy par chal rahe hain",
+                "WARN")
+    except Exception:
+        pass
 
 
 def _manual_update_headless():
@@ -3663,6 +4940,8 @@ def print_loop():
                 reset_http()
                 last_socket_refresh = time.time()
                 log("🔁 Idle socket refresh — naya connection taiyaar")
+
+            _mei_watch()          # khud ko throttle karta hai (har 5 min)
 
             jobs = get_pending_jobs()
             check_count += 1

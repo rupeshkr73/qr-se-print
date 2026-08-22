@@ -47,15 +47,34 @@ def _log(msg, level="INFO"):
         print(f"[panel] {msg}")
 
 
+def _runtime_dir():
+    """
+    %APPDATA%\\QRSePrint\\runtime — print_agent.py startup par yahan bundle ki
+    zaroori files ki ek pakki copy rakhta hai. Wahi path yahan bhi banate hain
+    (import kar ke nahi lete, kyunki panel ko print_agent par depend nahi karna).
+    """
+    try:
+        import tempfile
+        base = os.environ.get("APPDATA") or tempfile.gettempdir()
+        return os.path.join(base, "QRSePrint", "runtime")
+    except Exception:
+        return ""
+
+
 def panel_html_path():
     """
-    agent_panel.html dhundo — .exe (PyInstaller _MEIPASS) aur normal
-    script, dono mode me.
+    agent_panel.html dhundo — .exe (PyInstaller _MEIPASS), APPDATA ki safe
+    copy, aur normal script, teeno mode me.
+
+    Safe copy isliye: onefile ka _MEI folder chalte-chalte saaf ho sakta hai
+    (22 Aug 2026 ko hua tha). Tab _MEIPASS wali HTML gayab hoti hai aur panel
+    khulna band ho jaata tha.
     """
     base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     for cand in (os.path.join(base, "agent_panel.html"),
+                 os.path.join(_runtime_dir(), "agent_panel.html"),
                  os.path.join(os.path.dirname(os.path.abspath(__file__)), "agent_panel.html")):
-        if os.path.exists(cand):
+        if cand and os.path.exists(cand):
             return cand
     return None
 
