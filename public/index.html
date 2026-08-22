@@ -1000,15 +1000,32 @@ a{color:inherit}
 /* ── Demo modal ── */
 .dm-overlay{
   display:flex;position:fixed;inset:0;background:rgba(17,17,20,.55);z-index:500;
-  align-items:center;justify-content:center;padding:20px;
+  justify-content:center;padding:20px;
   opacity:0;visibility:hidden;pointer-events:none;
   backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
   transition:opacity .25s var(--ease),visibility .25s;
+  /* ── SCROLL ── (demo wali success card ke liye zaroori)
+     Wo card ~1250px lambi hoti hai (Shop ID + password + QR + 4 step +
+     video + button). Pehle yahan `align-items:center` tha aur koi
+     overflow nahi — laptop (728px) par card ke UPAR se 259px aur NEECHE
+     se 259px kat jaate the, aur scroll bhi nahi hota tha. Upar wala
+     hissa matlab header aur Shop ID/password — jo sabse zaroori hai.
+
+     `align-items:center` yahan JAAN-BOOJH KAR hataya hai: overflow ke
+     saath wo upar ka hissa pahunch se bahar kar deta hai. Uski jagah
+     neeche `.dm-box{margin:auto}` hai — chhoti card apne aap beech me
+     aa jaati hai, aur badi ho to dono kinare scroll se milte hain. */
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
 }
 .dm-overlay.open{opacity:1;visibility:visible;pointer-events:auto}
 .dm-box{
   background:#fff;border-radius:24px;padding:28px 24px;width:100%;max-width:410px;text-align:center;
   box-shadow:0 30px 80px rgba(0,0,0,.32);
+  /* margin:auto = chhoti card beech me, badi card ke dono kinare
+     scroll karke mil jaate hain (align-items:center ye nahi de paata) */
+  margin:auto;
   transform:translateY(14px) scale(.97);transition:transform .3s var(--ease);
 }
 .dm-overlay.open .dm-box{transform:translateY(0) scale(1)}
@@ -1041,6 +1058,11 @@ a{color:inherit}
    credentials apne alag "vault" row me, aur trust footer.
    ══════════════════════════════════════════════════════════════ */
 .dm-box.dmx-wide{max-width:470px;padding:0;overflow:hidden;text-align:left}
+/* Phone par kinare ki 40px jagah bachao — card waise hi lambi hai */
+@media (max-width:520px){
+  .dm-overlay{padding:10px}
+  .dm-box{border-radius:18px}
+}
 .dmx-head{
   background:linear-gradient(135deg,#0f172a 0%,#1e293b 48%,#312e81 100%);
   color:#fff;padding:26px 22px 22px;text-align:center;position:relative;overflow:hidden;
